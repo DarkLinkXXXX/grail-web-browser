@@ -67,7 +67,7 @@ class SearchDialog:
 	import tktools
 	x, f, self.bot_frame = tktools.make_double_frame(self._root)
 	self.pat_entry, self.pat_frame = \
-			tktools.make_form_entry(f, name="entry")
+			tktools.make_form_entry(f, None, name="entry")
 	self.pat_entry['exportselection'] = 0
 	self.pat_entry.bind('<Return>', self.return_event)
 	self.pat_entry.focus_set()
