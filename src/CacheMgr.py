@@ -141,8 +141,9 @@ class CacheManager:
 	key = self.url2key(url, mode, params)
 	if mode == 'GET':
 	    if self.active.has_key(key):
-		if reload:
-		    self.active[key].reset()
+		# XXX This appeared to be a bad idea!
+## 		if reload:
+## 		    self.active[key].reset()
 		return SharedAPI(self.active[key])
 	    return self.open_get(key, url, mode, params, reload, data)
 	elif mode == 'POST':
