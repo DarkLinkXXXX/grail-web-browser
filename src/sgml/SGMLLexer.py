@@ -1,15 +1,10 @@
 """A lexer for SGML, using derived classes as parser and DTD.
 
-This module provides a transparent interface allowing the use of W3C's
-sgmllex module or a python-only module for installations which do not
-have W3C's parser or which need to modify the concrete syntax
-recognized by the lexer.
-
-For information on W3C's lexer, please refer to the W3C tech report:
-'A lexical analyzer for HTML and Basic SGML'
-http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
+This module provides a transparent interface allowing the use of
+alternate lexical analyzers without modifying higher levels of SGML
+or HTML support.
 """
-__version__ = "$Revision: 1.22 $"
+__version__ = "$Revision: 1.23 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -44,14 +39,12 @@ VI = "="				# value indicator
 import sys
 
 try:
-    import sgmllex # compiled flex scanner
+    import sgmllex
 except ImportError:
     import regex
     _sgmllex = 0
-    sys.stderr.write("Guido's parser\n")
 else:
     _sgmllex = 1
-    sys.stderr.write("Connolly's parser\n")
 
 import string
 
