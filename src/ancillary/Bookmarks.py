@@ -986,11 +986,15 @@ class BookmarksController(OutlinerController):
 	    # it's child list.  if it is a leaf, add it as a sibling
 	    # of the selected node.
 	    snode, selection = self._get_selected_node()
-	    if snode.leaf_p():
-		snode = snode.parent()
-	    if not snode: snode = self.root()
-	    else: snode.expand()
-	    snode.append_child(node)
+	    # if no node was selected, then just insert it at the top.
+	    if not snode:
+		snode = self.root()
+		snode.insert_child(node, 0)
+	    else:
+		if snode.leaf_p():
+		    snode = snode.parent()
+		else: snode.expand()
+		snode.append_child(node)
 	else: pass
 	# scroll the newly added node into view
 	self.set_modflag(True)
