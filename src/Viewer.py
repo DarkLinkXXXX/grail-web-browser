@@ -545,7 +545,7 @@ class Viewer(formatter.AbstractWriter):
 	    window = Label(self.text, image = data,
 			   background = self.text['background'],
 			   borderwidth = 0)
-	    self.add_subwindow(window)
+	    self.add_subwindow(window, align=BASELINE)
 	    self.pendingdata = '\t'
 
     def send_flowing_data(self, data):
