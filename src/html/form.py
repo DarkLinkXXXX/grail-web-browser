@@ -336,7 +336,15 @@ class FormInfo:
 	def setup_entry(self):
 	    self.entry.bind('<Return>', self.return_event)
 	    if self.size:
-		self.entry['width'] = self.size
+		size = self.size
+		i = string.find(size, ',')
+		if i >= 0: size = size[:i]
+		try:
+		    width = string.atoi(size)
+		except string.atoi_error:
+		    pass
+		else:
+		    self.entry['width'] = width
 	    if self.show:
 		self.entry['show'] = self.show
 
@@ -548,6 +556,9 @@ class Select:
 	if self.v: return self.get_menu()
 	else: return self.get_list()
 
+    def getstate(self):
+	return self.get()
+
     def get_menu(self):
 	text = self.v.get()
 	for v, s, t in self.options:
@@ -627,6 +638,9 @@ class Textarea:
 
     def get(self):
 	return self.w.get("1.0", END)
+
+    def getstate(self):
+	return self.get()
 
     def set(self, value):
 	# TBD: Tk text widget `feature' can cause an extra newline to
