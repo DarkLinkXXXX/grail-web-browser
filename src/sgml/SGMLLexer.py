@@ -1,11 +1,15 @@
-# $Id: SGMLLexer.py,v 1.3 1996/03/15 21:15:58 fdrake Exp $
 """A lexer for SGML, using derived classes as parser and DTD.
 
-This only supports those SGML features used by HTML.
-See W3C tech report: 'A lexical analyzer for HTML and Basic SGML'
+This module provides a transparent interface allowing the use of W3C's
+sgmllex module or a python-only module for installations which do not
+have W3C's parser or which need to modify the concrete syntax
+recognized by the lexer.
+
+For information on W3C's lexer, please refer to the W3C tech report:
+'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.3 $"
+__version__ = "$Revision: 1.4 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -23,6 +27,7 @@ LITA = "'"				# literal start or end (alternative)
 MDO = "<!"				# markup declaration open
 MDC = ">"				# markup declaration close
 MSC = "]]"				# marked section close
+NET = "/"				# null end tag
 PIO = "<?"				# processing instruciton open
 PIC = ">"				# processing instruction close
 STAGO = "<"				# start tag open
@@ -376,7 +381,7 @@ class SGMLLexer(SGMLLexerBase):
 	# Internal -- parse comment, return length or -1 if not terminated
 	def parse_comment(self, i):
 	    rawdata = self.rawdata
-	    if rawdata[i:i+4] <> '<!--':
+	    if rawdata[i:i+4] <> (MDO + COM):
 		raise RuntimeError, 'unexpected call to parse_comment'
 	    if not self._strict:
 		j = commentclose.search(rawdata, i+4)
@@ -391,7 +396,6 @@ class SGMLLexer(SGMLLexerBase):
 		if q < 0:
 		    return -1
 		cmtdata = legalcomment.group(1)
-		print 'commentdata =', `cmtdata`
 		while 1:
 		    len = comment.match(cmtdata)
 		    if len >= 0:
@@ -427,8 +431,12 @@ class SGMLLexer(SGMLLexerBase):
 	    attrs = []
 	    if rawdata[i:i+2] == '<>':
 		# SGML shorthand: <> == <last open tag seen>
-		k = j
-		tag = self.lasttag
+		if self._strict:
+		    k = j
+		    tag = self._normfunc(self.lasttag)
+		else:
+		    self.lex_data(rawdata[i])
+		    return i + 1
 	    else:
 		k = tagfind.match(rawdata, i+1)
 		if k < 0:
@@ -441,7 +449,7 @@ class SGMLLexer(SGMLLexerBase):
 		if l < 0: break
 		attrname, rest, attrvalue = attrfind.group(1, 2, 3)
 		if not rest:
-		    attrvalue = attrname
+		    attrvalue = None	# was:  = attrname
 		elif attrvalue[:1] == '\'' == attrvalue[-1:] or \
 		     attrvalue[:1] == '"' == attrvalue[-1:]:
 		    attrvalue = attrvalue[1:-1]
@@ -458,6 +466,22 @@ class SGMLLexer(SGMLLexerBase):
 	    j = endbracket.search(rawdata, i+1)
 	    if j < 0:
 		return -1
+	    if j == i + len(ETAGO):
+		ch = rawdata[j]
+		if ch == STAGO:
+		    if self._strict:
+			self.lex_endtag('')
+			return j
+		    else:
+			self.lex_data(rawdata[i])
+			return i + 1
+		elif ch == TAGC:
+		    if self._strict:
+			self.lex_endtag('')
+			return i + len(ETAGO + TAGC)
+		    else:
+			self.lex_data(rawdata[i])
+			return i + 1
 	    tag = self._normfunc(string.strip(rawdata[i+2:j]))
 	    if rawdata[j] == '>':
 		j = j+1
@@ -473,39 +497,30 @@ if not _sgmllex:
 			       '/\([a-zA-Z][^<>]*\)?\|'
 			       '![^<>]*\)?')
 
-    entityref = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\)[^a-zA-Z0-9]')
-    simplecharref = regex.compile('&#\([0-9]+[^0-9]\)')
-    legalcharref = regex.compile('&#\([0-9]+[^0-9]\|[a-zA-Z.-]+[^a-zA-Z.-]\)')
-    processinginstruction = regex.compile('<\?\([^>]*\)>')
+    entityref = regex.compile(ERO + '\([a-zA-Z][a-zA-Z0-9]*\)[^a-zA-Z0-9]')
+    simplecharref = regex.compile(CRO + '\([0-9]+[^0-9]\)')
+    legalcharref \
+	= regex.compile(CRO + '\([0-9]+[^0-9]\|[a-zA-Z.-]+[^a-zA-Z.-]\)')
+    processinginstruction = regex.compile('<\?\([^>]*\)' + PIC)
 
-    starttagopen = regex.compile('<[>a-zA-Z]')
-    shorttagopen = regex.compile('<[a-zA-Z][a-zA-Z0-9]*/')
-    shorttag = regex.compile('<\([a-zA-Z][a-zA-Z0-9]*\)/\([^/]*\)/')
-    endtagopen = regex.compile('</[<>a-zA-Z]')
+    starttagopen = regex.compile(STAGO + '[>a-zA-Z]')
+    shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*' + NET)
+    shorttag = regex.compile(STAGO +
+			     '\([a-zA-Z][a-zA-Z0-9.-]*\)/\([^/]*\)' + NET)
+    endtagopen = regex.compile(ETAGO + '[<>a-zA-Z]')
     endbracket = regex.compile('[<>]')
-    special = regex.compile('<![^>]*>')
-    commentopen = regex.compile('<!--')
-    legalcomment = regex.compile('<!\(\(--\([^-]\|-[^-]\)*--[ \t\n]*\)*\)>')
-    comment = regex.compile('--\(\([^-]\|-[^-]\)*\)--[ \t\n]*')
-    commentclose = regex.compile('--[ \t\n]*>')
-    tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9]*')
+    special = regex.compile(MDO + '[^>]*' + MDC)
+    commentopen = regex.compile(MDO + COM)
+    legalcomment = regex.compile(MDO + '\(\(' + COM + '\([^-]\|-[^-]\)*'
+				 + COM + '[ \t\n]*\)*\)' + MDC)
+    comment = regex.compile(COM + '\(\([^-]\|-[^-]\)*\)' + COM + '[ \t\n]*')
+    commentclose = regex.compile(COM + '[ \t\n]*' + MDC)
+    tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
     attrfind = regex.compile( \
-	'[ \t\n]+\([a-zA-Z_][a-zA-Z_0-9]*\)'
-	'\([ \t\n]*=[ \t\n]*'
-	'\(\'[^\']*\'\|"[^"]*"\|[-a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
+	'[ \t\n]+\([a-zA-Z][a-zA-Z_0-9.-]*\)'
+	'\([ \t\n]*' + VI + '[ \t\n]*'
+	'\(\\' + LITA + '[^\']*\\' + LITA
+	+ '\|' + LIT + '[^"]*' + LIT + '\|[-a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
 
 
-def test():
-    import sys
-    f = sys.stdin
-    x = TestSGML()
-    while 1:
-	line = f.readline()
-	if not line:
-	    x.close()
-	    break
-	x.feed(line)
-
-
-if __name__ == '__main__':
-    test()
+#  Test code for the lexer is now located in the test_lexer.py script.
