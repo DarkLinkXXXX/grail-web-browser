@@ -4,7 +4,7 @@
 
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.19 $"
+__version__ = "$Revision: 2.20 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -19,7 +19,7 @@ _grail_root = None
 _grail_app = None
 
 # XXX Unix specific stuff
-# XXX (Actually it limps along just find for Macintosh, too)
+# XXX (Actually it limps along just fine for Macintosh, too)
 
 def getgraildir():
     return getenv("GRAILDIR") or os.path.join(gethome(), ".grail")
