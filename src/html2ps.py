@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.3 1995/09/19 15:13:46 bwarsaw Exp $
+$Id: html2ps.py,v 2.4 1995/09/19 16:20:16 bwarsaw Exp $
 """
 
 
@@ -879,11 +879,19 @@ def html_test():
     stderr = sys.stderr
     try:
 	if lfile: sys.stderr = lfile
-	import PrintDialog
-
 	w = PSWriter(ofile, None)
 	f = AbstractFormatter(w)
-	p = PrintDialog.PrintingHTMLParser(f)
+
+	# We don't want to be dependent on Grail, but we do want to
+	# use it if it's around.  Only current difference is that
+	# links are underlined with the PrintDialog parser.
+	try:
+	    import PrintDialog
+	    p = PrintDialog.PrintingHTMLParser(f)
+	except:
+	    import htmllib
+	    p = htmllib.HTMLParser(f)
+
 	p.feed(ifile.read())
 	p.close()
 	w.close()
