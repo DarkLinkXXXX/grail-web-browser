@@ -2,7 +2,7 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-from assert import assert
+from Assert import Assert
 
 META, DATA, DONE = 'META', 'DATA', 'DONE'
 
@@ -12,20 +12,20 @@ class null_access:
 	self.state = META
 
     def pollmeta(self):
-	assert(self.state == META)
+	Assert(self.state == META)
 	return "Ready", 1
 
     def getmeta(self):
-	assert(self.state == META)
+	Assert(self.state == META)
 	self.state = DATA
 	return 204, "No content", {}
 
     def polldata(self):
-	assert(self.state == DATA)
+	Assert(self.state == DATA)
 	return "Ready", 1
 
     def getdata(self, maxbytes):
-	assert(self.state == DATA)
+	Assert(self.state == DATA)
 	self.state = DONE
 	return ""
 
