@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.43 1996/05/07 13:38:50 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.44 1996/05/08 16:11:01 bwarsaw Exp $'
 
 
 import string
@@ -155,7 +155,7 @@ class TableSubParser:
     def _finish_cell(self, parser):
 	# implicit finish of an open table cell
 	ti = self._lasttable
-	if ti.lastcell:
+	if ti and ti.lastcell:
 	    ti.lastcell.freeze()
 	    ti.lastcell.finish()
 	    ti.lastcell = None
