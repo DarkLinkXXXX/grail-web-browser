@@ -387,7 +387,10 @@ class Context:
 	# Start loading a new URL into the window
 	self.stop()
 	self.message("Loading %s" % url)
-	if self.show_source: show_source = 1
+	if reload:
+	    show_source = self.show_source
+	else:
+	    self.show_source = show_source
 	try:
 	    self.read_page(url, method, params,
 			   show_source=show_source, reload=reload,
