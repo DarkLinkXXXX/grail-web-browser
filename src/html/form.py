@@ -637,7 +637,6 @@ class Select:
 	    else: size = 1
 	#size = min(len(self.options), size)
 	if size == 1 and not self.multiple:
-	    print "width =", wid
 	    self.make_menu(wid)
 	else:
 	    self.make_list(size)
