@@ -150,6 +150,17 @@ F_BWDITHER = 2
 F_REDUCED = 3
 
 
+def distance(start, end):
+    """Returns the distance between two points."""
+    if start < 0 and end < 0:
+	return abs(min(start, end) - max(start, end))
+    elif start >= 0 and end >= 0:
+	return max(start, end) - min(start, end)
+    else:
+	#  one neg, one pos
+	return max(start, end) - min(start, end)
+
+
 
 class PSFont:
     """This class manages font changes and calculation of associated
@@ -317,7 +328,7 @@ class PSStream:
 	    # define the fonts
 	    for docfont in docfonts.keys():
 		print "/%s" % docfont, "{/%s}" % docfonts[docfont], "D"
-	    # swew out ISO encodings
+	    # spew out ISO encodings
 	    print iso_template
 	    # finish out the prolog
 	    print "/xmargin", LEFT_MARGIN, "D"
@@ -330,6 +341,57 @@ class PSStream:
 	    sys.stdout = oldstdout
 	self.print_page_preamble()
 	self.push_font_change(None)
+
+    def push_eps(self, data, bbox, align = 'bottom'):
+	"""Insert encapsulated postscript in stream.
+
+	ALIGN must be one of 'top', 'center', or 'bottom'.
+	"""
+	if not data: return
+	if self._linestr:
+	    self.close_string()
+	ll_x, ll_y, ur_x, ur_y = bbox
+	width = distance(ll_x, ur_x)
+	height = distance(ll_y, ur_y)
+
+	#  Determine base scaling factor and dimensions:
+	if width > PAGE_WIDTH:
+	    scale = (1.0 * PAGE_WIDTH) / width
+	else:
+	    scale = 1.0
+	if (scale * height) > PAGE_HEIGHT:
+	    scale = (1.0 * PAGE_HEIGHT) / height
+	width = scale * width		# compute the maximum dimensions
+	height = scale * height
+
+	align = 'bottom'		# limitation!
+	if align == 'center':
+	    above_portion = below_portion = 0.5
+	elif align == 'bottom':
+	    above_portion = 1.0
+	    below_portion = 0.0
+	else:
+	    #  assume align == 'top'   ------  just make it 'center' for now!
+	    above_portion = below_portion = 0.5
+
+	if width > PAGE_WIDTH - self._xpos:
+	    self.close_line()
+	above = above_portion * height
+	self._tallest = max(self._tallest, above)
+	#
+	oldstdout = sys.stdout
+	try:
+	    sys.stdout = self._linedata
+	    #  Translate & scale for image origin:
+	    print 'gsave currentpoint translate %f dup scale' % scale
+	    if ll_x or ll_y:
+		#  Have to translate again to make image happy:
+		print '%d %d translate' % (-ll_x, -ll_y)
+	    print data
+	    #  Restore context, move to right of image:
+	    print 'grestore', width, '0 R'
+	finally:
+	    sys.stdout = oldstdout
 
     def push_end(self):
 	self.close_line()
@@ -654,14 +716,22 @@ class PSWriter(AbstractWriter):
 	self.ps.push_literal(1)
 	self.ps.push_string(data)
 
+    def send_image(self, image, align = 'bottom'):
+##	_debug('send_image: %s, %s' % (str(image.name), str(align)))
+	import imgprint
+	epsfp = StringIO.StringIO()
+	bbox = imgprint.printImage(image, epsfp)
+	self.ps.push_eps(epsfp.getvalue(), align)
+
 
 class PrintingHTMLParser(HTMLParser):
 
     """Class to override HTMLParser's default methods for anchors."""
 
-    def __init__(self, formatter, verbose=0, baseurl=None):
+    def __init__(self, formatter, verbose=0, baseurl=None, enable_images=0):
 	HTMLParser.__init__(self, formatter, verbose)
 	self._baseurl = baseurl
+	self._enable_images = enable_images
 
     def close(self):
 	from urlparse import urljoin
@@ -689,6 +759,12 @@ class PrintingHTMLParser(HTMLParser):
     def anchor_end(self):
 	HTMLParser.anchor_end(self)
 	self.formatter.pop_style()
+
+    def handle_image(self, src, alt, ismap, align, *notused):
+	if self._enable_images:
+	    pass
+	else:
+	    self.handle_data(alt)
 
 
 
