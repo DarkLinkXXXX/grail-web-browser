@@ -86,8 +86,6 @@ class AsyncImage(PhotoImage):
 	    return 'idle'
 
 
-# XXX This leaves a temp file each run!
-
 STOPDATA = """GIF87a \000 \000\360\000\000\377\377\377\000\000\000,\
 \000\000\000\000 \000 \000\000\002z\204o\241\313\035\010#ptI\251\356\
 \315:\275\016q\333\007bdx\226\210x\260\252\271\246/\352\315*c\227\370\
@@ -100,6 +98,9 @@ _stopsign = None
 def makestopsign():
     global _stopsign
     if not _stopsign:
+	import sys
+	if not hasattr(sys, 'exitfunc'): sys.exitfunc = None
+	sys.exitfunc = lambda chain=sys.exitfunc: _cleanup(chain)
 	_stopsign = _makestopsign()
     return _stopsign
 
@@ -110,3 +111,16 @@ def _makestopsign():
     f.write(STOPDATA)
     f.close()
     return tfn
+
+def _cleanup(chain=None):
+    global _stopsign
+    if _stopsign:
+	import os
+	tfn = _stopsign
+	_stopsign = None
+	try:
+	    os.unlink(tfn)
+	except os.error:
+	    pass
+    if chain:
+	chain()
