@@ -9,28 +9,36 @@
 # Version string in a form ready for the User-agent HTTP header
 __version__ = "Grail/0.3a1"		# 0.2 plus fixes plus <applet> tag
 
-
 import sys
 import os
-import ni
-import html
-import filetypes
+
+# first find curdir in sys.path, but don't do anything with it yet
+index = -1
+for i in range(len(sys.path)):
+    p = sys.path[i]
+    if p in ("", os.curdir):
+	index = i
+
+# insert Grail's non-package subdirectories
+for subdir in ['pythonlib']:
+    sys.path.insert(index+1, os.path.join(os.curdir, subdir))
+
 
 # Hack sys.path:
 # replace the last occurrence of curdir or "" by dirname of argv[0]
 progname = sys.argv[0]
 dirname = os.path.dirname(progname)
+
 if dirname and dirname != os.curdir:
-    index = -1
-    for i in range(len(sys.path)):
-	p = sys.path[i]
-	if p in ("", os.curdir):
-	    index = i
     if index >= 0:
 	sys.path[index] = dirname
     else:
+	index = 0
 	sys.path.insert(0, dirname)
 
+import ni
+import html
+import filetypes
 from grailutil import *
 import getopt
 import string
@@ -81,6 +89,8 @@ def main():
     if args:
 	if args[1:]:
 	    print "Usage: %s [-g geometry] [-i] [url]" % sys.argv[0]
+	    print "    -g : specify the geometry of the initial window"
+	    print "    -i : inhibit loading of images"
 	    sys.exit(2)
 	url = args[0]
     else:

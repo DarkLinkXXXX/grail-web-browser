@@ -21,7 +21,6 @@ from assert import assert
 import urlparse
 import string
 import os
-import ni
 import protocols
 
 
