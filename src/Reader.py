@@ -593,9 +593,9 @@ class TransferDisplay:
 	self.__bytes['text'] = datasize
 	if self.__progbar:
 	    self.__progbar.config(
-		width=max(1, int(datasize * 200 / self.__maxsize)))
-	    self.__percent['text'] = (self.__bytespat
-				      % (100.0 * datasize / self.__maxsize))
+		width=max(1, int(datasize * (200 / self.__maxsize))))
+	    self.__percent['text'] = (
+		self.__bytespat % (100.0 * (datasize / self.__maxsize)))
 	    t = time.time()
 	    if t - self.__prevtime >= TRANSFER_STATUS_UPDATE_PERIOD:
 		self.root.update_idletasks()
