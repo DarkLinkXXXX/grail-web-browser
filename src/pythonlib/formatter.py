@@ -236,8 +236,8 @@ class AbstractFormatter:
 	self.writer.new_styles(tuple(self.style_stack))
 
     def assert_line_data(self, flag=1):
-	self.nospace = not flag
-	self.hard_break = self.para_end = 0
+	self.nospace = self.hard_break = not flag
+	self.para_end = 0
 
 
 class NullWriter:
