@@ -1,7 +1,6 @@
-"""HTML parser for printing.
-"""
-__version__ = '$Revision: 1.6 $'
-#  $Source: /home/john/Code/grail/src/printing/PSParser.py,v $
+"""HTML parser for printing."""
+
+__version__ = '$Revision: 1.7 $'
 
 import grailutil                        # top level
 import os
@@ -198,15 +197,12 @@ class PrintingHTMLParser(HTMLParser):
         if (self.settings.paragraph_indent or self.settings.paragraph_skip) \
            and grailutil.extract_keyword(
                'indent', attrs, conv=grailutil.conv_normstring) != "no":
-##          parbreak = self.settings.paragraph_skip and 1 or 0
-##          self.para_bgn(attrs, parbreak=parbreak)
-            self.para_bgn(attrs, parbreak=1)
+            self.para_bgn(attrs)
             if not self.formatter.have_label:
-                self.formatter.writer.ps.push_horiz_space(
+                self.formatter.writer.send_indentation(
                     self.settings.paragraph_indent)
-                self.formatter.assert_line_data()
         else:
-            self.para_bgn(attrs, parbreak=1)
+            self.para_bgn(attrs)
         self.require_vspace(2)
 
     def end_p(self):
@@ -214,6 +210,7 @@ class PrintingHTMLParser(HTMLParser):
             self.para_end(parbreak=0)
         else:
             self.para_end(parbreak=1)
+        self.formatter.writer.send_indentation(None)
 
     def do_basefont(self, attrs):
         if attrs.has_key("size"):
@@ -590,7 +587,3 @@ class disallow_self_reference:
         if ref == self.__baseref:
             href = None
         return href
-
-
-#
-#  end of file
