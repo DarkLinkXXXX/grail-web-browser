@@ -430,7 +430,7 @@ class Select:
 	self.option = (value, selected)
 
     def end_option(self):
-	data = self.parser.save_end()
+	data = string.strip(self.parser.save_end())
 	if self.option:
 	    value, selected = self.option
 	    self.option = None
