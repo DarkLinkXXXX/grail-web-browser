@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.14 $"
+__version__ = "$Revision: 1.15 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -11,7 +11,8 @@ __version__ = "$Revision: 1.14 $"
 # and CDATA (character data -- only end tags are special).
 
 
-from SGMLLexer import SGMLLexer, SGMLError
+import SGMLLexer
+SGMLError = SGMLLexer.SGMLError
 import string
 
 
@@ -22,27 +23,29 @@ import string
 # <foo> and </foo>, respectively, or do_foo to handle <foo> by itself.
 
 
-class SGMLParser(SGMLLexer):
+class SGMLParser(SGMLLexer.SGMLLexer):
 
     doctype = ''			# 'html', 'sdl', ...
 
     def __init__(self, verbose = 0):
 	self.verbose = verbose
 	self._tag_methods = {}
-	SGMLLexer.__init__(self)
+	SGMLLexer.SGMLLexer.__init__(self)
 
     def close(self):
-	SGMLLexer.close(self)
+	SGMLLexer.SGMLLexer.close(self)
 	while self.stack:
 	    self.lex_endtag(self.stack[-1])
 	# Clean out circular references:
 	for k in self._tag_methods.keys():
 	    del self._tag_methods[k]
 	self._tag_methods = None
+	if hasattr(self, '_l'):
+	    self._l.data_cb = _dummy_data_handler
 
     # Interface -- reset this instance.  Loses all unprocessed data.
     def reset(self):
-	SGMLLexer.reset(self)
+	SGMLLexer.SGMLLexer.reset(self)
 	self.normalize(1)		# normalize NAME token to lowercase
 	self.restrict(1)		# impose user-agent compatibility
 	self.omittag = 1		# default to HTML style
@@ -129,6 +132,11 @@ class SGMLParser(SGMLLexer):
     def lex_data(self, data):
 	self.handle_data(data)
 
+    def set_data_handler(self, handler):
+	self.handle_data = handler
+	if hasattr(self, '_l'):
+	    self._l.data_cb = handler
+
 
     def _load_tag_handlers(self, tag):
 	try:
@@ -214,6 +222,11 @@ class SGMLParser(SGMLLexer):
     def lex_entityref(self, name, terminator):
 	self.handle_entityref(name, terminator)
 
+
+def _dummy_data_handler(data):
+    """Dummy handler used in clearing circular references.
+    """
+    pass
 
 
 #  The test code is now located in test_parser.py.
