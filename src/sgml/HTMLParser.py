@@ -82,7 +82,7 @@ class HTMLParser(SGMLParser):
 		self.handle_data = self.formatter.add_literal_data
 	    else:
 		self.handle_data = self.formatter.add_flowing_data
-	if not self.nofill:
+	if not self.nofill and type(data) is StringType:
 	    data = string.join(string.split(data))
 	return data
 
