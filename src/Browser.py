@@ -1,13 +1,6 @@
 """Browser class for web browser."""
 
 
-# XXX To do:
-# - Stop command
-# - Options menu to toggle image loading
-# - Reload command
-# - Etc.
-
-
 import string
 import urllib
 import urlparse
@@ -56,6 +49,7 @@ class Browser:
     def __init__(self, master, app=None, height=40):
 	self.master = master
 	self.app = app
+	self.api = None
 	self.url = ""
 	self.history = []
 	self.current = -1
@@ -72,6 +66,7 @@ class Browser:
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
+	# Also create the Stop button (which lives in the menu)
 
 	# Create menu bar
 	self.mbar = Frame(self.root,
@@ -80,59 +75,70 @@ class Browser:
 	self.mbar.pack(fill=X)
 
 	# Create File menu
-	self.filebutton = Menubutton(self.mbar, text='File')
+	self.filebutton = Menubutton(self.mbar, text="File")
 	self.filebutton.pack(side=LEFT)
 
 	self.filemenu = Menu(self.filebutton)
 	self.filebutton['menu'] = self.filemenu
 
-	self.filemenu.add(COMMAND, label='New',
+	self.filemenu.add(COMMAND, label="New",
 			  command=self.new_command)
-	self.filemenu.add(COMMAND, label='View source',
+	self.filemenu.add(COMMAND, label="View source",
 			  command=self.view_source_command)
 	self.filemenu.add(SEPARATOR)
-	self.filemenu.add(COMMAND, label='Save As...',
+	self.filemenu.add(COMMAND, label="Save As...",
 			  command=self.save_as_command)
-	self.filemenu.add(COMMAND, label='Print...',
+	self.filemenu.add(COMMAND, label="Print...",
 			  command=self.print_command)
 	self.filemenu.add(SEPARATOR)
-	self.filemenu.add(COMMAND, label='Close',
+	self.filemenu.add(COMMAND, label="Close",
 			  command=self.close_command)
-	self.filemenu.add(COMMAND, label='Quit',
+	self.filemenu.add(COMMAND, label="Quit",
 			  command=self.quit_command)
 
-	self.histbutton = Menubutton(self.mbar, text='Go')
+	self.histbutton = Menubutton(self.mbar, text="Go")
 	self.histbutton.pack(side=LEFT)
 
 	self.histmenu = Menu(self.histbutton)
 	self.histbutton['menu'] = self.histmenu
 
-	self.histmenu.add(COMMAND, label='Back',
+	self.histmenu.add(COMMAND, label="Back",
 			  command=self.back_command)
-	self.histmenu.add(COMMAND, label='Reload',
+	self.histmenu.add(COMMAND, label="Reload",
 			  command=self.reload_command)
-	self.histmenu.add(COMMAND, label='Forward',
+	self.histmenu.add(COMMAND, label="Forward",
 			  command=self.forward_command)
 	self.histmenu.add(SEPARATOR)
-	self.histmenu.add(COMMAND, label='Home',
+	self.histmenu.add(COMMAND, label="Home",
 			  command=self.home_command)
+
+	# Create Stop button
+
+	self.stopbutton = Button(self.mbar, text="Stop",
+				 state=DISABLED,
+				 foreground='#770000', # Darkish red
+				 activeforeground='red',
+				 padx=0,
+				 pady=0,
+				 command=self.stop_command)
+	self.stopbutton.pack(side=LEFT)
 
 	# List of user menus (reset on page load)
 	self.user_menus = []
 
 	# Create Help menu (on far right)
-	self.helpbutton = Menubutton(self.mbar, text='Help')
+	self.helpbutton = Menubutton(self.mbar, text="Help")
 	self.helpbutton.pack(side=RIGHT)
 
 	self.helpmenu = Menu(self.helpbutton)
 	self.helpbutton['menu'] = self.helpmenu
 
-	self.helpmenu.add(COMMAND, label='About Grail',
+	self.helpmenu.add(COMMAND, label="About Grail",
 			  command=self.about_command)
 	self.helpmenu.add(SEPARATOR)
-	self.helpmenu.add(COMMAND, label='Grail Home Page',
+	self.helpmenu.add(COMMAND, label="Grail Home Page",
 			  command=self.grail_home_command)
-	self.helpmenu.add(COMMAND, label='Python Home Page',
+	self.helpmenu.add(COMMAND, label="Python Home Page",
 			  command=self.python_home_command)
 
     def create_urlbar(self):
@@ -168,8 +174,34 @@ class Browser:
 	url = urlparse.urljoin(self.url, url)
 	self.load(url)
 
+    def busy(self):
+	return self.api is not None
+
+    def busycheck(self):
+	if self.busy():
+	    self.error_dialog('Busy',
+		"Please wait until the transfer is done (or stop it)")
+	    return 1
+	return 0
+
+    def allowstop(self):
+	if self.busy():
+	    self.stopbutton['state'] = NORMAL
+
+    def stopit(self):
+	if self.busy():
+	    msg, crs = self.message("Stopping...", CURSOR_WAIT)
+	    try:
+		api = self.api
+		self.api = None
+		api.close()
+		self.stopbutton['state'] = DISABLED
+	    finally:
+		self.message(msg, crs)
+
     def load(self, url, new=1, show_source=0):
 	# Load a new URL into the window
+	self.stopit()
 	tuple = urlparse.urlparse(url)
 	fragment = tuple[-1]
 	tuple = tuple[:-1] + ("",)
@@ -180,17 +212,19 @@ class Browser:
 	    params['.reload'] = 1
 	try:
 	    if self.app:
-		api = self.app.open_url(url, 'GET', params)
+		self.api = self.app.open_url(url, 'GET', params)
 	    else:
-		api = ProtocolAPI.protocol_access(url, 'GET', params)
+		self.api = ProtocolAPI.protocol_access(url, 'GET', params)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
 	    return
+	self.allowstop()
 	self.url = self.title = url
 	self.message("Loading %s" % url, CURSOR_WAIT)
-	self.root.update_idletasks()
-	errcode, errmsg, headers = api.getmeta()
+	self.root.update()
+	if not self.api: return
+	errcode, errmsg, headers = self.api.getmeta()
 	if errcode != 200:
 	    self.error_dialog('Error reply', errmsg)
 	if headers.has_key('content-type'):
@@ -241,10 +275,11 @@ class Browser:
 	    if istext:
 		last_was_cr = 0
 		while 1:
-		    message, ready = api.polldata()
+		    message, ready = self.api.polldata()
 		    self.message(message, CURSOR_WAIT)
-		    self.root.update_idletasks()
-		    buf = api.getdata(BUFSIZE)
+		    self.root.update()
+		    if not self.api: break
+		    buf = self.api.getdata(BUFSIZE)
 		    if not buf: break
 		    if last_was_cr and buf[0] == '\n':
 			buf = buf[1:]
@@ -257,10 +292,11 @@ class Browser:
 		    parser.feed(buf)
 	    else:
 		while 1:
-		    message, ready = api.polldata()
+		    message, ready = self.api.polldata()
 		    self.message(message, CURSOR_WAIT)
-		    self.root.update_idletasks()
-		    buf = api.getdata(BUFSIZE)
+		    self.root.update()
+		    if not self.api: break
+		    buf = self.api.getdata(BUFSIZE)
 		    if not buf: break
 		    parser.feed(buf)
 	    parser.close()
@@ -273,7 +309,7 @@ class Browser:
 	    self.viewer.send_flowing_data(
 		"You can still use the Save As... command to save it!\n")
 
-	api.close()
+	self.stopit()
 
 	self.viewer.freeze()
 
@@ -353,8 +389,14 @@ class Browser:
 	self.close()
 
     def close(self):
+	self.stopit()
 	self.root.destroy()
 	if self.app: self.app.maybe_quit()
+
+    # Stop command
+
+    def stop_command(self):
+	self.stopit()
 
     # File menu commands
 
