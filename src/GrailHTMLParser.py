@@ -31,8 +31,6 @@ if hasattr(HTMLParser, 'do_link'):
 _inited = 0
 
 def init_module(prefs):
-    global _inited
-    _inited = 1
     for opt in (1, 2, 3, 4, 5, 6):
 	fmt = prefs.Get('parsing-html', 'format-h%d' % opt)
 	HeaderNumber.set_default_format(opt - 1, eval(fmt))
@@ -43,6 +41,7 @@ class GrailHTMLParser(HTMLParser):
     object_aware_tags = ['param', 'alias', 'applet', 'script', 'object']
 
     def __init__(self, viewer, reload=0):
+	global _inited
 	self.viewer = viewer
 	self.reload = reload
 	self.context = self.viewer.context
@@ -55,8 +54,11 @@ class GrailHTMLParser(HTMLParser):
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = []
+	# references to this are on the critical path, so make them faster
+	self.object_aware_tags = self.object_aware_tags
 	self.push_formatter(formatter.AbstractFormatter(self.viewer))
 	if not _inited:
+	    _inited = 1
 	    init_module(self.app.prefs)
 	HTMLParser.__init__(self, self.get_formatter())
 	self._ids = {}
@@ -136,41 +138,8 @@ class GrailHTMLParser(HTMLParser):
     # Override HTMLParser internal methods
 
     def handle_starttag(self, tag, method, attrs):
-	if self.inhead and tag not in self.head_only_tags:
-	    self.element_close_maybe('head', 'title', 'style')
-	    self.inhead = 0
-	    self.handle_starttag = self.handle_starttag_nohead
-	elif not self.inhead:
-	    if tag in self.head_only_tags:
-		self.badhtml = 1
-		self.handle_starttag = self.handle_starttag_nohead_isbad
-	    else:
-		self.handle_starttag = self.handle_starttag_nohead
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
-	massage_attributes(attrs)
-	method(attrs)
-	if attrs.has_key('id'):
-	    self.register_id(attrs['id'])
-
-    def handle_starttag_nohead(self, tag, method, attrs):
-	if tag in self.head_only_tags:
-	    self.badhtml = 1
-	    self.handle_starttag = self.handle_starttag_nohead_isbad
-	if self.suppress_output and tag not in self.object_aware_tags:
-	    return
-	#massage_attributes(attrs)   *** inlined for performance: ***
-	for k in URL_VALUED_ATTRIBUTES:
-	    if attrs.has_key(k) and attrs[k]:
-		attrs[k] = string.joinfields(string.split(attrs[k]), '')
-	method(attrs)
-	if attrs.has_key('id'):
-	    self.register_id(attrs['id'])
-
-    def handle_starttag_nohead_isbad(self, tag, method, attrs):
-	if self.suppress_output and tag not in self.object_aware_tags:
-	    return
-	#massage_attributes(attrs)   *** inlined for performance: ***
 	for k in URL_VALUED_ATTRIBUTES:
 	    if attrs.has_key(k) and attrs[k]:
 		attrs[k] = string.joinfields(string.split(attrs[k]), '')
@@ -688,8 +657,6 @@ class GrailHTMLParser(HTMLParser):
 		self.stack.append(tag)
 	else:
 	    self.badhtml = 1
-	    if not self.inhead:
-		self.handle_starttag = self.handle_starttag_nohead_isbad
 
     def unknown_endtag(self, tag):
 	if self.suppress_output:
@@ -700,13 +667,9 @@ class GrailHTMLParser(HTMLParser):
 	    function(self)
 	else:
 	    self.badhtml = 1
-	    if not self.inhead:
-		self.handle_starttag = self.handle_starttag_nohead_isbad
 
     def report_unbalanced(self, tag):
 	self.badhtml = 1
-	if not self.inhead:
-	    self.handle_starttag = self.handle_starttag_nohead_isbad
 
     # Handle proposed iconic entities (see W3C working drafts or HTML 3):
 
@@ -876,11 +839,3 @@ def conv_align(val):
 	 })
     if conv: return conv
     else: return CENTER
-
-
-def massage_attributes(attrs):
-    # Removes superfluous whitespace in common URL-valued attributes:
-    for k in URL_VALUED_ATTRIBUTES:
-	if attrs.has_key(k) and attrs[k]:
-	    attrs[k] = string.joinfields(string.split(attrs[k]), '')
-
