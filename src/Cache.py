@@ -230,6 +230,7 @@ class SharedItem:
 	self.api = protocols.protocol_access(self.url,
 					     self.mode, params,
 					     data=self.postdata)
+	self.meta = None
 	self.stage = self.api.state
 	self.hidden_getmeta = self.getmeta
 	self.getmeta = self.refresh_getmeta
