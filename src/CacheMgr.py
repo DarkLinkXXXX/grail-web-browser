@@ -12,7 +12,7 @@ META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
 CacheMiss = 'Cache Miss'
 CacheEmpty = 'Cache Empty'
-CacheItemExpired = 'Cache Item Expired'
+CacheReadFailed = 'Cache Item Expired or Missing'
 CacheFileError = 'Cache File Error'
 
 class CacheManager:
@@ -54,6 +54,7 @@ class CacheManager:
 	self.caches = []
 	self.items = {}
 	self.active = {}
+	self.disk = None
 	self.disk = DiskCache(self, self.app.prefs.GetInt('disk-cache',
 						     'size') * 1024,
 			 self.app.prefs.Get('disk-cache', 'directory'))
@@ -125,7 +126,7 @@ class CacheManager:
 	"""
 	try:
 	    api = self.cache_read(key)
-	except CacheItemExpired, cache:
+	except CacheReadFailed, cache:
 	    cache.evict(key)
 	    api = None
 	if api:
@@ -192,15 +193,22 @@ class CacheManager:
 	assert(self.items.has_key(key))
 	self.items[key].evict()
 
-    def delete(self, keys):
+    def delete(self, keys, evict=1):
 	if type(keys) != type([]):
 	    keys = [keys]
-	
-	for key in keys:
-	    try: 
-		del self.items[key]
-	    except KeyError:
-		pass
+
+	if evict:
+	    for key in keys:
+		try:
+		    self.items[key].cache.evict(key)
+		except KeyError:
+		    pass
+	else:
+	    for key in keys:
+		try: 
+		    del self.items[key]
+		except KeyError:
+		    pass
 
     def add(self,item,reload=0):
 	"""If item is not in the cache and is allowed to be cached, add it. 
@@ -230,6 +238,9 @@ class CacheManager:
 	5. The URL includes a query part '?'
 	
 	"""
+
+	if len(self.caches) < 1:
+	    return 0
 
 	(scheme, netloc, path, parm, query, frag) = \
 		 urlparse.urlparse(item.url)
@@ -418,10 +429,13 @@ class DiskCacheEntry:
 	if self.expires:
 	    if self.expires and self.expires.get_secs() < time.time():
 		# we need to refresh the page; can we just reload?
-		raise CacheItemExpired, self.cache
+		raise CacheReadFailed, self.cache
 	self.cache.get(self.key) 
-	api = disk_cache_access(self.cache.get_file_path(self.file),
-				self.type, self.date, self.size)
+	try:
+	    api = disk_cache_access(self.cache.get_file_path(self.file),
+				    self.type, self.date, self.size)
+	except IOError:
+	    raise CacheReadFailed, self.cache
 	return api
 
     def touch(self,refresh=0):
@@ -496,7 +510,7 @@ class DiskCache:
 
     def close(self):
 	self._checkpoint_metadata()
-	self.manager.delete(self.items.keys())
+	self.manager.delete(self.items.keys(), evict=0)
 	del self.items
 	del self.expires
 	self.manager.close_cache(self)
@@ -783,7 +797,6 @@ class DiskCache:
 
     def evict(self,key):
 	"""Remove an entry from the cache and delete the file from disk."""
-#	print "evict(%s)" % (key)
 	self.use_order.remove(key)
 	evictee = self.items[key]
 	del self.manager.items[key]
@@ -793,7 +806,8 @@ class DiskCache:
 	try:
 	    os.unlink(self.get_file_path(evictee.file))
 	except (os.error, IOError), err:
-	    print "error deleteing %s from cache: %s" % (key, err)
+	    # print "error deleteing %s from cache: %s" % (key, err)
+	    pass
 	self.log_entry(evictee,1) # 1 indicates delete entry
 	evictee.delete()
 	self.size = self.size - evictee.size
