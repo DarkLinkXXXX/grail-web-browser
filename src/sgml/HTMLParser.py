@@ -272,10 +272,12 @@ class HTMLParser(SGMLParser):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font((AS_IS, AS_IS, AS_IS, 1))
+	self.formatter.push_alignment('left')
 	self.push_nofill()
 
     def end_pre(self):
 	self.pop_nofill()
+	self.formatter.pop_alignment()
         self.formatter.end_paragraph(1)
         self.formatter.pop_font()
 
