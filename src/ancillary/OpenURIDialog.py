@@ -9,10 +9,10 @@ import string
 class OpenURIDialog:
     __lasturi = ''
 
-    def __init__(self, master):
+    def __init__(self, master, title=None, new=1):
         # create widgets
         self.__frame = tktools.make_toplevel(
-            master, title="Open Location Dialog")
+            master, title=title or "Open Location Dialog")
         #
         fr, top, btnframe = tktools.make_double_frame(
             self.__frame, relief=FLAT)
@@ -28,7 +28,8 @@ class OpenURIDialog:
         tktools.unify_button_widths(okbtn, newbtn, clearbtn, cancelbtn)
         #
         okbtn.pack(side=LEFT)
-        newbtn.pack(side=LEFT, padx='1m')
+        if new:
+            newbtn.pack(side=LEFT, padx='1m')
         cancelbtn.pack(side=RIGHT)
         clearbtn.pack(side=RIGHT, padx='1m')
         #
@@ -37,8 +38,9 @@ class OpenURIDialog:
         self.__entry.bind('<Return>', self.okaycmd)
         self.__entry.bind('<Control-C>', self.cancelcmd)
         self.__entry.bind('<Control-c>', self.cancelcmd)
-        self.__frame.bind('<Alt-n>', self.newcmd)
-        self.__frame.bind('<Alt-N>', self.newcmd)
+        if new:
+            self.__frame.bind('<Alt-n>', self.newcmd)
+            self.__frame.bind('<Alt-N>', self.newcmd)
         self.__frame.bind("<Alt-w>", self.cancelcmd)
         self.__frame.bind("<Alt-W>", self.cancelcmd)
         #
