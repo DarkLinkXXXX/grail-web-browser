@@ -293,6 +293,8 @@ class Viewer(formatter.AbstractWriter):
 	# Configure anchor tags
 	for tag in 'a', 'ahist':
 	    self.text.tag_bind(tag, '<ButtonPress-1>', self.anchor_press)
+	    self.text.tag_bind(tag, '<Shift-ButtonPress-1>',
+			       self.shift_anchor_press)
 	    self.text.tag_bind(tag, '<ButtonPress-2>', self.anchor_press)
 	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
 	    self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
@@ -376,6 +378,7 @@ class Viewer(formatter.AbstractWriter):
 	url = self.find_tag_url()
 	if url:
 	    url, target = self.split_target(self.context.get_baseurl(url))
+	    self.add_temp_tag()
 	self.open_popup_menu(event, link_url=url)
 
     def open_popup_menu(self, event, link_url=None, image_url=None):
@@ -569,11 +572,16 @@ class Viewer(formatter.AbstractWriter):
 	self.context.message_clear()
 
     def anchor_press(self, event):
+	self._shifted = 0
 	self.context.viewer.text.focus_set()
 	self.current_index = self.text.index(CURRENT) # For anchor_click
 	url = self.find_tag_url()
 	if url:
 	    self.add_temp_tag()
+
+    def shift_anchor_press(self, event):
+	self.anchor_press(event)
+	self._shifted = 1
 
     def anchor_click(self, event):
 	here = self.text.index("@%d,%d" % (event.x, event.y))
@@ -584,7 +592,11 @@ class Viewer(formatter.AbstractWriter):
 	if url:
 	    self.linkinfo = ""
 	    url, target = self.split_target(self.context.get_baseurl(url))
-	    self.context.follow(url, target)
+	    if self._shifted:
+		self.remove_temp_tag(
+		    histify=self.context.save_document(url))
+	    else:
+		self.context.follow(url, target)
 
     def anchor_click_new(self, event):
 	here = self.text.index("@%d,%d" % (event.x, event.y))
@@ -771,6 +783,7 @@ class ViewerMenu:
     def __init__(self, master, viewer):
 	self.__menu = menu = Menu(master, tearoff=0)
 	self.__context = context = viewer.context
+	self.__viewer = viewer
 	menu.add_command(label="Back in Frame", command=context.go_back)
 	menu.add_command(label="Reload Frame",
 			 command=context.reload_page)
@@ -863,7 +876,8 @@ class ViewerMenu:
 	context.browser.remove()
 
     def __save_link(self, event=None):
-	self.__context.save_document(self.__link_url)
+	self.__viewer.remove_temp_tag(
+	    histify=self.__context.save_document(self.__link_url))
 
     def __open_image(self, event=None):
 	self.__context.follow(self.__image_url)
