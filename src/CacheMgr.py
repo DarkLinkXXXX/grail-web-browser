@@ -636,6 +636,8 @@ class DiskCache:
 	newitem.fill(object.key, object.url, size, date, lastmod,
 		   expires, ctype)
 	newitem.file = self.get_file_name(newitem)
+	if expires:
+	    self.add_expireable(newitem)
 
 	self.make_file(newitem,object)
 	self.log_entry(newitem)
@@ -659,7 +661,6 @@ class DiskCache:
 
 	if headers.has_key('expires'):
 	    expires = headers['expires']
-	    self.add_expireable(newitem)
 	else:
 	    expires = None
 
