@@ -1,6 +1,6 @@
 """Parser to pull links from an HTML document."""
 
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 
 import bookmarks.nodes
@@ -57,6 +57,14 @@ class Parser(SGMLGatherer.BaseSGMLGatherer):
 
     def set_baseurl(self, baseurl):
         self.__baseurl = baseurl
+
+    def do_meta(self, attrs):
+        # attempt to pull in a description:
+        name = string.strip(string.lower(attrs.get("name", "")))
+        if name in ("description", "dc.description"):
+            desc = string.strip(attrs.get("content", ""))
+            if desc:
+                self.__root.set_description(desc)
 
     def start_a(self, attrs):
         uri = string.strip(attrs.get("href", ""))
