@@ -212,11 +212,20 @@ class HTMLParser(SGMLParser):
 	align = None
 	if attrs.has_key('align') and attrs['align']:
 	    align = string.lower(attrs['align'])
-	self.formatter.push_style(align)
+	self.formatter.push_alignment(align)
 
-    def end_p(self):
-	self.formatter.pop_style()
-        self.formatter.end_paragraph(1)
+    def end_p(self, parbreak = 1):
+	self.formatter.pop_alignment()
+        self.formatter.end_paragraph(parbreak)
+
+    def implied_end_p(self):
+	if 'p' in self.stack:
+	    #  Remove all but the <P>
+	    while self.stack[-1] != 'p':
+		self.lex_endtag(self.stack[-1])
+	    #  Remove <P> surgically:
+	    del self.stack[-1]
+	    self.end_p(parbreak = 0)
 
     start_div = start_p
     end_div = end_p
@@ -501,6 +510,7 @@ class HTMLParser(SGMLParser):
     # --- Horizontal Rule
 
     def do_hr(self, attrs):
+	self.implied_end_p()
 	if attrs.has_key('width'):
 	    abswidth, percentwidth = self.parse_width(attrs['width'])
 	else:
