@@ -54,7 +54,10 @@ class _DumbTkinter:
 	deletefilehandler = tkinter.deletefilehandler
     except AttributeError:
 	pass
-    createtimerhandler = tkinter.createtimerhandler
+    try:
+        createtimerhandler = tkinter.createtimerhandler
+    except AttributeError:
+	pass
 
 tkinter = _DumbTkinter()
 
