@@ -18,6 +18,10 @@ from copy import copy
 caps = None
 
 
+# If > 0, profile handle_data and print this many statistics lines
+profiling = 0
+
+
 class Reader(BaseReader):
 
     """Helper class to read documents asynchronously.
@@ -144,6 +148,8 @@ class Reader(BaseReader):
 	    # XXX provisional hack -- change content type to octet stream
 	    content_type = "application/octet-stream"
 	    content_encoding = None
+	if not content_type:
+	    content_type = "text/plain"	# Last resort guess only
 
 	istext = content_type and content_type[:5] == 'text/'
 	if self.show_source and istext:
@@ -271,6 +277,18 @@ class Reader(BaseReader):
 	self.viewer.unfreeze()
 	self.parser.feed(data)
 	self.viewer.freeze()
+
+    if profiling:
+	bufsize = 8*1024
+	_handle_data = handle_data
+	def handle_data(self, data):
+	    n = profiling
+	    import profile, pstats
+	    prof = profile.Profile()
+	    prof.runcall(self._handle_data, data)
+	    stats = pstats.Stats(prof)
+	    stats.strip_dirs().sort_stats('time').print_stats(n)
+	    stats.strip_dirs().sort_stats('cum').print_stats(n)
 
     def handle_eof(self):
 	if not self.save_file:
