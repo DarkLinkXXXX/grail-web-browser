@@ -148,22 +148,9 @@ class FormInfo:
 
     def get(self):
 	state = []
-	radios = {}
-	# TBD
-	#print 'FormInfo::get:', self.inputs
 	for i in self.inputs:
-	    # TBD: cheezy hack, necessary because when using
-	    # InputRadio::get to get the value for form submission, it
-	    # returns the value only for the first radio button, but
-	    # for state caching, we need one value value per input
-	    # object.
-	    value = i.get()
-	    if i.__class__ == FormInfo.InputRadio:
-		if value is None: value = radios[i.name]
-		else: radios[i.name] = value
+	    value = i.getstate()
 	    state.append(value)
-	#TBD
-	#print 'FormInfo::get:', state
 	return state
 
     def done(self):			# Called for </FORM>
@@ -178,8 +165,6 @@ class FormInfo:
 	    klass = getattr(self, classname)
 	    instance = klass(self, options)
 	    # update any cached form status
-	    # TBD
-	    #print 'do_input:', self.formdata
 	    if self.formdata:
 		instance.set(self.formdata[0])
 		del self.formdata[0]
@@ -328,6 +313,10 @@ class FormInfo:
 	    if self.options.has_key(key):
 		setattr(self, key, self.options[key])
 
+	def getstate(self):
+	    # Get raw state for form caching -- default same as get()
+	    return self.get()
+
     class InputText(Input):
 
 	size = 0
@@ -416,6 +405,10 @@ class FormInfo:
 	    else:
 		return None
 
+	def getstate(self):
+	    # Get raw state for form caching
+	    return self.var.get()
+
     class InputHidden(Input):
 
 	def get(self):
@@ -429,6 +422,12 @@ class FormInfo:
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
 			    command=self.fi.submit_command)
+
+	def get(self):
+	    if self.w['state'] == ACTIVE:
+		return self.value
+	    else:
+		return None
 
     class InputReset(Input):
 
