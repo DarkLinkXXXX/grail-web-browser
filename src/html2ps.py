@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.0 1995/09/14 21:57:47 bwarsaw Exp $
+$Id: html2ps.py,v 2.1 1995/09/19 14:34:26 bwarsaw Exp $
 """
 
 
@@ -22,8 +22,8 @@ from formatter import *
 
 
 # debugging
-RECT_DEBUG = 0
-DEBUG = 0
+RECT_DEBUG = 1
+DEBUG = 1
 
 def _debug(text):
     if DEBUG:
@@ -72,41 +72,34 @@ font_metrics = {}
 
 # 12 point, fixed width font metrics, all chars are the same width.
 # for speed, I'll actually implement this differently
-#courier_charmap = {}
-#for c in range(256): courier_charmap[c] = 7.2
-#font_metrics['Courier'] = courier_charmap
 font_metrics['Courier'] = 7.2
 
 # Standard variable width font is Helvetica
 helv_charmap = {}
-def fill_hfm(clist, psz):
-    for c in clist: helv_charmap[c] = psz
+def fill_hfm(psz, chars):
+    for c in chars: helv_charmap[c]=psz
 
-fill_hfm(range(31), 0.0)
-fill_hfm(range(128,256), 0.0)
-fill_hfm([' ', '!', ',', '.', '/', ':', ';', 'I', '[', '\\', ']', 'f', 't'],
-	 3.375)
-fill_hfm(['"'], 4.3875)
-fill_hfm(['#', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-	  '?', 'L', '_', 'a', 'b', 'd', 'e', 'g', 'h', 'n', 'o', 'p', 'q',
-	  'u'],
-	 6.75)
-fill_hfm(['%'], 10.8)
-fill_hfm(['&', 'A', 'B', 'E', 'K', 'P', 'S', 'V', 'X', 'Y'], 8.1)
-fill_hfm(["'", '`', 'i', 'j', 'l'], 2.7)
-fill_hfm(['(', ')', 'r', '{', '}'], 4.05)
-fill_hfm(['*'], 4.725)
-fill_hfm(['+', '-', '<', '=', '>', '~'], 7.0875)
-fill_hfm(['@'], 12.2625)
-fill_hfm(['C', 'D', 'H', 'N', 'R', 'U', 'w'], 8.775)
-fill_hfm(['F', 'Z'], 7.65)
-fill_hfm(['G', 'O', 'Q'], 9.45)
-fill_hfm(['J', 'c', 'k', 's', 'v', 'x', 'y', 'z'], 6.075)
-fill_hfm(['M', 'm'], 10.125)
-fill_hfm(['W'], 11.475)
-fill_hfm(['T'], 7.425)
-fill_hfm(['^'], 5.7375)
-fill_hfm(['|'], 3.15)
+fill_hfm(0.0, range(31))
+fill_hfm(0.0, range(128,256))
+fill_hfm(2.6642, "'`ijl")
+fill_hfm(3.1202, '|')
+fill_hfm(3.3362, ' !:;[],./Ift\\')
+fill_hfm(3.9962, '()r')
+fill_hfm(4.0083, '{}')
+fill_hfm(4.2602, '"')
+fill_hfm(4.6683, '*')
+fill_hfm(5.6283, '^')
+fill_hfm(6.0004, 'Jcksvxyz')
+fill_hfm(6.6724, '#$0123456789?L_abdeghnopqu')
+fill_hfm(7.0084, '+-<=>~')
+fill_hfm(7.3324, 'FTZ')
+fill_hfm(8.0045, '&ABEKPSVXY')
+fill_hfm(8.6645, 'CDHNRUw')
+fill_hfm(9.3366, 'GOQ')
+fill_hfm(9.9966, 'Mm')
+fill_hfm(10.6687, '%')
+fill_hfm(11.3287, 'W')
+fill_hfm(12.1807, '@')
 
 # sanity check
 #for c in range(32, 127):
@@ -123,21 +116,21 @@ helv_bold_charmap = {}
 for c in helv_charmap.keys():
     helv_bold_charmap[c] = helv_charmap[c]
 
-def fill_hbfm(clist, psz):
-    for c in clist: helv_bold_charmap[c] = psz
+def fill_hfm(psz, clist):
+    for c in clist: helv_bold_charmap[c]=psz
 
-fill_hbfm(['!', ':', ';', '[', ']', 'f', 't'], 4.05)
-fill_hbfm(['"'], 5.7375)
-fill_hbfm(['&', 'A', 'B', 'K'], 8.775)
-fill_hbfm(["'", '`', 'i', 'j', 'l'], 3.375)
-fill_hbfm(['?', 'L', 'b', 'd', 'g', 'h', 'n', 'o', 'p', 'q', 'u'], 7.425)
-fill_hbfm(['@'], 11.7)
-fill_hbfm(['J', 'c', 'k', 's', 'v', 'x', 'y'], 6.75)
-fill_hbfm(['^'], 7.0875)
-fill_hbfm(['m'], 10.8)
-fill_hbfm(['r', '{', '}'], 4.725)
-fill_hbfm(['w'], 9.45)
-fill_hbfm(['|'], 3.4875)
+fill_hfm(3.3344, "'`ijl")
+fill_hfm(3.3585, '|')
+fill_hfm(3.9942, '!:;[]ft')
+fill_hfm(4.6658, 'r{}')
+fill_hfm(5.6854, '"')
+fill_hfm(6.6689, 'Jcksvxy')
+fill_hfm(7.0048, '^')
+fill_hfm(7.3286, '?Lbdghnopqu')
+fill_hfm(8.6600, '&ABK')
+fill_hfm(9.3317, 'w')
+fill_hfm(10.6631, 'm')
+fill_hfm(11.6946, '@')
 
 font_metrics['Helvetica-Bold'] = helv_bold_charmap
 
@@ -173,10 +166,6 @@ font_sizes = {
 
 # Page layout and other contants.  Some of this stuff is carried over
 # from HTML-PSformat.c and perhaps no longer relevent
-
-# TBD: This is a kludge!  See the note at the top of the font metrics
-# page above.  Once I figure out the bug, I will get rid of this hack.
-FONT_METRIC_SCALE_FACTOR = 0.9
 
 # Regular expressions.
 CR = '\015'
@@ -275,18 +264,22 @@ class PSFont:
 	if not vrealname: vrealname = self.vfamily
 	if not frealname: frealname = self.ffamily
 
-	# gather appropriate metrics
+	# gather appropriate bold and non-bold metrics
 	try: fmetrics = font_metrics[frealname]
 	except KeyError: fmetrics = font_metrics['Courier']
-	if vbold:
-	    vmetricname = vrealname + '-Bold'
-	    if not font_metrics.has_key(vmetricname):
-		vmetricname = 'Helvetica-Bold'
-	    vmetrics = font_metrics[vmetricname]
-	else:
-	    try: vmetrics = font_metrics[vrealname]
-	    except KeyError: vmetrics = font_metrics['Helvetica']
-	self.metrics = (vmetrics, fmetrics)
+
+	try: vmetrics = font_metrics[vrealname]
+	except KeyError: vmetrics = font_metrics['Helvetica']
+	
+	try: vbmetrics = font_metrics[vrealname + '-Bold']
+	except KeyError: vbmetrics = font_metrics['Helvetica-Bold']
+
+	self.metrics = {
+	    'FONTF': fmetrics,
+	    'FONTV': vmetrics,
+	    'FONTFB': fmetrics,
+	    'FONTVB': vbmetrics
+	    }
 
 	# calculate font names in PostScript space. Eight fonts are
 	# used, naming scheme is as follows.  All PostScript font
@@ -321,18 +314,19 @@ class PSFont:
 	# calculate size
 	new_sz = self.font_size(font_tuple)
 	# calculate variable vs. fixed base name
-	if set_tt:
-	    new_family = 'FONTF'
-	    self.metric = self.metrics[1]
-	else:
-	    new_family = 'FONTV'
-	    self.metric = self.metrics[0]
+	if set_tt: new_family = 'FONTF'
+	else: new_family = 'FONTV'
 
 	# add modifiers.  Because of the way fonts are named, always
 	# add bold modifier before italics modifier, in case both are
 	# present
 	if set_bold: new_bold = 'B'
 	else: new_bold = ''
+
+	# do this before we add the italics modifier, since italics
+	# doesn't contribute to metrics
+	self.metric = self.metrics[new_family + new_bold]
+
 	if set_italic: new_italic = 'I'
 	else: new_italic = ''
 
@@ -356,8 +350,7 @@ class PSFont:
 	else:
 	    pointlen = 0.0
 	    for c in text: pointlen = pointlen + self.metric[c]
-	    cooked = pointlen * self.font_size() / 12.0
-	    return cooked * FONT_METRIC_SCALE_FACTOR
+	    return pointlen * self.font_size() / 12.0
 
     def font_size(self, font_tuple=None):
 	"""Return the size of the current font, or the font defined by
@@ -527,7 +520,6 @@ class PSQueue:
 	xpos = 0.0
 	tallest = self.font.font_size()
 	in_literal_p = 0
-	debug_text = ''
 	for tag, info in self.queue:
 	    if tag == START:
 		nq.push_font_change(None)
@@ -572,7 +564,6 @@ class PSQueue:
 		if in_literal_p or xpos > 0.0:
 		    xpos = xpos + (self.font.space_width * info)
 		    nq.push_space(info)
-		    debug_text = debug_text + ' '
 	    elif tag == STRING:
 		if xpos == 0.0:
 		    tallest = self.font.font_size()
@@ -588,16 +579,12 @@ class PSQueue:
 		    if ltag:
 			info = ' ' * linfo + info
 		    nq.push_string(info)
-		    debug_text = debug_text + info
 		    continue
 		# the new text doesn't fit on the line so we can do a
 		# simple break of the line if the previous tag we saw
 		# was a space, and the current line width is > 3/4 of
 		# the page width and the current text is smaller than
 		# the page width
-		_debug('breaking %s: %f\n' %
-		       (debug_text, xpos + self.margin + swidth))
-		debug_text = ''
 		if ltag and \
 		     xpos + self.margin > PAGE_WIDTH * 0.75 and \
 		     swidth < PAGE_WIDTH:
@@ -611,7 +598,7 @@ class PSQueue:
 		# we saw was a space, then we'll have to break the
 		# word in the middle someplace.  for now we'll just
 		# let it overflow.  TBD: fix this!
-	        elif ltag:
+	        else:
 		    nq.push_string(info)
 	# replace our queue with the collapsed queue
 	self.queue = nq.queue
@@ -903,6 +890,25 @@ def html_test():
 
 
 
+# Line length test
+def lltest():
+    w = PSWriter(sys.stdout)
+    ff = PSFont()
+    font = (12, None, 1, None)
+    w.new_font(font)
+    ff.set_font(font)
+    for c in range(32,127):
+	c = chr(c)
+	l = ff.text_width(c)
+	count = int(PAGE_WIDTH / l)
+	msg = c * count
+	w.send_literal_data(msg)
+	w.send_literal_data('|')
+	w.send_label_data(repr(count))
+	w.send_line_break()
+    w.close()
+
+
 # PostScript templates
 header_template = """
 %%Creator: CNRI Grail, HTML2PS.PY by Barry Warsaw
@@ -915,6 +921,7 @@ save
 /E {exch} D
 /M {moveto} D
 /S {show} D
+%/S {dup show ( ) show stringwidth pop 20 string cvs show} D
 /R {rmoveto} D
 /L {lineto} D
 /RL {rlineto} D
