@@ -1,3 +1,5 @@
+#! /usr/local/bin/python
+
 """HTML to PostScript translator.
 
 This module uses the AbstractWriter class interface defined by Grail
@@ -630,98 +632,56 @@ class PSWriter(AbstractWriter):
 	self.ps.push_string(data)
 
 
-def html_test():
+def main():
     import getopt
     import os
     help = None
-    error = None
-    options = []
-    infile = None
-    outfile = None
+    error = 0
     logfile = None
-    try: options, argv = getopt.getopt(sys.argv[1:], 'hdl:i:o:')
-    except getopt.error: error = 1; help = 1
-    for o, a in options:
-	if o == '-h': help = 1		# help
-	elif o == '-d': DEBUG = 1	# debugging, obviously ;-)
-	elif o == '-l':			# debug log file, otherwise stderr
-	    logfile = a
-	elif o == '-i':			# input file, otherwise stdin
-	    infile = a
-	elif o == '-o':			# output file, otherwise stdout
-	    outfile = a
+    try:
+	options, argv = getopt.getopt(sys.argv[1:], 'hdl:')
+    except getopt.error:
+	error = 1
+	help = 1
+    for opt, arg in options:
+	if opt == '-h': help = 1
+	elif opt == '-d': DEBUG = 1
+	elif opt == 'l': logfile = arg
     if help:
 	stdout = sys.stderr
-	print 'Usage:', sys.argv[0], \
-	      '[-d] [-l <logfile>] [-i <infile>] [-o <outfile>] [-h]'
-	if error: sys.exit(1)
-	sys.exit(0)
-
-    ifile = None
-    if infile:
-	try: ifile = open(infile, 'r')
-	except IOError: pass
-    ofile = None
-    if outfile:
-	try: ofile = open(outfile, 'w')
-	except IOError: pass
-    lfile = None
-    if logfile:
-	try: lfile = open(logfile, 'w')
-	except IOError: pass
-
-    if not ifile:
-	# use this as a filter
-	ifile = sys.stdin
-	ofile = sys.stdout
-	lfile = sys.stderr
-    elif not ofile:
-	# output file can be derived from input file
-	outfile = os.path.splitext(infile)[0] + '.ps'
-	try: ofile = open(outfile, 'w')
-	except IOError: ofile = sys.stdout
-	
-    stderr = sys.stderr
-    try:
-	if lfile: sys.stderr = lfile
-	w = PSWriter(ofile, None, url=infile or '')
-	f = AbstractFormatter(w)
-
-	# We don't want to be dependent on Grail, but we do want to
-	# use it if it's around.  Only current difference is that
-	# links are underlined with the PrintDialog parser.
 	try:
-	    import PrintDialog
-	    p = PrintDialog.PrintingHTMLParser(f)
-	except:
-	    import htmllib
-	    p = htmllib.HTMLParser(f)
-
-	p.feed(ifile.read())
-	p.close()
-	w.close()
-    finally:
-	sys.stderr = stderr
-
-
-
-# Line length test
-def lltest():
-    w = PSWriter(sys.stdout)
-    ff = PSFont()
-    ff.set_font((10, 'FONTV', '', ''))
-    font = (12, None, 1, None)
-    w.new_font(font)
-    ff.set_font(font)
-    for c in range(32,127):
-	c = chr(c)
-	l = ff.text_width(c)
-	count = int(PAGE_WIDTH / l)
-	msg = c * count
-	w.send_literal_data(msg)
-	w.send_literal_data('|')
-	w.send_label_data(repr(count))
-	w.send_line_break()
+	    sys.stdout = sys.stderr
+	    print 'Usage:', sys.argv[0], '[-h] [-d] [-l logfile] [file]'
+	    print '    -h: this help message'
+	    print '    -d: turn on debugging'
+	    print '    -l: logfile for debugging, otherwise stderr'
+	    print '[file]: file to convert, otherwise from stdin'
+	finally:
+	    sys.stdout = stdout
+	sys.exit(error)
+    # crack open log file if given
+    stderr = sys.stderr
+    if logfile:
+	try: sys.stderr = open(logfile, 'a')
+	except IOError: sys.stderr = stderr
+    # crack open the input file, or stdin
+    infile = argv[0]
+    if argv: infp = open(infile, 'r')
+    else: infp = sys.stdin
+    # create the parsers
+    w = PSWriter(sys.stdout, None, url=infile or '')
+    f = AbstractFormatter(w)
+    # We don't want to be dependent on Grail, but we do want to use it
+    # if it's around.  Only current difference is that links are
+    # underlined with the PrintDialog parser.
+    try:
+	import PrintDialog
+	p = PrintDialog.PrintingHTMLParser(f)
+    except:
+	import htmllib
+	p = htmllib.HTMLParser(f)
+    p.feed(infp.read())
+    p.close()
     w.close()
 
 
@@ -825,4 +785,4 @@ if __name__ == '__main__':
 ##	p.sort_stats('cumulative').print_stats(25)
 ##    finally:
 ##	sys.stdout = oldstdout
-    html_test()
+    main()
