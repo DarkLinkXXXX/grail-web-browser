@@ -715,12 +715,12 @@ class Textarea:
 	self.name = name
 	self.rows = rows
 	self.cols = cols
-	self.parser.nofill = self.parser.nofill+1
+	self.parser.push_nofill()
 	self.parser.save_bgn()
 
     def done(self):
 	data = self.parser.save_end()
-	self.parser.nofill = max(0, self.parser.nofill-1)
+	self.parser.pop_nofill()
 	if data[:1] == '\n': data = data[1:]
 	if data[-1:] == '\n': data = data[:-1]
 	self.w, self.frame = tktools.make_text_box(self.viewer.text,
