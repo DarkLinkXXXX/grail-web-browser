@@ -823,6 +823,8 @@ class InputImageWindow(Frame):
 	self.label.pack(fill=BOTH, expand=1)
 ##	self.pack()
 	self.image_loaded = 0
+        height = height and int(height) or 0
+        width = width and int(width) or 0
 	if width > 0 and height > 0:
 	    self.propagate(0)
 	    self.config(width=width + 2*borderwidth,
