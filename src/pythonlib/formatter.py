@@ -256,7 +256,7 @@ class AbstractFormatter:
 
     def assert_line_data(self, flag=1):
 	self.nospace = self.hard_break = not flag
-	self.para_end = self.have_label = 0
+	self.para_end = self.parskip = self.have_label = 0
 
 
 class NullWriter:
