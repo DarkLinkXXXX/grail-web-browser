@@ -51,12 +51,12 @@ class Reader(BaseReader):
 	self.save_mailcap = None
 	self.user_passwd = None
 	self.maxrestarts = 10
+	self.url = ''
 
 	self.restart(url)
 
     def restart(self, url):
 	self.maxrestarts = self.maxrestarts - 1
-	self.url = url
 
 	self.viewer = self.last_browser.viewer
 	self.app = self.last_browser.app
@@ -64,6 +64,15 @@ class Reader(BaseReader):
 	self.parser = None
 
 	tuple = urlparse.urlparse(url)
+	# it's possible that the url send in a 301 or 302 error is a
+	# relative URL.  if there's no scheme or netloc in the
+	# returned tuple, try joining the URL with the previous URL
+	# and retry parsing it.
+	if not (tuple[0] and tuple[1]):
+	    url = urlparse.urljoin(self.url, url)
+	    tuple = urlparse.urlparse(url)
+	self.url = url
+
 	self.fragment = tuple[-1]
 	tuple = tuple[:-1] + ("",)
 	if self.user_passwd:

@@ -29,7 +29,7 @@ from urllib import splittype, splithost, splitport
 def protocol_access(url, mode, params, data=None):
     scheme, resturl = splittype(url)
     if not scheme:
-	raise IOError, ("protocol error", "no scheme identifier in URL")
+	raise IOError, ("protocol error", "no scheme identifier in URL", url)
     scheme = string.lower(scheme)
     sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
     proxy = getenv(sanitized + "_proxy")
