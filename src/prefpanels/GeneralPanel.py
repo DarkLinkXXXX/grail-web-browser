@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.6 $"
+__version__ = "$Revision: 1.7 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -19,7 +19,7 @@ class GeneralPanel(PrefsPanels.Framework):
     other behaviors that don't fit in specific preferences categories."""
 
     # Class var for help button - relative to grail-home-page.
-    HELP_URL = "htdocs/prefs/general.html"
+    HELP_URL = "help/prefs/general.html"
 
     def CreateLayout(self, name, frame):
 
