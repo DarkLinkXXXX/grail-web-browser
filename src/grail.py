@@ -362,7 +362,10 @@ class Application:
 	    if not s.has_key(key): s[key] = value
 	self.suffixes_map = s
 	self.root.report_callback_exception = self.report_callback_exception
-	self.keep_alive()
+	if sys.stdin.isatty():
+	    # only useful if stdin might generate KeyboardInterrupt
+	    self.keep_alive()
+	sys.stdout.flush()
 	self.browsers = []
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
