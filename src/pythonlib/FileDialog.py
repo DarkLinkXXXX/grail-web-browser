@@ -44,6 +44,7 @@ class FileDialog:
 	self.directory = None
 	self.top = Toplevel(master)
 	self.top.title(title)
+	self.top.iconname(title)
 	self.label = Label(self.top, text=title)
 	self.label.pack(side=TOP)
 	self.filter = Entry(self.top)
