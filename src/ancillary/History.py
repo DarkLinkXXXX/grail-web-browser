@@ -198,6 +198,7 @@ class HistoryDialog:
 	self._frame.bind("N", self.down_cmd)
 	self._frame.bind("g", self._goto)
 	self._frame.bind("G", self._goto)
+	self._frame.bind("<Return>", self._goto)
 	self._frame.bind('<Alt-W>', self._close)
 	self._frame.bind('<Alt-w>', self._close)
 	tktools.set_transient(self._frame, self._context.root)
