@@ -1,6 +1,6 @@
 """Grail proxy preferences panel."""
 
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/prefpanels/ProxiesPanel.py,v $
 
 # Base class for the dialog:
@@ -28,8 +28,8 @@ class ProxiesPanel(PrefsPanels.Framework):
 
 	#
 	# Establish some booleans to represent the button states
-	self.no_proxy_enabled = BooleanVar()
-	self.manual_proxy_enabled = BooleanVar()
+	self.no_proxy_enabled = IntVar()
+	self.manual_proxy_enabled = IntVar()
 	self.fb_state = BooleanVar()
 	self.hb_state = BooleanVar()
 	self.nb_state = BooleanVar()
@@ -96,14 +96,17 @@ class ProxiesPanel(PrefsPanels.Framework):
 	#
 	# Set the initial GUI state based on prefs
 	self.register_prefs_UI()
-	if grailutil.pref_or_getenv('no_proxy_enabled', type_name='Boolean'):
-	    self.no_proxy_enabled.set(1)
-	else:
-	    self.no_proxy_enabled.set(0)
-	if grailutil.pref_or_getenv('manual_proxy_enabled', type_name='Boolean'):
+	manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled',
+							type_name='int')
+	if manual_proxy_enabled == 1:
 	    self.manual_proxy_enabled.set(1)
 	else:
 	    self.manual_proxy_enabled.set(0)
+	no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled', type_name='int')
+	if no_proxy_enabled == 1:
+	    self.no_proxy_enabled.set(1)
+	else:
+	    self.no_proxy_enabled.set(0)
 	self.UpdateLayout()
 
     def UpdateLayout(self):
@@ -111,8 +114,12 @@ class ProxiesPanel(PrefsPanels.Framework):
 	(for example) ' Factory Defaults'  or 'Revert' get pressed.
 	It allows updates to the Panel to reflect state changed by
 	the framework."""
+	
+	if self.manual_proxy_enabled.get() == -1:
+	    self.manual_proxy_enabled.set(0)
+	if self.no_proxy_enabled.get() == -1:
+	    self.no_proxy_enabled.set(0)
 
-	self.no_switch()
 	self.manual_switch()
 	self.ftp_entry_toggle()
 	self.http_entry_toggle()
@@ -122,11 +129,11 @@ class ProxiesPanel(PrefsPanels.Framework):
     def register_prefs_UI(self):
 	"""Associate the UI widgets with the Preferences variables."""
 
-	self.RegisterUI('proxies', 'no_proxy_enabled', 'Boolean',
+	self.RegisterUI('proxies', 'no_proxy_enabled', 'int',
 			self.no_proxy_enabled.get,
 			self.no_proxy_enabled.set)
 
-	self.RegisterUI('proxies', 'manual_proxy_enabled', 'Boolean',
+	self.RegisterUI('proxies', 'manual_proxy_enabled', 'int',
 			self.manual_proxy_enabled.get,
 			self.manual_proxy_enabled.set)
 
@@ -141,9 +148,10 @@ class ProxiesPanel(PrefsPanels.Framework):
     def no_switch(self):
 	""" Set the state of the No Proxy Configuration controls
 	to DISABLED if the Checkbutton is no set."""
-	
+
 	if self.no_proxy_enabled.get():
 	    self.nb_state.set(1)
+	    self.no.config(state=NORMAL)
 	    self.nb.config(state=NORMAL)
 	    self.ne.config(state=NORMAL)
 	else:
@@ -156,26 +164,13 @@ class ProxiesPanel(PrefsPanels.Framework):
 	to DISABLED if the Checkbutton is no set."""
 
 	if self.manual_proxy_enabled.get():
-	    self.he.config(state=NORMAL)
-	    self.fe.config(state=NORMAL)
 	    self.hb.config(state=NORMAL)
 	    self.fb.config(state=NORMAL)
-	    self.hb_state.set(0)
-	    self.fb_state.set(0)
-	    self.he.config(state=DISABLED)
-	    self.fe.config(state=DISABLED)
-       	    #
-	    # Re-enable No Proxy
 	    self.no.config(state=NORMAL)
+	    self.no_switch()
 	else:
-	    self.he.config(state=DISABLED)
-	    self.fe.config(state=DISABLED)
 	    self.hb.config(state=DISABLED)
 	    self.fb.config(state=DISABLED)
-	    self.hb_state.set(0)
-	    self.fb_state.set(0)
-	    self.he.config(state=DISABLED)
-	    self.fe.config(state=DISABLED)
 	    #
 	    # We also disable No Proxy
 	    self.no_proxy_enabled.set(0)
@@ -183,6 +178,11 @@ class ProxiesPanel(PrefsPanels.Framework):
 	    self.nb.config(state=DISABLED)
 	    self.ne.config(state=DISABLED)
 	    self.no.config(state=DISABLED)
+	    
+	self.hb_state.set(0)
+	self.fb_state.set(0)
+	self.he.config(state=DISABLED)
+	self.fe.config(state=DISABLED)
 	    
     def ftp_entry_toggle(self):
 	"""Enable and disable the FTP entry field."""
