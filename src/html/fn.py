@@ -2,7 +2,7 @@
 
 This supports the <FN ID=name> form of the footnote tag.
 """
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 #  $Source: /home/john/Code/grail/src/html/fn.py,v $
 
 
@@ -14,13 +14,11 @@ from grailutil import extract_keyword
 def start_fn(parser, attrs):
     if 'p' in parser.stack:
 	parser.lex_endtag('p')
+	parser.formatter.end_paragraph(0)
     else:
 	parser.formatter.add_line_break()
     name = extract_keyword('id', attrs)
-    name = name and '#' + name or None
-    if name:
-	parser.viewer.add_target(name)
-    parser.formatter.push_style(name)
+    parser.formatter.push_style(name and '#' + name or None)
 
 
 def end_fn(parser):
