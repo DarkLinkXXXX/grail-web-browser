@@ -121,12 +121,13 @@ class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
 	    options["width"] = 13
 	    options.pack(side=RIGHT)
 
-    # can't just use regex.casefold since 
-    __charmap_out = string.maketrans(string.uppercase + " ",
-				     string.lowercase + "-")
+    __charmap_out = string.maketrans(" ", "-")
     __charmap_in = string.maketrans("-", " ")
     def get_filetype(self):
-	return string.translate(self.__filetype.get(), self.__charmap_out)
+	f = self.__filetype.get()
+	f = string.translate(f, self.__charmap_out)
+	f = string.lower(f)
+	return f
 
     def set_filetype(self, filetype):
 	dir, oldpat = self.get_filter()
