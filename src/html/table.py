@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.33 1996/04/15 15:18:21 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.34 1996/04/15 18:28:48 bwarsaw Exp $'
 
 
 import string
@@ -777,7 +777,6 @@ class ContainedText(AttrElem):
 	min_nonaligned = self._minwidth
 	maxwidth = self._maxwidth
 	embedheight = self._embedheight
-	recalc_flag = None
 	# take into account all embedded windows
 	for sub in self._viewer.subwindows:
 	    # if the subwindow is a canvas containing a table, so
@@ -786,7 +785,15 @@ class ContainedText(AttrElem):
 	    if hasattr(sub, '_table'):
 		min_nonaligned = max(min_nonaligned, sub._table.minwidth())
 		maxwidth = max(maxwidth, sub._table.maxwidth())
-		recalc_flag = 1
+	    elif hasattr(sub, 'image'):
+		bw = string.atoi(sub['borderwidth'])
+		w = sub.image.width() + 2 * bw
+		h = sub.image.height() + 2 * bw
+		x = sub.winfo_x()
+		y = sub.winfo_y()
+		min_nonaligned = max(min_nonaligned, x+w)
+		maxwidth = max(maxwidth, x+w)
+		embedheight = max(embedheight, y+h)
 	    else:
 		geom = sub.winfo_geometry()
 		if self._re.search(geom) >= 0:
@@ -795,11 +802,10 @@ class ContainedText(AttrElem):
 		min_nonaligned = max(min_nonaligned, x+w)
 		maxwidth = max(maxwidth, x+w)
 		embedheight = max(embedheight, y+h)
-		recalc_flag = 1
 	self._embedheight = embedheight
 	self._minwidth = min_nonaligned
 	self._maxwidth = maxwidth
-	return recalc_flag
+	return len(self._viewer.subwindows)
 
     def finish(self, padding=0):
 	# TBD: if self.layout == AUTOLAYOUT???
