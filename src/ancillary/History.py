@@ -81,13 +81,9 @@ class HistoryDialog:
 	self._viewby = IntVar()
 	self._viewby.set(1)
 	self._viewing = 1
-	# create the UI elements
-	self._listbox, frame = tktools.make_list_box(self._frame, 40, 24, 1, 1)
-	self.refresh()
-	self._listbox.bind('<Double-Button-1>', self._goto)
 	# add a couple of buttons
 	btnbar = Frame(self._frame)
-	btnbar.pack(fill=BOTH)
+	btnbar.pack(fill=BOTH, side=BOTTOM)
 	gotobtn = Button(btnbar, text='Go To', command=self._goto)
 	gotobtn.pack(side=LEFT)
 	closebtn = Button(btnbar, text='Close', command=self._close)
@@ -105,6 +101,10 @@ class HistoryDialog:
 			  value=2)
 	rb1.pack(anchor='w')
 	rb2.pack(anchor='w')
+	# create listbox
+	self._listbox, frame = tktools.make_list_box(self._frame, 40, 24, 1, 1)
+	self.refresh()
+	self._listbox.bind('<Double-Button-1>', self._goto)
 	    
     def history(self): return self._history
 
@@ -128,7 +128,7 @@ class HistoryDialog:
 	    selection = string.atoi(list[0])
 	    last = self._listbox.index('end')
 	    link = self._history.link(last-selection-1)
-	    if link: self._browser.load(link)
+	    if link: self._browser.load(link, new=0)
 
     def _close(self, event=None):
 	self._frame.withdraw()
