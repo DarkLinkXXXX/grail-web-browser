@@ -1,16 +1,16 @@
 """HTML parser for printing."""
 
-__version__ = '$Revision: 1.12 $'
+__version__ = '$Revision: 1.13 $'
 
-import grailutil                        # top level
 import os
 import string
 import types
 import urlparse
 
-from sgml.HTMLParser import HTMLParser
 from formatter import AbstractFormatter
 from formatter import AS_IS
+from sgml.HTMLParser import HTMLParser
+from sgml.utils import *
 
 import epstools                         # in package
 import utils
@@ -154,7 +154,7 @@ class PrintingHTMLParser(HTMLParser):
 
     _inanchor = 0
     def start_a(self, attrs):
-        href = grailutil.extract_keyword('href', attrs)
+        href = extract_keyword('href', attrs)
         if href:
             href = self.context.get_baseurl(href)
         self.anchor = href
@@ -166,13 +166,12 @@ class PrintingHTMLParser(HTMLParser):
                 href = self.anchor = self.__footnote_anchor(href, attrs)
                 if self._anchors.has_key(href): return
                 self._anchors[href] = len(self._anchor_sequence) + 1
-                title = grailutil.extract_keyword('title', attrs, '')
+                title = extract_keyword('title', attrs, '')
                 title = string.join(string.split(title))
                 self._anchor_sequence.append((href, title))
         else:
             self._inanchor = 0
-        name = grailutil.extract_keyword(
-            'name', attrs, conv=grailutil.conv_normstring)
+        name = extract_keyword('name', attrs, conv=conv_normstring)
         if name:
             self.register_id(name)
 
@@ -195,8 +194,8 @@ class PrintingHTMLParser(HTMLParser):
 
     def start_p(self, attrs):
         if (self.settings.paragraph_indent or self.settings.paragraph_skip) \
-           and grailutil.extract_keyword(
-               'indent', attrs, conv=grailutil.conv_normstring) != "no":
+           and extract_keyword(
+               'indent', attrs, conv=conv_normstring) != "no":
             self.para_bgn(attrs)
             if not self.formatter.have_label:
                 self.formatter.writer.send_indentation(
@@ -220,8 +219,7 @@ class PrintingHTMLParser(HTMLParser):
     def start_font(self, attrs):
         # very simple: only supports SIZE="...."
         size = None
-        spec = grailutil.extract_keyword(
-            'size', attrs, conv=grailutil.conv_normstring)
+        spec = extract_keyword('size', attrs, conv=conv_normstring)
         nsize = self.__fontsize[-1]
         op, diff = self.parse_fontsize(spec)
         if not diff:
@@ -305,8 +303,7 @@ class PrintingHTMLParser(HTMLParser):
     def start_pre(self, attrs):
         HTMLParser.start_pre(self, attrs)
         new_size = AS_IS
-        width = grailutil.extract_keyword(
-            'width', attrs, 0, conv=grailutil.conv_integer)
+        width = extract_keyword('width', attrs, 0, conv=conv_integer)
         if width > 0:
             ps = self.formatter.writer.ps
             space_width = ps._font.text_width(' ')
@@ -397,7 +394,7 @@ class PrintingHTMLParser(HTMLParser):
 
     def header_bgn(self, tag, level, attrs):
         HTMLParser.header_bgn(self, tag, level, attrs)
-        dingbat = grailutil.extract_keyword('dingbat', attrs)
+        dingbat = extract_keyword('dingbat', attrs)
         if dingbat:
             self.unknown_entityref(dingbat, '')
             self.formatter.add_flowing_data(' ')
