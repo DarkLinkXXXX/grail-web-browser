@@ -106,28 +106,36 @@ def main():
 	load_images_vis_prefs()
     prefs.AddGroupCallback('browser', load_images_vis_prefs)
 
-    from Browser import Browser
     import SafeTkinter
-    browser = Browser(app.root, app, geometry=geometry)
-    if url:
-	browser.context.load(url)
-    elif prefs.GetBoolean('browser', 'load-initial-page'):
-	browser.home_command()
     SafeTkinter._castrate(app.root.tk)
+
     import tktools
     tktools.install_keybindings(app.root)
+
     # Make everybody who's still using urllib.urlopen go through the cache
     urllib.urlopen = app.open_url_simple
+
     # Add $GRAILDIR/user/ to sys.path
     subdir = os.path.join(app.graildir, 'user')
     if subdir not in sys.path:
 	sys.path.insert(0, subdir)
+
     # Import user's grail startup file, defined as
     # $GRAILDIR/user/grailrc.py if it exists.
     try: import grailrc
     except ImportError: pass
     except:
 	app.exception_dialog('during import of startup file')
+
+    # Load the initial page (command line argument or from preferences)
+    from Browser import Browser
+    browser = Browser(app.root, app, geometry=geometry)
+    if url:
+	browser.context.load(url)
+    elif prefs.GetBoolean('browser', 'load-initial-page'):
+	browser.home_command()
+
+    # Give the user control
     app.go()
 
 
