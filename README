@@ -9,6 +9,7 @@ Python interpreter configured for Tcl/Tk support.
 In this file:
 
 	- Licensing issues
+	- Future development
 	- Hardware requirements
 	- Installation
 	- Using Grail
@@ -24,6 +25,21 @@ The license of Grail allows essentially unrestricted use and
 redistribution.  The full text of the license can be found in the file
 LICENSE in this directory.  The sources are Copyright (c) CNRI
 1996-1999.  Grail is a registered trademark of CNRI.
+
+
+Future development
+------------------
+
+Given the low usage of Grail, CNRI cannot allocate further resources
+to this project.  The license allows for derivative projects, so
+anyone who has a need for a Python-based or easily modified Internet
+browser is free to use the Grail source code as a basis for a new
+project.
+
+The Grail development team would be happy to provide anyone seriously
+interested in using Grail as the basis for a new project with a copy
+of the CVS repository.  We are also able to provide pointers from the 
+Grail Web site to any new projects that spring up based on Grail.
 
 
 Hardware requirements
@@ -117,21 +133,13 @@ Help menu.
 Feedback
 --------
 
-Send all your feedback to the following email address:
+Grail 0.6 is the last version of Grail to be released by CNRI.  If a
+new project based on Grail appears, we will be glad to point to it
+from the Grail Web site, but we are not prepared to respond to bug
+reports.
 
-    grail-feedback@python.org
-
-Before reporting a bug, be sure to check the known bugs page first, at
-this URL:
-
-    http://grail.cnri.reston.va.us/grail/info/bugs.html
-
-You are encouraged to subscribe to the Grail mailing list.  See this
-URL:
-
-    http://grail.cnri.reston.va.us/grail/info/mailinglist.html
-
-(or send Majordomo commands to grail-request@python.org).
+Refer to the Grail Web site to determine if any derived projects have
+been started.
 
 
 Epilogue
