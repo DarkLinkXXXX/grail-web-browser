@@ -68,9 +68,18 @@ class CacheManager:
 							   * 1024
 	new_dir = self.app.prefs.Get('disk-cache', 'directory')
 	if new_dir != self.disk.directory:
-	    self.disk.close()
-	    self.disk = DiskCache(self, size, new_dir)
+	    self.disk._checkpoint_metadata()
 
+	    self.reset_disk_cache(size, new_dir)
+
+    def reset_disk_cache(self, size=None, dir=None):
+	if not size:
+	    size = self.disk.size
+	if not dir:
+	    dir = self.disk.directory
+	self.disk.close()
+	self.disk = DiskCache(self, size, dir)
+	
     def set_freshness_test(self):
 	# read preferences to determine when pages should be checked
 	# for freshness -- once per session, every n secs, or never
@@ -497,12 +506,12 @@ class DiskCache:
     log_version = "1.2"
 
     def close(self):
-	self._checkpoint_metadata()
+	# self._checkpoint_metadata()
 	self.manager.delete(self.items.keys(), evict=0)
 	del self.items
 	del self.expires
 	self.manager.close_cache(self)
-	self.manager = None
+	self.dead = 1
 
     def _read_metadata(self):
 	"""Read the transaction log from the cache directory.
@@ -609,6 +618,11 @@ class DiskCache:
 	    self.log.flush()
 
     def erase_cache(self):
+
+	if hasattr(self,'dead'):
+	    # they got me
+	    self.manager.disk.erase_cache()
+	    return
 	
 	def walk_erase(nil,dir,files):
 	    for file in files:
@@ -617,9 +631,15 @@ class DiskCache:
 		    os.unlink(path)
 	
 	os.path.walk(self.directory, walk_erase, None)
+	self.manager.reset_disk_cache()
 
     def erase_unlogged_files(self):
 
+	if hasattr(self,'dead'):
+	    # they got me
+	    self.manager.disk.erase_cache()
+	    return
+	
 	def walk_erase_unknown(known,dir,files):
 	    for file in files:
 		if not known.has_key(file):
