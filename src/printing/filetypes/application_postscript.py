@@ -1,6 +1,6 @@
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 
-import HTMLParser
+import sgml.HTMLParser
 import string
 import sys
 import urlparse
@@ -41,7 +41,7 @@ def embed_application_postscript(parser, attrs):
         width = extract_keyword('width', attrs, conv=conv_integer)
         height = extract_keyword('height', attrs, conv=conv_integer)
         parser.print_image(image, width, height)
-        return HTMLParser.Embedding()
+        return sgml.HTMLParser.Embedding()
 
 
 def load_eps_object(parser, imageurl):
