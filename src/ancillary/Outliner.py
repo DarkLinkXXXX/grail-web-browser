@@ -10,6 +10,7 @@ class OutlinerNode:
 	self._parent = None
 	self._children = []
 	self._depth = 0
+	self._index = None
 
     def __repr__(self):
 	tabdepth = self._depth - 1
@@ -56,6 +57,8 @@ class OutlinerNode:
     def leaf_p(self): return not self._children
 
     def depth(self): return self._depth
+    def index(self): return self._index
+    def set_index(self, index): self._index = index
 
 
 
