@@ -28,6 +28,6 @@ C:
 C: Printing preferences:
 C:
 printing--images: 1
-printing--greyscale: 0
+printing--greyscale: 1
 printing--to-file: 0
 printing--command: lpr
