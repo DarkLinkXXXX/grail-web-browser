@@ -23,11 +23,6 @@ FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 TITLE_PREFIX = "Grail: "
 
 
-# Last directory used by Save As... command
-save_as_dir = None
-
-
-
 
 class Browser:
     """The Browser class provides the top-level GUI.
@@ -374,62 +369,13 @@ class Browser:
 	    self.context.load('file:' + urllib.quote(filename))
 
     def view_source_command(self, event=None):
-	# File/View Source
-	b = Browser(self.master, self.app, height=24)
-	b.context.load(self.context.get_url(), show_source=1)
+	self.context.view_source()
 
     def save_as_command(self, event=None):
-	global save_as_dir
-	# File/Save As...
-	if self.context.busycheck(): return
-	import FileDialog
-	fd = FileDialog.SaveFileDialog(self.root)
-	# give it a default filename on which save within the
-	# current directory
-	urlasfile = string.splitfields(self.context.get_url(), '/')
-	default = urlasfile[-1]
-	# strip trailing query
-	i = string.find(default, '?')
-	if i > 0: default = default[:i]
-	# strip trailing fragment
-	i = string.rfind(default, '#')
-	if i > 0: default = default[:i]
-	# maybe bogus assumption?
-	if not default: default = 'index.html'
-	if not save_as_dir:
-	    save_as_dir = os.getcwd()
-	file = fd.go(save_as_dir, default=default)
-	if not file: return
-	save_as_dir = os.path.dirname(file)
-	api = self.app.open_url(self.context.get_url(), 'GET', {})
-	errcode, errmsg, params = api.getmeta()
-	if errcode != 200:
-	    self.error_dialog('Error reply', errmsg)
-	    api.close()
-	    return
-	try:
-	    ofp = open(file, 'w')
-	except IOError, msg:
-	    api.close()
-	    self.error_dialog(IOError, msg)
-	    return
-	self.message("Saving...")
-	BUFSIZE = 8*1024
-	while 1:
-	    buf = api.getdata(BUFSIZE)
-	    if not buf: break
-	    ofp.write(buf)
-	ofp.close()
-	api.close()
-	self.message_clear()
+	self.context.save_document()
 
     def print_command(self, event=None):
-	# File/Print...
-	if self.context.busycheck(): return
-	import PrintDialog
-	PrintDialog.PrintDialog(self.context,
-				self.context.get_url(),
-				self.context.get_title())
+	self.context.print_document()
 
     def iostatus_command(self, event=None):
 	self.app.open_io_status_panel()
