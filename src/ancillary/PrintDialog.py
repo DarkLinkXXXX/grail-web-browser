@@ -69,12 +69,12 @@ def PrintDialog(context, url, title):
 	MaybePrintDialog(context, url, title, infp)
 	return
     ctype, ctype_params = grailutil.conv_mimetype(ctype)
-    [type, subtype] = string.splitfields(ctype, '/')
-    if type == 'text' and subtype != 'html':
-	ctype = 'text/plain'
-    if ctype not in ('text/html', 'text/plain', 'application/postscript'):
-	context.error_dialog("Unprintable document",
-			     "This document cannot be printed.")
+    name, mod = context.app.find_type_extension("printing.filetypes", ctype)
+    if (ctype != "application/postscript"
+	and not (mod and hasattr(mod, "parse"))):
+	context.error_dialog(
+	    "Unprintable document",
+	    "No printing module is available for the %s media type." % ctype)
 	return
     RealPrintDialog(context, url, title, infp, ctype)
 
@@ -205,34 +205,10 @@ class RealPrintDialog:
 	    e.pack(side=LEFT)
 	    self.add_entry(e)
 
-	Frame(top, height=8).pack()
-	if self.ctype == "text/html":
-	    htmlfr = tktools.make_group_frame(
-		top, "html", "HTML options:", fill=X)
-	    #  Image printing controls:
-	    self.imgchecked = self.new_checkbox(
-		htmlfr, "Print images", settings.imageflag)
-	    self.greychecked = self.new_checkbox(
-		htmlfr, "Reduce images to greyscale", settings.greyscale)
-	    #  Anchor-handling selections:
-	    self.footnotechecked = self.new_checkbox(
-		htmlfr, "Footnotes for anchors", settings.footnoteflag)
-	    self.underchecked = self.new_checkbox(
-		htmlfr, "Underline anchors", settings.underflag)
-	elif self.ctype == "text/plain":
-	    textfr = tktools.make_group_frame(
-		top, "textoptions", "Text options:", fill=X)
-	    #  The titleentry widget is used to set the title for text/plain
-	    #  documents; the title is printed in the page headers and
-	    #  possibly on an accounting page if your site uses them.
-	    self.titleentry, dummyframe = tktools.make_form_entry(
-		textfr, "Title:")
-	    if self.title:
-		self.titleentry.insert(END, self.title)
-	    self.add_entry(self.titleentry)
-	    Frame(textfr, height=4).pack()
-	    self.strip_blanks = self.new_checkbox(
-		textfr, "Strip leading blank lines", settings.strip_blanks)
+	self.mod = self.get_type_extension()
+	if hasattr(self.mod, "add_options"):
+	    Frame(top, height=8).pack()
+	    self.mod.add_options(self, settings, top)
 
 	#  Command buttons:
 	ok_button = Button(botframe, text="OK",
@@ -245,6 +221,10 @@ class RealPrintDialog:
 
 	tktools.set_transient(self.root, self.master)
 	self.check_command()
+
+    def get_type_extension(self):
+	return self.context.app.find_type_extension(
+	    "printing.filetypes", self.ctype)[1]
 
     def new_checkbox(self, parent, description, value):
 	var = BooleanVar(parent)
@@ -341,24 +321,11 @@ class RealPrintDialog:
 	    return
 	apply(self.settings.set_scaling, get_scaling_adjustments(self.root))
 	paper = paper.PaperInfo(self.settings.papersize,
-					 margins=self.settings.margins,
-					 rotation=self.settings.orientation)
-	fontsize, leading = self.settings.get_fontsize()
+				margins=self.settings.margins,
+				rotation=self.settings.orientation)
 	w = PSWriter.PSWriter(fp, self.title, self.baseurl, paper=paper,
-			      fontsize=fontsize, leading=leading)
-	if self.ctype == 'text/html':
-	    from printing import PSParser
-	    if self.settings.imageflag:
-		import printing.utils
-		imgloader = printing.utils.image_loader
-	    else:
-		imgloader = None
-	    p = PSParser.PrintingHTMLParser(
-		w, self.settings, self.context,
-		baseurl=self.baseurl, image_loader=imgloader)
-	else:
-	    p = PrintingTextParser(w, title=self.titleentry.get(),
-				   strip_blanks=self.settings.strip_blanks)
+			      settings=self.settings)
+	p = self.mod.parse(w, self.settings, self.context)
 	p.feed(self.infp.read())
 	self.infp.close()
 	p.close()
@@ -373,58 +340,5 @@ class RealPrintDialog:
 	    return
 	settings.set_fontsize(self.fontsize.get())
 	settings.orientation = string.lower(self.orientation.get())
-	if self.ctype == "text/html":
-	    settings.footnoteflag = self.footnotechecked.get()
-	    settings.greyscale = self.greychecked.get()
-	    settings.imageflag = self.imgchecked.get()
-	    settings.underflag = self.underchecked.get()
-	else:
-	    settings.strip_blanks = self.strip_blanks.get()
-
-
-class PrintingTextParser(Reader.TextParser):
-    __buffer = ''
-
-    def __init__(self, writer, strip_blanks=0, title=''):
-	self.__strip_blanks = strip_blanks
-	writer.ps.set_title(title)
-	writer.ps.prune_titles()
-	Reader.TextParser.__init__(self, writer)
-
-    def close(self):
-	self.write_page(self.__buffer)
-	self.__buffer = ''
-	Reader.TextParser.close(self)
-
-    def feed(self, data):
-	data = self.__buffer + data
-	self.__buffer = ''
-	strings = string.splitfields(data, "\f")
-	if strings:
-	    for s in strings[:-1]:
-		self.write_page(s)
-	    self.__buffer = strings[-1]
-
-    __first = 1
-    def write_page(self, data):
-	data = string.rstrip(data)
-	if self.__strip_blanks:
-	    data = self.strip_blank_lines(data)
-	    # discard blank pages:
-	    if not data:
-		return
-	if self.__first:
-	    self.__first = 0
-	else:
-	    self.viewer.ps.close_line()
-	    self.viewer.ps.push_page_break()
-	self.viewer.send_literal_data(data)
-
-    def strip_blank_lines(self, data):
-	lines = map(string.rstrip, string.splitfields(data, "\n"))
-	while lines:
-	    if string.strip(lines[0]) == "":
-		del lines[0]
-	    else:
-		break
-	return string.joinfields(lines, "\n")
+	if hasattr(self.mod, "update_settings"):
+	    self.mod.update_settings(self, settings)
