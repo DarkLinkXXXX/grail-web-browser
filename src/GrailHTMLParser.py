@@ -653,12 +653,6 @@ class GrailHTMLParser(HTMLParser):
 
     # Handle HTML extensions
 
-    # We don't implement these, but we want to know that they go in pairs,
-    # just in case we're in "strict" mode.
-    UNIMPLEMENTED_CONTAINERS = [
-	'big', 'fig', 'font', 'lang', 'note', 'small', 'span', 'sub', 'sup',
-	]
-
     def unknown_starttag(self, tag, attrs):
 	# Look up the function first, so it has a chance to update
 	# the list of object aware tags
@@ -673,7 +667,7 @@ class GrailHTMLParser(HTMLParser):
 		    attrs = attrs.items()
 		function(self, attrs)
 	    else:
-		has_end = 1
+		has_end = 1		# in UNIMPLEMENTED_CONTAINERS
 	    if id:
 		self.register_id(id)
 	    if has_end:
