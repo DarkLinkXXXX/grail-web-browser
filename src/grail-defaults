@@ -16,3 +16,10 @@ C: Note that values can begin on the subsequent line, just so long as
 C: they look like header-continuation lines, ie they have white space prefix:
 presentation--message-font:
 	-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*
+C:
+C: Bookmarks defaults
+C:
+C: add-location can be `file-append', `file-prepend', `as-child-or-sib'
+bookmarks--add-location: file-prepend
+C: aggressive-collapse can be `yes' or `no'
+bookmarks--aggressive-collapse: no
