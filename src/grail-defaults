@@ -24,3 +24,9 @@ C: History defaults
 C:
 C: view-by can be 'titles', 'urls'
 history--view-by: titles
+C:
+C: Printing preferences:
+C:
+printing--images: true
+printing--to-file: false
+printing--command: lpr

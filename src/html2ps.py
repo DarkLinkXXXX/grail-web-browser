@@ -745,8 +745,15 @@ class PrintingHTMLParser(HTMLParser):
 	self._baseurl = baseurl
 	self._image_loader = image_loader
 	self._image_cache = {}
+	self._anchors = {}
+	self._anchor_sequence = []
 
     def close(self):
+	if self._anchors:
+	    self._formatAnchorList()
+	HTMLParser.close(self)
+
+    def _formatAnchorList(self):
 	from urlparse import urljoin
 	baseurl = self.base or self._baseurl or ''
 	self.formatter.add_hor_rule()
@@ -754,24 +761,29 @@ class PrintingHTMLParser(HTMLParser):
 	self.formatter.end_paragraph(1)
 	self.formatter.push_margin(1)
 	self.formatter.push_font((8, None, None, None))
-	acnt = len(self.anchorlist)
+	acnt = len(self._anchor_sequence)
 	count = 1
-	for anchor in self.anchorlist:
+	for anchor in self._anchor_sequence:
 	    anchor = urljoin(baseurl, anchor)
 	    self.formatter.add_label_data(('[%d]' % count), -1)
 	    self.formatter.add_literal_data(anchor)
 	    self.formatter.end_paragraph(1)
 	    count = count + 1
 	self.formatter.pop_margin()
-	HTMLParser.close(self)
 
     def anchor_bgn(self, href, name, type):
-	HTMLParser.anchor_bgn(self, href, name, type)
-	self.formatter.push_style(href and 'u' or None)
+	self.anchor = href
+	if href:
+	    self.formatter.push_style(href and 'u' or None)
+	    if not self._anchors.has_key(href):
+		self._anchors[href] = len(self._anchor_sequence) + 1
+		self._anchor_sequence.append(href)
 
     def anchor_end(self):
-	HTMLParser.anchor_end(self)
-	self.formatter.pop_style()
+	anchor = self.anchor
+	if anchor:
+	    self.handle_data('[%d]' % self._anchors[anchor])
+	    self.formatter.pop_style()
 
     def handle_image(self, src, alt, ismap, align, *notused):
 	if self._image_loader:
@@ -808,7 +820,8 @@ class PrintingHTMLParser(HTMLParser):
 	except:
 	    raise EPSError, 'Failed to write image to external file.'
 	eps_fn = mktemp()
-	os.system('pnmtops -nocenter -noturn %s >%s' % (ppm_fn, eps_fn))
+	os.system('pnmtops -scale 1 -nocenter -noturn %s >%s 2>/dev/null'
+		  % (ppm_fn, eps_fn))
 	os.unlink(ppm_fn)
 	fp = open(eps_fn)
 	lines = fp.readlines()
@@ -825,7 +838,7 @@ class PrintingHTMLParser(HTMLParser):
 		break
 	if not bbox:
 	    raise EPSError, 'Bounding box not specified.'
-	return (string.joinfields(lines, '\n'), bbox)
+	return (string.joinfields(lines, ''), bbox)
 
 
 
