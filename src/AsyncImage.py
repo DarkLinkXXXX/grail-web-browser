@@ -11,19 +11,25 @@ TkPhotoImage = PhotoImage
 # the image loading capability.  Image can be imported without _imaging
 # and still supports identification of file types.
 #
+ATTEMPT_TRANSPARENCY = 0
+class PILPhotoImage:
+    pass
+
 try:
     import _imaging
 except ImportError:
     use_pil = 0
-    class PILPhotoImage:
-	pass
 else:
     import Image
-    import ImageDraw
     import ImageTk
-    ATTEMPT_TRANSPARENCY = 0
-    PILPhotoImage = ImageTk.PhotoImage
-    use_pil = 1
+    try:
+	ImageTk.PhotoImage(Image.new("L", (1, 1)))
+    except TclError:
+	use_pil = 0
+    else:
+	import ImageDraw
+	PILPhotoImage = ImageTk.PhotoImage
+	use_pil = 1
 
 
 class ImageTempFileReader(TempFileReader):
@@ -209,9 +215,8 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	self.image = TkPhotoImage()
 	self._PhotoImage__tk = self.image
 	# Make sure these are integers >= 0
-	if width and height:
-	    self.__width = width
-	    self.__height = height
+	self.__width = width or 0
+	self.__height = height or 0
 
     def blank(self):
 	self.image.blank()
@@ -237,6 +242,11 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	format = im.format
 	real_mode = im.mode
 	real_size = im.size
+	# Setting this helps with getting table geometry and such right
+	# when the image is loaded from the cache, or if a page resize
+	# occurs.
+	self.__width = self.__width or im.size[0]
+	self.__height = self.__height or im.size[1]
 	# this transparency stuff should be greatly simplified on the next
 	# release of PIL....
 	# handle transparent GIFs:
@@ -251,8 +261,8 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	    b = b / 255
 	    im = transp_gif_to_rgb(im, (r, g, b))
 	#
-	if self.__width:
-	    w, h = im.size
+	if real_size != (self.__width, self.__height):
+	    w, h = real_size
 	    if w != self.__width or h != self.__height:
 		im = im.resize((self.__width, self.__height))
 	mode = real_mode = im.mode
