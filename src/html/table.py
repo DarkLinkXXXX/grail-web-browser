@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.19 1996/04/05 15:25:58 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.20 1996/04/08 20:05:55 bwarsaw Exp $'
 
 
 import string
@@ -17,6 +17,8 @@ FIXEDLAYOUT = 1
 AUTOLAYOUT = 2
 OCCUPIED = 101
 EMPTY = 102
+
+BadMojoError = 'Bad Mojo!  Infinite loop in cell height calculation.'
 
 
 
@@ -302,7 +304,8 @@ class Table(AttrElem):
     def finish(self):
 	if self.layout == AUTOLAYOUT:
 	    self.parentviewer.text.insert(END, '\n')
-	    containerwidth = self._autolayout_1()
+	    self._autolayout_1()
+	    containerwidth = self._autolayout_2()
 	    self.container.pack()
 	    self.parentviewer.add_subwindow(self.container)
 	    self.parentviewer.text.insert(END, '\n')
@@ -311,9 +314,10 @@ class Table(AttrElem):
 
     def _autolayout_1(self):
 	# internal representation of the table as a sparse array
-	table = {}
+	self._table = table = {}
 	bodies = (self.thead or []) + self.tbodies + (self.tfoot or [])
-	borderwidth = grailutil.conv_integer(self.container['borderwidth'])
+	bw = self._borderwidth = grailutil.conv_integer(
+	    self.container['borderwidth'])
 
 	# calculate row and column counts
 	colcount = 0
@@ -368,27 +372,9 @@ class Table(AttrElem):
 		    col = col + 1
 		row = row + 1
 
-	# debugging
-## 	print '==========', id(self)
-## 	for row in range(rowcount):
-## 	    print '[', 
-## 	    for col in range(colcount):
-## 		element = table[(row, col)]
-## 		if element == EMPTY:
-## 		    print 'EMPTY', 
-## 		elif element == OCCUPIED:
-## 		    print 'OCCUPIED',
-## 		else:
-## 		    print element,
-## 	    print ']'
-## 	print '==========', id(self)
-
 	# calculate column widths
-	
 	maxwidths = [0] * colcount
 	minwidths = [0] * colcount
-	cellheights = [0] * rowcount
-	bw = borderwidth
 	for col in range(colcount):
 	    for row in range(rowcount):
 		cell = table[(row, col)]
@@ -407,11 +393,40 @@ class Table(AttrElem):
 		    maxwidths[col_i] = max(maxwidths[col_i], maxwidth) + bw
 		    minwidths[col_i] = max(minwidths[col_i], minwidth) + bw
 
-	mincanvaswidth = 2 * borderwidth + self.Acellspacing * (colcount + 1)
-	maxcanvaswidth = 2 * borderwidth + self.Acellspacing * (colcount + 1)
+	# save these for the second phase of autolayout
+	self._colcount = colcount
+	self._rowcount = rowcount
+	self._maxwidths = maxwidths
+	self._minwidths = minwidths
+
+    def _autolayout_2(self):
+	table = self._table
+	colcount = self._colcount
+	rowcount = self._rowcount
+	bw = self._borderwidth
+	maxwidths = self._maxwidths
+	minwidths = self._minwidths
+
+	mincanvaswidth = 2 * bw + self.Acellspacing * (colcount + 1)
+	maxcanvaswidth = 2 * bw + self.Acellspacing * (colcount + 1)
 	for col in range(colcount):
 	    mincanvaswidth = mincanvaswidth + minwidths[col]
 	    maxcanvaswidth = maxcanvaswidth + maxwidths[col]
+
+	# debugging
+## 	print '==========', id(self)
+## 	for row in range(rowcount):
+## 	    print '[', 
+## 	    for col in range(colcount):
+## 		element = table[(row, col)]
+## 		if element == EMPTY:
+## 		    print 'EMPTY', 
+## 		elif element == OCCUPIED:
+## 		    print 'OCCUPIED',
+## 		else:
+## 		    print element,
+## 	    print ']'
+## 	print '==========', id(self)
 
 	# calculate the available width that the table should render
 	# itself in. first get the actual width, then apply any <TABLE
@@ -433,8 +448,8 @@ class Table(AttrElem):
 	    else:
 		suggestedwidth = veiwerwidth
 	else:
-	    print 'Internal inconsistency.  Awidth=', self.Awidth, \
-		  type(self.Awidth)
+	    print 'Tables internal inconsistency.  Awidth=', \
+		  self.Awidth, type(self.Awidth)
 	    suggestedwidth = viewerwidth
 	
 	# now we need to adjust for the available space (i.e. parent
@@ -463,6 +478,8 @@ class Table(AttrElem):
 	# calculate column heights.  this should be done *after*
 	# cellwidth calculations, due to side-effects in the cell
 	# algorithms
+	cellheights = [0] * rowcount
+
 	for row in range(rowcount):
 	    for col in range(colcount):
 		cell = table[(row, col)]
@@ -472,7 +489,18 @@ class Table(AttrElem):
 		for w in cellwidths[col:col + cell.colspan]:
 		    cellwidth = cellwidth + w
 		cell.situate(width=cellwidth)
-		cellheight = cell.height() / cell.rowspan
+		mojocnt = 0
+		while mojocnt < 100:
+		    try:
+			cellheight = cell.height() / cell.rowspan
+			break
+		    except BadMojoError, mojo_height:
+			print 'Mojo sez:', mojo_height
+			cell.situate(height=2*mojo_height)
+			mojocnt = mojocnt + 1
+		else:
+		    cellheight = mojo_height / cell.rowspan
+		    print 'Not even Mojo knows:', mojo_height
 		for row_i in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
 
@@ -480,7 +508,7 @@ class Table(AttrElem):
 	for col in range(colcount):
 	    canvaswidth = canvaswidth + cellwidths[col]
 
-	ypos = borderwidth + self.Acellspacing
+	ypos = bw + self.Acellspacing
 
 	# if caption aligns top, then insert it now.  it doesn't need
 	# to be moved, just resized
@@ -488,13 +516,12 @@ class Table(AttrElem):
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
-	    self.caption.situate(xdelta=borderwidth, ydelta=ypos,
-				 height=height)
+	    self.caption.situate(x=bw, y=ypos, height=height)
 	    ypos = ypos + height + self.Acellspacing
 
 	# now place and size each cell
 	for row in range(rowcount):
-	    xpos = borderwidth + self.Acellspacing
+	    xpos = bw + self.Acellspacing
 	    tallest = 0
 	    for col in range(colcount):
 		cell = table[(row, col)]
@@ -505,8 +532,7 @@ class Table(AttrElem):
 		cellheight = self.Acellspacing * (rowspan - row - 1)
 		for h in cellheights[row:min(rowcount, row + cell.rowspan)]:
 		    cellheight = cellheight + h
-		cell.situate(xdelta=xpos, ydelta=ypos,
-			     height=cellheight)
+		cell.situate(x=xpos, y=ypos, height=cellheight)
 		xpos = xpos + cellwidths[col] + self.Acellspacing
 	    ypos = ypos + cellheights[row] + self.Acellspacing
 
@@ -516,20 +542,19 @@ class Table(AttrElem):
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
-	    self.caption.situate(xdelta=borderwidth, ydelta=ypos,
-				 height=height)
+	    self.caption.situate(x=bw, y=ypos, height=height)
 	    ypos = ypos + height + self.Acellspacing
 
 	self.container.config(width=canvaswidth + 2 * self.Acellspacing,
-			      height=ypos-borderwidth)
+			      height=ypos-bw)
 	return canvaswidth
 
     def _reset(self, viewer):
 	print '_reset:', viewer
-	self.container.forget()
+##	self.container.forget()
 
     def _resize(self, viewer):
-	print '_resize:', viewer
+	self._autolayout_2()
 
     def _notify(self, context):
 	print '_notify:', context
@@ -594,17 +619,17 @@ def _get_height(tw):
 	tw.see(1.0)
 	info = tw.dlineinfo('end - 1 c')
 	if info:
-	    break
+	    x, y, w, h, b = info
+	    if h >= b:
+		break
 	# TBD: loopcnt check is probably unnecessary, but I'm not yet
 	# convinced this algorithm always works.
 	loopcnt = loopcnt + 1
-	if loopcnt > 100:
-	    print 'Bad Mojo!  Infinite loop in cell height calculation.'
-	    return 50
+	if loopcnt > 25:
+	    raise BadMojoError, tw.winfo_height()
 	linecount = linecount + 1
 	tw['height'] = linecount
 	tw.update_idletasks()
-    x, y, w, h, b = info
     # TBD: this isn't quite right.  We want to add border_y, but
     # that's not correct for the lower border.  I think we can ask the
     # textwidget for it's internal border space, but we may need to
@@ -649,12 +674,11 @@ class ContainedText(AttrElem):
 	return self._minwidth		# likewise
 
     def height(self):
-	if self._height is None:
-	    self._height = _get_height(self._tw)
-	return self._height
+	return _get_height(self._tw)
 
     def finish(self, padding=0):
 	# TBD: if self.layout == AUTOLAYOUT???
+	self._x = self._y = 0
 	fw = self._fw
 	tw = self._tw
 	# set the padding before grabbing the width
@@ -679,7 +703,13 @@ class ContainedText(AttrElem):
 	# be max(min_left + min_right, min_nonaligned)
 	self._minwidth = min_nonaligned
 
-    def situate(self, xdelta=0, ydelta=0, width=None, height=None):
+    def situate(self, x=0, y=0, width=None, height=None):
+	# canvas.move() deals in relative positioning, but we want
+	# absolute coordinates
+	xdelta = x - self._x
+	ydelta = y - self._y
+	self._x = x
+	self._y = y
 	self._container.move(self._tag, xdelta, ydelta)
 	if width <> None and height <> None:
 	    self._container.itemconfigure(self._tag,
@@ -741,7 +771,7 @@ class Cell(ContainedText):
 	pass
 
     def __repr__(self):
-	return '"%s"' % self._tw.get(1.0, END)[:-1]
+	return '<%s>' % id(self) + '"%s"' % self._tw.get(1.0, END)[:-1]
 
     def is_empty(self):
 	return not self._tw.get(1.0, 'end - 1 c')
