@@ -281,8 +281,11 @@ class Viewer(formatter.AbstractWriter):
 	self.text['state'] = NORMAL
 
     def freeze(self):
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
 	self.text['state'] = DISABLED
-	self.text.update_idletasks()
+	#self.text.update_idletasks()
 
     def new_tags(self):
 	if self.pendingdata:
@@ -374,7 +377,6 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.insert(END, self.pendingdata + MIN_IMAGE_LEADER, align)
 	self.text.window_create(END, window=window)
 	self.pendingdata = '\n'
-	#self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
 
     def rule_width(self):
@@ -396,22 +398,19 @@ class Viewer(formatter.AbstractWriter):
 	    self.subwindows.append(window)
 	    self.text.window_create(END, window=window)
 	    self.pendingdata = '\t'
-	    #self.text.insert(END, '\t', tags)
 	elif type(data) is TupleType:
 	    #  (string, fonttag) pair
 	    if data[1]:
 		self.text.insert(END, self.pendingdata + '\t', tags)
 		self.text.insert(END, data[0], tags + (data[1],))
 		self.pendingdata = '\t'
-		#self.text.insert(END, '\t', tags)
 	    else:
-		self.text.insert(END, self.pending_data +
-				 ('\t%s\t' % data[0], tags))
+		self.text.insert(END, self.pending_data + ('\t%s\t' % data[0]),
+				 tags)
 		self.pendingdata = ''
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags
-	#self.text.insert(END, self.pendingdata + data, self.flowingtags)
 	self.pendingdata = self.pendingdata + data
 
     def send_literal_data(self, data):

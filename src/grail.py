@@ -655,6 +655,7 @@ if sys.argv[1:] and sys.argv[1][:2] == '-p':
     del sys.argv[1]
     if p[2:]: n = eval(p[2:])
     else: n = 20
+    KEEPALIVE_TIMER = 50000
     import profile
     profile.run('main()', '@grail.prof')
     import pstats
