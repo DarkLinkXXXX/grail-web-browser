@@ -145,10 +145,10 @@ class Viewer(formatter.AbstractWriter):
 
     def anchor_enter(self, event):
 	url = self.find_tag_url() or '???'
-	self.browser.message(url)
+	self.browser.enter(url)
 
     def anchor_leave(self, event):
-	self.browser.message_clear()
+	self.browser.leave()
 
     def anchor_click(self, event):
 	url = self.find_tag_url()
