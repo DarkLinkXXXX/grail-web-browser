@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.44 1996/05/08 16:11:01 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.45 1996/05/13 12:42:20 fdrake Exp $'
 
 
 import string
@@ -102,15 +102,15 @@ class TableSubParser:
 
     def do_thead(self, parser, attrs):
 	ti = self._lasttable 
-	if ti: ti.head = self._do_body(parser)
+	if ti: ti.head = self._do_body(parser, attrs)
 
     def do_tfoot(self, parser, attrs):
 	ti = self._lasttable 
-	if ti: ti.foot = self._do_body(parser)
+	if ti: ti.foot = self._do_body(parser, attrs)
 
     def do_tbody(self, parser, attrs):
 	ti = self._lasttable 
-	if ti: ti.bodies.append(self._do_body(parser))
+	if ti: ti.tbodies.append(self._do_body(parser, attrs))
 
     def start_tr(self, parser, attrs):
 	self._finish_cell(parser)
