@@ -749,13 +749,14 @@ class DetailsDialog:
 
     def _create_form(self):
 	make = tktools.make_labeled_form_entry # convenience
-	self._form = [make(self._frame, 'Name', 40)]
+	lw = 12 # Label width, in "average characters"
+	self._form = [make(self._frame, 'Name', 40, 1, lw)]
 	if self._node.islink_p():
 	    self._form[1:] = [
-		make(self._frame, 'Location', 40),
-		make(self._frame, 'Last Visited', 40),
-		make(self._frame, 'Added On', 40),
-		make(self._frame, 'Description', 40, 5)
+		make(self._frame, 'Location', 40, 1, lw),
+		make(self._frame, 'Last Visited', 40, 1, lw),
+		make(self._frame, 'Added On', 40, 1, lw),
+		make(self._frame, 'Description', 40, 5, lw)
 		]
 	    self._form[2][0].config(relief='groove')
 	    self._form[3][0].config(relief='groove')
