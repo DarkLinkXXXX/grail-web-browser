@@ -1,5 +1,9 @@
 #! /usr/bin/env python
 
+# Copyright (c) CNRI 1996, licensed under terms and conditions of license
+# agreement obtained from handle "hdl:CNRI.License/Grail-Version-0.3",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+
 """HTML to PostScript translator.
 
 This module uses the AbstractWriter class interface defined by Grail

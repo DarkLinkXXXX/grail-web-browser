@@ -1,3 +1,7 @@
+# Copyright (c) CNRI 1996, licensed under terms and conditions of license
+# agreement obtained from handle "hdl:CNRI.License/Grail-Version-0.3",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+
 """Handy dandy routines for exercising yer code.
 
 Use exercise() to try things that shouldn't fail, or things that should
@@ -6,7 +10,7 @@ unanticipated exception is encountered.
 
 Use note() to emit an error message to standard error."""
 
-__version__ = "$Revision: 2.2 $"
+__version__ = "$Revision: 2.3 $"
 # $Source: /home/john/Code/grail/src/utils/testing.py,v $
 
 TestFailure = 'TestFailure'
