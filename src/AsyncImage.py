@@ -13,7 +13,8 @@ TkPhotoImage = PhotoImage
 #
 # Note that "import Image" is not sufficient to test the availability of
 # the image loading capability.  Image can be imported without _imaging
-# and still supports identification of file types.
+# and still supports identification of file types.  Grail requires _imaging
+# to support image loading.
 #
 class PILPhotoImage:
     pass
@@ -25,6 +26,7 @@ except ImportError:
 else:
     import Image
     import ImageTk
+    # Now check the integration with Tk:
     try:
 	ImageTk.PhotoImage(Image.new("L", (1, 1)))
     except TclError:
@@ -78,7 +80,8 @@ class ImageTempFileReader(TempFileReader):
 		    cred_headers[string.lower(k)] = headers[k]
 		cred_headers['request-uri'] = self.image.url
 		self.stop()
-		credentials = self.image.context.app.auth.request_credentials(cred_headers)
+		credentials = self.image.context.app.auth.request_credentials(
+		    cred_headers)
 		if credentials.has_key('Authorization'):
 		    for k,v in credentials.items():
 			self.image.headers[k] = v
@@ -243,11 +246,7 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	    # either of these may occur during decoding...
 	    return self.show_bad()
 	if im.format == "XBM":
-	    # invert & mask so we get transparency
-	    mapping = [255] * 256
-	    mapping[255] = 0
-	    mask = im.point(mapping)
-	    im = Image.merge("RGBA", (mask, mask, mask, im))
+	    im = xbm_to_rgba(im)
 	real_size = im.size
 	# determine desired size:
 	if self.__width and not self.__height and self.__width != im.size[0]:
@@ -304,11 +303,10 @@ def p_to_rgb(im, rgb):
     im
 	The transparent image.
 
-    (r, g, b)
-	The RGB-value to use for the transparent areas.  These should be
-	8 bits for each band.
+    rgb
+	The RGB-value to use for the transparent areas.  This should be
+	a 3-tuple of integers, 8 bits for each band.
     """
-##     print "p_to_rgb, rgb =", rgb
     new_im = Image.new("RGB", im.size, rgb)
     point_mask = [0xff] * 256
     point_mask[im.info['transparency']] = 0
@@ -317,15 +315,38 @@ def p_to_rgb(im, rgb):
 
 
 def rgba_to_rgb(im, rgb):
-##     print "rgba_to_rgb, rgb =", rgb
+    """Translate an RGBA-mode image to an RGB image. 
+
+    im
+	The transparent image.
+
+    rgb
+	The RGB-value to use for the transparent areas.  This should be
+	a 3-tuple of integers, 8 bits for each band.
+    """
     new_im = Image.new("RGB", im.size, rgb)
     new_im.paste(im, None, im)
     return new_im
 
 
+def xbm_to_rgba(im):
+    """Translate a XBM image to an RGBA image. 
+
+    im
+	The XBM image.
+    """
+    # invert & mask so we get transparency
+    mapping = [255] * 256
+    mapping[255] = 0
+    mask = im.point(mapping)
+    return Image.merge("RGBA", (mask, mask, mask, im))
+
+
 AsyncImage = TkAsyncImage
 if use_pil:
     def AsyncImage(context, url, reload=0, **kw):
+	# Check the enable-pil preference and replace this function
+	# with the appropriate implementation:
 	global AsyncImage
 	if context.app.prefs.GetBoolean("browser", "enable-pil"):
 	    AsyncImage = PILAsyncImage
