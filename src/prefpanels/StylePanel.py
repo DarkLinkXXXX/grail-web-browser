@@ -1,6 +1,6 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.1 $"
+__version__ = "$Revision: 1.2 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the dialog:
@@ -28,8 +28,8 @@ class StylePanel(PrefsDialogs.Framework):
 	# for the common styles, like color, underline, etc.
 
 	self.PrefsEntry(frame,
-			("Default style\n(%s)\n(%s):" %
-			 (choices, "Change at your own risk!")),
-			'styles', 'group', label_width=30, entry_width=15)
+			("Default style\n** %s **:\n(%s)" %
+			 (choices, "i know, it should\nbe a radiobutton")),
+			'styles', 'group', entry_width=15)
 
 	frame.pack()
