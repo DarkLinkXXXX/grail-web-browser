@@ -174,6 +174,8 @@ class HistoryDialog:
 	self.refresh()
 	self._listbox.config(takefocus=0, exportselection=0)
 	self._listbox.bind('<Double-Button-1>', self._goto)
+	self._listbox.bind('<Double-Button-2>', self._goto_new)
+	self._listbox.bind('<ButtonPress-2>', self._highlight)
 	# yes, yes, the mapping seems inverted, but it has to do with
 	# the way history elements are displayed in reverse order in
 	# the listbox...
@@ -220,13 +222,27 @@ class HistoryDialog:
 	if self._history.forward(): self._goto()
 	else: self._frame.bell()
 
+    def _load_url(self, which, context):
+	selection = string.atoi(which)
+	last = self._listbox.index(END)
+	pos = last - selection - 1
+	context.load_from_history(self._history.peek(pos=pos))
+
     def _goto(self, event=None):
 	list = self._listbox.curselection()
 	if len(list) > 0:
-	    selection = string.atoi(list[0])
-	    last = self._listbox.index(END)
-	    pos = last - selection - 1
-	    self._context.load_from_history(self._history.peek(pos=pos))
+	    self._load_url(list[0], self._context)
+
+    def _goto_new(self, event=None):
+	list = self._listbox.curselection()
+	if len(list) > 0:
+	    from Browser import Browser
+	    browser = Browser(self._context.app.root, self._context.app)
+	    self._load_url(list[0], browser.context)
+
+    def _highlight(self, event):
+	self._listbox.select_clear(0, END)
+	self._listbox.select_set('@%d,%d' % (event.x, event.y))
 
     def _close(self, event=None):
 	self._frame.withdraw()
