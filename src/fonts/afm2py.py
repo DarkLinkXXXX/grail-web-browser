@@ -48,6 +48,18 @@ def splitline(line):
 
 
 
+# Mappings between character names and their ordinal equivalents.
+
+LATIN_1_MAPPING = {
+    'copyright': 169,
+    }
+
+# TBD: when we support other character sets, we should generalize
+# this.  No need to do so now though.
+charset = LATIN_1_MAPPING
+
+
+
 TEMPLATE = """\
 # Copyright (c) CNRI 1996, licensed under terms and conditions of license
 # agreement obtained from handle "hdl:CNRI/19970131120001",
@@ -103,9 +115,13 @@ def parse(filename, outdir):
 	if keyword == 'c':
 	    info = string.split(rest)
 	    charnum = string.atoi(info[0])
+	    charname = info[6]
 	    width = string.atoi(info[3])
 	    if 0 <= charnum < 256:
 		cwidths[charnum] = width
+	    elif charset.has_key(charname):
+		cwidths[charset[charname]] = width
+
 	if keyword == 'endcharmetrics':
 	    break
 
