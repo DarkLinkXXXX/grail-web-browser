@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.37 1996/04/18 23:10:28 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.38 1996/04/23 19:28:27 fdrake Exp $'
 
 
 import string
@@ -34,28 +34,25 @@ class TableSubParser:
     def start_table(self, parser, attrs):
 	# this call is necessary because if a <P> tag is open, table
 	# rendering gets totally hosed.  this is caused by the parser
-	# doesn't know about content model.
+	# not knowing about content model.
 	parser.implied_end_p()
 	parser.formatter.add_line_break()
+	parser.formatter.assert_line_data()
 	# tosses any dangling text not in a caption or explicit cell
 	parser.save_bgn()
 	# create the table data structure
 	if self._lasttable:
 	    self._table_stack.append(self._lasttable)
 	self._lasttable = Table(parser.viewer, attrs, self._lasttable)
-	# these calls are necessary so that the formatter will treat
-	# the table as a block element.
-	parser.formatter.assert_line_data()
-	parser.formatter.nospace = 1
 
     def end_table(self, parser):
 	ti = self._lasttable 
 	if ti:
 	    self._finish_cell(parser)
 	    ti.finish()
-	    parser.formatter.add_line_break()
 	    # tosses any dangling text not in a caption or explicit cell
 	    parser.save_end()
+	    parser.formatter.add_line_break()
 	    if self._table_stack:
 		self._lasttable = self._table_stack[-1]
 		del self._table_stack[-1]
@@ -272,6 +269,7 @@ class Table(AttrElem):
 	# special invisible character right before the embedded window
 	# which is the table's container canvas.
 	self.parentviewer.prepare_for_insertion(self.Aalign)
+	self._mappos = self.parentviewer.text.index('end - 1 c')
 	# other attributes
 	self.Awidth = self.attribute('width', conv=conv_stdunits)
 	self.Acols = self.attribute('cols', conv=grailutil.conv_integer)
@@ -358,7 +356,6 @@ class Table(AttrElem):
 	self.lastbody = None
 	self.lastcell = None
 	self._mapped = None
-	self._mappos = END
 	# register with the parent viewer
 	self.parentviewer.register_reset_interest(self._reset)
 	self.parentviewer.register_resize_interest(self._resize)
@@ -370,22 +367,14 @@ class Table(AttrElem):
 	if not self._mapped:
 	    self.container.pack()
 	    pv = self.parentviewer
-	    #pv.text.insert(self._mappos, '\n')
 	    pv.add_subwindow(self.container, index=self._mappos)
 	    self._mapped = 1
-	
+
     def finish(self):
 	if self._cleared:
 	    return
 	if self.layout == AUTOLAYOUT:
 	    pv = self.parentviewer
-	    pvt = pv.text
-	    index = pvt.index('end - 1 c')
-	    if index <> '1.0':
-		self._mappos = pvt.index(END)
-	    else:
-		self._mappos = index
-	    #pvt.insert(END, '\n')
 	    self._autolayout_1()
 	    self._autolayout_2()
 	    self._autolayout_3()
