@@ -2,8 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.45 1996/05/13 12:42:20 fdrake Exp $'
-
+__version__ = '$Id: table.py,v 2.46 1996/06/11 17:28:57 bwarsaw Exp $'
 
 import string
 import regex
@@ -32,6 +31,12 @@ class TableSubParser:
 	self._table_stack = []
 
     def start_table(self, parser, attrs):
+## 	try:
+## 	    from pure import *
+## 	    quantify_clear_data()
+## 	except ImportError:
+## 	    pass
+
 	# this call is necessary because if a <P> tag is open, table
 	# rendering gets totally hosed.  this is caused by the parser
 	# not knowing about content model.
@@ -58,6 +63,11 @@ class TableSubParser:
 		del self._table_stack[-1]
 	    else:
 		self._lasttable = None
+## 	try:
+## 	    from pure import *
+## 	    quantify_save_data()
+## 	except ImportError:
+## 	    pass
 
     def start_caption(self, parser, attrs):
 	ti = self._lasttable 
@@ -754,6 +764,9 @@ def _get_widths(tw):
     # get maximum width of cell: the longest line with no line wrapping
     tw['wrap'] = NONE
     border_x, y, w, h, b = tw.dlineinfo(1.0)
+    # for some reason, dlineinfo can return a large negative number
+    # for border_x.  this is nonsensical!
+    border_x = max(border_x, 0)
     linecnt = _get_linecount(tw) + 1
     for lineno in range(1, linecnt):
 	index = '%d.0' % lineno
@@ -810,11 +823,21 @@ class ContainedText(AttrElem):
 	AttrElem.__init__(self, attrs)
 	self._table = table
 	self._container = table.container
+
+## 	from profile import Profile
+## 	from pstats import Stats
+## 	p = Profile()
+## 	# can't use runcall because that doesn't return the results
+## 	p.runctx('self._viewer = Viewer(master=table.container, context=parentviewer.context, scrolling=0, stylesheet=parentviewer.stylesheet, parent=parentviewer)',
+## 		 globals(), locals())
+## 	Stats(p).strip_dirs().sort_stats('time').print_stats(5)
+	
 	self._viewer = Viewer(master=table.container,
 			      context=parentviewer.context,
 			      scrolling=0,
 			      stylesheet=parentviewer.stylesheet,
 			      parent=parentviewer)
+
 	self._viewer.RULE_WIDTH_MAGIC = self._viewer.RULE_WIDTH_MAGIC - 6
 	# for callback notification
 	self._fw = self._viewer.frame
