@@ -30,11 +30,11 @@ class Viewer(formatter.AbstractWriter):
 		 parent=None):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
-	self.prefs = browser.app.prefs
 	if not browser:
 	    if parent:
 		browser = parent.context.browser
 	self.context = context or Context(self, browser)
+	self.prefs = self.context.app.prefs
 	self.stylesheet = stylesheet
 	self.current_style = None
 	self.name = name
