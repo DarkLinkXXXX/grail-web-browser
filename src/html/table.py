@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.32 1996/04/12 20:36:23 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.33 1996/04/15 15:18:21 bwarsaw Exp $'
 
 
 import string
@@ -30,6 +30,9 @@ class TableSubParser:
 	self._table_stack = []
 
     def start_table(self, parser, attrs):
+	# this call is necessary because if a <P> tag is open, table
+	# rendering gets totally hosed.  this is caused by the parser
+	# doesn't know about content model.
 	parser.implied_end_p()
 	parser.formatter.add_line_break()
 	parser.save_bgn()
@@ -37,6 +40,8 @@ class TableSubParser:
 	if self._lasttable:
 	    self._table_stack.append(self._lasttable)
 	self._lasttable = Table(parser.viewer, attrs, self._lasttable)
+	# these calls are necessary so that the formatter will treat
+	# the table as a block element.
 	parser.formatter.assert_line_data()
 	parser.formatter.nospace = 1
 
@@ -237,13 +242,17 @@ class Table(AttrElem):
 	self.parentviewer = parentviewer
 	self._parenttable = parenttable
 	self._cleared = None
-	# attributes
+	# alignment
 	def conv_align(val):
 	    return grailutil.conv_enumeration(
 		grailutil.conv_normstring(val),
 		['left', 'center', 'right'])
 	self.Aalign = self.attribute('align', conv=conv_align)
-	parentviewer.prepare_for_insertion(self.Aalign)
+	# this call enforces alignment of the table by inserting a
+	# special invisible character right before the embedded window
+	# which is the table's container canvas.
+	self.parentviewer.prepare_for_insertion(self.Aalign)
+	# other attributes
 	self.Awidth = self.attribute('width', conv=conv_stdunits)
 	self.Acols = self.attribute('cols', conv=grailutil.conv_integer)
 	if self.Acols:
