@@ -131,7 +131,9 @@ class GrailHTMLParser(HTMLParser):
 	elif not self.inhead:
 	    if tag in self.head_only_tags:
 		self.badhtml = 1
-	    self.handle_starttag = self.handle_starttag_nohead
+		self.handle_starttag = self.handle_starttag_nohead_isbad
+	    else:
+		self.handle_starttag = self.handle_starttag_nohead
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
 	method(attrs)
@@ -139,6 +141,12 @@ class GrailHTMLParser(HTMLParser):
     def handle_starttag_nohead(self, tag, method, attrs):
 	if tag in self.head_only_tags:
 	    self.badhtml = 1
+	    self.handle_starttag = self.handle_starttag_nohead_isbad
+	if self.suppress_output and tag not in self.object_aware_tags:
+	    return
+	method(attrs)
+
+    def handle_starttag_nohead_isbad(self, tag, method, attrs):
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
 	method(attrs)
@@ -163,10 +171,12 @@ class GrailHTMLParser(HTMLParser):
 	    self.viewer.bind_anchors(utag)
 	    if self.app.global_history.inhistory_p(self.context.baseurl(href)):
 		atag = 'ahist'
-	ntag = name and '#' + name or None
-	if ntag:
+	if name:
+	    ntag = '#' + name
 	    self.viewer.add_target(ntag)
-	self.formatter.push_style(atag, utag, ntag)
+	    self.formatter.push_style(atag, utag, ntag)
+	else:
+	    self.formatter.push_style(atag, utag, None)
 
     def anchor_end(self):
 	self.formatter.pop_style(3)
@@ -183,16 +193,20 @@ class GrailHTMLParser(HTMLParser):
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
 	align, usemap = CENTER, None
-	## align = extract_keyword('align', attrs, CENTER, conv=conv_align)
-	alt = extract_keyword('alt', attrs, '(image)')
-	border = extract_keyword('border', attrs, 2, conv=string.atoi)
+	extract = extract_keyword
+	## align = extract('align', attrs, align, conv=conv_align)
+	alt = extract('alt', attrs, '(image)')
+	border = extract('border', attrs, 2, conv=string.atoi)
 	ismap = attrs.has_key('ismap')
-	src = extract_keyword('src', attrs, '')
-	width = extract_keyword('width', attrs, 0, conv=string.atoi)
-	height = extract_keyword('height', attrs, 0, conv=string.atoi)
+	src = extract('src', attrs, '')
+	width = extract('width', attrs, 0, conv=string.atoi)
+	height = extract('height', attrs, 0, conv=string.atoi)
 	if attrs.has_key('usemap'):
 	    # not sure how to assert(value[0] == '#')
-	    usemap = MapThunk (self.context, attrs['usemap'][1:])
+	    value = attrs['usemap']
+	    if value:
+		if value[0] == '#': value = value[1:]
+		usemap = MapThunk(self.context, value)
         self.handle_image(src, alt, usemap, ismap,
 			  align, width, height, border, self.reload1)
 
@@ -275,11 +289,12 @@ class GrailHTMLParser(HTMLParser):
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
-        href = extract_keyword('href', attrs, '', conv=string.strip)
-        name = extract_keyword('name', attrs, '', conv=string.strip)
-	type = extract_keyword('type', attrs, '',
-			       conv=lambda v,s=string: s.lower(s.strip(v)))
-	target = extract_keyword('target', attrs, '', conv=string.strip)
+	href = name = type = target = ''
+	has_key = attrs.has_key
+	if has_key('href'): href = attrs['href']
+	if has_key('name'): name = attrs['name']
+	if has_key('type'): type = string.lower(attrs['type'])
+	if has_key('target'): target = attrs['target']
         self.anchor_bgn(href, name, type, target)
 
     # New tag: <MAP> (for client side image maps)
@@ -316,6 +331,7 @@ class GrailHTMLParser(HTMLParser):
 	    except (IndexError, string.atoi_error):
 		# wrong number of coordinates
 		# how should this get reported to the user?
+		self.badhtml = 1
 		print "imagemap specifies bad coordinates"
 		pass
 	else:
@@ -438,8 +454,8 @@ class GrailHTMLParser(HTMLParser):
 	width = extract('width', attrs, conv=string.atoi)
 	height = extract('height', attrs, conv=string.atoi)
 	menu = extract('menu', attrs)
-	classid = extract_keyword('classid', attrs)
-	codebase = extract_keyword('codebase', attrs)
+	classid = extract('classid', attrs)
+	codebase = extract('codebase', attrs)
 	align = extract('align', attrs, 'baseline')
 	vspace = extract('vspace', attrs)
 	hspace = extract('hspace', attrs)
@@ -496,15 +512,17 @@ class GrailHTMLParser(HTMLParser):
     # List attribute extensions:
 
     def start_ul(self, attrs):
-	self.list_check_dingbat(attrs)
+	if attrs.has_key('dingbat'):
+	    self.list_handle_dingbat(attrs)
 	HTMLParser.start_ul(self, attrs)
 
     def do_li(self, attrs):
-	self.list_check_dingbat(attrs)
+	if attrs.has_key('dingbat'):
+	    self.list_handle_dingbat(attrs)
 	HTMLParser.do_li(self, attrs)
 
-    def list_check_dingbat(self, attrs):
-	if attrs.has_key('dingbat') and attrs['dingbat']:
+    def list_handle_dingbat(self, attrs):
+	if attrs['dingbat']:
 	    img = self.load_dingbat(attrs['dingbat'])
 	    if img: attrs['type'] = img
 
@@ -534,6 +552,10 @@ class GrailHTMLParser(HTMLParser):
 	    function(self, attrs)
 	    if has_end:
 		self.stack.append(tag)
+	else:
+	    self.badhtml = 1
+	    if not self.inhead:
+		self.handle_starttag = self.handle_starttag_nohead_isbad
 
     def unknown_endtag(self, tag):
 	if self.suppress_output:
@@ -542,6 +564,15 @@ class GrailHTMLParser(HTMLParser):
 	function = self.app.find_html_end_extension(tag)
 	if function:
 	    function(self)
+	else:
+	    self.badhtml = 1
+	    if not self.inhead:
+		self.handle_starttag = self.handle_starttag_nohead_isbad
+
+    def report_unbalanced(self, tag):
+	self.badhtml = 1
+	if not self.inhead:
+	    self.handle_starttag = self.handle_starttag_nohead_isbad
 
     # Handle proposed iconic entities (see W3C working drafts or HTML 3):
 
