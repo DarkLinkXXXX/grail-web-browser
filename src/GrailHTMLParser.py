@@ -282,6 +282,7 @@ class GrailHTMLParser(HTMLParser):
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
+	self.implied_end_p()
 	self.formatter.push_alignment('center')
 
     def end_center(self):
