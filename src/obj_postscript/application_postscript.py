@@ -1,7 +1,8 @@
-"""
-"""
-__version__ = '$Revision: 1.2 $'
-#  $Source: /home/john/Code/grail/src/obj_postscript/Attic/application_postscript.py,v $
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+__version__ = '$Revision: 1.3 $'
 
 from printing import epstools
 import grailutil
@@ -62,6 +63,3 @@ def load_eps_object(parser, imageurl):
     except ValueError: pass             # o.k. if not found
     bbox = epstools.load_bounding_box(lines)
     return epstools.EPSImage(string.joinfields(lines, '\n'), bbox)
-
-#
-#  end of file

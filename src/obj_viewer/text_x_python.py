@@ -1,7 +1,11 @@
-"""<OBJECT> handler for Python applets.
-"""
-__version__ = '$Revision: 1.2 $'
-#  $Source: /home/john/Code/grail/src/obj_viewer/Attic/text_x_python.py,v $
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+
+"""<OBJECT> handler for Python applets."""
+
+__version__ = '$Revision: 1.3 $'
 
 import grailutil
 import string
@@ -43,7 +47,3 @@ class AppletEmbedding(HTMLParser.Embedding):
 
     def end(self):
         self.__apploader.go_for_it()
-
-
-#
-#  end of file

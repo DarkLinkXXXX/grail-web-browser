@@ -1,7 +1,10 @@
-"""Tools for using Encapsulated PostScript.
-"""
-__version__ = '$Revision: 1.3 $'
-#  $Source: /home/john/Code/grail/src/printing/epstools.py,v $
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+"""Tools for using Encapsulated PostScript."""
+
+__version__ = '$Revision: 1.4 $'
 
 import os
 import string
@@ -223,6 +226,3 @@ def convert_gif_to_eps(cog, giffile, epsfile):
         raise EPSError('Could not run conversion process: %s.'
                        % sys.exc_type)
     return filename
-
-#
-#  end of file

@@ -1,7 +1,11 @@
-"""Configuration object for the printing subsystem.
-"""
-__version__ = '$Revision: 1.3 $'
-#  $Source: /home/john/Code/grail/src/printing/settings.py,v $
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+
+"""Configuration object for the printing subsystem."""
+
+__version__ = '$Revision: 1.4 $'
 
 
 _settings = None
@@ -95,7 +99,3 @@ class PrintSettings:
     def set_scaling(self, xscaling, yscaling):
         self.horzontal_scaling = xscaling
         self.vertical_scaling = yscaling
-
-
-#
-#  end of file

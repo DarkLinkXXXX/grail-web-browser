@@ -1,6 +1,6 @@
 # Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:cnri/19980302135001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
 
 """Greek & math entities for Grail.
 
@@ -8,7 +8,7 @@ These symbols are encoded the same way as the PostScript Symbol font from
 Adobe.  The standard symbols font under X11 is from Adobe, so this can be
 used for both PostScript and X11 display.
 """
-__version__ = '$Revision: 2.9 $'
+__version__ = '$Revision: 2.10 $'
 #  $Source: /home/john/Code/grail/src/ancillary/Greek.py,v $
 
 # Greek & math stuff, ignored if symbol font is not available:

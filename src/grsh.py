@@ -1,5 +1,9 @@
-#! /home/fdrake/plat.solaris-2/bin/python -i
-#
+#! /usr/local/bin/python -i
+
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
 # use "python -i grsh.py" to get an interactive python with Grail's 'ni' setup,
 # or adjust the shell line above to get the right behavior.
 
@@ -24,6 +28,3 @@ del d
 print sys.version
 print sys.copyright
 print grail.GRAILVERSION, "debugging shell"
-
-#
-#  end of file

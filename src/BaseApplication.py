@@ -1,3 +1,8 @@
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+
 """Base class for the Grail Application object.
 
 This provides the preferences initialization if needed as well as the
@@ -5,7 +10,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.11 $'
+__version__ = '$Revision: 2.12 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import keyword

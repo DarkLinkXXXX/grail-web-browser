@@ -1,3 +1,8 @@
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+
 """User interface for mailto: handling.
 
 This implementation supports the extended mailto: url scheme described in
@@ -8,7 +13,7 @@ practice in Web user agents.
 This class is separated out from the protocols.mailtoAPI module to allow
 user-defined handling of the mailto: scheme to subclass this dialog.
 """
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 #  $Source: /home/john/Code/grail/src/ancillary/MailDialog.py,v $
 
 import cgi

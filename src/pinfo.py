@@ -1,16 +1,15 @@
 #! /usr/bin/env python
 
 # Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:cnri/19980302135001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
 
 """Script to print profiling reports from the command line.
 
 Usage:  pinfo.py [profile-file] [callees | callers | stats]
                  [sorts] [restrictions]
 """
-__version__ = '$Revision: 2.6 $'
-#  $Source: /home/john/Code/grail/src/pinfo.py,v $
+__version__ = '$Revision: 2.7 $'
 
 
 import os, pstats, string, sys
@@ -56,6 +55,3 @@ if not os.path.exists(fileName):
 p = pstats.Stats(fileName).strip_dirs()
 apply(p.sort_stats, sorts)
 apply(getattr(p, 'print_'+report), restrictions)
-
-#
-#  end of file

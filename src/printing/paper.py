@@ -1,9 +1,13 @@
-"""Paper information & support for printing.
-"""
-__version__ = '$Revision: 1.2 $'
-#  $Source: /home/john/Code/grail/src/printing/paper.py,v $
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+"""Paper information & support for printing."""
+
+__version__ = '$Revision: 1.3 $'
 
 from utils import inch_to_pt
+
 
 class PaperInfo:
     inch = inch_to_pt(1.0)
@@ -94,12 +98,10 @@ paper_sizes = {
 for size, (pw, ph) in paper_sizes.items():
     paper_sizes[size] = (pw, ph, size)
 
+
 paper_rotations = {
     "portrait": 0.0,
     "landscape": 90.0,
     "seascape": -90.0,
     "upside-down": 180.0,
     }
-
-#
-#  end of file

@@ -1,3 +1,8 @@
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+
 """Bookmark-node manager.
 
 The bookmark node manager supports requesting subsets of the bookmark
@@ -8,7 +13,7 @@ information.
 
 This class is also used to generate new ID values for nodes.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 import nodes                            # sibling
 import search                           # sibling sub-package

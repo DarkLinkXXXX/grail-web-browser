@@ -1,7 +1,8 @@
-"""
-"""
-__version__ = '$Revision: 1.2 $'
-#  $Source: /home/john/Code/grail/src/printing/filetypes/text.py,v $
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+__version__ = '$Revision: 1.3 $'
 
 import Reader
 import string
@@ -81,6 +82,3 @@ def update_settings(dialog, settings):
     settings.strip_blanks = dialog.__strip_blanks.get()
     dialog.title = dialog.__titleentry.get()
     settings.__title = dialog.title
-
-#
-#  end of file

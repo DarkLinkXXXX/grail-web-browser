@@ -1,3 +1,8 @@
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
+
+
 """Printing interface for HTML documents."""
 
 import printing.PSParser
@@ -26,6 +31,3 @@ def update_settings(dialog, settings):
     settings.greyscale = dialog.__greychecked.get()
     settings.imageflag = dialog.__imgchecked.get()
     settings.underflag = dialog.__underchecked.get()
-
-#
-# end of file
