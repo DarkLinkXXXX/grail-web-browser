@@ -90,9 +90,13 @@ class HTMLParser(SGMLParser):
     def end_html(self): pass
 
     def start_head(self, attrs): pass
-    def end_head(self): self.inhead = 0
+    def end_head(self):
+	self.inhead = 0
 
-    def start_body(self, attrs): self.inhead = 0
+    def start_body(self, attrs):
+	self.element_close_maybe('head', 'style', 'script', 'title')
+	self.inhead = 0
+
     def end_body(self): pass
 
     # ------ Head elements
@@ -282,8 +286,12 @@ class HTMLParser(SGMLParser):
         self.list_stack.append(['ul', label, 0, attrs.has_key('compact')])
 
     def end_ul(self):
-        if self.list_stack: del self.list_stack[-1]
-        self.formatter.end_paragraph(not self.list_stack)
+        if self.list_stack:
+	    del self.list_stack[-1]
+	if self.list_stack:
+	    self.formatter.add_line_break()
+	else:
+	    self.formatter.end_paragraph(1)
         self.formatter.pop_margin()
 
     def do_li(self, attrs):
@@ -298,12 +306,13 @@ class HTMLParser(SGMLParser):
 		else:
 		    label = s
 	    if attrs.has_key('value'):
-		try:
-		    v = string.atoi(string.strip(attrs['value']))
-		except:
-		    top[2] = counter = counter+1
-		else:
-		    top[2] = counter = v
+		try: v = string.atoi(string.strip(attrs['value']))
+		except: top[2] = counter = counter+1
+		else: top[2] = counter = v
+	    elif attrs.has_key('seqnum'):
+		try: v = string.atoi(string.strip(attrs['seqnum']))
+		except: top[2] = counter = counter+1
+		else: top[2] = counter = v
 	    else:
 		top[2] = counter = counter+1
 	    if attrs.has_key('skip'):
@@ -317,6 +326,10 @@ class HTMLParser(SGMLParser):
 	    format, value = '*', 1
 	    if attrs.has_key('value'):
 		try: value = string.atoi(attrs['value'])
+		except: pass
+		else: format = '1'
+	    elif attrs.has_key('seqnum'):
+		try: value = string.atoi(attrs['seqnum'])
 		except: pass
 		else: format = '1'
 	    if attrs.has_key('type') and (type(attrs['type']) is type('')):
@@ -358,8 +371,12 @@ class HTMLParser(SGMLParser):
         self.list_stack.append(['ol', label, start, attrs.has_key('compact')])
 
     def end_ol(self):
-        if self.list_stack: del self.list_stack[-1]
-        self.formatter.end_paragraph(not self.list_stack)
+        if self.list_stack:
+	    del self.list_stack[-1]
+	if self.list_stack:
+	    self.formatter.add_line_break()
+	else:
+	    self.formatter.end_paragraph(1)
         self.formatter.pop_margin()
 
     def start_menu(self, attrs):
