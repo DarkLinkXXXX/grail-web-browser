@@ -36,13 +36,13 @@ import StringIO
 import regsub
 from types import StringType, TupleType
 from HTMLParser import HTMLParser
-from formatter import AbstractFormatter, AbstractWriter
+from formatter import AbstractFormatter, AbstractWriter, AS_IS
 import fonts
 
 
 
 # debugging
-DEFAULT_FONT_SIZE = 10
+DEFAULT_FONT_SIZE = 10.0
 RECT_DEBUG = 0
 DEBUG = 0
 
@@ -79,24 +79,24 @@ fontdefs = {
 # Mappings between HTML header tags and font sizes
 # The values used by Mosaic
 #font_sizes = {
-#    None: 12,
-#    'h1': 36,
-#    'h2': 24,
-#    'h3': 18,
-#    'h4': 14,
-#    'h5': 12,
-#    'h6': 10
+#    None: 12.0,
+#    'h1': 36.0,
+#    'h2': 24.0,
+#    'h3': 18.0,
+#    'h4': 14.0,
+#    'h5': 12.0,
+#    'h6': 10.0
 #    }
 
 # The values used by Grail
 font_sizes = {
     None: DEFAULT_FONT_SIZE,
-    'h1': 18,
-    'h2': 14,
-    'h3': 12,
-    'h4': 10,
-    'h5': 10,
-    'h6': 10
+    'h1': 18.0,
+    'h2': 14.0,
+    'h3': 12.0,
+    'h4': 10.0,
+    'h5': 10.0,
+    'h6': 10.0
     }
 
 
@@ -124,7 +124,7 @@ MAX_ASCII = '\177'
 def inch_to_pt(inches): return inches * 72.0
 def pt_to_inch(points): return points / 72.0
 
-TOP_MARGIN = inch_to_pt(10)
+TOP_MARGIN = inch_to_pt(10.0)
 BOT_MARGIN = inch_to_pt(0.5)
 LEFT_MARGIN = inch_to_pt(1.0)		# was 0.75
 RIGHT_MARGIN = inch_to_pt(1.0)		# was 1.0
@@ -136,7 +136,7 @@ HR_TOP_MARGIN = 4.0
 HR_BOT_MARGIN = 4.0
 
 # paragraph rendering
-PARAGRAPH_SEPARATION = 1.0 * DEFAULT_FONT_SIZE
+PARAGRAPH_SEPARATION = DEFAULT_FONT_SIZE
 
 # distance after a label tag in points
 LABEL_TAB = 6.0
@@ -295,7 +295,7 @@ class PSFont:
 	if not font_tuple: return self.font[0]
 	tuple_sz = font_tuple[0]
 	try:
-	    if type(tuple_sz) != type(1): return font_sizes[tuple_sz]
+	    if type(tuple_sz) != type(1.0): return font_sizes[tuple_sz]
 	    else: return tuple_sz
 	except KeyError: return DEFAULT_FONT_SIZE
 
@@ -427,7 +427,7 @@ class PSStream:
 	extra = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
 	if align == 'absmiddle':
 	    above_portion = below_portion = 0.5
-	    vshift = ((1.0 * self._font.font_size()) / 2.0)
+	    vshift = self._font.font_size() / 2.0
 	elif align == 'middle':
 	    above_portion = below_portion = 0.5
 	    vshift = 0.0
@@ -439,7 +439,7 @@ class PSStream:
 	    #  ALIGN == 'top'  || ALIGN == 'texttop'
 	    above_portion = 0.0
 	    below_portion = 1.0
-	    vshift = 1.0 * self._font.font_size()
+	    vshift = self._font.font_size()
 	    extra = 0.0
 
 	height = img.height()
@@ -636,7 +636,7 @@ class PSStream:
 	    height = bullet.height()
 	    distance = width + LABEL_TAB
 	    #  Locate new origin:
-	    vshift = ((1.0 * self._font.font_size()) - height) / 2.0
+	    vshift = (self._font.font_size() - height) / 2.0
 	    self._linefp.write("gsave CR -%f %f R currentpoint translate "
 			       "%f dup scale\n"
 			       % (distance, vshift, bullet.scale()))
@@ -1030,7 +1030,7 @@ class PrintingHTMLParser(HTMLParser):
     _inited = 0
 
     def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=1, underline_anchors=1, leading=1.0):
+		 greyscale=1, underline_anchors=1, leading=1.0, fontsize=None):
 	if not self._inited:
 	    for k, v in self.fontdingbats.items():
 		self.dingbats[(k, 'grey')] = v
@@ -1052,7 +1052,7 @@ class PrintingHTMLParser(HTMLParser):
 	self._anchors = {None: None}
 	self._anchor_sequence = []
 	self._anchor_xforms = []
-	self._inanchor = 0
+	self.formatter.push_font((fontsize or DEFAULT_FONT_SIZE, 0, 0, 0))
 
     def close(self):
 	HTMLParser.close(self)
@@ -1091,7 +1091,7 @@ class PrintingHTMLParser(HTMLParser):
 	self.start_p({'align':'left'})
 	self.formatter.add_flowing_data('URLs referenced in this document:')
 	self.end_p()
-	self.formatter.push_font((8, None, None, None))
+	self.start_small({})
 	self.start_ol({'type':'[1]', 'compact':None})
 	for anchor, title in self._anchor_sequence:
 	    self.do_li({})
@@ -1103,8 +1103,9 @@ class PrintingHTMLParser(HTMLParser):
 		self.formatter.add_flowing_data(', ')
 	    self.formatter.add_literal_data(anchor)
 	self.end_ol()
-	self.formatter.pop_font()
+	self.end_small()
 
+    _inanchor = 0
     def start_a(self, attrs):
 	href = None
 	if attrs.has_key('href'):
@@ -1133,31 +1134,47 @@ class PrintingHTMLParser(HTMLParser):
 	    self.formatter.pop_style()
 	if self.anchor:
 	    anchor, self.anchor = self.anchor, None
-	    yshift = 1.0 * self.formatter.writer.ps._font.font_size()
-	    self.formatter.push_font((6, 0, 0, 0))
-	    yshift = yshift \
-		     - (1.17 * self.formatter.writer.ps._font.font_size())
+	    old_size = self.formatter.writer.ps._font.font_size()
+	    self.start_small({})
+	    self.start_small({})
+	    new_size = self.formatter.writer.ps._font.font_size()
+	    yshift = old_size - (1.1 * new_size)
+	    self.formatter.push_font((AS_IS, 0, 0, 0))
 	    self.formatter.writer.ps.push_yshift(yshift)
 	    self.handle_data('[%d]' % self._anchors[anchor])
 	    self.formatter.writer.ps.pop_yshift()
 	    self.formatter.pop_font()
+	    self.end_small()
+	    self.end_small()
+
+    def start_small(self, attrs):
+	font_size = 0.8 * self.formatter.writer.ps._font.font_size()
+	self.formatter.push_font((font_size, None, None, None))
+
+    def end_small(self):
+	self.formatter.pop_font()
+
+    def start_big(self, attrs):
+	font_size = 1.2 * self.formatter.writer.ps._font.font_size()
+	self.formatter.push_font((font_size, None, None, None))
+
+    end_big = end_small
 
     def start_sup(self, attrs):
-	font_size = 1.0 * self.formatter.writer.ps._font.font_size()
-	new_font_size = int(0.8 * font_size)
+	font_size = self.formatter.writer.ps._font.font_size()
+	self.start_small(attrs)
+	new_font_size = self.formatter.writer.ps._font.font_size()
 	yshift = font_size - (0.9 * new_font_size)
 	self.formatter.writer.ps.push_yshift(yshift)
-	self.formatter.push_font((new_font_size, None, None, None))
 
     def start_sub(self, attrs):
-	font_size = 1.0 * self.formatter.writer.ps._font.font_size()
-	new_font_size = int(0.8 * font_size)
+	self.start_small(attrs)
+	new_font_size = self.formatter.writer.ps._font.font_size()
 	self.formatter.writer.ps.push_yshift(-0.1 * new_font_size)
-	self.formatter.push_font((new_font_size, None, None, None))
 
     def end_sup(self):
-	self.formatter.pop_font()
 	self.formatter.writer.ps.pop_yshift()
+	self.end_small()
 
     end_sub = end_sup
 
@@ -1186,9 +1203,9 @@ class PrintingHTMLParser(HTMLParser):
 
     # List attribute extensions:
 
-    def start_ul(self, attrs):
+    def start_ul(self, attrs, *args, **kw):
 	self.list_check_dingbat(attrs)
-	HTMLParser.start_ul(self, attrs)
+	apply(HTMLParser.start_ul, (self, attrs) + args, kw)
 
     def do_li(self, attrs):
 	self.list_check_dingbat(attrs)
