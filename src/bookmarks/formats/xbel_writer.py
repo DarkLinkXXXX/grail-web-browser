@@ -2,10 +2,9 @@
 # license agreement obtained from handle "hdl:1895.22/1003",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
 
-
 """XBEL writer."""
 
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -18,7 +17,7 @@ class Writer(bookmarks.walker.TreeWalker):
     __depth = 0
     __header = '''\
 <!DOCTYPE xbel
-  PUBLIC "-//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN"
+  PUBLIC "+//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN"
          "http://www.python.org/topics/xml/dtds/xbel-1.0.dtd">
 '''
 
