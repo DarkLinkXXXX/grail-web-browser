@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.15 $"
+__version__ = "$Revision: 1.16 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -25,7 +25,7 @@ import string
 
 class SGMLParser(SGMLLexer.SGMLLexer):
 
-    doctype = ''			# 'html', 'sdl', ...
+    doctype = ''			# 'html', 'sdl', '...
 
     def __init__(self, verbose = 0):
 	self.verbose = verbose
@@ -42,6 +42,7 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	self._tag_methods = None
 	if hasattr(self, '_l'):
 	    self._l.data_cb = _dummy_data_handler
+	self.lex_data = _dummy_data_handler
 
     # Interface -- reset this instance.  Loses all unprocessed data.
     def reset(self):
@@ -136,6 +137,7 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	self.handle_data = handler
 	if hasattr(self, '_l'):
 	    self._l.data_cb = handler
+	self.lex_data = handler
 
 
     def _load_tag_handlers(self, tag):
