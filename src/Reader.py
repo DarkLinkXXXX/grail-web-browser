@@ -33,18 +33,20 @@ class Reader(BaseReader):
 	self.last_browser = browser
 	self.method = method
 	self.params = params
-	self.reload = reload
 	self.new = new
 	self.show_source = show_source
+	self.reload = reload
+	self.data = data
 
-	self.restart(browser, url, data)
+	self.save_file = None
 
-    def restart(self, browser, url, data):
-	self.browser = browser
+	self.restart(url)
+
+    def restart(self, url):
 	self.url = url
 
-	self.viewer = self.browser.viewer
-	self.app = self.browser.app
+	self.viewer = self.last_browser.viewer
+	self.app = self.last_browser.app
 
 	self.parser = None
 
@@ -56,13 +58,13 @@ class Reader(BaseReader):
 	if self.app:
 	    api = self.app.open_url(cleanurl,
 				    self.method, self.params, self.reload,
-				    data=data)
+				    data=self.data)
 	else:
 	    api = ProtocolAPI.protocol_access(cleanurl,
 					      self.method, self.params,
-					      data=data)
+					      data=self.data)
 
-	BaseReader.__init__(self, browser, api)
+	BaseReader.__init__(self, self.last_browser, api)
 
     def stop(self):
 	BaseReader.stop(self)
@@ -72,15 +74,22 @@ class Reader(BaseReader):
 	    parser.close()
 
     def handle_error(self, errcode, errmsg, headers):
-	if errcode == 204:
-	    return
-	if errcode in (301, 302) and headers.has_key('location'):
-	    url = headers['location']
-	    self.restart(self.last_browser, url)
-	    return
+	if self.save_file:
+	    self.save_file.close()
+	    self.save_file = None
+	else:
+	    if errcode == 204:
+		return
+	    if errcode in (301, 302) and headers.has_key('location'):
+		url = headers['location']
+		self.restart(url)
+		return
 	BaseReader.handle_error(self, errcode, errmsg, headers)
 
     def handle_meta(self, errcode, errmsg, headers):
+	if self.save_file:
+	    return
+
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
 	else:
@@ -92,13 +101,9 @@ class Reader(BaseReader):
 	if headers.has_key('content-encoding'):
 	    content_encoding = headers['content-encoding']
 	if content_encoding:
-	    # XXX Should fix this
-	    browser = self.browser
-	    self.stop()
-	    browser.error_dialog("Warning",
-				 "unsupported content-encoding: %s"
-				 % content_encoding)
-	    return
+	    # XXX provisional hack -- change content type to octet stream
+	    content_type = "application/octet-stream"
+	    content_encoding = None
 
 	istext = content_type and content_type[:5] == 'text/'
 	if self.show_source and istext:
@@ -113,12 +118,27 @@ class Reader(BaseReader):
 		parserclass = TextParser
 
 	if not parserclass:
-	    # XXX Should save here
-	    browser = self.browser
+	    # Don't know how to display this.
+	    # Ask the user to save it.
+	    # Stop the transfer, and restart when we're ready.
+	    browser = self.last_browser
 	    self.stop()
-	    browser.error_dialog("Error",
-				 "unsupported content-type: %s"
-				 % content_type)
+	    browser.message("Wait for save dialog...")
+	    import FileDialog
+	    fd = FileDialog.SaveFileDialog(browser.root)
+	    fn = fd.go()
+	    if not fn:
+		# User canceled.  Stop the transfer.
+		return
+	    # Prepare to save.
+	    # Always save in binary mode.
+	    try:
+		self.save_file = open(fn, "wb")
+	    except IOError, msg:
+		browser.error_dialog(IOError, msg)
+		return
+	    self.restart(self.url)
+	    browser.message("Saving to %s" % fn)
 	    return
 
 	self.parser = parserclass(self.viewer, reload=self.reload)
@@ -127,6 +147,9 @@ class Reader(BaseReader):
 	self.browser.clear_reset(self.url, self.new)
 
     def handle_data(self, data):
+	if self.save_file:
+	    self.save_file.write(data)
+	    return
 	if self.istext:
 	    if self.last_was_cr and data[0] == '\n':
 		data = data[1:]
@@ -147,6 +170,11 @@ class Reader(BaseReader):
 		self.browser.set_title(title)
 
     def handle_eof(self):
+	if self.save_file:
+	    self.save_file.close()
+	    self.save_file = None
+	    self.last_browser.message("Saved.")
+	    return
 	if self.fragment:
 	    self.viewer.scroll_to(self.fragment)
 
