@@ -297,7 +297,7 @@ class Controller:
 	    import Browser
 	    b = Browser.Browser(b.master, self._app)
 	# tell it to load the URL
-	b.load(uri)
+	b.context.load(uri)
 
     def load_cmd(self, cmdstr, argstr):
 	self._do_load(argstr)
