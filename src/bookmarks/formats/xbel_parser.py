@@ -1,6 +1,6 @@
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.9 $'
+__version__ = '$Revision: 1.10 $'
 
 
 import bookmarks
@@ -138,7 +138,8 @@ class DocumentHandler:
         self.new_folder(attrs)
     def end_folder(self):
         self.__store_node = None
-        self.__folder = self.__context.pop()
+        self.__folder = self.__context[-1]
+        del self.__context[-1]
 
     def start_title(self, attrs):
         self.save_bgn()
