@@ -220,8 +220,12 @@ printing--to-file:		0
 printing--command:		lpr
 printing--underline-anchors:	1
 printing--footnote-anchors:	1
-printing--base-font-size:	10.0
-printing--leading:		0.7
+printing--font-size:		10.0 / 10.7
+# paper-size should be one of the keys in html2ps.paper_sizes
+# ('letter', 'a4', etc.)
+printing--paper-size:		letter
+# orientation should be one of: portrait, landscape, seascape
+printing--orientation:		portrait
 #
 # Applet preferences
 #
