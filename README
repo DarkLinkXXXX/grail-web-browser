@@ -65,17 +65,11 @@ hierarchy, the Grail sources could be installed in
 /usr/local/lib/grail/.  If you don't use the /usr/local hierarchy (or
 don't use it for Python 1.3), be sure to edit the first line of
 grail.py to point to your Python interpreter.  If you want to have
-Grail on your path, create a one-line shell script named "grail" that
-does something like
+Grail on your path, you can create a symbolic link named "grail" to
+grail.py anywhere.
 
-    exec /usr/local/lib/grail/grail.py ${1+"$@"}
-
-and install it in /usr/local/bin/.  Creating a symbolic link to the
-grail.py script *won't work* because grail.py looks at sys.argv[0] to
-determine where the other files are.
-
-You can also choose to leave grail.py unchanged and have the shell
-script choose the Python interpreter, e.g.
+You can also choose to leave grail.py unchanged and have a shell
+script named "grail" which execs the Python interpreter, e.g.:
 
     exec /usr/local/bin/python /usr/local/lib/grail/grail.py ${1+"$@"}
 
