@@ -13,7 +13,6 @@ import tktools
 import formatter
 from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser, HeaderNumber
-from Viewer import MIN_IMAGE_LEADER
 import AppletLoader
 import grailutil
 from grailutil import extract_attribute, extract_keyword
@@ -222,7 +221,7 @@ class GrailHTMLParser(HTMLParser):
 	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
-	    self.handle_data(MIN_IMAGE_LEADER) # Non-breaking space
+	    self.viewer.prepare_for_insertion()
 	self.viewer.add_subwindow(w, align=align)
 
     # Extend tag: </TITLE>
@@ -592,7 +591,7 @@ class GrailHTMLParser(HTMLParser):
 		    self.handle_data(s)
 	    else:
 		if self.formatter.nospace:
-		    self.handle_data(MIN_IMAGE_LEADER)
+		    self.viewer.prepare_for_insertion()
 		bgcolor = self.viewer.text['background']
 		self.viewer.add_subwindow(Label(self.viewer.text, image = img,
 						background = bgcolor,
