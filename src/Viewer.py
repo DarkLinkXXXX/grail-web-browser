@@ -281,6 +281,13 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('overstrike', overstrike = 1)
 	self.text.tag_config('red', foreground = 'red')
 	self.text.tag_config('ins', foreground = 'darkgreen')
+	#  Make something really small, so it doesn't create
+	#  unwanted vertical space:
+	try:
+	    self.text.tag_config('HR_SMALL_NEWLINE',
+				 font="-*-courier-*-*-*-*-6-*-*-*-*-*-*-*")
+	except TclError:
+	    pass
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level * INDENTATION_WIDTH
@@ -493,7 +500,7 @@ class Viewer(formatter.AbstractWriter):
 	self.prepare_for_insertion(align)
 	self.add_subwindow(window)
 	del self.subwindows[-1]
-	self.send_line_break()
+	self.text.insert(END, "\n", "HR_SMALL_NEWLINE")
 ##	self.text.update_idletasks()
 
     RULE_WIDTH_MAGIC = 10
@@ -708,7 +715,8 @@ class Viewer(formatter.AbstractWriter):
 	    align = self.align
 	prev_align, self.align = self.align, align
 	self.new_tags()
-	self.pendingdata = self.pendingdata + MIN_IMAGE_LEADER
+	self.flush()
+	self.text.insert(END, "\n", "HR_SMALL_NEWLINE")
 	self.align = prev_align
 	self.new_tags()
 
