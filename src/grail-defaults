@@ -233,6 +233,10 @@ bookmarks--aggressive-collapse: 0
 bookmarks--include-in-pulldown: 1
 # default-save-format can be `html', `pickle', `pickle-binary'
 bookmarks--default-save-format: html
+# open-details-on-add can be 0=false, 1=true
+bookmarks--open-details-on-add: 0
+# show-optional-buttons can be 0=false, 1=true
+bookmarks--show-navigation-buttons: 1
 #
 # History defaults
 #
