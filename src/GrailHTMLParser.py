@@ -25,12 +25,17 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.applets = []
 
     def close(self):
+	DT = 100
+	delay = DT
 	for frame, keywords in self.applets:
-	    C = self.get_class(keywords)
-	    if frame == 'menu':
-		self.menu_applet(C, keywords)
-	    else:
-		self.subwindow_applet(frame, C, keywords)
+	    def doit(self=self, frame=frame, keywords=keywords):
+		C = self.get_class(keywords)
+		if frame == 'menu':
+		    self.menu_applet(C, keywords)
+		else:
+		    self.subwindow_applet(frame, C, keywords)
+	    self.viewer.text.after(delay, doit)
+	    delay = delay + DT
 	htmllib.HTMLParser.close(self)
 
     # Override HTMLParser internal methods
@@ -65,7 +70,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
-	    self.formatter.add_literal_data("\240") # Non-breaking space
+	    self.handle_data("\240") # Non-breaking space
 	self.viewer.add_subwindow(w)
 
     # New tag: <CENTER> (for Amy)
