@@ -7,7 +7,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.2b1"		# PRE 0.2; beta == buggy
+__version__ = "Grail/0.2"		# Final 0.2
 
 
 import sys
@@ -48,13 +48,17 @@ if 0:
     import dummies
 
 # Milliseconds between interrupt checks
-KEEPALIVE_TIMER = 200
+KEEPALIVE_TIMER = 500
 
 # Location of logo image for spash screen
 BIGLOGO = "biglogo.gif"
 
 # Notice displayed underneath the big logo
-NOTICE = "Copyright \251 1995 Corporation for National Research Initiatives"
+NOTICE = """Copyright \251 1995
+Corporation for National
+Research Initiatives
+
+Version: %s""" % __version__
 
 
 def main():
@@ -118,7 +122,7 @@ class SplashScreen:
 	self.image = PhotoImage(file=fullname)
 	self.label = Label(self.frame, image=self.image)
 	self.label.pack()
-	self.message = Message(self.frame, text=NOTICE, aspect=500)
+	self.message = Label(self.frame, text=NOTICE)
 	self.message.pack()
 	self.root.update_idletasks()
 	self.root.after(10000, self.close)
