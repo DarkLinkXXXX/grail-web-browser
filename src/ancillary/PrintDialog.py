@@ -25,6 +25,7 @@ When Cancel is actiavted, the dialog state is still saved.
 from Tkinter import *
 import tktools
 import os
+import string
 
 PRINT_PREFGROUP = 'printing'
 PRINTCMD = "lpr"			# Default print command
@@ -43,6 +44,27 @@ footnoteflag = 1
 class PrintDialog:
 
     def __init__(self, context, url, title):
+	try:
+	    self.infp = context.app.open_url_simple(url)
+	except IOError, msg:
+	    self.context.error_dialog(IOError, msg)
+	    return
+	try:
+	    self.ctype = self.infp.info()['content-type']
+	except KeyError:
+	    context.error_dialog("No type",
+			"Documents of unknown type cannot be printed.")
+	    return
+
+	types = string.splitfields(self.ctype, '/')
+	if types and types[0] == 'text':
+	    if types[1] != 'html':
+		self.ctype = 'text/plain'
+	if self.ctype not in ('text/html', 'text/plain'):
+	    context.error_dialog("Unprintable document",
+				 "This document cannot be printed.")
+	    return
+
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
 	global underflag, footnoteflag
 	self.context = context
@@ -71,6 +93,7 @@ class PrintDialog:
 	self.cmd_entry.delete('0', END)
 	self.cmd_entry.insert(END, printcmd)
 
+	#  Print to file controls:
 	self.midframe = Frame(self.root)
 	self.midframe.pack(side=TOP, fill=X)
 
@@ -87,43 +110,42 @@ class PrintDialog:
 	self.file_entry.insert(END, printfile)
 
 	#  Image printing controls:
-	self.imgframe = Frame(self.root)
-	self.imgframe.pack(fill = X)
+	imgframe = Frame(self.root)
+	imgframe.pack(fill = X)
 	self.imgchecked = IntVar(self.root)
 	self.imgchecked.set(imageflag)
-	self.image_check = Checkbutton(self.imgframe,
+	self.image_check = Checkbutton(imgframe,
 				       variable = self.imgchecked)
 	self.image_check.pack(side = LEFT)
-	Label(self.imgframe, text = 'Print images').pack(side = LEFT)
+	Label(imgframe, text = 'Print images').pack(side = LEFT)
 
-	self.greyframe = Frame(self.root)
-	self.greyframe.pack(fill = X)
+	greyframe = Frame(self.root)
+	greyframe.pack(fill = X)
 	self.greychecked = IntVar(self.root)
 	self.greychecked.set(greyscaleflag)
-	self.grey_check = Checkbutton(self.greyframe,
+	self.grey_check = Checkbutton(greyframe,
 				      variable = self.greychecked)
 	self.grey_check.pack(side = LEFT)
-	lbl = Label(self.greyframe, text = 'Reduce images to greyscale')
-	lbl.pack(side = LEFT)
+	Label(greyframe, text = 'Reduce images to greyscale').pack(side = LEFT)
 
 	#  Anchor-handling selections:
-	self.fnframe = Frame(self.root)
-	self.fnframe.pack(fill = X)
+	fnframe = Frame(self.root)
+	fnframe.pack(fill = X)
 	self.footnotechecked = IntVar(self.root)
 	self.footnotechecked.set(footnoteflag)
-	self.footnote_check = Checkbutton(self.fnframe,
+	self.footnote_check = Checkbutton(fnframe,
 					  variable = self.footnotechecked)
 	self.footnote_check.pack(side = LEFT)
-	Label(self.fnframe, text = 'Footnotes for anchors').pack(side = LEFT)
+	Label(fnframe, text = 'Footnotes for anchors').pack(side = LEFT)
 
-	self.underframe = Frame(self.root)
-	self.underframe.pack(fill = X)
+	underframe = Frame(self.root)
+	underframe.pack(fill = X)
 	self.underchecked = IntVar(self.root)
 	self.underchecked.set(underflag)
-	self.under_check = Checkbutton(self.underframe,
+	self.under_check = Checkbutton(underframe,
 				       variable = self.underchecked)
 	self.under_check.pack(side = LEFT)
-	Label(self.underframe, text = 'Underline anchors').pack(side = LEFT)
+	Label(underframe, text = 'Underline anchors').pack(side = LEFT)
 
 	#  Command buttons:
 	fr = Frame(self.root, relief = SUNKEN, height = 4, borderwidth = 2)
@@ -149,7 +171,6 @@ class PrintDialog:
 	tktools.set_transient(self.root, self.master)
 
 	self.check_command()
-
 	self.root.grab_set()
 
     def return_event(self, event):
@@ -207,24 +228,23 @@ class PrintDialog:
 
     def print_to_fp(self, fp):
 	# do the printing
-	from urllib import urlopen
 	from html2ps import PSWriter, PrintingHTMLParser
-	from formatter import AbstractFormatter
-	try:
-	    infp = urlopen(self.url)
-	except IOError, msg:
-	    self.context.error_dialog(IOError, msg)
-	    return
-	imgloader = (self.imgchecked.get() and self.image_loader) or None
-	grey = self.greychecked.get()
-	w = PSWriter(fp, self.title, self.url, grey)
-	f = AbstractFormatter(w)
-	p = PrintingHTMLParser(f, baseurl = self.context.baseurl(),
-			       image_loader = imgloader, greyscale = grey,
-			       underline_anchors = self.underchecked.get(),
-			       footnote_anchors = self.footnotechecked.get())
-	p.feed(infp.read())
-	infp.close()
+	from html2ps import disallow_anchor_footnotes
+
+	w = PSWriter(fp, self.title, self.url)
+	if self.ctype == 'text/html':
+	    imgloader = (self.imgchecked.get() and self.image_loader) or None
+	    grey = self.greychecked.get()
+	    p = PrintingHTMLParser(w, baseurl = self.context.baseurl(),
+				   image_loader = imgloader, greyscale = grey,
+				   underline_anchors = self.underchecked.get())
+	    if not self.footnotechecked.get():
+		p.add_anchor_transform(disallow_anchor_footnotes)
+	elif self.ctype == 'text/plain':
+	    from Reader import TextParser
+	    p = TextParser(w)
+	p.feed(self.infp.read())
+	self.infp.close()
 	p.close()
 	w.close()
 
@@ -250,7 +270,6 @@ class PrintDialog:
 	try:
 	    imgfp = urlopen(url)
 	except IOError, msg:
-##	    self.context.error_dialog(IOError, msg)
 	    return None
 	data = imgfp.read()
 	return data
