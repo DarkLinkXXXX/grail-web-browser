@@ -69,15 +69,23 @@ class CacheManager:
 	new_dir = self.app.prefs.Get('disk-cache', 'directory')
 	if new_dir != self.disk.directory:
 	    self.disk._checkpoint_metadata()
-
 	    self.reset_disk_cache(size, new_dir)
 
-    def reset_disk_cache(self, size=None, dir=None):
+    def reset_disk_cache(self, size=None, dir=None, flush_log=0):
+	"""Close the current disk cache and open a new one.
+
+	Used primarily to change the cache directory or to clear
+	everything out of the cache when it is erased. The flush_log
+	argument is passed to DiskCache.close(), allowing this routine
+	to be used in both of the cases described. On erase, we want
+	to write a new, empty log; on change directory, we want to
+	keep the old log intact.
+	"""
 	if not size:
 	    size = self.disk.size
 	if not dir:
 	    dir = self.disk.directory
-	self.disk.close()
+	self.disk.close(flush_log)
 	self.disk = DiskCache(self, size, dir)
 	
     def set_freshness_test(self):
@@ -505,9 +513,11 @@ class DiskCache:
 
     log_version = "1.2"
 
-    def close(self):
-	# self._checkpoint_metadata()
+    def close(self,log):
 	self.manager.delete(self.items.keys(), evict=0)
+	if log:
+	    self.use_order = []
+	    self._checkpoint_metadata()
 	del self.items
 	del self.expires
 	self.manager.close_cache(self)
@@ -617,6 +627,8 @@ class DiskCache:
 	    # should we flush() here? probably...
 	    self.log.flush()
 
+    cache_file = regex.compile('^spam[0-9]+')
+
     def erase_cache(self):
 
 	if hasattr(self,'dead'):
@@ -624,25 +636,27 @@ class DiskCache:
 	    self.manager.disk.erase_cache()
 	    return
 	
-	def walk_erase(nil,dir,files):
+	def walk_erase(regexp,dir,files):
 	    for file in files:
-		path = os.path.join(dir,file)
-		if os.path.isfile(path):
-		    os.unlink(path)
+		if regexp.match(file) != -1:
+		    path = os.path.join(dir,file)
+		    if os.path.isfile(path):
+			os.unlink(path)
 	
-	os.path.walk(self.directory, walk_erase, None)
-	self.manager.reset_disk_cache()
+	os.path.walk(self.directory, walk_erase, self.cache_file)
+	self.manager.reset_disk_cache(flush_log=1)
 
     def erase_unlogged_files(self):
 
 	if hasattr(self,'dead'):
 	    # they got me
-	    self.manager.disk.erase_cache()
+	    self.manager.disk.erase_unlogged_files()
 	    return
 	
-	def walk_erase_unknown(known,dir,files):
+	def walk_erase_unknown(known,dir,files,regexp=self.cache_file):
 	    for file in files:
-		if not known.has_key(file):
+		if not known.has_key(file) \
+		   and regexp.match(file) != -1:
 		    path = os.path.join(dir,file)
 		    if os.path.isfile(path):
 			os.unlink(path)
