@@ -81,7 +81,7 @@ class GrailHTMLParser(HTMLParser):
 
     def set_suppress(self):
 	self.suppress_output = len(self.object_stack)
-	self.handle_data = self.handle_data_noop
+	self.set_data_handler(self.handle_data_noop)
 
     def handle_data_noop(self, data):
 	pass
@@ -90,9 +90,10 @@ class GrailHTMLParser(HTMLParser):
 	if self.suppress_output == len(self.object_stack):
 	    self.suppress_output = 0
 	    if self.nofill:
-		self.handle_data = self.formatter.add_literal_data
+		handler = self.formatter.add_literal_data
 	    else:
-		self.handle_data = self.formatter.add_flowing_data
+		handler = self.formatter.add_flowing_data
+	    self.set_data_handler(handler)
 	    r = 1
 	else:
 	    r = 0
@@ -107,9 +108,9 @@ class GrailHTMLParser(HTMLParser):
 	self.formatter_stack.append(formatter)
 	self.formatter = formatter	## in base class
 	if self.nofill:
-	    self.handle_data = formatter.add_literal_data
+	    self.set_data_handler(formatter.add_literal_data)
 	else:
-	    self.handle_data = formatter.add_flowing_data
+	    self.set_data_handler(formatter.add_flowing_data)
 	self.viewer = self.formatter.writer
 	self.context = self.viewer.context
 
@@ -119,9 +120,9 @@ class GrailHTMLParser(HTMLParser):
 	self.viewer = self.formatter.writer
 	self.context = self.viewer.context
 	if self.nofill:
-	    self.handle_data = self.formatter.add_literal_data
+	    self.set_data_handler(self.formatter.add_literal_data)
 	else:
-	    self.handle_data = self.formatter.add_flowing_data
+	    self.set_data_handler(self.formatter.add_flowing_data)
 
     # Override HTMLParser internal methods
 
@@ -147,13 +148,19 @@ class GrailHTMLParser(HTMLParser):
 	    self.handle_starttag = self.handle_starttag_nohead_isbad
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
-	massage_attributes(attrs)
+	#massage_attributes(attrs)   *** inlined for performance: ***
+	for k in URL_VALUED_ATTRIBUTES:
+	    if attrs.has_key(k) and attrs[k]:
+		attrs[k] = string.joinfields(string.split(attrs[k]), '')
 	method(attrs)
 
     def handle_starttag_nohead_isbad(self, tag, method, attrs):
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
-	massage_attributes(attrs)
+	#massage_attributes(attrs)   *** inlined for performance: ***
+	for k in URL_VALUED_ATTRIBUTES:
+	    if attrs.has_key(k) and attrs[k]:
+		attrs[k] = string.joinfields(string.split(attrs[k]), '')
 	method(attrs)
 
     def handle_endtag(self, tag, method):
@@ -169,11 +176,13 @@ class GrailHTMLParser(HTMLParser):
     def anchor_bgn(self, href, name, type, target=""):
 	self.anchor = href
 	self.target = target
-	atag = utag = htag = otag = None
+	atag, utag = None, None
 	if href:
 	    atag = 'a'
-	    utag = '>' + href
-	    if target: utag = utag + '>' + target
+	    if target:
+		utag = '>%s>%s' % (href, target)
+	    else:
+		utag = '>' + href
 	    self.viewer.bind_anchors(utag)
 	    if self.app.global_history.inhistory_p(self.context.baseurl(href)):
 		atag = 'ahist'
