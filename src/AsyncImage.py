@@ -23,6 +23,8 @@ class ImageTempFileReader(TempFileReader):
     image_filters = {
 	'image/gif': '',
 	'image/jpeg': 'djpeg -gif',
+	'image/x-xbitmap':
+	    'xbmtopbm | ppmtogif -transparent "#FFFFFF" 2>/dev/null',
 	}
 
     def handle_done(self):
