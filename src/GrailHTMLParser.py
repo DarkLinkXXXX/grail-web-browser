@@ -295,34 +295,71 @@ class GrailHTMLParser(HTMLParser):
 	HTMLParser.start_body(self, attrs)
 	if not self.app.prefs.GetBoolean('parsing-html', 'honor-colors'):
 	    return
-	if attrs.has_key('bgcolor'):
-	    clr = attrs['bgcolor']
-	    if clr and clr[0] != '#':
-		clr = '#' + clr
-	    self.configcolor('background', clr)
-	    #  Normally not important, but ISINDEX would cause
-	    #  these to be non-empty:
-	    for hr in self.viewer.rules + self.viewer.subwindows:
-		hr.config(highlightbackground = clr)
-	if attrs.has_key('text'):
-	    self.configcolor('foreground', attrs['text'])
-	if attrs.has_key('link'):
-	    self.configcolor('foreground', attrs['link'], 'a')
-	if attrs.has_key('vlink'):
-	    self.configcolor('foreground', attrs['vlink'], 'ahist')
-	if attrs.has_key('alink'):
-	    self.configcolor('foreground', attrs['alink'], 'atemp')
+	from grailutil import conv_normstring
+	bgcolor = extract_keyword('bgcolor', attrs, conv=conv_normstring)
+	if bgcolor:
+	    clr = self.configcolor('background', bgcolor)
+	    if clr:
+		#  Normally not important, but ISINDEX would cause
+		#  these to be non-empty, as would all sorts of illegal stuff:
+		for hr in self.viewer.rules + self.viewer.subwindows:
+		    hr.config(highlightbackground = clr)
+	self.configcolor('foreground',
+			 extract_keyword('text', attrs, conv=conv_normstring))
+	self.configcolor('foreground',
+			 extract_keyword('link', attrs, conv=conv_normstring),
+			 'a')
+	self.configcolor('foreground',
+			 extract_keyword('vlink', attrs, conv=conv_normstring),
+			 'ahist')
+	self.configcolor('foreground',
+			 extract_keyword('alink', attrs, conv=conv_normstring),
+			 'atemp')
+
+    # These are defined by the HTML 3.2 (Wilbur) version of HTML.
+    _std_colors = {"black": "#000000",
+		   "silver": "#c0c0c0",
+		   "gray": "#808080",
+		   "white": "#ffffff",
+		   "maroon": "#800000",
+		   "red": "#ff0000",
+		   "purple": "#800080",
+		   "fuchsia": "#ff00ff",
+		   "green": "#008000",
+		   "lime": "#00ff00",
+		   "olive": "#808000",
+		   "yellow": "#ffff00",
+		   "navy": "#000080",
+		   "blue": "#0000ff",
+		   "teal": "#008080",
+		   "aqua": "#00ffff",
+		   }
 
     def configcolor(self, option, color, tag=None):
-	if not color: return
-	if color[0] != '#': color = '#' + color
+	"""Set a color option, returning the color that was actually used.
+
+	If no color was set, `None' is returned.
+	"""
+	if not color:
+	    return None
+	c = self.try_configcolor(option, color, tag)
+	if color[0] != '#' and not c:
+	    c = self.try_configcolor(option, '#' + color, tag)
+	if not c and self._std_colors.has_key(color):
+	    color = self._std_colors[color]
+	    c = self.try_configcolor(option, color, tag)
+	return c
+
+    def try_configcolor(self, option, color, tag):
 	try:
-	    if not tag:
-		self.viewer.text[option] = color
-	    else:
+	    if tag:
 		apply(self.viewer.text.tag_config, (tag,), {option: color})
+	    else:
+		self.viewer.text[option] = color
 	except TclError, msg:
-	    pass			# Ignore the error
+	    return None
+	else:
+	    return color
 
     # Override tag: <BASE HREF=...>
 
