@@ -625,6 +625,7 @@ class Pack:
 		apply(self.tk.call, 
 		      ('pack', 'configure', self._w) 
 		      + self._options(cnf, kw))
+	configure = config
 	pack = config
 	def __setitem__(self, key, value):
 		Pack.config({key: value})
@@ -659,6 +660,7 @@ class Place:
 		apply(self.tk.call, 
 		      ('place', 'configure', self._w) 
 		      + self._options(cnf, kw))
+	configure = config
 	place = config
 	def __setitem__(self, key, value):
 		Place.config({key: value})
@@ -727,6 +729,7 @@ class Widget(Misc, Pack, Place):
 				del cnf[k]
 		apply(self.tk.call, (self._w, 'configure')
 		      + self._options(cnf))
+	configure = config
 	def __getitem__(self, key):
 		return self.tk.call(self._w, 'cget', '-' + key)
 	def __setitem__(self, key, value):
@@ -909,6 +912,7 @@ class Canvas(Widget):
 			return (x[0][1:],) + x[1:]
 		self._do('itemconfigure', (tagOrId,)
 			 + self._options(cnf, kw))
+	itemconfigure = itemconfig
 	def lower(self, *args):
 		self._do('lower', args)
 	def move(self, *args):
@@ -1119,6 +1123,7 @@ class Menu(Widget):
 			return (x[0][1:],) + x[1:]
 		apply(self.tk.call, (self._w, 'entryconfigure', index)
 		      + self._options(cnf, kw))
+	entryconfigure = entryconfig
 	def index(self, index):
 		i = self.tk.call(self._w, 'index', index)
 		if i == 'none': return None
@@ -1249,6 +1254,7 @@ class Text(Widget):
 		apply(self.tk.call, 
 		      (self._w, 'tag', 'configure', tagName)
 		      + self._options(cnf, kw))
+	tag_configure = tag_config
 	def tag_delete(self, *tagNames):
 		apply(self.tk.call, (self._w, 'tag', 'delete') + tagNames)
 	def tag_lower(self, tagName, belowThis=None):
@@ -1274,6 +1280,7 @@ class Text(Widget):
 		apply(self.tk.call, 
 		      (self._w, 'window', 'configure', index)
 		      + self._options(cnf, kw))
+	window_configure = window_config
 	def window_create(self, index, cnf={}, **kw):
 		apply(self.tk.call, 
 		      (self._w, 'window', 'create', index)
