@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.15 $"
+__version__ = "$Revision: 2.16 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -85,7 +85,7 @@ class Framework:
 	raise SystemError, "Derived class should override .CreateLayout()"
 
     # Optional preferences-specific layout method.
-    def UpdateLayout(self, name, frame):
+    def UpdateLayout(self):
 	"""Called when Factory Defaults or Revert buttons are pushed.
 
 	Override it if you have to do some layout update."""
