@@ -129,6 +129,9 @@ class Reader(BaseReader):
 		# remember the original click location
 		self.app.global_history.remember_url(self.url)
 		self.stop()
+		# Always do a "GET" on the redirected URL
+		self.method = 'GET'
+		self.data = ""
 		self.restart(url)
 		return
 
