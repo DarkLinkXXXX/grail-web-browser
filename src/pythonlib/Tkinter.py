@@ -1180,6 +1180,8 @@ class Text(Widget):
 			self._w, 'debug', boolean))
 	def delete(self, index1, index2=None):
 		self.tk.call(self._w, 'delete', index1, index2)
+	def dlineinfo(self, index):
+		return self._getints(self.tk.call(self._w, 'dlineinfo', index))
 	def get(self, index1, index2=None):
 		return self.tk.call(self._w, 'get', index1, index2)
 	def index(self, index):
