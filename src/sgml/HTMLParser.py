@@ -16,6 +16,9 @@ class HTMLParser(SGMLParser):
 
     from htmlentitydefs import entitydefs
 
+    head_only_tags = ('link', 'meta', 'title', 'isindex', 'range',
+		      'base', 'nextid', 'style', 'head')
+
     def __init__(self, formatter, verbose=0):
         SGMLParser.__init__(self, verbose)
 	self.restrict(1)
@@ -28,6 +31,9 @@ class HTMLParser(SGMLParser):
         self.anchorlist = []
         self.nofill = 0
         self.list_stack = []
+	self.inhead = 1
+	self.badhtml = 0
+	self.nextid = None
 
     # ------ Methods used internally; some may be overridden
 
@@ -37,7 +43,8 @@ class HTMLParser(SGMLParser):
     def handle_data(self, data):
         if self.savedata is not None:
 	    self.savedata = self.savedata + data
-        else:
+        elif 'head' not in self.stack:
+	    self.inhead = 0
 	    if self.nofill:
 		self.formatter.add_literal_data(data)
 	    else:
@@ -78,9 +85,9 @@ class HTMLParser(SGMLParser):
     def end_html(self): pass
 
     def start_head(self, attrs): pass
-    def end_head(self): pass
+    def end_head(self): self.inhead = 0
 
-    def start_body(self, attrs): pass
+    def start_body(self, attrs): self.inhead = 0
     def end_body(self): pass
 
     # ------ Head elements
@@ -104,8 +111,12 @@ class HTMLParser(SGMLParser):
     def do_meta(self, attrs):
         pass
 
-    def do_nextid(self, attrs): # Deprecated
-        pass
+    def do_nextid(self, attrs):		# Deprecated, but maintain the state.
+	self.element_close_maybe('style', 'title')
+	if attrs.has_attr('n'):
+	    self.nextid = attrs['n']
+	else:
+	    self.badhtml = 1
 
     def start_style(self, attrs):
 	"""Disable display of document data -- this is a style sheet.
@@ -190,6 +201,9 @@ class HTMLParser(SGMLParser):
 	self.formatter.pop_style()
         self.formatter.end_paragraph(1)
 
+    start_div = start_p
+    end_div = end_p
+
     def start_pre(self, attrs):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
@@ -235,15 +249,32 @@ class HTMLParser(SGMLParser):
 
     # --- List Elements
 
-    def start_ul(self, attrs):
+    def start_lh(self, attrs):
 	self.close_paragraph()
+	self.do_br({})
+	self.start_b(attrs)
+	self.start_i(attrs)
+
+    def end_lh(self):
+	self.end_i()
+	self.end_b()
+	compact = self.list_stack and self.list_stack[-1][3]
+	compact = (compact and 1) or 0
+	self.formatter.end_paragraph(not compact)
+
+    def start_ul(self, attrs):
+	self.element_close_maybe('p', 'lh')
         self.formatter.end_paragraph(not self.list_stack)
         self.formatter.push_margin('ul')
 	if attrs.has_key('plain'):
 	    label = ''
 	else:
-	    label = '*'
-        self.list_stack.append(['ul', label, 0])
+	    if attrs.has_key('type'):
+		format = attrs['type']
+	    else:
+		format = ('disc', 'circle', 'square')[len(self.list_stack) % 3]
+	    label = self.make_format(format)
+        self.list_stack.append(['ul', label, 0, attrs.has_key('compact')])
 
     def end_ul(self):
         if self.list_stack: del self.list_stack[-1]
@@ -251,9 +282,10 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_margin()
 
     def do_li(self, attrs):
+	self.element_close_maybe('lh', 'p')
         self.formatter.end_paragraph(0)
         if self.list_stack:
-	    [dummy, label, counter] = top = self.list_stack[-1]
+	    [dummy, label, counter, compact] = top = self.list_stack[-1]
 	    if attrs.has_key('type'):
 		label = top[1] = self.make_format(attrs['type'], label)
 	    if attrs.has_key('value'):
@@ -265,16 +297,24 @@ class HTMLParser(SGMLParser):
 		    top[2] = counter = v
 	    else:
 		top[2] = counter = counter+1
+	    if attrs.has_key('skip'):
+		try: skip = string.atoi(attrs['skip'])
+		except: pass
+		else: top[2] = counter = counter + skip
 	    self.formatter.add_label_data(label, counter)
         else:
 	    #  Illegal, but let's try not to be ugly:
-	    format, value = '* ', 1
+	    self.badhtml = 1
+	    format, value = '*', 1
 	    if attrs.has_key('value'):
-		try: v = string.atoi(attrs['value'])
+		try: value = string.atoi(attrs['value'])
 		except: pass
+		else: format = '1'
 	    if attrs.has_key('type'):
-		format = self.make_format(attrs['type']) + ' '
-	    data = self.formatter.format_counter(format, count)
+		format = self.make_format(attrs['type'], format)
+	    else:
+		format = self.make_format(format)
+	    data = self.formatter.format_counter(format + ' ', value)
 	    self.formatter.add_flowing_data(data)
 
     def make_format(self, format, default='*'):
@@ -303,7 +343,7 @@ class HTMLParser(SGMLParser):
 	elif attrs.has_key('start'):
 	    try: start = string.atoi(attrs['start']) - 1
 	    except: pass
-        self.list_stack.append(['ol', label, start])
+        self.list_stack.append(['ol', label, start, attrs.has_key('compact')])
 
     def end_ol(self):
         if self.list_stack: del self.list_stack[-1]
@@ -328,7 +368,7 @@ class HTMLParser(SGMLParser):
     def start_dl(self, attrs):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
-        self.list_stack.append(['dl', '', 0])
+        self.list_stack.append(['dl', '', 0, attrs.has_key('compact')])
 
     def end_dl(self):
         self.ddpop(1)
@@ -340,9 +380,11 @@ class HTMLParser(SGMLParser):
     def do_dd(self, attrs):
         self.ddpop()
         self.formatter.push_margin('dd')
-        self.list_stack.append(['dd', '', 0])
+	compact = self.list_stack and self.list_stack[-1][3]
+        self.list_stack.append(['dd', '', 0, compact])
 
     def ddpop(self, bl=0):
+	self.element_close_maybe('lh', 'p')
         self.formatter.end_paragraph(bl)
         if self.list_stack:
             if self.list_stack[-1][0] == 'dd':
@@ -358,6 +400,9 @@ class HTMLParser(SGMLParser):
 
     def start_code(self, attrs): self.start_tt(attrs)
     def end_code(self): self.end_tt()
+
+    def start_dfn(self, attrs): self.start_i(attrs)
+    def end_dfn(self): self.end_i()
 
     def start_em(self, attrs): self.start_i(attrs)
     def end_em(self): self.end_i()
@@ -484,11 +529,18 @@ class HTMLParser(SGMLParser):
 
     # --- Utilities:
 
-    def close_paragraph(self):
-	"""Handle any open paragraphs on the stack.
+    def element_close_maybe(self, *elements):
+	"""Handle any open elements on the stack of the given types.
+
+	`elements' should be a tuple of all element types which must be
+	closed if they exist on the stack.  Sequence is not important.
 	"""
-	while 'p' in self.stack:
-	    self.lex_endtag(self.stack[-1])
+	for elem in elements:
+	    while elem in self.stack:
+		self.lex_endtag(self.stack[-1])
+
+    def close_paragraph(self):
+	self.element_close_maybe('p')
 
 
 def test():

@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.7 $"
+__version__ = "$Revision: 1.8 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -150,8 +150,8 @@ class SGMLParser(SGMLLexer):
 	    return 0
 	else:
 	    self.lasttag = tag
-	    self.stack.append(tag)
 	    self.handle_starttag(tag, method, attrs)
+	    self.stack.append(tag)
 
     def lex_endtag(self, tag):
 	#print 'received end tag', `tag`
