@@ -10,7 +10,6 @@ class OutlinerNode:
 	self._parent = None
 	self._children = []
 	self._depth = 0
-	self._index = None
 
     def __repr__(self):
 	tabdepth = self._depth - 1
@@ -18,6 +17,16 @@ class OutlinerNode:
 	elif self.expanded_p(): tag = '+'
 	else: tag = '-'
 	return (' ' * (tabdepth * 3)) + tag
+
+    def clone(self):
+	newnode = OutlinerNode()
+	newnode._expanded_p = self._expanded_p
+	newnode._depth = self._depth
+	for child in self._children:
+	    newchild = child.clone()
+	    newchild._parent = newnode
+	    newnode._children.append(newchild)
+	return newnode
 
     def close(self):
 	self._parent = None
@@ -69,8 +78,6 @@ class OutlinerNode:
     def leaf_p(self): return not self._children
 
     def depth(self): return self._depth
-    def index(self): return self._index
-    def set_index(self, index): self._index = index
 
 
 
@@ -78,41 +85,33 @@ class OutlinerViewer:
     def __init__(self, root):
 	self._root = root
 	self._nodes = []
-	self._gcounter = 0
 	self._follow_all_children_p = False
 
     def __del__(self): self._root.close()
 
-    def _insert(self, node, index=None):
-	"""Derived class specialization"""
-	pass
+    ## Derived class specializations
 
-    def _delete(self, start, end=None):
-	"""Derived class specialization"""
-	pass
-
-    def _select(self, index):
-	"""Derived class specialization"""
-	pass
-
-    def _clear(self):
-	"""Derived class specialization"""
-	pass
+    def _insert(self, node, index=None): pass
+    def _delete(self, start, end=None): pass
+    def _select(self, index): pass
+    def _clear(self): pass
 
     def _populate(self, node):
 	# insert into linear list
 	self._nodes.append(node)
-	node.set_index(self._gcounter)
-	self._gcounter = self._gcounter + 1
 	# calculate the string to insert into the list box
 	self._insert(node)
 	if self._follow_all_children_p or node.expanded_p():
 	    for child in node.children():
 		self._populate(child)
 
-    def populate(self):
-	self._gcounter = 0
-	self._populate(self._root)
+    ## API methods
+
+    def populate(self, showroot=False):
+	if showroot: self._populate(self._root)
+	else:
+	    for child in self._root.children():
+		OutlinerViewer._populate(self, child)
 
     def clear(self):
 	self._clear()
@@ -124,41 +123,39 @@ class OutlinerViewer:
 	for node in node_list:
 	    self._nodes.insert(at_index, node)
 	    self._insert(node, at_index)
-	    node.set_index(at_index)
 	    at_index = at_index + 1
-	for node in self._nodes[at_index:]:
-	    node.set_index(node.index() + nodecount)
 
     def delete_nodes(self, start, end):
 	nodecount = end - start + 1
 	self._delete(start, end)
-	for node in self._nodes[end+1:]:
-	    node.set_index(node.index() - nodecount)
 	del self._nodes[start:end+1]
 
     def update_node(self, node):
-	index = node.index()
+	index = self.index(node)
 	# TBD: is there a more efficient way of doing this?
 	self._delete(index)
 	self._insert(node, index)
 
-    def _expand(self, node):
+    def _expand(self, node, at):
 	for child in node.children():
-	    self.insert_nodes(self._gcounter, [child], True)
-	    self._gcounter = self._gcounter + 1
+	    self.insert_nodes(at, [child], True)
+	    at = at + 1
 	    if not child.leaf_p() and child.expanded_p():
 		self._expand(child)
 
     def expand_node(self, node):
-	self._gcounter = node.index() + 1
-	self._expand(node)
+	self._expand(node, self.index(node)+1)
 
     def select_node(self, node):
-	self._select(node.index())
+	self._select(self.index(node))
 
     def node(self, index):
 	if 0 <= index < len(self._nodes): return self._nodes[index]
 	else: return None
+
+    def index(self, node):
+	try: return self._nodes.index(node)
+	except ValueError: return None
 
     def count(self): return len(self._nodes)
 
@@ -167,6 +164,7 @@ class OutlinerController:
     def __init__(self, root=None, viewer=None):
 	self._viewer = viewer
 	self._root = root
+	self._backup = root.clone()
 	self._aggressive_p = None
 	if not root: self._root = OutlinerNode()
 	if not viewer: self._viewer = OutlinerViewer(self._root)
@@ -174,10 +172,15 @@ class OutlinerController:
     def root(self): return self._root
     def set_root(self, newroot):
 	self._root.close()
+	self._backup.close()
 	self._root = newroot
+	self._backup = newroot.clone()
     def root_redisplay(self):
 	self._viewer.clear()
 	self._viewer.populate()
+    def revert(self):
+	self._root.close()
+	self._root = self._backup.clone()
 
     def viewer(self): return self._viewer
     def set_viewer(self, viewer): self._viewer = viewer
@@ -249,7 +252,7 @@ class OutlinerController:
 	# find the viewer index of the node, and get the node just
 	# above it.  if it's the first visible node, it cannot be
 	# shifted up.
-	nodevi = node.index()
+	nodevi = self._viewer.index(node)
 	if nodevi == 0: return
 	above = self._viewer.node(nodevi-1)
 	parent, sibi, sibs = self._sibi(node)
@@ -280,8 +283,8 @@ class OutlinerController:
 	# find the viewer index of the node, and get the node just
 	# below it.  if it's the last visible node, it cannot be
 	# shifted down.
-	nodevi = node.index()
-	if nodevi >= self._viewer.count()-1: return
+	nodevi = self._viewer.index(node)
+	if not nodevi or nodevi >= self._viewer.count()-1: return
 	below = self._viewer.node(nodevi+1)
 	parent, sibi, sibs = self._sibi(node)
 	if not parent: return

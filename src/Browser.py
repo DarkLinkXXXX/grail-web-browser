@@ -48,13 +48,19 @@ class Browser:
 
     """
 
-    def __init__(self, master, app=None, width=80, height=40):
+    def __init__(self, master, app=None, width=80, height=40, hist=None):
 	self.master = master
+	if not app:
+	    import __main__
+	    try: app = __main__.app
+	    except NameError: pass
+	if app: app.add_browser(self)
 	self.app = app
 	self.readers = []
 	self.url = ""
 	self.title = ""
-	self.history = History.History(app)
+	if hist: self.history = hist
+	else: self.history = History.History(app)
 	self.create_widgets(width=width, height=height)
 	self.history_dialog = None
 
@@ -413,7 +419,9 @@ class Browser:
     def close(self):
 	self.stop()
 	self.root.destroy()
-	if self.app: self.app.maybe_quit()
+	if self.app:
+	    self.app.del_browser(self)
+	    self.app.maybe_quit()
 
     # Stop command
 
@@ -428,7 +436,7 @@ class Browser:
 	return b
 
     def clone_command(self, event=None):
-	b = Browser(self.master, self.app)
+	b = Browser(self.master, self.app, hist=self.history.clone())
 	if self.url:
 	    b.load(self.url)
 	return b

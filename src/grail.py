@@ -146,6 +146,7 @@ class Application:
 	self.root.withdraw()
 	self.keep_alive()
 	self.on_exit_methods = []
+	self.browsers = []
 
     def register_on_exit(self, method):
 	self.on_exit_methods.append(method)
@@ -156,6 +157,11 @@ class Application:
 	for m in self.on_exit_methods[:]:
 	    try: m()
 	    except: pass
+
+    def add_browser(self, browser): self.browsers.append(browser)
+    def del_browser(self, browser):
+	try: self.browsers.remove(browser)
+	except ValueError: pass
 
     def quit(self):
 	self.root.destroy()

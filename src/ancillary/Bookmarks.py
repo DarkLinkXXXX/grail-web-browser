@@ -28,7 +28,6 @@ NEW_AS_CHILD = 3
 BookmarkFormatError = 'BookmarkFormatError'
 PoppedRootError = 'PoppedRootError'
 
-
 def username():
     try: name = os.environ['NAME']
     except KeyError:
@@ -83,6 +82,22 @@ class BookmarkNode(OutlinerNode):
     def __repr__(self):
 	return OutlinerNode.__repr__(self) + ' ' + self.title()
     def leaf_p(self): return self._leaf_p
+
+    def clone(self):
+	newnode = BookmarkNode(self._title, self._uri, self._add_date,
+			       self._visited, self._desc)
+	# TBD: no good way to do this
+	newnode._expanded_p = self._expanded_p
+	newnode._depth = self._depth
+	for child in self._children:
+	    newchild = child.clone()
+	    newchild._parent = newnode
+	    newnode._children.append(newchild)
+	# set derived class attributes
+	newnode._islink_p = self._islink_p
+	newnode._isseparator_p = self._isseparator_p
+	newnode._leaf_p = self._leaf_p
+	return newnode
 
     def append_child(self, node):
 	OutlinerNode.append_child(self, node)
@@ -427,13 +442,6 @@ class TkListboxViewer(OutlinerViewer):
 	if len(self._nodes) > 0:
 	    self.select_node(0)
 	    self._listbox.activate(0)
-
-    def populate(self):
-	# we don't want the root node to show up
-	self._gcounter = 0
-	if not self._root: return
-	for child in self._root.children():
-	    OutlinerViewer._populate(self, child)
 
     def _clear(self):
 	self._listbox.delete(0, END)
@@ -786,15 +794,17 @@ class DetailsDialog:
 	self._frame.tkraise()
 
     def hide(self): self._frame.withdraw()
+    def destroy(self): self._frame.destroy()
 
 
 
 class BookmarksController(OutlinerController):
-    def __init__(self, frame, browser):
+    def __init__(self, frame, app):
 	default_root = BookmarkNode(username()+"'s Bookmarks")
 	OutlinerController.__init__(self, default_root)
 	self._frame = frame
-	self._browser = browser
+	self._app = app
+	self._active = None
 	self._iomgr = BookmarksIO(frame, self)
 	self._dialog = None
 	self._details = {}
@@ -820,6 +830,12 @@ class BookmarksController(OutlinerController):
 	if self._tkvars.has_key(name): return self._tkvars[name]
 	else: raise AttributeError, name
 
+    def _browser(self):
+	browser = self._active
+	try: self._app.browsers.index(browser)
+	except ValueError: browser = None
+	return browser
+
     ## coordinate with Application instance
 
     def on_app_exit(self):
@@ -834,7 +850,8 @@ class BookmarksController(OutlinerController):
 
     ## I/O
 
-    def initialize(self):
+    def initialize(self, active_browser=None):
+	if active_browser: self._active = active_browser
 	if self._initialized_p: return
 	try:
 	    # this will attempt to load the Grail default bookmarks
@@ -854,14 +871,8 @@ class BookmarksController(OutlinerController):
 	self.set_root(root)
 	self._initialized_p = True
 
-    def load(self, usedefault=False):
-	root, reader, self._writer = self._iomgr.load(usedefault=usedefault)
-	if not root and not reader and not self._writer:
-	    # load dialog was cancelled
-	    return
-	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
-	# clear out all the old state
-	self.set_root(root)
+    def _on_new_root(self):
+	for dialog in self._details.values(): dialog.destroy()
 	self._details = {}
 	self.set_viewer(TkListboxViewer(self.root(), self._listbox))
 	self.root_redisplay()
@@ -870,11 +881,19 @@ class BookmarksController(OutlinerController):
 	self.set_modflag(False)
 	if node: self.viewer().select_node(node)
 
+    def load(self, usedefault=False):
+	root, reader, self._writer = self._iomgr.load(usedefault=usedefault)
+	if not root and not reader and not self._writer:
+	    # load dialog was cancelled
+	    return
+	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+	# clear out all the old state
+	self.set_root(root)
+	self._on_new_root()
+
     def revert(self):
-	# In the long term it might be better/faster not to simply
-	# reload the file, but to actually make a backup of the tree
-	# at load time.
-	self.load(usedefault=True)
+	OutlinerController.revert(self)
+	self._on_new_root()
 
 ##    def merge(self, event=None): pass
     def save(self, event=None, exiting=False):
@@ -921,13 +940,13 @@ class BookmarksController(OutlinerController):
 
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
-	if filename: self._browser.load('file:' + filename)
+	if filename: self._browser().load('file:' + filename)
     def goto_node(self, node):
 	if node and node.leaf_p() and node.uri():
 	    node.set_last_visited(int(time.time()))
 	    if self._details.has_key(id(node)):
 		self._details[id(node)].revert()
-	    self._browser.load(node.uri())
+	    self._browser().load(node.uri())
 	    self.viewer().select_node(node)
 	    self.set_modflag(True, quiet=True)
 
@@ -935,9 +954,8 @@ class BookmarksController(OutlinerController):
 	# create a new node to represent this addition and then fit it
 	# into the tree, updating the listbox
 	now = int(time.time())
-	node = BookmarkNode(self._browser.title,
-			    self._browser.url,
-			    now, now)
+	browser = self._browser()
+	node = BookmarkNode(browser.title, browser.url, now, now)
 	addlocation = self.addcurloc.get()
 	if addlocation == NEW_AT_END:
 	    # add this node to the end of root's child list.
@@ -1032,7 +1050,7 @@ class BookmarksController(OutlinerController):
 	parent = node.parent()
 	if not parent: return
 	# which node gets selected?
-	selection = node.index() - 1
+	selection = self.viewer().index(node) - 1
 	if selection < 0: selection = 0
 	parent.del_child(node)
 	self.root_redisplay()
@@ -1114,13 +1132,8 @@ class BookmarksMenuViewer(OutlinerViewer):
 	self._depth = 0
 	self._menustack = [parentmenu]
 	root = controller.root()
-	OutlinerViewer.__init__(self, controller.root())
+	OutlinerViewer.__init__(self, root)
 	self._follow_all_children_p = True
-
-    def populate(self):
-	# don't want root node to show up in list
-	for child in self._root.children():
-	    OutlinerViewer._populate(self, child)
 
     def _insert(self, node, index=None):
 	depth = node.depth()
@@ -1146,7 +1159,13 @@ class BookmarksMenu:
 	self._menu = menu
 	self._browser = menu.grail_browser
 	self._frame = self._browser.root
-	self._controller = BookmarksController(self._frame, self._browser)
+	self._app = self._browser.app
+	# set up the global controller.  Only one of these in every
+	# application
+	try: self._controller = self._app.bookmarks_controller
+	except AttributeError:
+	    self._controller = self._app.bookmarks_controller = \
+			       BookmarksController(self._frame, self._app)
 	# currently, too difficult to coordinate edits to bookmarks
 	# with tear-off menus, so just disable these for now and
 	# create the rest of this menu every time the menu is posted
@@ -1169,17 +1188,17 @@ class BookmarksMenu:
 	last = self._menu.index('end')
 	if last > 2: self._menu.delete(3, 'end')
 	# First make sure the controller has initialized
-	self._controller.initialize()
+	self._controller.initialize(active_browser=self._browser)
 	viewer = BookmarksMenuViewer(self._controller, self._menu)
 	viewer.populate()
 
     def show(self, event=None):
 	# make sure controller is initialized
-	self._controller.initialize()
+	self._controller.initialize(active_browser=self._browser)
 	self._controller.show()
 
     def add_current(self, event=None):
 	# make sure controller is initialized
-	self._controller.initialize()
+	self._controller.initialize(active_browser=self._browser)
 	self._controller.add_current()
 	self._controller.save()

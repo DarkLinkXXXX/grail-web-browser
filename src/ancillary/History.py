@@ -15,9 +15,6 @@ DEFAULT_NETSCAPE_HIST_FILE = os.path.join(gethome(), '.netscape-history')
 DEFAULT_GRAIL_HIST_FILE = os.path.join(getgraildir(), 'grail-history')
 
 
-GLOBAL_HISTORY = None
-
-
 
 class HistoryLineReader:
     def _error(self, line):
@@ -145,14 +142,21 @@ class GlobalHistory:
 
 
 class History:
-    def __init__(self, app):
+    def __init__(self, app=None):
 	self._history = []
 	self._dialog = None
 	self._current = 0
 	# initialize global history the first time through
-	global GLOBAL_HISTORY
-	if not GLOBAL_HISTORY:
-	    GLOBAL_HISTORY = GlobalHistory(app)
+	if app:
+	    try: self._ghistory = app.global_history
+	    except AttributeError:
+		self._ghistory = app.global_history = GlobalHistory(app)
+
+    def clone(self):
+	newhist = History()
+	newhist._history = self._history[:]
+	newhist._current = self._current
+	return newhist
 
     def set_dialog(self, dialog): self._dialog = dialog
 
@@ -168,19 +172,16 @@ class History:
 	self._current = len(self._history)-1
 	if not title: title = link
 	# update global history
-	global GLOBAL_HISTORY
-	GLOBAL_HISTORY.append_link(link, title)
+	self._ghistory.append_link(link, title)
 	# update the display
 	if self._dialog: self._dialog.refresh()
 
     def set_title(self, link, title):
-	global GLOBAL_HISTORY
-	GLOBAL_HISTORY.set_title(link, title)
+	self._ghistory.set_title(link, title)
 	if self._dialog: self._dialog.refresh()
 
     def title(self, link):
-	global GLOBAL_HISTORY
-	return GLOBAL_HISTORY.title(link)
+	return self._ghistory.title(link)
 
     def link(self, index=None):
 	if index is None: index = self._current
