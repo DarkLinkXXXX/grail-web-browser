@@ -23,15 +23,23 @@ class OutlinerNode:
 	self._parent = None
 	for child in self._children: child.close()
 
+    def _redepthify(self, node):
+	depth = node.depth()
+	for child in node.children():
+	    child._depth = depth + 1
+	    self._redepthify(child)
+
     def append_child(self, node):
 	self._children.append(node)
 	node._parent = self
 	node._depth = self._depth + 1
+	self._redepthify(node)
 
     def insert_child(self, node, index):
 	self._children.insert(index, node)
 	node._parent = self
 	node._depth = self._depth + 1
+	self._redepthify(node)
 
     def del_child(self, node):
 	try:

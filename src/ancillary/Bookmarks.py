@@ -80,6 +80,18 @@ class BookmarkNode(OutlinerNode):
 	return OutlinerNode.__repr__(self) + ' ' + self.title()
     def leaf_p(self): return self._leaf_p
 
+    def append_child(self, node):
+	OutlinerNode.append_child(self, node)
+	self._leaf_p = False
+    def insert_child(self, node, index):
+	OutlinerNode.insert_child(self, node, index)
+	self._leaf_p = False
+    def del_child(self, node):
+	rtnnode = OutlinerNode.del_child(self, node)
+	if self._islink_p and len(self._children) == 0:
+	    self._leaf_p = True
+	return rtnnode
+
     def title(self): return self._title
     def uri(self): return self._uri
     def add_date(self): return self._add_date
@@ -808,7 +820,7 @@ class BookmarksController:
 	# now that we have a valid start and end, delete!
 	if not end: end = self._viewer.count()
 	self._viewer.delete_nodes(start, end)
-	self._viewer.update_node(node)
+	self.update_node(node)
 
     def _expand_node(self, node):
 	# now toggle the expanded flag and update the listbox
@@ -816,7 +828,7 @@ class BookmarksController:
 	# we need to recursively expand this node, based on each
 	# sub-node's expand/collapse flag
 	self._viewer.expand_node(node)
-	self._viewer.update_node(node)
+	self.update_node(node)
 
     def collapse(self, event=None):
 	node, selection = self._get_selected_node()
@@ -924,12 +936,20 @@ class BookmarksController:
 		    self._viewer.insert_nodes(insertion, [node])
 		else:
 		    see = False
-		self._viewer.update_node(snode)
+		self.update_node(snode)
 	else: pass
 	# scroll the newly added node into view
 	if see: self._listbox.see(node.index())
 
-    def update_node(self, node): self._viewer.update_node(node)
+    def update_node(self, node):
+	if self._viewer: self._viewer.update_node(node)
+    def _rupdate_node(self, node):
+	self._viewer.update_node(node)
+	for child in node.children():
+	    self._rupdate_node(child)
+    def rupdate_node(self, node):
+	if not self._viewer: return
+	self._rupdate_node(node)
 
     def details(self, event=None):
 	node, selection = self._get_selected_node()
@@ -963,7 +983,7 @@ class BookmarksController:
     def quit(self, event=None): sys.exit(0)
 
     def _insert_at_node(self, node, newnode):
-	if node.leaf_p():
+	if node.leaf_p() or not node.expanded_p():
 	    parent = node.parent()
 	    children = parent.children()
 	    nodei = children.index(node)
@@ -973,7 +993,6 @@ class BookmarksController:
 	    # Mimic Netscape behavior: when a separator is added to a
 	    # header, the node is added as the header's first child.
 	    # If the header is collapsed, it is first expanded.
-	    if not node.expanded_p(): self._expand_node(node)
 	    node.insert_child(newnode, 0)
 	if self._viewer:
 	    self._viewer.insert_nodes(node.index(), [newnode])
@@ -984,14 +1003,14 @@ class BookmarksController:
 	newnode = BookmarkNode()
 	newnode.set_separator()
 	self._insert_at_node(node, newnode)
-	frame = Toplevel(self._frame)
-	self._details[id(newnode)] = DetailsDialog(frame, newnode, self)
 
     def insert_header(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
 	newnode = BookmarkNode('<Category>')
 	self._insert_at_node(node, newnode)
+	frame = Toplevel(self._frame)
+	self._details[id(newnode)] = DetailsDialog(frame, newnode, self)
 
     def insert_entry(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1016,13 +1035,118 @@ class BookmarksController:
 		# its possible we deleted the last child of the parent
 		# node, if so, update that node's view
 		if parent.leaf_p():
-		    self._viewer.update_node(parent)
+		    self.update_node(parent)
 
-    def shift_left(self, event=None): pass
-    def shift_right(self, event=None): pass
-    def shift_up(self, event=None): pass
-    def shift_down(self, event=None): pass
+    def shift_left(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	# find the index of the node in the sib list.  if it's the
+	# first in the list, it cannot be shifted right
+	parent = node.parent()
+	# if the node's parent is root, it cannot be shifted left
+	if parent == self.root(): return
+	grandparent = parent.parent()
+	sibs = parent.children()
+	nodei = sibs.index(node)
+	parenti = grandparent.children().index(parent)
+	# it becomes a sib of its parent, and all *its* later siblings
+	# now become the node's children
+	parent.del_child(node)
+	grandparent.insert_child(node, parenti+1)
+	if nodei < len(sibs):
+	    for sib in sibs[nodei:]:
+		parent.del_child(sib)
+		node.append_child(sib)
+	if grandparent != self.root():
+	    self.update_node(grandparent)
+	self.rupdate_node(node)
 
+    def shift_right(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	# find the index of the node in the sib list.  if it's the
+	# first in the list, it cannot be shifted right
+	parent = node.parent()
+	sibs = parent.children()
+	nodei = sibs.index(node)
+	# can't shift right the first child
+	if nodei == 0: return
+	sib = sibs[nodei-1]
+	parent.del_child(node)
+	# shifting right puts it under its most preceding sibling,
+	# unless this is the first sibling, the it's a no-op
+	if not sib.leaf_p() and not sib.expanded_p():
+	    self._expand_node(sib)
+	sib.append_child(node)
+	self.rupdate_node(sib)
+
+    def shift_up(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node or not self._viewer: return
+	nodei = node.index()
+	# if it's a header, collapse it now, then possibly expand it later
+	if not node.leaf_p():
+	    expanded_p = node.expanded_p()
+	    self._collapse_node(node)
+	# if it's at the top and we're shifting up, we can't shift it
+	if nodei == 0: return
+	# delete the node from it's parent
+	nparent = node.parent()
+	nparent.del_child(node)
+	self._viewer.delete_nodes(nodei, nodei)
+	# find the above node's index in it's sib list
+	above = self._viewer.node(nodei-1)
+	aparent = above.parent()
+	# if the depth of the node we want to move above is greater
+	# than node's depth, then in fact we just want to append it to
+	# the end of above's sib list
+	if above.depth() > node.depth():
+	    aparent.append_child(node)
+	    self._viewer.insert_nodes(above.index(), [node])
+	else:
+	    abovei = aparent.children().index(above)
+	    aparent.insert_child(node, abovei)
+	    self._viewer.insert_nodes(above.index(), [node], True)
+	if not node.leaf_p() and expanded_p:
+	    self._expand_node(node)
+
+    def shift_down(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node or not self._viewer: return
+	# if it's a header, collapse it now, then possibly expand it later
+	if not node.leaf_p():
+	    expanded_p = node.expanded_p()
+	    self._collapse_node(node)
+	# if it's at the bottom and we're shifting down, forget it, we
+	# can't shift it
+	nodei = node.index()
+	if nodei == self._viewer.count()-1: return
+	# find the below node's index in it's sib list
+	below = self._viewer.node(nodei+1)
+	bparent = below.parent()
+	# delete the node from it's parent
+	ndepth = node.depth()
+	nparent = node.parent()
+	nparent.del_child(node)
+	self._viewer.delete_nodes(nodei, nodei)
+	# if the depth of the node we want to move below is less than
+	# node's depth, then in fact we just want to prepend it to the
+	# beginning of below's child list
+	if below.depth() <= ndepth and not below.leaf_p() and \
+	   below.expanded_p():
+	    below.insert_child(node, 0)
+	    self._viewer.insert_nodes(below.index(), [node])
+	else:
+	    bsibs = bparent.children()
+	    belowi = bsibs.index(below)
+	    if belowi == len(bsibs)-1:
+		bparent.append_child(node)
+	    else:
+		bparent.insert_child(node, belowi+1)
+	    self._viewer.insert_nodes(below.index(), [node])
+	# re-expand the node if necessary
+	if not node.leaf_p() and expanded_p:
+	    self._expand_node(node)
 
 
 class BookmarksMenuLeaf:
