@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.5 $"
+__version__ = "$Revision: 2.6 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -86,10 +86,7 @@ def nicebytes(n):
 
     """
     if n < 1000:
-	if n <= 1:
-	    if n == 1: return "1 byte"
-	    if n == 0: return "no bytes"
-	    if n < 0: return "%d bytes" % n
+	if n == 1: return "1 byte"
 	return "%d bytes" % n
     n = n * 0.001
     if n < 1000.0:
