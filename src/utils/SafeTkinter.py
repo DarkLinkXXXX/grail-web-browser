@@ -6,7 +6,7 @@ from Tkinter import CallableTypes, TkVersion, TclVersion, \
      mainloop, getint, getdouble, getboolean, \
      Misc, Wm, Pack, Place, Toplevel, \
      Button, Canvas, Checkbutton, \
-     Entry, Frame, Label, Menu, Menubutton, Message, Radiobutton, \
+     Entry, Frame, Label, Listbox, Menu, Menubutton, Message, Radiobutton, \
      Scale, Scrollbar, Text, Image, PhotoImage, BitmapImage, \
      image_names, image_types
 
