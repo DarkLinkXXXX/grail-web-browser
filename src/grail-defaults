@@ -70,10 +70,10 @@ C:
 applet--groups: 
 C:
 C: Disk Cache preferences:
-C:
+C: (directory is relative to $GRAILDIR unless absolute)
 C:
 disk-cache--size: 1024
-disk-cache--directory: ~/.grail/cache
+disk-cache--directory: cache
 disk-cache--freshness-test-type: periodic
 disk-cache--freshness-test-period: 14400
 
