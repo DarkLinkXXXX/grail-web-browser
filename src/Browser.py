@@ -70,6 +70,7 @@ class Browser:
 
     def create_widgets(self, width, height, geometry):
 	self.root = Toplevel(self.master)
+	self.root.title("Grail: New Browser")
 	if geometry:
 	    self.root.geometry(geometry)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
