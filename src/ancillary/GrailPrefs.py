@@ -8,7 +8,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.28 $"
+__version__ = "$Revision: 2.29 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -108,8 +108,14 @@ class Preferences:
         except os.error: pass           # No file to backup.
 
         fp = open(self.filename, 'w')
-        for (g, c), v in self.items():
+        items = self.items()
+        items.sort()
+        prevgroup = None
+        for (g, c), v in items:
+            if prevgroup and g != prevgroup:
+                fp.write('\n')
             fp.write(make_key(g, c) + ': ' + v + '\n')
+            prevgroup = g
         fp.close()
         # Register that modifications are now saved:
         deleted = self.deleted
