@@ -219,13 +219,10 @@ class NetscapeBookmarkWriter:
 
     def _write_branch(self, node):
 	tab = self._tab(node)
+	if node.expanded_p(): folded = ''
+	else: folded = 'FOLDED '
 	print '%s<DT><H3 %sADD_DATE="%d">%s</H3>' % \
-	      (tab, node.expanded_p() and "" or "FOLDED ",
-	       node.add_date(), node.title())
-	print '%s<DL><p>' % tab
-	for child in node.children():
-	    self._rwrite(child)
-	print '%s</DL><p>' % tab
+	      (tab, folded, node.add_date(), node.title())
 
     def _write_header(self, root):
 	print '<!DOCTYPE NETSCAPE-Bookmark-file-1>'
@@ -260,40 +257,17 @@ class NetscapeBookmarkWriter:
 	    sys.stdout = stdout
 
 
-class GrailBookmarkHTMLParser(NetscapeBookmarkHTMLParser):
-    pass
-
-class GrailBookmarkWriter(NetscapeBookmarkWriter):
-    def _write_header(self, root):
-	print '<!DOCTYPE GRAIL-Bookmark-file-1>'
-	print '<!-- This is an automatically generated file.'
-	print '    It will be read and overwritten.'
-	print '    Do Not Edit! -->'
-	print '<TITLE>%s</TITLE>' % root.title()
-	print '<H1>%s</H1>' % root.title()
-	print '<DL><p>'
-
-
-
-class SaveDialogExtras:
+class FileDialogExtras:
     def __init__(self, frame):
 	# create a small subwindow for the extra buttons
-	btnframe = Frame(frame, relief='groove', borderwidth=2)
-	btnframe.pack()
-	frame1 = Frame(btnframe)
-	frame1.pack(side='left')
-	self._frame2 = frame2 = Frame(btnframe)
-	frame2.pack(side='left')
-	label1 = Label(frame1, text='Bookmark File Shortcut:')
-	label1.pack(anchor='e')
-	label2 = Label(frame1, text='File Format:')
-	label2.pack(anchor='e')
-	frame3 = Frame(frame2)
-	frame3.pack()
-	grailbtn = Button(frame3, text='Grail',
+	frame = Frame(frame, relief='groove', borderwidth=2)
+	frame.pack()
+	label = Label(frame, text='Bookmark File Shortcuts:')
+	label.pack(side='left')
+	grailbtn = Button(frame, text='Grail',
 			  command=self.set_for_grail)
-	grailbtn.pack(anchor='w', side='left')
-	netscapebtn = Button(frame3, text='Netscape',
+	grailbtn.pack(side='left')
+	netscapebtn = Button(frame, text='Netscape',
 			     command=self.set_for_netscape)
 	netscapebtn.pack(side='left')
 
@@ -307,26 +281,17 @@ class SaveDialogExtras:
     def set_for_grail(self): self._set_to_file(DEFAULT_GRAIL_BM_FILE)
     def set_for_netscape(self): self._set_to_file(DEFAULT_NETSCAPE_BM_FILE)
 	
-class LoadDialogExtras(SaveDialogExtras):
-    def __init__(self, frame):
-	SaveDialogExtras.__init__(self, frame)
-	formatbtn = OptionMenu(self._frame2,
-			       controller.fileformat,
-			       controller.fileformat.get(),
-			       'Automatic', 'Grail', 'Netscape')
-	formatbtn.pack(anchor='w')
-
-class BMLoadDialog(FileDialog.LoadFileDialog, LoadDialogExtras):
+class BMLoadDialog(FileDialog.LoadFileDialog, FileDialogExtras):
     def __init__(self, master, controller):
 	self._controller = controller
 	FileDialog.LoadFileDialog.__init__(self, master, 'Load Bookmarks File')
-	LoadDialogExtras.__init__(self, self.top)
+	FileDialogExtras.__init__(self, self.top)
 
-class BMSaveDialog(FileDialog.SaveFileDialog, SaveDialogExtras):
+class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
     def __init__(self, master, controller):
 	self._controller = controller
 	FileDialog.SaveFileDialog.__init__(self, master, 'Save Bookmarks File')
-	SaveDialogExtras.__init__(self, self.top)
+	FileDialogExtras.__init__(self, self.top)
     
 class BookmarksIO:
     def __init__(self, frame, controller):
@@ -338,31 +303,17 @@ class BookmarksIO:
     def filename(self): return self._filename
 
     def _choose_reader_writer(self, fp):
-	formatstr = string.lower(self._controller.fileformat.get())
-	parser = reader = writer = None
-	if formatstr == 'grail':
-	    parser = GrailBookmarkHTMLParser()
-	    writer = GrailBookmarkWriter()
-	elif formatstr == 'netscape':
-	    parser = NetscapeBookmarkHTMLParser()
-	    writer = NetscapeBookmarkWriter()
-	elif formatstr == 'automatic':
-	    # we may have to do more than this to figure out what
-	    # format the bookmarks file is written in, but for now
-	    # this works with Netscape v1 and Grail v1 style bookmark
-	    # files.
-	    try:
-		import regex
-		line1 = fp.readline()
-		if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
-		    parser = NetscapeBookmarkHTMLParser()
-		    writer = NetscapeBookmarkWriter()
-		elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
-		    parser = GrailBookmarkHTMLParser()
-		    writer = GrailBookmarkWriter()
-	    finally:
-		fp.seek(0)
-	else: pass
+	try:
+	    import regex
+	    line1 = fp.readline()
+	    if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
+		parser = NetscapeBookmarkHTMLParser()
+		writer = NetscapeBookmarkWriter()
+	    elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
+		parser = NetscapeBookmarkHTMLParser()
+		writer = NetscapeBookmarkWriter()
+	finally:
+	    fp.seek(0)
 	# sanity checking
 	if not parser or not writer:
 	    raise BookmarkFormatError, \
@@ -407,18 +358,20 @@ class BookmarksIO:
 	savefile = saver.go(self._filename, '*.html')
 	if savefile:
 	    self._save_to_file_with_writer(writer, root, savefile)
+	    self._filename = savefile
 
 class IOErrorDialog:
     def __init__(self, master, where, errmsg):
-	msg = 'I/O Error encountered during %s:' % where
+	msg = 'Bookmark file error encountered during %s:' % where
 	self._frame = Toplevel(master)
 	self._frame.title(msg)
 	label = Label(self._frame, text=msg)
 	label.pack()
 	errlabel = Label(self._frame, text=errmsg)
-	label.pack()
+	errlabel.pack()
 	self.closebtn = Button(self._frame, text="Ok", command=self.close)
 	self.closebtn.pack()
+	self._frame.grab_set()
 
     def close(self): self._frame.destroy()
 
@@ -484,12 +437,12 @@ class BookmarksDialog:
 			     underline=0, accelerator="Alt-L")
 	self._frame.bind("<Alt-l>", self.load)
 	self._frame.bind("<Alt-L>", self.load)
-	filemenu.add_command(label="Merge...",
-			     command=self._controller.merge,
-			     underline=0, accelerator="Alt-M")
-	self._frame.bind("<Alt-m>", self._controller.merge)
+#	filemenu.add_command(label="Merge...",
+#			     command=self._controller.merge,
+#			     underline=0, accelerator="Alt-M")
+#	self._frame.bind("<Alt-m>", self._controller.merge)
 	# TBD: why can't I bind <Alt-M> here???!!!  I get a TclError...
-	self._frame.bind("<Alt-Shift-m>", self._controller.merge)
+#	self._frame.bind("<Alt-Shift-m>", self._controller.merge)
 	filemenu.add_command(label="Save",
 			     command=self._controller.save,
 			     underline=0, accelerator="Alt-S")
@@ -525,21 +478,6 @@ class BookmarksDialog:
 			    underline=0, accelerator="Alt-V")
 	self._frame.bind("<Alt-v>", self._controller.bookmark_goto)
 	self._frame.bind("<Alt-V>", self._controller.bookmark_goto)
-	navmenu.add_separator()
-	navmenu.add_command(label="Expand",
-			    command=self._controller.expand,
-			    accelerator="Alt-E")
-	self._frame.bind("<Alt-e>", self._controller.expand)
-	self._frame.bind("<Alt-E>", self._controller.expand)
-	navmenu.add_command(label="Collapse",
-			    command=self._controller.collapse,
-			    accelerator="Alt-C")
-	self._frame.bind("<Alt-c>", self._controller.collapse)
-	self._frame.bind("<Alt-C>", self._controller.collapse)
-	navmenu.add_command(label="Expand Top Level",
-			    command=self._controller.expand_all)
-	navmenu.add_command(label="Collapse Top Level",
-			    command=self._controller.collapse_all)
 	navbtn.config(menu=navmenu)
 	# Properties menu (details)
 	propsbtn = Menubutton(self._menubar, text="Properties")
@@ -568,12 +506,35 @@ class BookmarksDialog:
 	self._frame.bind("<Return>", self._controller.details)
 	self._frame.bind("<Alt-d>", self._controller.details)
 	self._frame.bind("<Alt-D>", self._controller.details)
-	editmenu.add_separator()
 	editmenu.add_command(label="Add Current",
 			     command=self._controller.add_current,
 			     underline=0, accelerator='Alt-A')
 	self._frame.bind("<Alt-a>", self._controller.add_current)
 	self._frame.bind("<Alt-A>", self._controller.add_current)
+	editmenu.add_separator()
+	editmenu.add_command(label="Expand",
+			    command=self._controller.expand,
+			    accelerator="Alt-E")
+	self._frame.bind("<Alt-e>", self._controller.expand)
+	self._frame.bind("<Alt-E>", self._controller.expand)
+	editmenu.add_command(label='Expand All Children',
+			     command=self._controller.expand_children)
+	editmenu.add_command(label="Expand Top Level",
+			    command=self._controller.expand_top)
+#	editmenu.add_command(label="Expand All",
+#			    command=self._controller.expand_all)
+	editmenu.add_separator()
+	editmenu.add_command(label="Collapse",
+			    command=self._controller.collapse,
+			    accelerator="Alt-C")
+	self._frame.bind("<Alt-c>", self._controller.collapse)
+	self._frame.bind("<Alt-C>", self._controller.collapse)
+	editmenu.add_command(label='Collapse All Children',
+			     command=self._controller.collapse_children)
+	editmenu.add_command(label="Collapse Top Level",
+			    command=self._controller.collapse_top)
+#	editmenu.add_command(label="Collapse All",
+#			    command=self._controller.collapse_all)
 	editbtn.config(menu=editmenu)
 
     def _create_listbox(self):
@@ -622,7 +583,6 @@ class BookmarksDialog:
     def load(self, event=None):
 	try:
 	    self._controller.load()
-	    
 	except (IOError, BookmarkFormatError), errmsg:
 	    IOErrorDialog(self._frame, 'loading', errmsg)
 
@@ -632,8 +592,10 @@ class BookmarksDialog:
 	self._listbox.focus_set()
 
     def hide(self): self._frame.withdraw()
-    def set_filename(self, filename): self._file.config(text=filename)
 
+    def set_labels(self, filename, title):
+	self._file.config(text=filename)
+	self._title.config(text=title)
 
 
 class DetailsDialog:
@@ -643,6 +605,7 @@ class DetailsDialog:
 	self._controller = controller
 	self._create_form()
 	self._create_buttonbar()
+	self._frame.bind('<Return>', self.done)
 
     def _create_form(self):
 	make = tktools.make_labeled_form_entry # convenience
@@ -707,7 +670,7 @@ class DetailsDialog:
 	self.revert()
 	self.hide()
 
-    def done(self):
+    def done(self, event=None):
 	self.apply()
 	self.hide()
 
@@ -762,7 +725,8 @@ class BookmarksController:
 	node, selection = self._get_selected_node()
 	self.goto_node(node)
     def bookmark_goto(self, event=None):
-	self._browser.load('file:' + self._bookmarkfile)
+	filename = self._iomgr.filename()
+	if filename: self._browser.load('file:' + filename)
     def goto_node(self, node):
 	if node and node.leaf_p() and node.uri():
 	    node.set_last_visited(int(time.time()))
@@ -812,20 +776,33 @@ class BookmarksController:
     def collapse(self, event=None):
 	node, selection = self._get_selected_node()
 	if node: self._collapse_node(node)
-
+    def collapse_children(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	for child in node.children():
+	    if not child.leaf_p() and child.expanded_p():
+		self._collapse_node(child)
+    def collapse_top(self, event=None):
+	for child in self._root.children():
+	    self._collapse_node(child)
+    def collapse_all(self, event=None):
+	pass
     def expand(self, event=None):
 	node, selection = self._get_selected_node()
 	# can't expand leaves or already expanded nodes
 	if node and not node.leaf_p() and not node.expanded_p():
 	    self._expand_node(node)
-
-    def collapse_all(self, event=None):
-	for child in self._root.children():
-	    self._collapse_node(child)
-
-    def expand_all(self, event=None):
+    def expand_children(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	for child in node.children():
+	    if not child.leaf_p() and not child.expanded_p():
+		self._expand_node(child)
+    def expand_top(self, event=None):
 	for child in self._root.children():
 	    self._expand_node(child)
+    def expand_all(self, event=None):
+	pass
 
     def previous(self, event=None):
 	node, selection = self._get_selected_node()
@@ -842,7 +819,7 @@ class BookmarksController:
 
     def load(self):
 	self._root, reader, self._writer = self._iomgr.load()
-	self._dialog.set_filename(self._iomgr.filename())
+	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 	if self._listbox:
 	    self._listbox.delete(0, 'end')
 	    self._viewer = None
@@ -851,11 +828,11 @@ class BookmarksController:
     def merge(self, event=None): pass
     def save(self, event=None):
 	self._iomgr.save(self._writer, self._root)
-	self._dialog.set_filename(self.filename())
+	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
     def saveas(self, event=None):
 	self._iomgr.saveas(self._writer, self._root)
-	self._dialog.set_filename(self.filename())
+	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
     def add_current(self, event=None):
 	# create a new node to represent this addition and then fit it
@@ -922,7 +899,7 @@ class BookmarksController:
 	# placement, the user will see a zero-sized widget
 	show_p = True
 	if not self._root:
-	    self._root = BookmarkNode(username())
+	    self._root = BookmarkNode(username()+"'s Bookmarks")
 	if not self._dialog:
 	    self._dialog = BookmarksDialog(self._frame, self)
 	    self._listbox = self._dialog._listbox # TBD: gross
@@ -993,10 +970,10 @@ class BookmarksMenu:
 	self._browser.root.bind('<Alt-a>', self._controller.add_current)
 	self._browser.root.bind('<Alt-A>', self._controller.add_current)
  	self._menu.add_command(label='Bookmarks Viewer...',
-			       command=self._controller.show,
+			       command=self.show,
 			       underline=0, accelerator='Alt-B')
-	self._browser.root.bind('<Alt-b>', self._controller.show)
-	self._browser.root.bind('<Alt-B>', self._controller.show)
+	self._browser.root.bind('<Alt-b>', self.show)
+	self._browser.root.bind('<Alt-B>', self.show)
 	self._menu.add_separator()
 
     def post(self, event=None):
@@ -1011,3 +988,9 @@ class BookmarksMenu:
 	if self._controller.root():
 	    viewer = BookmarksMenuViewer(self._controller, self._menu)
 	    viewer.populate()
+
+    def show(self, event=None):
+	if not self._controller.root():
+	    try: self._controller.load_default()
+	    except BookmarkFormatError: pass
+	self._controller.show()
