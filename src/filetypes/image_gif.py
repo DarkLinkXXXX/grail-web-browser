@@ -58,17 +58,28 @@ class PILGifParser(pil_interface):
 
     def close(self):
 	if self.buf:
+            self.label.config(text="<decoding>")
+            self.label.update_idletasks()
+            data = string.joinfields(self.buf, "")
+            self.buf = None             # free lots of memory!
 	    try:
-		self.label.config(text="<decoding>")
-		self.label.update_idletasks()
-		data = string.joinfields(self.buf, "")
-                self.buf = None
 		self.im = im = Image.open(StringIO(data))
 		im.load()
 		self.tkim = tkim = ImageTk.PhotoImage(im.mode, im.size)
 		tkim.paste(im)
-		self.label.image = tkim.image
-		self.label.config(image=self.label.image)
+	    except:
+                # XXX What was I trying to catch here?
+                # I think (EOFError, IOError).
+		self.broken = 1
+		stdout = sys.stdout
+		try:
+		    sys.stdout = sys.stderr
+		    print "Error decoding image:"
+		    print str(sys.exc_type) + ":", sys.exc_value
+		finally:
+		    sys.stdout = stdout
+            else:
+		self.label.config(image=tkim)
 		if im.info.has_key("duration"):
 		    self.duration = im.info["duration"]
 		if im.info.has_key("loop"):
@@ -79,15 +90,6 @@ class PILGifParser(pil_interface):
 		    self.viewer.register_reset_interest(self.cancel_loop)
 		    self.after_id = self.label.after(self.duration,
 						     self.next_image)
-	    except:
-		self.broken = 1
-		stdout = sys.stdout
-		try:
-		    sys.stdout = sys.stderr
-		    print "Error decoding image:"
-		    print str(sys.exc_type) + ":", sys.exc_value
-		finally:
-		    sys.stdout = stdout
 	if self.broken:
 	    self.label.image = Tkinter.PhotoImage(
 		file=grailutil.which(ERROR_FILE))
@@ -99,9 +101,11 @@ class PILGifParser(pil_interface):
 	try:
 	    self.im.seek(newpos)
 	except (ValueError, EOFError):
+            # past end of animation
             if self.loop:
                 self.reset_loop()
             else:
+                # all done
                 self.viewer.unregister_reset_interest(self.cancel_loop)
                 return
         else:
