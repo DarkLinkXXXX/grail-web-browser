@@ -28,6 +28,132 @@ C:
 presentation--message-font:
 	-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*
 C:
+C: Viewer stylesheets:
+C:
+C: Identify current one
+styles--group: basic
+styles--allgroups: basic small big
+C:
+C: Styles shared among sheets:
+C: Style Anchors:
+styles-common--styles-a-foreground: #0000EE
+styles-common--styles-a-underline: 1
+C: Preformatted text:
+styles-common--styles-pre-wrap: none
+C: Centered text:
+styles-common--styles-center-justify: center
+C: History Anchors:
+styles-common--history-ahist-foreground: #551A8B
+styles-common--history-ahist-underline: 1
+styles-common--history-atemp-foreground: #FF0000
+styles-common--history-atemp-underline: 1
+C: Priorities:
+styles-common--priorities-ahist: a
+styles-common--priorities-atemp: ahist
+C:
+C: Basic viewer styles:
+C:
+styles-basic--default-font:
+	-*-helvetica-medium-r-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-h1_b-font:
+	-*-helvetica-bold-r-normal-*-*-180-*-*-*-*-*-*
+styles-basic--styles-h1_b-underline: 1
+styles-basic--styles-h2_b-font:
+	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
+styles-basic--styles-h3_b-font:
+	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-h4_b-font:
+	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
+styles-basic--styles-h5_b-font:
+	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
+styles-basic--styles-h6_b-font:
+	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
+C: Normal fonts
+styles-basic--styles-_i-font:
+	-*-helvetica-medium-o-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-_b-font:
+	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-_b_i-font:
+	-*-helvetica-bold-o-normal-*-*-120-*-*-*-*-*-*
+C: Typewriter fonts
+styles-basic--styles-_tt-font:
+	-*-courier-medium-r-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-_tt_i-font:
+	-*-courier-medium-o-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-_tt_b-font:
+	-*-courier-bold-r-normal-*-*-120-*-*-*-*-*-*
+styles-basic--styles-_tt_b_i-font:
+	-*-courier-bold-o-normal-*-*-120-*-*-*-*-*-*
+C:
+C: Smallish viewer styles:
+C:
+styles-small--default-font:
+	-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-h1_b-font:
+	-*-helvetica-bold-r-normal-*-*-160-*-*-*-*-*-*
+styles-small--styles-h1_b-underline: 1
+styles-small--styles-h2_b-font:
+	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
+styles-small--styles-h3_b-font:
+	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-h4_b-font:
+	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+styles-small--styles-h5_b-font:
+	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+styles-small--styles-h6_b-font:
+	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+C: Normal fonts
+styles-small--styles-_i-font:
+	-*-helvetica-medium-o-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-_b-font:
+	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-_b_i-font:
+	-*-helvetica-bold-o-normal-*-*-100-*-*-*-*-*-*
+C: Typewriter fonts
+styles-small--styles-_tt-font:
+	-*-courier-medium-r-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-_tt_i-font:
+	-*-courier-medium-o-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-_tt_b-font:
+	-*-courier-bold-r-normal-*-*-100-*-*-*-*-*-*
+styles-small--styles-_tt_b_i-font:
+	-*-courier-bold-o-normal-*-*-100-*-*-*-*-*-*
+C:
+C: Bigish viewer styles:
+C:
+styles-big--default-font:
+	-*-helvetica-medium-r-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-h1_b-font:
+	-*-helvetica-bold-r-normal-*-*-200-*-*-*-*-*-*
+styles-big--styles-h1_b-underline: 1
+styles-big--styles-h2_b-font:
+	-*-helvetica-bold-r-normal-*-*-160-*-*-*-*-*-*
+styles-big--styles-h3_b-font:
+	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-h4_b-font:
+	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+styles-big--styles-h5_b-font:
+	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+styles-big--styles-h6_b-font:
+	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+C: Normal fonts
+styles-big--styles-_i-font:
+	-*-helvetica-medium-o-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-_b-font:
+	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-_b_i-font:
+	-*-helvetica-bold-o-normal-*-*-140-*-*-*-*-*-*
+C: Typewriter fonts
+styles-big--styles-_tt-font:
+	-*-courier-medium-r-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-_tt_i-font:
+	-*-courier-medium-o-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-_tt_b-font:
+	-*-courier-bold-r-normal-*-*-140-*-*-*-*-*-*
+styles-big--styles-_tt_b_i-font:
+	-*-courier-bold-o-normal-*-*-140-*-*-*-*-*-*
+C: 
+C:
 C: Bookmarks defaults
 C:
 C: add-location can be `file-append', `file-prepend', `as-child-or-sib'
@@ -79,7 +205,7 @@ disk-cache--directory: cache
 disk-cache--freshness-test-type: periodic
 disk-cache--freshness-test-period: 4.0
 disk-cache--checkpoint: 1
-C:
-C: Preference panel preferences
-C:
-preferences--panel-order: General Cache Applets
+C:                                             
+C: Preference panel preferences                
+C:                                             
+preferences--panel-order: General Style Cache Applets
