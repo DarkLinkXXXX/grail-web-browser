@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.20 1996/04/08 20:05:55 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.21 1996/04/08 23:49:26 bwarsaw Exp $'
 
 
 import string
@@ -201,6 +201,20 @@ class AttrElem:
 					   delete=None)
 
 
+def _safe_mojo_height(cell):
+    mojocnt = 0
+    while mojocnt < 50:
+	try:
+	    return cell.height()
+	except BadMojoError, mojoheight:
+## 	    print 'Mojo sez:', mojoheight
+	    cell.situate(height=2*mojoheight)
+	    mojocnt = mojocnt + 1
+    else:
+	print 'Not even Mojo knows!  Mojo using:', mojoheight
+	return mojoheight
+
+
 class Table(AttrElem):
     """Top level table information object.
 
@@ -210,7 +224,6 @@ class Table(AttrElem):
     def __init__(self, parentviewer, attrs):
 	AttrElem.__init__(self, attrs)
 	self.parentviewer = parentviewer
-	self.parentviewer.context.register_notification(self._notify)
 	# attributes
 	def conv_align(val):
 	    return grailutil.conv_enumeration(
@@ -305,12 +318,14 @@ class Table(AttrElem):
 	if self.layout == AUTOLAYOUT:
 	    self.parentviewer.text.insert(END, '\n')
 	    self._autolayout_1()
-	    containerwidth = self._autolayout_2()
+	    self._autolayout_2()
+	    self._autolayout_3()
 	    self.container.pack()
 	    self.parentviewer.add_subwindow(self.container)
 	    self.parentviewer.text.insert(END, '\n')
+	    self.parentviewer.context.register_notification(self._notify)
 	else:
-	    pass
+	    print 'fixed layout for tables not yet supported!'
 
     def _autolayout_1(self):
 	# internal representation of the table as a sparse array
@@ -371,6 +386,15 @@ class Table(AttrElem):
 			    table[(rs, cs)] = OCCUPIED
 		    col = col + 1
 		row = row + 1
+	# save these for the next phase of autolayout
+	self._colcount = colcount
+	self._rowcount = rowcount
+
+    def _autolayout_2(self):
+	table = self._table
+	colcount = self._colcount
+	rowcount = self._rowcount
+	bw = self._borderwidth
 
 	# calculate column widths
 	maxwidths = [0] * colcount
@@ -393,13 +417,11 @@ class Table(AttrElem):
 		    maxwidths[col_i] = max(maxwidths[col_i], maxwidth) + bw
 		    minwidths[col_i] = max(minwidths[col_i], minwidth) + bw
 
-	# save these for the second phase of autolayout
-	self._colcount = colcount
-	self._rowcount = rowcount
+	# save these for the next phase of autolayout
 	self._maxwidths = maxwidths
 	self._minwidths = minwidths
 
-    def _autolayout_2(self):
+    def _autolayout_3(self):
 	table = self._table
 	colcount = self._colcount
 	rowcount = self._rowcount
@@ -489,18 +511,7 @@ class Table(AttrElem):
 		for w in cellwidths[col:col + cell.colspan]:
 		    cellwidth = cellwidth + w
 		cell.situate(width=cellwidth)
-		mojocnt = 0
-		while mojocnt < 100:
-		    try:
-			cellheight = cell.height() / cell.rowspan
-			break
-		    except BadMojoError, mojo_height:
-			print 'Mojo sez:', mojo_height
-			cell.situate(height=2*mojo_height)
-			mojocnt = mojocnt + 1
-		else:
-		    cellheight = mojo_height / cell.rowspan
-		    print 'Not even Mojo knows:', mojo_height
+		cellheight = _safe_mojo_height(cell) / cell.rowspan
 		for row_i in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
 
@@ -547,17 +558,35 @@ class Table(AttrElem):
 
 	self.container.config(width=canvaswidth + 2 * self.Acellspacing,
 			      height=ypos-bw)
-	return canvaswidth
 
     def _reset(self, viewer):
-	print '_reset:', viewer
-##	self.container.forget()
+	# called when the viewer is cleared
+## 	print '_reset:', viewer
+	self.parentviewer.context.unregister_notification(self._notify)
 
     def _resize(self, viewer):
-	self._autolayout_2()
+	# called when the outer browser is resized (typically by the user)
+## 	print '_resize:', viewer
+	self._autolayout_3()
 
     def _notify(self, context):
-	print '_notify:', context
+	# receives notification when all readers for the shared
+	# context have finished.  this typically occurs when there are
+	# images inside table cells.  it will also happen for every
+	# table cell exactly once, but if there are no embedded
+	# images, the actual resize will be inhibited.
+## 	print '_notify:', context
+	recalc_needed = None
+	for row in range(self._rowcount):
+	    for col in range(self._colcount):
+		cell = self._table[(row, col)]
+		if cell in [EMPTY, OCCUPIED]:
+		    continue
+		status = cell.recalc()
+		recalc_needed = recalc_needed or status
+	if recalc_needed:
+	    self._autolayout_2()
+	    self._autolayout_3()
 	    
 
 class Colgroup(AttrElem):
@@ -659,7 +688,9 @@ class ContainedText(AttrElem):
 	self._tw = self._viewer.text
 	self._tw.config(highlightthickness=0)
 	self._width = 0
-	self._height = None		# if None do expensive calculation
+	self._embedheight = 0
+	# embedded window geometry regex
+	self._re = regex.compile('%sx%s\+%s\+%s' % (('\([0-9]+\)',) * 4))
 
     def new_formatter(self):
 	return AbstractFormatter(self._viewer)
@@ -674,7 +705,29 @@ class ContainedText(AttrElem):
 	return self._minwidth		# likewise
 
     def height(self):
-	return _get_height(self._tw)
+	return max(self._embedheight, _get_height(self._tw))
+
+    def recalc(self):
+	# recalculate width and height upon notification of completion
+	# of all context's readers (usually image readers)
+	min_nonaligned = self._minwidth
+	maxwidth = self._maxwidth
+	embedheight = self._embedheight
+	recalc_flag = None
+	# take into account all embedded windows
+	for sub in self._viewer.subwindows:
+	    geom = sub.winfo_geometry()
+	    if self._re.search(geom) >= 0:
+		[w, h, x, y] = map(grailutil.conv_integer,
+				   self._re.group(1, 2, 3, 4))
+	    min_nonaligned = max(min_nonaligned, x+w)
+	    maxwidth = max(maxwidth, x+w)
+	    embedheight = max(embedheight, y+h)
+	    recalc_flag = 1
+	self._embedheight = embedheight
+	self._minwidth = min_nonaligned
+	self._maxwidth = maxwidth
+	return recalc_flag
 
     def finish(self, padding=0):
 	# TBD: if self.layout == AUTOLAYOUT???
@@ -683,13 +736,13 @@ class ContainedText(AttrElem):
 	tw = self._tw
 	# set the padding before grabbing the width
 	tw['padx'] = padding
-	min_nonaligned, self._maxwidth = _get_widths(tw)
+	# TBD: according to the W3C table spec, minwidth should really
+	# be max(min_left + min_right, min_nonaligned).  Also note
+	# that minwidth is recalculated by minwidth() call
+	self._minwidth, self._maxwidth = _get_widths(self._tw)
 	# first approximation of height.  this is the best we can do
 	# without forcing an update_idletasks() fireworks display
 	tw['height'] = _get_linecount(tw) + 1
-	# take into account all embedded windows
-	for sub in self._viewer.subwindows:
-	    min_nonaligned = max(min_nonaligned, string.atof(sub['width']))
 	# initially place the cell in the canvas at position (0,0),
 	# with the maximum width and closest approximation height.
 	# situate() will be called later with the final layout
@@ -699,9 +752,6 @@ class ContainedText(AttrElem):
 	    window=fw, anchor=NW,
 	    width=self._maxwidth,
 	    height=fw['height'])
-	# TBD: according to the W3C table spec, minwidth should really
-	# be max(min_left + min_right, min_nonaligned)
-	self._minwidth = min_nonaligned
 
     def situate(self, x=0, y=0, width=None, height=None):
 	# canvas.move() deals in relative positioning, but we want
