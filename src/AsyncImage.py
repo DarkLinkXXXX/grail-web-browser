@@ -1,4 +1,4 @@
-from FileReader import FileReader, TempFileReader
+from FileReader import TempFileReader
 from Tkinter import *
 
 
@@ -29,6 +29,7 @@ class ImageTempFileReader(TempFileReader):
 	    os.unlink(self.getfilename())
 	except os.error:
 	    pass
+
 
 class AsyncImage(PhotoImage):
 
@@ -69,6 +70,7 @@ class AsyncImage(PhotoImage):
 	    print "*** bad image type:", self.url
 	else:
 	    self.loaded = 1
+	self.browser.root.update_idletasks()
 
     def set_error(self, errcode, errmsg, headers):
 	self.blank()
