@@ -353,7 +353,7 @@ class Viewer(formatter.AbstractWriter):
 	    self.pendingdata = ''
 
     def new_tags(self):
-	if self.pendingdata:
+	if self.pendingdata and string.strip(self.pendingdata):
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 	self.flowingtags = filter(
@@ -450,17 +450,10 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
-	if type(data) is StringType:
+	data_type = type(data)
+	if data_type is StringType:
 	    self.text.insert(END, '\t%s\t' % data, tags)
-	elif type(data) is InstanceType:
-	    #  Some sort of image specified by DINGBAT or SRC
-	    self.text.insert(END, '\t', tags)
-	    window = Label(self.text, image = data,
-			   background = self.text['background'],
-			   borderwidth = 0)
-	    self.add_subwindow(window)
-	    self.pendingdata = '\t'
-	elif type(data) is TupleType:
+	elif data_type is TupleType:
 	    #  (string, fonttag) pair
 	    if data[1]:
 		self.text.insert(END, '\t', tags)
@@ -468,6 +461,14 @@ class Viewer(formatter.AbstractWriter):
 		self.pendingdata = '\t'
 	    else:
 		self.text.insert(END, '\t%s\t' % data[0], tags)
+	elif data_type is InstanceType:
+	    #  Some sort of image specified by DINGBAT or SRC
+	    self.text.insert(END, '\t', tags)
+	    window = Label(self.text, image = data,
+			   background = self.text['background'],
+			   borderwidth = 0)
+	    self.add_subwindow(window)
+	    self.pendingdata = '\t'
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags
@@ -653,7 +654,7 @@ class Viewer(formatter.AbstractWriter):
 	    align = self.align
 	prev_align, self.align = self.align, align
 	self.new_tags()
-	self.pendingdata = MIN_IMAGE_LEADER
+	self.pendingdata = self.pendingdata + MIN_IMAGE_LEADER
 	self.align = prev_align
 	self.new_tags()
 
