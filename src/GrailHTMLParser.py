@@ -16,9 +16,11 @@ import string
 import tktools
 import formatter
 import Viewer
-from HTMLParser import HTMLParser, HeaderNumber, NullObject
+from HTMLParser import HTMLParser, HeaderNumber
 import grailutil
 from grailutil import extract_attribute, extract_keyword
+
+AS_IS = formatter.AS_IS
 
 # Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
@@ -36,7 +38,7 @@ def init_module(prefs):
 
 class GrailHTMLParser(HTMLParser):
 
-    object_aware_tags = ['param', 'alias', 'applet', 'script', 'object']
+    object_aware_tags = ['param', 'a', 'alias', 'applet', 'script', 'object']
 
     def __init__(self, viewer, reload=0):
 	global _inited
@@ -103,10 +105,9 @@ class GrailHTMLParser(HTMLParser):
 
     # Override HTMLParser internal methods
 
-    def handle_starttag(self, tag, method, attrs):
-	HTMLParser.handle_starttag(self, tag, method, attrs)
-	if attrs.has_key('id'):
-	    self.register_id(attrs['id'])
+    def get_devicetypes(self):
+	"""Return sequence of device type names."""
+	return ('viewer', 'writer')
 
     def register_id(self, id):
 	if self._ids.has_key(id):
@@ -147,17 +148,25 @@ class GrailHTMLParser(HTMLParser):
 			gu.conv_normstring(s), ['left', 'center', 'right']))
 	    self.implied_end_p()
 	    self.formatter.push_alignment(align)
-	    self.do_img({'border': '0',
-			 'src': attrs['src']})
+	    self.do_img({'border': '0', 'src': attrs['src']})
 	    self.formatter.pop_alignment()
 	    self.formatter.add_line_break()
-	else:
-	    HTMLParser.do_hr(self, attrs)
-	    if attrs.has_key('noshade') and self.viewer.rules:
-		rule = self.viewer.rules[-1]
-		#  This seems to be a resaonable way to get contrasting colors.
-		rule.config(relief = FLAT,
-			    background = self.viewer.text['foreground'])
+	    return
+	HTMLParser.do_hr(self, attrs)
+	color = extract_keyword('color', attrs)
+	rule = self.viewer.rules[-1]
+	if attrs.has_key('noshade') and self.viewer.rules:
+	    if color:
+		if not self.configcolor('background', color, widget=rule):
+		    self.configcolor('background',
+				     self.viewer.text['foreground'],
+				     widget=rule)
+	    else:
+		# this color is known to work already
+		rule.config(background=self.viewer.text['foreground'])
+	    rule.config(relief=FLAT)
+	elif color:
+	    self.configcolor('background', color, widget=rule)
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
@@ -174,14 +183,13 @@ class GrailHTMLParser(HTMLParser):
 	height = extract('height', attrs, 0, conv=string.atoi)
 	hspace = extract('hspace', attrs, 0, conv=string.atoi)
 	vspace = extract('vspace', attrs, 0, conv=string.atoi)
-	if attrs.has_key('usemap'):
-	    # not sure how to assert(value[0] == '#')
-	    value = string.strip(attrs['usemap'])
-	    if value:
-		if value[0] == '#': value = string.strip(value[1:])
-		from ImageMap import MapThunk
-		usemap = MapThunk(self.context, value)
-		if border is None: border = 2
+	# not sure how to assert(value[0] == '#')
+	usemap = extract('usemap', attrs, conv=string.strip)
+	if usemap:
+	    if usemap[0] == '#': value = string.strip(usemap[1:])
+	    from ImageMap import MapThunk
+	    usemap = MapThunk(self.context, usemap)
+	    if border is None: border = 2
         self.handle_image(src, alt, usemap, ismap,
 			  align, width, height, border or 0, self.reload1,
 			  hspace=hspace, vspace=vspace)
@@ -262,31 +270,22 @@ class GrailHTMLParser(HTMLParser):
 		   "aqua": "#00ffff",
 		   }
 
-    def configcolor(self, option, color, tag=None):
+    def configcolor(self, option, color, tag=None, widget=None):
 	"""Set a color option, returning the color that was actually used.
 
 	If no color was set, `None' is returned.
 	"""
 	if not color:
 	    return None
-	c = self.try_configcolor(option, color, tag)
+	if not widget:
+	    widget = self.viewer.text
+	c = try_configcolor(option, color, tag, widget)
 	if color[0] != '#' and not c:
-	    c = self.try_configcolor(option, '#' + color, tag)
+	    c = try_configcolor(option, '#' + color, tag, widget)
 	if not c and self._std_colors.has_key(color):
 	    color = self._std_colors[color]
-	    c = self.try_configcolor(option, color, tag)
+	    c = try_configcolor(option, color, tag, widget)
 	return c
-
-    def try_configcolor(self, option, color, tag):
-	try:
-	    if tag:
-		apply(self.viewer.text.tag_config, (tag,), {option: color})
-	    else:
-		self.viewer.text[option] = color
-	except TclError, msg:
-	    return None
-	else:
-	    return color
 
     # Override tag: <BASE HREF=...>
 
@@ -335,15 +334,33 @@ class GrailHTMLParser(HTMLParser):
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
-	href = name = type = target = ''
+	if self.get_object():		# expensive!
+	    self.get_object().anchor(attrs)
+	    return
+	href = name = type = target = title = ''
 	id = None
 	has_key = attrs.has_key
 	if has_key('href'): href = attrs['href']
-	if has_key('name'): name = attrs['name']
+	name = extract_keyword('name', attrs,
+			       conv=grailutil.conv_normstring)
 	if has_key('type'): type = string.lower(attrs['type'] or '')
 	if has_key('target'): target = attrs['target']
 	if has_key('id'): id = attrs['id']
         self.anchor_bgn(href, name, type, target, id)
+	# Delay this at least a little, since we don't want to add the title
+	# to the history until the last possible moment.  We need a non-history
+	# way to do this; a resources database would be much better.
+	if has_key('title'):
+	    title = string.join(string.split(attrs['title'] or ''))
+	    if title:
+		url = self.context.get_baseurl(
+		    string.joinfields(string.split(href), ''))
+		old_title, when = self.app.global_history.lookup_url(url)
+		if not old_title:
+		    # Only do this if there's not already a title in the
+		    # history.  If the URL wasn't in the history, it will
+		    # be given a timestamp, which is bad. ;-(
+		    self.app.global_history.set_title(url, title)
 
     # New tag: <MAP> (for client side image maps)
 
@@ -367,9 +384,11 @@ class GrailHTMLParser(HTMLParser):
 
 	if self.current_map:
 	    extract = extract_keyword
-	    shape = extract('shape', attrs, 'rect', conv=string.lower)
+	    shape = extract('shape', attrs, 'rect',
+			    conv=grailutil.conv_normstring)
 	    if shape == 'polygon':
 		shape = 'poly'
+		self.badhtml = 1
 	    coords = extract('coords', attrs, '')
 	    alt = extract('alt', attrs, '')
 	    target = extract('target', attrs, '')
@@ -379,11 +398,11 @@ class GrailHTMLParser(HTMLParser):
 	    try:
 		self.current_map.add_shape(
 		    shape, self.parse_area_coords(shape, coords), url, target)
-	    except (IndexError, string.atoi_error):
+	    except (IndexError, ValueError):
 		# wrong number of coordinates
 		# how should this get reported to the user?
 		self.badhtml = 1
-		print "imagemap specifies bad coordinates"
+		print "imagemap specifies bad coordinates:", `coords`
 		pass
 	else:
 	    self.badhtml = 1
@@ -399,16 +418,15 @@ class GrailHTMLParser(HTMLParser):
 	
 	"""
 	import regsub
-	
+
 	coords = []
-	
+
 	terms = map(string.atoi, regsub.split(string.strip(text), '[, ]+'))
 
 	if shape == 'poly':
 	    # list of (x,y) tuples
 	    while len(terms) > 0:
 		coords.append((terms[0], terms[1]))
-		del terms[:2]
 	    if coords[0] != coords[-1:]:
 		# make sure the polygon is closed
 		coords.append(coords[0])
@@ -420,8 +438,6 @@ class GrailHTMLParser(HTMLParser):
 	    # (x,y) tuple for center, followed by int for radius
 	    coords.append((terms[0], terms[1]))
 	    coords.append(terms[2])
-	else:
-	    self.badhtml = 1
 	return coords
 
     # New tag: <APPLET>
@@ -474,11 +490,6 @@ class GrailHTMLParser(HTMLParser):
 	else:
 	    mod = cls
 	return mod, cls, src
-
-    # Object handlers for applets:
-
-    def get_object_handlers(self):
-	return (applet_handler,)
 
     # Heading support for dingbats (iconic entities):
 
@@ -546,38 +557,6 @@ class GrailHTMLParser(HTMLParser):
 	    return HTMLParser.make_format(self, format, default,
 					  listtype = listtype)
 
-    # Handle HTML extensions
-
-    def unknown_starttag(self, tag, attrs):
-	# Look up the function first, so it has a chance to update
-	# the list of object aware tags
-	if self.suppress_output and tag not in self.object_aware_tags:
-	    return
-	function, as_dict, has_end = self.app.find_html_start_extension(tag)
-	if function or tag in self.UNIMPLEMENTED_CONTAINERS:
-	    id = attrs.has_key('id') and attrs['id'] or None
-	    if function:
-		if not as_dict:
-		    attrs = attrs.items()
-		function(self, attrs)
-	    else:
-		has_end = 1		# in UNIMPLEMENTED_CONTAINERS
-	    if id:
-		self.register_id(id)
-	    if has_end:
-		self.stack.append(tag)
-	else:
-	    self.badhtml = 1
-
-    def unknown_endtag(self, tag):
-	if self.suppress_output and tag not in self.object_aware_tags:
-	    return
-	function = self.app.find_html_end_extension(tag)
-	if function:
-	    function(self)
-	else:
-	    self.badhtml = 1
-
     def report_unbalanced(self, tag):
 	self.badhtml = 1
 
@@ -586,21 +565,16 @@ class GrailHTMLParser(HTMLParser):
     def unknown_entityref(self, entname, terminator):
 	if self.suppress_output:
 	    return
-	self.inhead = 0
-	if entname == "nbsp":
-	    if self.strict_p():
-		self.handle_data(' ')
-	    else:
-		self.nbsp_magic()
-	    return
 	img = self.load_dingbat(entname)
 	if img:
 	    if type(img) is TupleType:
 		s, tag = img
 		if tag:
-		    tag = (self.formatter.writer.fonttag or '') + tag
+		    if tag != "_ding":
+			tag = (self.formatter.writer.fonttag or '') + tag
 		    self.viewer.configure_fonttag(tag)
 		    self.formatter.push_style(tag)
+		    self.viewer.text.tag_raise(tag)
 		    self.handle_data(s)
 		    self.formatter.pop_style()
 		else:
@@ -610,66 +584,82 @@ class GrailHTMLParser(HTMLParser):
 		label = Label(self.viewer.text, image=img,
 			      background=bgcolor, borderwidth=0)
 		self.add_subwindow(label)
-		# these bindings need to be done *after* the add_subwindow()
-		# call to get the right <Button-3> binding.
+		# this needs to be done *after* the add_subwindow()
+		# call to get the right <Button-3> bindings.
 		if self.anchor:
-		    thunk = IconicEntityLinker(self.viewer,
-					       self.anchor, self.target)
-		    label.bind("<ButtonPress-1>", thunk.button_1_press)
-		    label.bind("<ButtonRelease-1>", thunk.button_1_release)
-		    label.bind("<ButtonPress-2>", thunk.button_2_press)
-		    label.bind("<ButtonRelease-2>", thunk.button_2_release)
-		    label.bind("<Button-3>", thunk.button_3_event)
-		    label.bind("<Enter>", thunk.enter)
-		    label.bind("<Leave>", thunk.leave)
+		    IconicEntityLinker(self.viewer, self.anchor,
+				       self.target, label)
 	else:
 	    # Could not load dingbat, allow parent class to handle:
 	    HTMLParser.unknown_entityref(self, entname, terminator)
 
+    def entref_nbsp(self, terminator):
+	self.__do_invisible('i')
 
-def applet_handler(parser, attrs):
-    """<OBJECT> Handler for Python applets."""
-    extract = extract_keyword
-    width = extract('width', attrs, conv=string.atoi)
-    height = extract('height', attrs, conv=string.atoi)
-    menu = extract('menu', attrs)
-    classid = extract('classid', attrs)
-    codebase = extract('codebase', attrs)
-    align = extract('align', attrs, 'baseline')
-    vspace = extract('vspace', attrs, 0, conv=string.atoi)
-    hspace = extract('hspace', attrs, 0, conv=string.atoi)
-    import AppletLoader
-    apploader = AppletLoader.AppletLoader(
-	parser, width=width, height=height, menu=menu,
-	classid=classid, codebase=codebase,
-	vspace=vspace, hspace=hspace, align=align, reload=parser.reload1)
-    if apploader.feasible():
-	return AppletObject(apploader)
+    def entref_emsp(self, terminator):
+	self.__do_invisible("M")
+
+    def entref_quad(self, terminator):
+	self.__do_invisible("MMMM")
+
+    def __do_invisible(self, s):
+	#
+	# This breaks using the X-Selection for cut & paste somewhat: the
+	# invisible text does not get translated to space characters, so
+	# whatever was used gets pasted.
+	#
+	self.formatter.softspace = 0
+	bgcolor = self.viewer.text["background"]
+	self.viewer.text.tag_config("INVISIBLE", foreground=bgcolor)
+	self.formatter.push_style("INVISIBLE")
+	self.handle_data(s)
+	self.formatter.pop_style()
+	self.formatter.nospace = 1
+
+
+def try_configcolor(option, color, tag, widget):
+    try:
+	if tag:
+	    apply(widget.tag_config, (tag,), {option: color})
+	else:
+	    widget[option] = color
+    except TclError, msg:
+	return None
     else:
-	apploader.close()
-    return None
+	return color
 
 
-class AppletObject(NullObject):
-    """Object for use with <OBJECT> / <PARAM> elements."""
+def conv_align(val):
+    # This should work, but Tk doesn't actually do the right
+    # thing so for now everything gets mapped to BASELINE
+    # alignment.
+    return BASELINE
+    conv = grailutil.conv_enumeration(
+	grailutil.conv_normstring(val),
+	{'top': TOP,
+	 'middle': CENTER,		# not quite right
+	 'bottom': BASELINE,
+	 'absbottom': BOTTOM,		# compatibility hack...
+	 'absmiddle': CENTER,		# compatibility hack...
+	 })
+    if conv: return conv
+    else: return CENTER
 
-    def __init__(self, apploader):
-	self.__apploader = apploader
-
-    def param(self, name, value):
-	self.__apploader.set_param(name, value)
-
-    def end(self):
-	self.__apploader.go_for_it()
-
-
+
 class IconicEntityLinker:
     __here = None
 
-    def __init__(self, viewer, url, target):
+    def __init__(self, viewer, url, target, label):
 	self.__target = target or ''
 	self.__url = url
 	self.__viewer = viewer
+	label.bind("<ButtonPress-1>", self.button_1_press)
+	label.bind("<ButtonRelease-1>", self.button_1_release)
+	label.bind("<ButtonPress-2>", self.button_2_press)
+	label.bind("<ButtonRelease-2>", self.button_2_release)
+	label.bind("<Button-3>", self.button_3_event)
+	label.bind("<Enter>", self.enter)
+	label.bind("<Leave>", self.leave)
 
     def activate_link(self, event):
 	self.__here = self.__viewer.text.index(At(event.x, event.y))
@@ -729,7 +719,7 @@ class IconicEntityLinker:
 	self.__viewer.leave_message()
 	self.__viewer.remove_temp_tag()
 
-
+
 class DynamicReloader:
     def __init__(self, context, spec):
 	self.__context = context
@@ -775,20 +765,3 @@ class DynamicReloader:
 	else:
 	    url = self.__context.get_baseurl()
 	return seconds, url
-
-
-def conv_align(val):
-    # This should work, but Tk doesn't actually do the right
-    # thing so for now everything gets mapped to BASELINE
-    # alignment.
-    return BASELINE
-    conv = grailutil.conv_enumeration(
-	grailutil.conv_normstring(val),
-	{'top': TOP,
-	 'middle': CENTER,		# not quite right
-	 'bottom': BASELINE,
-	 'absbottom': BOTTOM,		# compatibility hack...
-	 'absmiddle': CENTER,		# compatibility hack...
-	 })
-    if conv: return conv
-    else: return CENTER
