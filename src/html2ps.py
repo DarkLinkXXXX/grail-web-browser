@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.2 1995/09/12 18:54:58 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.3 1995/09/12 22:28:19 bwarsaw Exp $"
 
 import sys
 import string
@@ -16,6 +16,7 @@ from formatter import *
 
 RECT_DEBUG = 1
 DEBUG = 1
+LP_COMMAND = 'lp -d tps'
 
 def _debug(text):
     if DEBUG:
@@ -229,6 +230,7 @@ class PSFont:
 	PostScript layer name of the font, and the font size in
 	points.
 	"""
+	if font_tuple is None: font_tuple = self.font
 	# get the current font and break up the arg
 	cur_sz, cur_family, cur_italic, cur_bold = self.font
 	set_sz, set_italic, set_bold, set_tt = font_tuple
@@ -275,9 +277,6 @@ class PSFont:
 	    pointlen = 0.0
 	    for c in text: pointlen = pointlen + self.metric[c]
 	    cooked = pointlen * self.font_size() / 12.0
-#	    _debug('%20s: raw= %f, cooked= %f\n' %
-#		   (text, pointlen, cooked))
-#           return pointlen * self.font[0] / 12.0
 	    return cooked
 
     def font_size(self):
@@ -306,7 +305,9 @@ class PSBuffer:
 	"""Flush the current line buffer to the output buffer."""
 	if self.lbuffer.tell() > 0:
 	    self.lbuffer.seek(0)
-	    self.obuffer.write(self.lbuffer.read())
+	    #self.obuffer.write(self.lbuffer.read())
+	    lbt = self.lbuffer.read()
+	    self.obuffer.write(lbt)
 	    self.lbuffer = sys.stdout = StringIO.StringIO()
 	    self.lwidth = 0.0
 
@@ -431,7 +432,7 @@ class PSBuffer:
 	# newlines.
 	oldstdout = sys.stdout
 	try:
-	    linecnt = 0
+	    linecnt = string.count(text, '\n')
 	    sys.stdout = self.lbuffer
 	    for line in string.splitfields(text, '\n'):
 		# buffer each line of output
@@ -439,9 +440,13 @@ class PSBuffer:
 		    self._raw_write(word)
 		# add hard newlines
 		if linecnt > 0: self._line_break()
-		linecnt = linecnt + 1
+		linecnt = linecnt - 1
 	finally:
 	    sys.stdout = oldstdout
+
+    def horizontal_rule(self):
+	self.write_text('\n\n')
+	self.obuffer.write('%f HR\n' % PAGE_WIDTH)
 
     def file_to_buffer(self, filename):
 	fp = open(filename, 'r')
@@ -491,56 +496,51 @@ class PSBuffer:
 	finally:
 	    sys.stdout = oldstdout
 
-    def ruler(self):
-	self._line_break()
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.obuffer
-	    print "gsave", 0, self.y(), "M"
-	    print PAGE_WIDTH, 0, "RL stroke"
-	    for p in range(0, 72 * PAGE_WIDTH, 4.5):
-		print p, self.y(), "M"
-		ll = ruler[int((p%72) / 4.5)]
-		print 0, ll, "RL stroke"
-	    print "grestore"
-	finally:
-	    sys.stdout = oldstdout
-
 
 
 class PSWriter(AbstractWriter):
-    def __init__(self):
-	pass
+    def __init__(self, title=None, fp=None):
+	import os
+	if not fp: fp = os.popen(LP_COMMAND, 'w')
+	self.ps = PSBuffer(fp)
+	if not title:
+	    user = os.environ['NAME']
+	    title = 'Print Job for: ' + user
+	self.ps.header(title)
 
     def new_font(self, font):
-	print "new_font(%s)" % `font`
+	self.ps.set_font(font)
 
     def new_margin(self, margin, level):
-	print "new_margin(%s, %d)" % (`margin`, level)
+	#print "new_margin(%s, %d)" % (`margin`, level)
+	raise RuntimeError
 
     def new_spacing(self, spacing):
-	print "new_spacing(%s)" % `spacing`
+	#print "new_spacing(%s)" % `spacing`
+	raise RuntimeError
 
     def new_styles(self, styles):
-	print "new_styles(%s)" % `styles`
+	#print "new_styles(%s)" % `styles`
+	raise RuntimeError
 
     def send_paragraph(self, blankline):
-	print "send_paragraph(%s)" % `blankline`
+	self.ps.write_text('\n' + '\n'*blankline)
 
     def send_line_break(self):
-	print "send_line_break()"
+	self.ps.write_text('\n')
 
     def send_hor_rule(self):
-	print "send_hor_rule()"
+	self.ps.horizontal_rule()
 
     def send_label_data(self, data):
-	print "send_label_data(%s)" % `data`
+	#print "send_label_data(%s)" % `data`
+	raise RuntimeError
 
     def send_flowing_data(self, data):
-	print "send_flowing_data(%s)" % `data`
+	self.ps.write_text(data)
 
     def send_literal_data(self, data):
-	print "send_literal_data(%s)" % `data`
+	self.ps.write_text(data)
 
 
 
@@ -581,6 +581,7 @@ def test():
     ps.write_text('Why should it look the same as')
     ps.set_font((12, 0, 1, 0))
     ps.write_text('twelve point bold, non-italic (or is that,')
+    ps.horizontal_rule()
     ps.write_text('non-oblique) font looks?\n\n')
     ps.write_text('Now that I have started a')
     ps.write_text('new paragraph, although not, of course, a new page')
@@ -656,12 +657,33 @@ def metrics_test_3():
 	    ps.set_font((s, 0, 0, 0))
 	    text = '|' + chr(c) * 10 + '|\n'
 	    ps.write_text(text)
-	    ps.ruler()
 
     ps.trailer()
 	    
 
 
+def html_test():
+    try:
+	inputfile = sys.argv[1]
+	ifile = open(inputfile, 'r')
+    except IOError, IndexError:
+	ifile = sys.stdin
+    try:
+	outputfile = sys.argv[2]
+	ofile = open(outputfile, 'w')
+    except IOError, IndexError:
+	ofile = sys.stdout
+
+    from htmllib import HTMLParser
+
+    w = PSWriter(None, ofile)
+    f = AbstractFormatter(w)
+    p = HTMLParser(f)
+    p.feed(ifile.read())
+    p.close()
+    w.close()
+
+
+
 if __name__ == '__main__':
-    metrics_test_3()
-    #test()
+    html_test()
