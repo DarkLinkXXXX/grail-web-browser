@@ -102,10 +102,6 @@ class BaseReader:
 	self.handle_error(-1, "Killed", {})
 
     def stop(self):
-	if self.context:
-	    self.context.rmreader(self)
-	    self.context = None
-
 	if self.fno >= 0:
 	    fno = self.fno
 	    self.fno = -1
@@ -117,6 +113,10 @@ class BaseReader:
 	if self.api:
 	    self.api.close()
 	    self.api = None
+
+	if self.context:
+	    self.context.rmreader(self)
+	    self.context = None
 
     def checkapi_regularly(self):
 	if not self.callback:
@@ -170,8 +170,8 @@ class BaseReader:
     def getapidata(self):
 	data = self.api.getdata(self.bufsize)
 	if not data:
-	    self.stop()
 	    self.handle_eof()
+	    self.stop()
 	    return
 	self.update_nbytes(data)
 	self.handle_data(data)
