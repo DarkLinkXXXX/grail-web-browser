@@ -10,7 +10,7 @@ from Context import Context
 from Cursors import *
 from types import StringType
 from urlparse import urljoin
-from DefaultStylesheet import DefaultStylesheet, UndefinedStyle
+from Stylesheet import UndefinedStyle
 
 
 DINGBAT_FONT = None
@@ -37,7 +37,7 @@ class Viewer(formatter.AbstractWriter):
 	self.context = context or Context(self, browser)
 	self.prefs = self.context.app.prefs
 	self.size = self.prefs.Get('styles', 'size')
-	self.stylesheet = stylesheet
+	self.stylesheet = stylesheet or self.context.app.stylesheet
 	self.name = name
 	self.scrolling = scrolling
 	self.parent = parent
@@ -171,12 +171,7 @@ class Viewer(formatter.AbstractWriter):
     def configure_styles(self, new_styles=0):
 	"""Used on widget creation, clear, and as a callback when style
 	preferences change."""
-	size_name = self.prefs.Get('styles', 'size')
-	family = self.prefs.Get('styles', 'family')
 	try:
-	    if new_styles or not self.stylesheet:
-		self.stylesheet = DefaultStylesheet(self.prefs,
-						    size_name, family)
 	    self.configure_tags(self.stylesheet)
 	except UndefinedStyle:
 	    pass
@@ -184,6 +179,7 @@ class Viewer(formatter.AbstractWriter):
     def configure_tags(self, stylesheet):
 	if self.text:
 	    if not self.parent:
+		# Top level viewer.
 		new_size = self.prefs.Get('styles', 'size')
 		current_cursor = self.current_cursor
 		self.set_cursor(CURSOR_WAIT)

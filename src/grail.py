@@ -34,6 +34,7 @@ import traceback
 import mimetools
 from Tkinter import *
 import GrailPrefs
+import Stylesheet
 import SafeDialog
 import tktools
 from Browser import Browser
@@ -236,6 +237,10 @@ class Application:
     def __init__(self, prefs=None):
 	self.root = Tk(className='Grail')
 	self.prefs = prefs or GrailPrefs.AllPreferences()
+	# The stylesheet must be initted before any Viewers, so it
+	# registers its' prefs callbacks first, hence reloads before the
+	# viewers reconfigure w.r.t. the new styles.
+	self.stylesheet = Stylesheet.Stylesheet(self.prefs)
 	self.splash = SplashScreen(self)
 	self.load_images = 1		# Overridden by cmd line or pref.
 

@@ -1,6 +1,6 @@
 """Default style sheet for Grail's Viewer widget.
 
-Instantiate DefaultStylesheet with the name of the sheet.  It gets the
+Instantiate Stylesheet with the name of the sheet.  It gets the
 command and sheet-specific values as, effectively, class attributes with
 dictionary values suitable for feeding to the text widget for tag
 configuration."""
@@ -12,24 +12,31 @@ UndefinedStyle = 'UndefinedStyle'
 ## NOTE: Link colors are taken from Netscape 1.1's X app defaults
 
 
-class DefaultStylesheet:
+class Stylesheet:
 
     registered_style_validator = 0
 
-    def __init__(self, prefs, sizename, family):
-	self.sizename = sizename
-	self.family = family
+    def __init__(self, prefs):
 	self.prefs = prefs
-	self.attrs = attrs = {}
+	self.load()
 
+	# Arrange for reload on relevant styles groups changes:
+	prefs.AddGroupCallback('styles-common', self.load)
+	prefs.AddGroupCallback('styles-fonts', self.load)
+	prefs.AddGroupCallback('styles', self.load)
+
+    def load(self):
+	self.attrs = attrs = {}
+	self.sizename = self.prefs.Get('styles', 'size')
+	self.family = self.prefs.Get('styles', 'family')
 	self.size, fparms_dict = self.get_sizes()
 	fparms_dict['family'] = self.get_family()
 	fparms_dict['italic'] = self.get_italic()
 
-	self.dictify_group(prefs.GetGroup('styles-common'))
+	self.dictify_group(self.prefs.GetGroup('styles-common'))
 
 	# Map the selected font and size onto the fonts group:
-	fonts = prefs.GetGroup('styles-fonts')
+	fonts = self.prefs.GetGroup('styles-fonts')
 	massaged = []
 	for ((g, c), v) in fonts:
 	    massaged.append((g, c), v % fparms_dict)
@@ -105,7 +112,7 @@ def test():
     sys.path = ['./utils', './ancillary'] + sys.path
     import GrailPrefs
     prefs = GrailPrefs.AllPreferences()
-    sheet = DefaultStylesheet(prefs, 'basic', 'helvetica')
+    sheet = Stylesheet(prefs, 'basic', 'helvetica')
     print sheet.styles['h5_b']['font']
 
 if __name__ == "__main__":
