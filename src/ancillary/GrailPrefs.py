@@ -5,7 +5,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.12 $"
+__version__ = "$Revision: 2.13 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -172,9 +172,9 @@ class AllPreferences:
     # Getting:
 
     def Get(self, group, component, use_default=0):
-	"""Get pref GROUP, COMPONENT, trying the user than the sys prefs.
+	"""Get pref GROUP, COMPONENT, trying the user then the sys prefs.
 
-	Optional SYS true means get system default value.
+	Optional USE_DEFAULT true means get system default ("factory") value.
 
 	Raise KeyError if not found."""
 	if use_default:
@@ -185,7 +185,7 @@ class AllPreferences:
 	    except KeyError:
 		return self._sys.Get(group, component)
 
-    def _GetTyped(self, group, component, cvrtr, type_name, use_default=0):
+    def GetTyped(self, group, component, type_name, use_default=0):
 	"""Get preference, using CONVERTER to convert to type NAME.
 
 	Optional SYS true means get system default value.
@@ -193,24 +193,17 @@ class AllPreferences:
 	Raise KeyError if not found, TypeError if value is wrong type."""
 	val = self.Get(group, component, use_default)
 	try:
-	    return cvrtr(val)
-	except ValueError:
-	    raise TypeError, ('%s not %s: %s'
+	    return typify(val, type_name)
+	except TypeError:
+	    raise TypeError, ('%s should be %s: %s'
 			       % (str((group, component)), type_name, `val`))
 
     def GetInt(self, group, component, use_default=0):
-	return self._GetTyped(group, component, string.atoi, "integer",
-			      use_default)
+	return self.GetTyped(group, component, "int", use_default)
     def GetFloat(self, group, component, use_default=0):
-	return self._GetTyped(group, component, string.atof, "float",
-			      use_default)
+	return self.GetTyped(group, component, "float", use_default)
     def GetBoolean(self, group, component, use_default=0):
-	got = self._GetTyped(group, component, string.atoi, "Boolean",
-			     use_default)
-	if got not in (0, 1):
-	    raise TypeError, ('%s not %s: %s'
-			      % ((group, component), "Boolean", `got`))
-	return got
+	return self.GetTyped(group, component, "Boolean", use_default)
 
     # Editing:
 
@@ -244,8 +237,7 @@ class AllPreferences:
 	    # Cull user preferences with same value as system default:
 	    k = split_key(prefkey)
 	    if len(k) == 1:
-		# Probably a comment - we don't retain users' comments unless
-		# they make them look like distinct group--component values.
+		# Aberrant entries (probly comments) are not retained.
 		continue
 	    else:
 		# Discard items that duplicate settings in sys defaults:
@@ -265,6 +257,30 @@ def split_key(key):
     """Produce a key from preference GROUP, COMPONENT strings."""
     return string.split(key, '--')
 		    
+
+def typify(val, type_name):
+    """Convert string value to specific type, or raise type err if impossible.
+
+    Type is one of 'string', 'int', 'float', or 'Boolean' (note caps)."""
+    try:
+	if type_name == 'string':
+	    return val
+	elif type_name == 'int':
+	    return string.atoi(val)
+	elif type_name == 'float':
+	    return string.atof(val)
+	elif type_name == 'Boolean':
+	    i = string.atoi(val)
+	    if i not in (0, 1):
+		raise TypeError, '%s should be Boolean' % `val`
+	    return i
+    except ValueError:
+	    raise TypeError, '%s should be %s' % (`val`, type_name)
+    
+    raise ValueError, ('%s not supported - must be one of %s'
+		       % (`type_name`, ['string', 'int', 'float', 'Boolean']))
+    
+
 def test():
     """Exercise preferences mechanisms."""
     sys.path.insert(0, "../utils")
