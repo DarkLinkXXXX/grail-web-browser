@@ -1106,7 +1106,17 @@ class Menu(Widget):
 		self.add('separator', cnf or kw)
 	def delete(self, index1, index2=None):
 		self.tk.call(self._w, 'delete', index1, index2)
-	def entryconfig(self, index, cnf={}, **kw):
+	def entryconfig(self, index, cnf=None, **kw):
+		if cnf is None and not kw:
+			cnf = {}
+			for x in self.tk.split(apply(self.tk.call,
+			    (self._w, 'entryconfigure', index))):
+				cnf[x[0][1:]] = (x[0][1:],) + x[1:]
+			return cnf
+		if type(cnf) == StringType and not kw:
+			x = self.tk.split(apply(self.tk.call,
+			    (self._w, 'entryconfigure', index, '-'+cnf)))
+			return (x[0][1:],) + x[1:]
 		apply(self.tk.call, (self._w, 'entryconfigure', index)
 		      + self._options(cnf, kw))
 	def index(self, index):
