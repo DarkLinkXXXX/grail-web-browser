@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.28 $"
+__version__ = "$Revision: 1.29 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -731,7 +731,7 @@ if not _sgmllex:
     commentclose = regex.compile(COM + OPTIONAL_WHITESPACE + MDC)
     tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
     attrfind = regex.compile(
-	'[ \t\n,]+\([a-zA-Z][a-zA-Z_0-9.-]*\)'	# comma is for compatibility
+	'[ \t\n,]+\([a-zA-Z_][a-zA-Z_0-9.-]*\)'	# comma is for compatibility
 	'\(' + OPTIONAL_WHITESPACE + VI + OPTIONAL_WHITESPACE	# VI
 	+ '\(\\' + LITA + '[^\']*\\' + LITA
 	+ '\|' + LIT + '[^"]*' + LIT + '\|[-~a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
