@@ -4,7 +4,7 @@ True = 1
 False = None
 
 
-class OutlineNode:
+class OutlinerNode:
     def __init__(self):
 	self._expanded_p = True
 	self._parent = None
@@ -12,7 +12,9 @@ class OutlineNode:
 	self._depth = 0
 
     def __repr__(self):
-	if self.leaf_p(): tag = ' '
+	# root node has a special tag -- it's not collapsable
+	if self._depth == 0: tag = '*'
+	elif self.leaf_p(): tag = ' '
 	elif self.expanded_p(): tag = '+'
 	else: tag = '-'
 	return (' ' * (self._depth * 3)) + tag
@@ -50,3 +52,73 @@ class OutlineNode:
     def leaf_p(self): return not self._children
 
     def depth(self): return self._depth
+
+
+
+class OutlinerViewer:
+    _gcounter = 0
+
+    def __init__(self, root):
+	self._root = root
+	self._nodes = []
+	self._gcounter = 0
+	self._populate(self._root)
+
+    def _insert(self, node, index=None):
+	"""Derived class specialization"""
+	pass
+
+    def _delete(self, start, end=None):
+	"""Derived class specialization"""
+	pass
+
+    def _populate(self, node):
+	# insert into linear list
+	self._nodes.append(node)
+	node.set_index(self._gcounter)
+	self._gcounter = self._gcounter + 1
+	# calculate the string to insert into the list box
+	self._insert(node)
+	for child in node.children():
+	    self._populate(child)
+
+    def insert_nodes(self, at_index, node_list, before_p=None):
+	if not before_p: at_index = at_index + 1
+	nodecount = len(node_list)
+	for node in node_list:
+	    self._nodes.insert(at_index, node)
+	    self._insert(node, at_index)
+	    node.set_index(at_index)
+	    at_index = at_index + 1
+	for node in self._nodes[at_index:]:
+	    node.set_index(node.index() + nodecount)
+
+    def delete_nodes(self, start, end):
+	nodecount = end - start + 1
+	self._delete(start, end)
+	for node in self._nodes[end+1:]:
+	    node.set_index(node.index() - nodecount)
+	del self._nodes[start:end+1]
+
+    def update_node(self, node):
+	index = node.index()
+	# TBD: is there a more efficient way of doing this!
+	self._delete(index)
+	self._insert(node, index)
+
+    def _expand(self, node):
+	for child in node.children():
+	    self.insert_nodes(self._gcounter, [child], True)
+	    self._gcounter = self._gcounter + 1
+	    if not child.leaf_p() and child.expanded_p():
+		self._expand(child)
+
+    def expand_node(self, node):
+	self._gcounter = node.index() + 1
+	self._expand(node)
+
+    def node(self, index):
+	if 0 <= index < len(self._nodes): return self._nodes[index]
+	else: return None
+
+    def count(self): return len(self._nodes)

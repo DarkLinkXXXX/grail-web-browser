@@ -1,5 +1,5 @@
 from Tkinter import *
-from Outliner import OutlineNode
+from Outliner import OutlinerNode, OutlinerViewer
 import tktools
 import formatter
 import htmllib
@@ -10,7 +10,7 @@ import time
 
 
 
-class BookmarkNode(OutlineNode):
+class BookmarkNode(OutlinerNode):
     """Bookmarks are represented internally as a tree of nodes containing
     relevent information.
 
@@ -38,7 +38,7 @@ class BookmarkNode(OutlineNode):
     def __init__(self, title='', uri_string = '',
 		 add_date=time.time(), last_visited=time.time(),
 		 description=''):
-	OutlineNode.__init__(self)
+	OutlinerNode.__init__(self)
 	self._title = title
 	self._uri = uri_string
 	self._desc = description
@@ -47,7 +47,7 @@ class BookmarkNode(OutlineNode):
 	self._index = None
 
     def __repr__(self):
-	return OutlineNode.__repr__(self) + ' ' + self._title
+	return OutlinerNode.__repr__(self) + ' ' + self._title
 
     def title(self): return self._title
     def uri(self): return self._uri
@@ -148,57 +148,27 @@ class NetscapeBookmarkReader:
 	return root
 
 
-class TkListboxWriter:
+class TkListboxWriter(OutlinerViewer):
     _gcounter = 0
 
     def __init__(self, root, listbox):
-	self._root = root
 	self._listbox = listbox
-	self._nodes = []
-	self._gcounter = 0
-	self._populate(self._root)
+	OutlinerViewer.__init__(self, root)
 
-    def _populate(self, node):
-	# insert into linear list
-	self._nodes.append(node)
-	node.set_index(self._gcounter)
-	self._gcounter = self._gcounter + 1
-	# calculate the string to insert into the list box
-	self._listbox.insert('end', `node`)
-	for child in node.children():
-	    self._populate(child)
+    def _insert(self, node, index=None):
+	if not index: index = 'end'
+	self._listbox.insert(index, `node`)
 
-    def insert_nodes(self, at_index, node_list, before_p=None):
-	if not before_p: at_index = at_index + 1
-	nodecount = len(node_list)
-	for node in node_list:
-	    self._nodes.insert(at_index, node)
-	    self._listbox.insert(at_index, `node`)
-	    node.set_index(at_index)
-	    at_index = at_index + 1
-	for node in self._nodes[at_index:]:
-	    node.set_index(node.index() + nodecount)
-
-    def delete_nodes(self, start, end):
-	nodecount = end - start + 1
-	self._listbox.delete(start, end)
-	for node in self._nodes[end+1:]:
-	    node.set_index(node.index() - nodecount)
-	del self._nodes[start:end+1]
+    def _delete(self, start, end=None):
+	if not end: self._listbox.delete(start)
+	else: self._listbox.delete(start, end)
 
     def update_node(self, node):
-	index = node.index()
-	# TBD: is there a more efficient way of doing this!
-	self._listbox.delete(index)
-	self._listbox.insert(index, `node`)
-	self._listbox.select_set(index)
+	OutlinerViewer.update_node(self, node)
+	self._listbox.select_set(node.index())
 
-    def node(self, index):
-	if 0 <= index < len(self._nodes): return self._nodes[index]
-	else: return None
 
-    def count(self): return len(self._nodes)
-
+
 class BookmarkWindow:
     def __init__(self, filename):
 	# this flag controls collapse of children.  it is either
@@ -237,40 +207,45 @@ class BookmarkWindow:
 	
     def collapse(self):
 	node, selection = self._get_selected_node()
-	if (not node.leaf_p() and node.expanded_p()) or self._aggressive_p:
-	    start = None
-	    end = None
-	    # find collapse extent
-	    if node.leaf_p(): start = node.parent().index() + 1
-	    else: start = node.index() + 1
-	    # now that we know where to start, find out where to
-	    # end. to do this we first find the node's next sibling
-	    vnode = node
-	    pnode = node.parent()
-	    while not end and pnode:
-		sibs = pnode.children()
-		nextsib = sibs.index(vnode)
-		if nextsib+1 >= len(sibs):
-		    vnode = pnode
-		    pnode = vnode.parent()
-		else:
-		    end = sibs[nextsib+1].index() - 1
-	    # now that we have a valid start and end, delete!
-	    if not end: end = self._writer.count()
-	    node.collapse()
-	    self._writer.delete_nodes(start, end)
-	    self._writer.update_node(node)
-
-# TBD: we need to recursively expand based on the cached expand state!
+	# This node is only collapsable if it is not the root, it is
+	# an unexpanded branch node, or the aggressive collapse flag
+	# is set.
+	if node.index() == 0 or \
+	   (node.leaf_p() and not self._aggressive_p) or \
+	   not node.expanded_p():
+	    return
+	# if the node is a leaf and the aggressive collapse flag is
+	# set, then we really need to find the start of the collapse
+	# operation (some ancestor of the selected node)
+	if node.leaf_p(): node = node.parent()
+	start = node.index() + 1
+	node.collapse()
+	# Find the end
+	end = None
+	vnode = node
+	pnode = node.parent()
+	while not end and pnode:
+	    sibs = pnode.children()
+	    nextsib = sibs.index(vnode)
+	    if nextsib+1 >= len(sibs):
+		vnode = pnode
+		pnode = vnode.parent()
+	    else:
+		end = sibs[nextsib+1].index() - 1
+	# now that we have a valid start and end, delete!
+	if not end: end = self._writer.count()
+	self._writer.delete_nodes(start, end)
+	self._writer.update_node(node)
 
     def expand(self):
 	node, index = self._get_selected_node()
 	# can't expand leaves or already expanded nodes
 	if node.leaf_p() or node.expanded_p(): return
-	# we expand so that only the most immediate children become visible
-	self._writer.insert_nodes(index, node.children())
 	# now toggle the expanded flag and update the listbox
 	node.expand()
+	# we need to recursively expand this node, based on each
+	# sub-node's expand/collapse flag
+	self._writer.expand_node(node)
 	self._writer.update_node(node)
 
     def quit(self): sys.exit(0)
@@ -279,6 +254,6 @@ class BookmarkWindow:
 
 
 if __name__ == '__main__':
-#    bookmarks = BookmarkWindow("/tmp/test.html")
-    bookmarks = BookmarkWindow("~/.netscape-bookmarks.html")
+    bookmarks = BookmarkWindow("/tmp/test.html")
+#    bookmarks = BookmarkWindow("~/.netscape-bookmarks.html")
     bookmarks.run()
