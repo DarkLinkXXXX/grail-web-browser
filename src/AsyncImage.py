@@ -1,12 +1,13 @@
 from FileReader import TempFileReader
 from Tkinter import *
 import grailutil
-
+import string
 
 class ImageTempFileReader(TempFileReader):
 
     def __init__(self, context, api, image):
 	self.image = image
+	self.url = self.image.url
 	TempFileReader.__init__(self, context, api)
 
     def handle_meta(self, errcode, errmsg, headers):
@@ -35,6 +36,19 @@ class ImageTempFileReader(TempFileReader):
 	self.cleanup()
 
     def handle_error(self, errcode, errmsg, headers):
+	if errcode == 401:
+	    if headers.has_key('www-authenticate'):
+		cred_headers = {}
+		for k in headers.keys():
+		    cred_headers[string.lower(k)] = headers[k]
+		cred_headers['request-uri'] = self.image.url
+		self.stop()
+		credentials = self.image.context.app.auth.request_credentials(cred_headers)
+		if credentials.has_key('Authorization'):
+		    for k,v in credentials.items():
+			self.image.headers[k] = v
+		    # self.image.restart(self.image.url)
+		    self.image.start_loading(self.image.context)
 	self.image.set_error(errcode, errmsg, headers)
 	self.cleanup()
 
@@ -60,6 +74,7 @@ class AsyncImage(PhotoImage):
 	self.url = url
 	self.reader = None
 	self.loaded = 0
+	self.headers = {}
 	if reload:
 	    self.reload = 1
 	else:
@@ -79,7 +94,7 @@ class AsyncImage(PhotoImage):
 	if self.reader:
 	    return
 	try:
-	    api = self.context.app.open_url(self.url, 'GET', {},
+	    api = self.context.app.open_url(self.url, 'GET', self.headers,
 					    self.reload or reload) 
 	except IOError, msg:
 	    self.show_bad()

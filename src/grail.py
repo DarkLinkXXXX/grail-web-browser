@@ -40,6 +40,7 @@ from Browser import Browser
 import SafeTkinter
 from CacheMgr import CacheManager
 from ImageCache import ImageCache
+from Authenticate import AuthenticationManager
 import TbDialog
 if 0:
     import dummies
@@ -210,6 +211,7 @@ class Application:
 	self.iconpath.insert(0, os.path.join(self.graildir, 'icons'))
 	self.url_cache = CacheManager(self)
 	self.image_cache = ImageCache(self.url_cache)
+	self.auth = AuthenticationManager(self)
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
 	  read_mime_types("/usr/local/lib/netscape/mime.types") or \

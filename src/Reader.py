@@ -10,7 +10,8 @@ import tktools
 from GrailHTMLParser import GrailHTMLParser
 from BaseReader import BaseReader
 import regsub
-
+import copy
+import regex
 
 # mailcap dictionary
 caps = None
@@ -38,7 +39,7 @@ class Reader(BaseReader):
 
 	self.last_context = context
 	self.method = method
-	self.params = params
+	self.params = copy.copy(params)
 	self.show_source = show_source
 	self.reload = reload
 	self.data = data
@@ -238,46 +239,21 @@ class Reader(BaseReader):
 	# Return nonzero if handle_error() should return now
 	if not headers.has_key('www-authenticate') or self.maxrestarts <= 0:
 	    return
-	challenge = headers['www-authenticate']
-	# <authscheme> realm="<value>" [, <param>="<value>"] ...
-	parts = string.splitfields(challenge, ',')
-	p = parts[0]
-	i = string.find(p, '=')
-	if i < 0: return
-	key, value = p[:i], p[i+1:]
-	keyparts = string.split(string.lower(key))
-	if not(len(keyparts) == 2 and keyparts[1] == 'realm'): return
-	authscheme = keyparts[0]
-	value = string.strip(value)
-	if len(value) >= 2 and value[0] == value[-1] and value[0] in '\'"':
-	    value = value[1:-1]
-	self.stop()
-	self.user_passwd = self.get_user_passwd(authscheme, value)
-	if not self.user_passwd:
-	    self.maxrestarts = 0
-	self.restart(self.url)
-	return 1
 
-    def get_user_passwd(self, authscheme, realmvalue):
-	if authscheme != "basic": return None
-	netloc = urlparse.urlparse(self.url)[1]
-	i = string.find(netloc, '@')
-	if i >= 0: netloc = netloc[i+1:]
-	i = string.find(netloc, ':')
-	if i >= 0: netloc = netloc[:i]
-	key = (netloc, realmvalue)
-	context = self.last_context
-	app = context.app
-	if app.login_cache.has_key(key):
-	    if self.user_passwd:
-		del app.login_cache[key]
-	    else:
-		return app.login_cache[key]
-	login = LoginDialog(context.root, netloc, realmvalue)
-	user_passwd = login.go()
-	if user_passwd:
-	    app.login_cache[key] = user_passwd
-	return user_passwd
+	cred_headers = {}
+	for k in headers.keys():
+	    cred_headers[string.lower(k)] = headers[k]
+	cred_headers['request-uri'] = self.url
+	self.stop()
+	credentials = self.app.auth.request_credentials(cred_headers)
+	if credentials.has_key('Authorization'):
+	    for k,v in credentials.items():
+		self.params[k] = v
+	    self.restart(self.url)
+	    return 1
+	# couldn't figure out scheme
+	self.maxrestarts = 0
+	return
 
     def handle_data(self, data):
 	if self.save_file:
