@@ -59,31 +59,6 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.handle_data(data)
 	self.viewer.add_subwindow(w)
 
-    # XXX This is only here until htmllib.py is fixed:
-    def do_img(self, attrs):
-        align = ''
-        alt = '(image)'
-        ismap = ''
-        src = ''
-	width = 0
-	height = 0
-        for attrname, value in attrs:
-            if attrname == 'align':
-                align = value
-            if attrname == 'alt':
-                alt = value
-            if attrname == 'ismap':
-                ismap = value
-            if attrname == 'src':
-                src = value
-	    if attrname == 'width':
-		try: width = string.atoi(value)
-		except: pass
-	    if attrname == 'height':
-		try: height = string.atoi(value)
-		except: pass
-        self.handle_image(src, alt, ismap, align, width, height)
-
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
