@@ -2,7 +2,8 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-from assert import assert
+from Assert import Assert
+import grailutil
 import os
 
 META, DATA, DONE = 'META', 'DATA', 'DONE'
@@ -49,7 +50,7 @@ class file_access:
 	    self.format_directory()
 	else:
 	    self.fp = open(self.pathname, 'rb') # May raise IOError!
-	    from __main__ import app
+	    app = grailutil.get_grailapp()
 	    ctype, cencoding = app.guess_type(self.pathname)
 	    if ctype: self.headers['content-type'] = ctype
 	    if cencoding: self.headers['content-encoding'] = cencoding
@@ -63,22 +64,22 @@ class file_access:
 	self.state = META
 
     def pollmeta(self):
-	assert(self.state == META)
+	Assert(self.state == META)
 	return "Ready", 1
 
     def getmeta(self):
-	assert(self.state == META)
+	Assert(self.state == META)
 	self.state = DATA
 	if self.redirect:
 	    return 301, "Redirect to absolute pathname", {"location": self.url}
 	return 200, "OK", self.headers
 
     def polldata(self):
-	assert(self.state == DATA)
+	Assert(self.state == DATA)
 	return "Ready", 1
 
     def getdata(self, maxbytes):
-	assert(self.state == DATA)
+	Assert(self.state == DATA)
 	data = self.fp.read(maxbytes)
 	if not data:
 	    self.state = DONE
