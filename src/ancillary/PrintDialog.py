@@ -115,6 +115,10 @@ class PrintDialog:
 	    except IOError, msg:
 		self.browser.error_dialog(IOError, str(msg))
 		return
+	self.root['cursor'] = 'watch'
+	self.cmd_entry['cursor'] = 'watch'
+	self.file_entry['cursor'] = 'watch'
+	self.root.update_idletasks()
 	self.print_to_fp(fp)
 	sts = fp.close()
 	if sts:
