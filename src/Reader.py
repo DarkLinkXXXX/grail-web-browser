@@ -376,9 +376,45 @@ else:
     content_decoding_wrappers["x-gzip"] = GzipWrapper
 
 
+def get_encodings(headers):
+    content_encoding = transfer_encoding = None
+    if headers.has_key("content-encoding"):
+        content_encoding = string.lower(headers["content-encoding"])
+    if headers.has_key("content-transfer-encoding"):
+        transfer_encoding = string.lower(headers["content-transfer-encoding"])
+    return content_encoding, transfer_encoding
+
+
+def wrap_parser(parser, ctype, content_encoding=None, transfer_encoding=None):
+    if ctype[:5] == "text/":
+        parser = TextLineendWrapper(parser)
+    if content_encoding:
+        parser = content_decoding_wrappers[content_encoding](parser)
+    if transfer_encoding:
+        parser = transfer_decoding_wrappers[transfer_encoding](parser)
+    return parser
+    
+
 def get_content_encodings():
     """Return a list of supported content-encoding values."""
     return content_decoding_wrappers.keys()
+
+
+def get_transfer_encodings():
+    """Return a list of supported content-transfer-encoding values."""
+    return transfer_decoding_wrappers.keys()
+
+
+def support_encodings(content_encoding, transfer_encoding):
+    """Return true iff both content and content-transfer encodings are
+    supported."""
+    if content_encoding \
+       and not content_decoding_wrapper.has_key(content_encoding):
+        return 0
+    if transfer_encoding \
+       and not transfer_decoding_wrapper.has_key(transfer_encoding):
+        return 0
+    return 1
 
 
 class Reader(BaseReader):
@@ -511,20 +547,16 @@ class Reader(BaseReader):
         if not self.handle_meta_prelim(errcode, errmsg, headers):
             return
 
+        content_encoding, transfer_encoding = get_encodings(headers)
         if headers.has_key('content-type'):
             content_type = headers['content-type']
             if ';' in content_type:
                 content_type = string.strip(
                     content_type[:string.index(content_type, ';')])
-            content_encoding = None
         else:
-            content_type, content_encoding = self.app.guess_type(self.url)
-        if headers.has_key('content-encoding'):
-            content_encoding = headers['content-encoding']
-        if headers.has_key('content-transfer-encoding'):
-            transfer_encoding = headers['content-transfer-encoding']
-        else:
-            transfer_encoding = None
+            content_type, encoding = self.app.guess_type(self.url)
+            if not content_encoding:
+                content_encoding = encoding
         real_content_type = content_type or "unknown"
         real_content_encoding = content_encoding
         if (transfer_encoding
@@ -628,14 +660,11 @@ class Reader(BaseReader):
         self.context.set_url(self.url)
         parser = parserclass(self.viewer, reload=self.reload)
         # decode the content
-        if istext:
-            parser = TextLineendWrapper(parser)
-        if content_encoding:
-            parser = content_decoding_wrappers[content_encoding](parser)
-        if transfer_encoding:
-            parser = transfer_decoding_wrappers[transfer_encoding](parser)
+        parser = wrap_parser(parser, content_type,
+                             content_encoding, transfer_encoding)
         # protect from re-entrance
         self.parser = ParserWrapper(parser, self.viewer)
+
 
     def handle_auth_error(self, errcode, errmsg, headers):
         # Return nonzero if handle_error() should return now
