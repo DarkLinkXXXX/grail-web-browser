@@ -5,7 +5,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.4 $'
+__version__ = '$Revision: 2.5 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import ni
@@ -21,6 +21,18 @@ import GrailPrefs
 
 DEFAULT_DEVICE = 'viewer'		# should be 'writer', but this support
 					# legacy HTML extensions
+
+
+# downgrade the keyword module for 1.4 & older if needed:
+try:
+    exec "assert 1"
+except SyntaxError:
+    if "assert" in keyword.kwlist:
+	keyword.kwlist.remove("assert")
+	del keyword.kwdict["assert"]
+    if not "access" in keyword.kwlist:
+	keyword.kwlist.insert(0, "access")
+	keyword.kwdict["access"] = 1
 
 
 class BaseApplication:
