@@ -85,9 +85,9 @@ class BaseReader:
 	    status = self.message
 	else:
 	    status = "%s read" % grailutil.nicebytes(self.nbytes)
-	if self.api.iscached():
+	if self.api and self.api.iscached():
 	    status = status + " (cached)"
-	if not self.shorturl:
+	if self.api and not self.shorturl:
 	    tuple = urlparse.urlparse(self.api._url_)
 	    path = tuple[2]
 	    i = string.rfind(path[:-1], '/')
@@ -158,7 +158,11 @@ class BaseReader:
 	try:
 	    self.callback()			# Call via function pointer
 	except:
-	    self.context.app.exception_dialog("in BaseReader")
+	    if self.context and self.context.app:
+		app = self.context.app
+	    else:
+		from __main__ import app
+	    app.exception_dialog("in BaseReader")
 	    self.kill()
 
     def checkmeta(self):
