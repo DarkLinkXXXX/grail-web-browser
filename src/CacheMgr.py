@@ -8,7 +8,6 @@ import protocols
 import time
 import ht_time
 import grailutil
-import posix
 import regex
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
@@ -379,7 +378,7 @@ class DiskCacheEntry:
 	elif self.string_date.match(rep) == 1:
 	    setattr(self,var,HTTime(str=rep))
 	else:
-	    setattr(self,var,HTTime(secs=int(string.atof(rep))))
+	    setattr(self,var,HTTime(secs=string.atof(rep)))
  
     def unparse(self):
         """Return entry for transaction log.
@@ -457,11 +456,13 @@ class DiskCache:
 
     """
 
-    def __init__(self,manager,size,directory):
+    def __init__(self, manager, size, directory):
 	self.max_size = size
 	self.size = 0
-	if '~' in directory:
-	    directory = regsub.sub('~', grailutil.gethome(), directory)
+	if hasattr(os.path, 'expanduser'):
+		directory = os.path.expanduser(directory)
+	if not os.path.isabs(directory):
+		directory = os.path.join(grailutil.getgraildir(), directory)
 	self.directory = directory
 	self.manager = manager
 	self.manager.add_cache(self)
@@ -600,7 +601,7 @@ class DiskCache:
 	if headers.has_key('date'):
 	    date = headers['date']
 	else:
-	    date = int(time.time())
+	    date = time.time()
 
 	if headers.has_key('last-modified'):
 	    lastmod = headers['last-modified']
@@ -725,7 +726,7 @@ class DiskCache:
 	    self.expires.remove(key)
 	try:
 	    os.unlink(evictee.path)
-	except (posix.error, IOError), err:
+	except (os.error, IOError), err:
 	    print "error deleteing %s from cache: %s" % (key, err)
 	self.log_entry(evictee,1) # 1 indicates delete entry
 	evictee.delete()
@@ -805,7 +806,7 @@ class HTTime:
 	else:
 	    self.str = None
 	if secs:
-	    self.secs = int(secs)
+	    self.secs = secs
 	else:
 	    self.secs = None
 
