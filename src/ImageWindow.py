@@ -45,6 +45,6 @@ class ImageWindow(Frame):
 		if status == 'loading':
 		    self.image.stop_loading()
 		else:
-		    self.image.start_loading()
+		    self.image.start_loading(reload=1)
 	else:
 	    print "[no image]"
