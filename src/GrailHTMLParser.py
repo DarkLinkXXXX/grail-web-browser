@@ -221,7 +221,7 @@ class GrailHTMLParser(HTMLParser):
 
     def do_hr(self, attrs):
 	if attrs.has_key('src') and self.app.load_images:
-	    align = extract_keyword('align', attrs,
+	    align = extract_keyword('align', attrs, default='center',
 		    conv=lambda s,gu=grailutil: gu.conv_enumeration(
 			gu.conv_normstring(s), ['left', 'center', 'right']))
 	    self.implied_end_p()
@@ -244,9 +244,10 @@ class GrailHTMLParser(HTMLParser):
 	extract = extract_keyword
 	## align = extract('align', attrs, align, conv=conv_align)
 	alt = extract('alt', attrs, '(image)')
-	border = extract('border', attrs, self.anchor and 2 or 0,
+	border = extract('border', attrs, self.anchor and 2 or None,
 			 conv=string.atoi)
 	ismap = attrs.has_key('ismap')
+	if ismap and border is None: border = 2
 	src = extract('src', attrs, '')
 	width = extract('width', attrs, 0, conv=string.atoi)
 	height = extract('height', attrs, 0, conv=string.atoi)
@@ -254,13 +255,14 @@ class GrailHTMLParser(HTMLParser):
 	vspace = extract('vspace', attrs, 0, conv=string.atoi)
 	if attrs.has_key('usemap'):
 	    # not sure how to assert(value[0] == '#')
-	    value = attrs['usemap']
+	    value = string.strip(attrs['usemap'])
 	    if value:
-		if value[0] == '#': value = value[1:]
+		if value[0] == '#': value = string.strip(value[1:])
 		from ImageMap import MapThunk
 		usemap = MapThunk(self.context, value)
+		if border is None: border = 2
         self.handle_image(src, alt, usemap, ismap,
-			  align, width, height, border, self.reload1,
+			  align, width, height, border or 0, self.reload1,
 			  hspace=hspace, vspace=vspace)
 
     def handle_image(self, src, alt, usemap, ismap, align, width,
@@ -431,6 +433,8 @@ class GrailHTMLParser(HTMLParser):
 	if self.current_map:
 	    extract = extract_keyword
 	    shape = extract('shape', attrs, 'rect', conv=string.lower)
+	    if shape == 'polygon':
+		shape = 'poly'
 	    coords = extract('coords', attrs, '')
 	    alt = extract('alt', attrs, '')
 	    target = extract('target', attrs, '')
