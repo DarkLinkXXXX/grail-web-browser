@@ -5,6 +5,7 @@
 """Viewer class.
 """
 
+import sys
 from Tkinter import *
 import tktools
 import formatter
@@ -22,6 +23,13 @@ INDENTATION_WIDTH = 40			# Pixels / indent level
 TARGET_SEPARATOR = '\1'			# url TARGET_SEPARATOR target
 
 
+font_dingbats = {
+    'disc': ('\x6c', '_ding'),
+    'circle': ('\x6d', '_ding'),
+    'square': ('\x6f', '_ding'),
+    }
+
+
 class WidthMagic:
     def __init__(self, viewer, abswidth, percentwidth):
 	# initialize mixin stuff:
@@ -89,7 +97,6 @@ class Viewer(formatter.AbstractWriter):
 		browser = parent.context.browser
 	self.context = context or Context(self, browser)
 	self.prefs = self.context.app.prefs
-	self.size = self.prefs.Get('styles', 'size')
 	self.stylesheet = stylesheet or self.context.app.stylesheet
 	self.name = name
 	self.scrolling = scrolling
@@ -244,36 +251,38 @@ class Viewer(formatter.AbstractWriter):
 	if self.text:
 	    if not self.parent:
 		# Top level viewer.
-		new_size = self.prefs.Get('styles', 'size')
 		current_cursor = self.current_cursor
 		self.set_cursor(CURSOR_WAIT)
 
 	    self.text.config(stylesheet.default)
-	    sym = self.context.app.load_dingbat('disc')
+	    use_font_dingbats = 1
 	    for tag, cnf in stylesheet.styles.items():
 		try:
 		    self.text.tag_config(tag, cnf)
-		except TclError:
-		    if tag == '_ding' and type(sym) is TupleType:
-			self.context.app.clear_dingbat('disc')
-			self.context.app.clear_dingbat('circle')
-			self.context.app.clear_dingbat('square')
-		else:
-		    if tag == '_ding' \
-		       and type(sym) in (InstanceType, NoneType):
-			set_dingbat = self.context.app.set_dingbat
-			set_dingbat('disc', ('\x6c', '_ding'))
-			set_dingbat('circle', ('\x6d', '_ding'))
-			set_dingbat('square', ('\x6f', '_ding'))
+		except TclError, err:
+		    # This extra logic is needed to switch to gif-based
+		    # dingbats if the font is not available in the current
+		    # size.
+		    if tag == '_ding':
+			use_font_dingbats = 0
+		    else:
+			raise TclError, err, sys.exc_traceback
+	    #
+	    # Set dingbat approach appropriately:
+	    #
+	    if use_font_dingbats:
+		for name, value in font_dingbats.items():
+		    self.context.app.set_dingbat(name, value)
+	    else:
+		map(self.context.app.clear_dingbat, font_dingbats.keys())
+	    #
 	    for tag, cnf in stylesheet.history.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, abovetag in stylesheet.priorities.items():
 		self.text.tag_raise(tag, abovetag)
 
 	    if not self.parent:
-		if self.size != new_size:
-		    self.resize_event()
-		    self.size = new_size
+		self.resize_event()
 		self.set_cursor(current_cursor)
 
     def configure_tags_fixed(self):

@@ -56,6 +56,12 @@ styles--helvetica-italic: o
 styles--courier-italic: o
 styles--lucida-italic: i
 styles--lucidabright-italic: i
+# Font style bold designator, according to font family:
+styles--times-bold: bold
+styles--helvetica-bold: bold
+styles--courier-bold: bold
+styles--lucida-bold: bold
+styles--lucidabright-bold: demibold
 # Font size names which will be associated with tags in the text widget:
 styles--size-names:
 	default h1_b h2_b h3_b h4_b h5_b h6_b
@@ -97,28 +103,28 @@ styles-fonts--default-font:
 	-*-%(family)s-medium-r-normal-*-%(default)d-*-*-*-*-*-*-*
 # Header fonts:
 styles-fonts--styles-h1_b-font:
-	-*-%(family)s-bold-r-normal-*-%(h1_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(h1_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h1_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(h1_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h1_b-underline: 0
 styles-fonts--styles-h2_b-font:
-	-*-%(family)s-bold-r-normal-*-%(h2_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(h2_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h2_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(h2_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h3_b-font:
-	-*-%(family)s-bold-r-normal-*-%(h3_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(h3_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h3_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(h3_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h4_b-font:
-	-*-%(family)s-bold-r-normal-*-%(h4_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(h4_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h4_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(h4_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h5_b-font:
-	-*-%(family)s-bold-r-normal-*-%(h5_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(h5_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h5_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(h5_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h6_b-font:
-	-*-%(family)s-bold-r-normal-*-%(h6_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(h6_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h6_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(h6_b)d-*-*-*-*-*-*-*
 # Distinctive non-header fonts
@@ -131,11 +137,11 @@ styles-fonts--styles-_i-font:
 styles-fonts--styles-_i_sym-font:
 	-*-*symbol*-*-*-*-*-%(_i)d-*-*-*-*-*-*-*
 styles-fonts--styles-_b-font:
-	-*-%(family)s-bold-r-normal-*-%(_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-r-normal-*-%(_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-_b_sym-font:
 	-*-*symbol*-*-*-*-*-%(_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(_b_i)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(_b_i)d-*-*-*-*-*-*-*
 styles-fonts--styles-_b_i_sym-font:
 	-*-*symbol*-*-*-*-*-%(_b_i)d-*-*-*-*-*-*-*
 # Typewriter fonts:
@@ -157,37 +163,37 @@ styles-fonts--styles-_tt_b_i_sym-font:
 	-*-*symbol*-*-*-*-*-%(_tt_b_i)d-*-*-*-*-*-*-*
 # Italic & typewriter fonts for headers:
 styles-fonts--styles-h1_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(h1_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(h1_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h1_tt_b-font:
 	-*-courier-bold-r-normal-*-%(h1_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h1_tt_b_i-font:
 	-*-courier-bold-%(italic)s-normal-*-%(h1_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h2_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(h2_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(h2_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h2_tt_b-font:
 	-*-courier-bold-r-normal-*-%(h2_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h2_tt_b_i-font:
 	-*-courier-bold-%(italic)s-normal-*-%(h2_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h3_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(h3_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(h3_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h3_tt_b-font:
 	-*-courier-bold-r-normal-*-%(h3_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h3_tt_b_i-font:
 	-*-courier-bold-%(italic)s-normal-*-%(h3_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h4_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(h4_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(h4_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h4_tt_b-font:
 	-*-courier-bold-r-normal-*-%(h4_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h4_tt_b_i-font:
 	-*-courier-bold-%(italic)s-normal-*-%(h4_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h5_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(h5_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(h5_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h5_tt_b-font:
 	-*-courier-bold-r-normal-*-%(h5_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h5_tt_b_i-font:
 	-*-courier-bold-%(italic)s-normal-*-%(h5_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h6_b_i-font:
-	-*-%(family)s-bold-%(italic)s-normal-*-%(h6_b)d-*-*-*-*-*-*-*
+	-*-%(family)s-%(bold)s-%(italic)s-normal-*-%(h6_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h6_tt_b-font:
 	-*-courier-bold-r-normal-*-%(h6_b)d-*-*-*-*-*-*-*
 styles-fonts--styles-h6_tt_b_i-font:

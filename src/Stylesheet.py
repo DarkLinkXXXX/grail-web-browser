@@ -36,6 +36,7 @@ class Stylesheet:
 	self.size, fparms_dict = self.get_sizes()
 	fparms_dict['family'] = self.get_family()
 	fparms_dict['italic'] = self.get_italic()
+	fparms_dict['bold'] = self.get_bold()
 
 	self.dictify_group(self.prefs.GetGroup('styles-common'))
 	self.dictify_list(['styles', 'center', 'justify', 'center'])
@@ -74,6 +75,10 @@ class Stylesheet:
 	    sdict[k] = atoi(slist[0])
 	    del slist[0]
 	return sname, sdict
+
+    def get_bold(self):
+	"""Get the designator for bold fonts in the family."""
+	return self.prefs.Get('styles', self.family + '-bold')
 
     def get_italic(self):
 	"""Get the character for oblique fonts in the family."""
