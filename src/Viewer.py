@@ -107,7 +107,16 @@ class Viewer(formatter.AbstractWriter):
 
     def create_widgets(self, width, height):
 	bars = self.scrolling == "auto" or self.scrolling
-	self.text, self.frame = tktools.make_text_box(self.master,
+	self.smoothscroll = bars and self.context.app.prefs.GetBoolean(
+	    "browser", "smooth-scroll-hack")
+	if self.smoothscroll:
+	    from supertextbox import make_super_text_box
+	    self.text, self.frame = make_super_text_box(self.master,
+						      width=width,
+						      height=height,
+						      hbar=bars, vbar=bars)
+	else:
+	    self.text, self.frame = tktools.make_text_box(self.master,
 						      width=width,
 						      height=height,
 						      hbar=bars, vbar=bars)
@@ -285,6 +294,9 @@ class Viewer(formatter.AbstractWriter):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
+	if self.smoothscroll:
+	    from supertextbox import resize_super_text_box
+	    resize_super_text_box(frame=self.frame)
 	self.text['state'] = DISABLED
 	#self.text.update_idletasks()
 
@@ -470,7 +482,7 @@ class Viewer(formatter.AbstractWriter):
 	    self.add_temp_tag()
 	    self.master.update_idletasks()
 	    from Browser import Browser
-	    from __main__ import app
+	    app = self.context.app
 	    b = Browser(app.root, app)
 	    b.context.load(self.context.get_baseurl(url))
 	    self.remove_temp_tag(histify=1)
