@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.8 1995/09/14 17:31:16 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.9 1995/09/14 19:43:54 bwarsaw Exp $"
 
 import sys
 import string
@@ -157,10 +157,12 @@ RIGHT_MARGIN = inch_to_pt(1.0)
 PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN)
 PAGE_WIDTH = inch_to_pt(8.5) - 2 * LEFT_MARGIN
 
-# horizontal rule spacing
-HR_TOP_MARGIN = 8
-HR_BOT_MARGIN = 8
+# horizontal rule spacing, in points
+HR_TOP_MARGIN = 8.0
+HR_BOT_MARGIN = 8.0 
 
+# distance after a label tag in points
+LABEL_TAB = 8.0
 
 F_FULLCOLOR = 0
 F_GREYSCALE = 1
@@ -304,6 +306,7 @@ HARD_NL = 7
 VERT_TAB = 8
 PAGE_BREAK = 9
 MARGIN = 10
+LABEL = 11
 END = 100
 """
 exec tag_consts
@@ -340,6 +343,7 @@ class PSQueue:
     def push_horiz_rule(self): self.queue.append((HR, None))
     def push_end(self): self.queue.append((END, None))
     def push_margin(self, level): self.queue.append((MARGIN, level))
+    def push_label(self, bullet): self.queue.append((LABEL, bullet))
 
     def push_hard_newline(self, blanklines=1):
 	tag, info = self.pop(HARD_NL)
@@ -411,6 +415,10 @@ class PSQueue:
 	    elif tag == MARGIN:
 		nq.push_margin(info)
 		self.margin = info * LEFT_MARGIN
+	    elif tag == LABEL:
+		if info is not None:
+		    info = self.font.text_width(info) + LABEL_TAB
+		nq.push_label(info)
 	    elif tag == LITERAL:
 		in_literal_p = info
 		nq.push_literal(info)
@@ -495,6 +503,11 @@ class PSQueue:
 		self.ofile.write('/indentmargin %f D\n' %
 				 (info * LEFT_MARGIN))
 		self.ofile.write('NL\n')
+	    elif tag == LABEL:
+		if info is not None:
+		    self.ofile.write('gsave NL -%f 0 R\n' % info)
+		else:
+		    self.ofile.write('grestore\n')
 	    elif tag == LITERAL:
 		pass
 	    elif tag == VERT_TAB:
@@ -591,11 +604,7 @@ class PSQueue:
 
 
 class PSWriter(AbstractWriter):
-    def __init__(self, ofile, title=None):
-	if not title:
-	    import os
-	    user = os.environ['NAME']
-	    title = 'Print Job for: ' + user
+    def __init__(self, ofile, title=''):
 	font = PSFont()
 	self.ps = PSQueue(font, ofile, title)
 
@@ -629,8 +638,9 @@ class PSWriter(AbstractWriter):
 	self.ps.push_horiz_rule()
 
     def send_label_data(self, data):
-	#print "send_label_data(%s)" % `data`
-	raise RuntimeError
+	self.ps.push_label(data)
+	self.ps.push_string(data)
+	self.ps.push_label(None)
 
     def send_flowing_data(self, data):
 	self.ps.push_literal(0)
@@ -652,6 +662,29 @@ class PSWriter(AbstractWriter):
 		wordcnt = wordcnt - 1
 	    if linecnt > 0: self.ps.push_hard_newline()
 	    linecnt = linecnt - 1
+
+
+def html_test():
+    try:
+	inputfile = sys.argv[1]
+	ifile = open(inputfile, 'r')
+    except (IOError, IndexError):
+	ifile = sys.stdin
+    try:
+	outputfile = sys.argv[2]
+	ofile = open(outputfile, 'w')
+    except (IOError, IndexError):
+	ofile = sys.stdout
+
+    from htmllib import HTMLParser
+
+    w = PSWriter(ofile, None)
+    f = AbstractFormatter(w)
+    p = HTMLParser(f)
+    p.feed(ifile.read())
+    p.close()
+    w.close()
+
 
 
 # PostScript templates
@@ -738,30 +771,6 @@ iso_template = """
   reencodeISO D
 } forall
 """
-
-
-
-def html_test():
-    try:
-	inputfile = sys.argv[1]
-	ifile = open(inputfile, 'r')
-    except IOError, IndexError:
-	ifile = sys.stdin
-    try:
-	outputfile = sys.argv[2]
-	ofile = open(outputfile, 'w')
-    except IOError, IndexError:
-	ofile = sys.stdout
-
-    from htmllib import HTMLParser
-
-    w = PSWriter(ofile, None)
-    f = AbstractFormatter(w)
-    p = HTMLParser(f)
-    p.feed(ifile.read())
-    p.close()
-    w.close()
-
 
 
 if __name__ == '__main__':
