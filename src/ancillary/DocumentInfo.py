@@ -1,10 +1,6 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.14 $'
+__version__ = '$Revision: 2.15 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import regex
@@ -23,7 +19,6 @@ class DocumentInfoDialog:
                                      title="Document Info")
         self.root = root
         self.app = context.app
-        context.app.session.add_window(root)
         page_title = context.page.title()
         if page_title:
             root.title("Document Info: " + page_title)
@@ -83,7 +78,6 @@ class DocumentInfoDialog:
             root.maxsize(reqwidth, reqheight)
 
     def destroy(self, event=None):
-        self.app.session.del_window(self.root)
         self.root.destroy()
 
     def add_field(self, label, name):
