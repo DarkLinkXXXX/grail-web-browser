@@ -3,6 +3,7 @@
 
 from Tkinter import *
 import tktools
+import string
 
 class OpenURIDialog:
     def __init__(self, master):
@@ -26,7 +27,7 @@ class OpenURIDialog:
 	    return how
 
     def okay(self, event=None):
-	uri = self._entry.get()
+	uri = string.strip(self._entry.get())
 	raise SystemExit, uri
 
     def cancel(self, event=None):

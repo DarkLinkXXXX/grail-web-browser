@@ -84,3 +84,26 @@ class DefaultStylesheet:
 	    },
 
 	}
+
+    history = {
+
+	# Anchors
+
+	'ahist': {
+	    'foreground': 'blue4',
+	    'underline': 'true',
+	    },
+
+	'atemp': {
+	    'foreground': 'red',
+	    'underline': 'true',
+	    },
+
+	}
+
+    priorities = {
+
+	'ahist': 'a',
+	'atemp': 'ahist',
+
+	}

@@ -28,6 +28,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.browser = self.viewer.browser
 	self.style_stack = []
 	self.loaded = []
+	self.page_tag_count = 0
 
     def close(self):
 	htmllib.HTMLParser.close(self)
@@ -37,17 +38,28 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def anchor_bgn(self, href, name, type):
 	self.formatter.flush_softspace()
 	self.anchor = href
-	atag = href and 'a' or None
-	utag = href and '>' + href or None
+	atag = utag = htag = None
+	if href:
+	    atag = 'a'
+	    utag = '>' + href
+	    fulluri = urlparse.urljoin(self.browser.url, href)
+	    if self.browser.history.inhistory_p(fulluri):
+		htag = 'ahist'
 	ntag = name and '#' + name or None
+	otag = '%%%d' % self.page_tag_count
+	self.page_tag_count = self.page_tag_count + 1
 	self.formatter.push_style(atag)
 	self.formatter.push_style(utag)
 	self.formatter.push_style(ntag)
+	self.formatter.push_style(otag)
+	self.formatter.push_style(htag)
 	if utag:
 	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
 	self.formatter.flush_softspace()
+	self.formatter.pop_style()
+	self.formatter.pop_style()
 	self.formatter.pop_style()
 	self.formatter.pop_style()
 	self.formatter.pop_style()

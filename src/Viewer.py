@@ -46,6 +46,10 @@ class Viewer(formatter.AbstractWriter):
 	self.text.config(stylesheet.default)
 	for tag, cnf in stylesheet.styles.items():
 	    self.text.tag_config(tag, cnf)
+	for tag, cnf in stylesheet.history.items():
+	    self.text.tag_config(tag, cnf)
+	for tag, abovetag in stylesheet.priorities.items():
+	    self.text.tag_raise(tag, abovetag)
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level*40
@@ -91,7 +95,7 @@ class Viewer(formatter.AbstractWriter):
 			   self.addtags)
 	self.literaltags = self.tags + ('pre',)
 	self.flowingtags = self.tags
-##	print "New tags:", self.tags
+	#print "New tags:", self.tags
 
     # AbstractWriter methods
 	
@@ -119,6 +123,7 @@ class Viewer(formatter.AbstractWriter):
 	self.new_tags()
 
     def new_styles(self, styles):
+##	print 'New styles:', styles
 	self.addtags = styles
 	self.new_tags()
 
@@ -169,15 +174,28 @@ class Viewer(formatter.AbstractWriter):
     def anchor_click(self, event):
 	url = self.find_tag_url()
 	if url:
+	    start, end = self.find_tag_range()
+	    if start and end:
+		self.text.tag_add('atemp', start, end)
 	    self.browser.follow(url)
 
     def anchor_click_new(self, event):
 	url = self.find_tag_url()
 	if url:
+	    start, end = self.find_tag_range()
+	    if start and end:
+		self.text.tag_add('atemp', start, end)
 	    from Browser import Browser
 	    from __main__ import app
 	    b = Browser(self.master, app)
 	    b.load(url)
+
+    def find_tag_range(self):
+	for tag in self.text.tag_names(CURRENT):
+	    if tag[0] == '%':
+		range = self.text.tag_ranges(tag)
+		return range[0], range[1]
+	return None, None
 
     def find_tag_url(self):
 	for tag in self.text.tag_names(CURRENT):

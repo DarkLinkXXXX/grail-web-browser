@@ -215,6 +215,7 @@ class Browser:
 	self.entry, self.entryframe = \
 		    tktools.make_form_entry(self.topframe, "URL:")
 	self.entry.bind('<Return>', self.load_from_entry)
+	self.entry.bind('<Control-u>', self.clear_entry)
 
     def create_statusbar(self):
 	self.msg_frame = Frame(self.topframe, height=20)
@@ -235,6 +236,9 @@ class Browser:
 
     def load_from_entry(self, event):
 	self.load(string.strip(self.entry.get()))
+
+    def clear_entry(self, event=None):
+	self.entry.delete('0', INSERT)
 
     def set_entry(self, url):
 	self.entry.delete('0', END)
