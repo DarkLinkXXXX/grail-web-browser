@@ -8,7 +8,7 @@ practice in Web user agents.
 This class is separated out from the protocols.mailtoAPI module to allow
 user-defined handling of the mailto: scheme to subclass this dialog.
 """
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 #  $Source: /home/john/Code/grail/src/ancillary/MailDialog.py,v $
 
 import cgi
@@ -135,6 +135,8 @@ class MailDialog:
 	    self.text.insert(END, data)
 	elif headers.has_key('body'):
 	    self.text.insert(END, headers['body'][0] + '\n')
+        else:
+            self.add_user_signature()
 	self.text.focus_set()
 
     def add_user_headers(self, variables):
@@ -142,6 +144,13 @@ class MailDialog:
 	headers = self.load_user_headers()
 	headers.update(variables)
 	return headers
+
+    def add_user_signature(self):
+        fn = os.path.join(grailutil.getgraildir(), "mail-signature")
+        if os.path.isfile(fn):
+            index = self.text.index('end - 1 char')
+            self.text.insert(END, open(fn).read())
+            self.text.mark_set('insert', index)
 
     def load_user_headers(self):
 	fn = os.path.join(grailutil.getgraildir(), "mail-headers")
