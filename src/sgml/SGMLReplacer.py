@@ -1,6 +1,6 @@
 """Simple parser that handles only what's allowed in attribute values.
 """
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 #  $Source: /home/john/Code/grail/src/sgml/SGMLReplacer.py,v $
 
 
@@ -39,11 +39,11 @@ class SGMLReplacer(SGMLLexer):
     def lex_endtag(self, name):
 	raise SGMLError, 'tags in attribute values are illegal'
 
-    def lex_charref(self, ordinal):
+    def lex_charref(self, ordinal, terminator):
 	if 0 < ordinal < 256:
 	    self._data = self._data + chr(ordinal)
 	else:
-	    self.unknown_charref(ordinal)
+	    self.unknown_charref(ordinal, terminator)
 
     def lex_data(self, str):
 	self._data = self._data + str
