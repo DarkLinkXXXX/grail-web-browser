@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.24 $"
+__version__ = "$Revision: 1.25 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -209,6 +209,8 @@ class SGMLLexerBase:
 
 class SGMLLexer(SGMLLexerBase):
     entitydefs = {}
+    _in_parse = 0
+    _finish_parse = 0
 
     def strict_p(self):
 	return self._strict
@@ -217,9 +219,21 @@ class SGMLLexer(SGMLLexerBase):
 	def __init__(self):
 	    self.reset()
 
+	_pending_data = ''
 	def feed(self, data):
 	    if data:			# never pass an empty string
-		self._l.scan(data)
+		if self._in_parse:
+		    self._pending_data = self._pending_data + data
+		else:
+		    self._in_parse = 1
+		    while data:
+			self._l.scan(data)
+			data = self._pending_data
+			self._pending_data = ''
+		    if self._finish_parse:
+			self._l.scan('')
+		    self._in_parse = 0
+			
 
 	def normalize(self, norm):
 	    return self._l.normalize(norm)
@@ -245,7 +259,10 @@ class SGMLLexer(SGMLLexerBase):
 	    """Flush any remaining data in the lexer's internal buffer.
 	    """
 	    if self._l:
-		self._l.scan('')
+		if self._in_parse:
+		    self._finish_parse = 1
+		else:
+		    self._l.scan('')
 	    if self.__dict__.has_key('feed'):
 		del self.__dict__['feed']
 
@@ -309,8 +326,8 @@ class SGMLLexer(SGMLLexerBase):
 	def __init__(self):
 	    self.reset()
 
+	rawdata = ''
 	def reset(self):
-	    self.rawdata = ''
 	    self.stack = []
 	    self.lasttag = '???'
 	    self.nomoretags = 0
@@ -319,14 +336,20 @@ class SGMLLexer(SGMLLexerBase):
 	    self._strict = 0
 
 	def close(self):
-	    self.goahead(1)
+	    if not self._in_parse:
+		self.goahead(1)
+	    else:
+		self._finish_parse = 1
 
 	def line(self):
 	    return None
 
 	def feed(self, data):
 	    self.rawdata = self.rawdata + data
-	    self.goahead(0)
+	    if not self._in_parse:
+		self._in_parse = 1
+		self.goahead(0)
+		self._in_parse = 0
 
 	def normalize(self, norm):
 	    prev = ((self._normfunc is string.lower) and 1) or 0
@@ -345,14 +368,16 @@ class SGMLLexer(SGMLLexerBase):
 	# and data to be processed by a subsequent call.  If 'end' is
 	# true, force handling all data as if followed by EOF marker.
 	def goahead(self, end):
-	    rawdata = self.rawdata
 	    i = 0
-	    n = len(rawdata)
-	    while i < n:
+	    while i < len(self.rawdata):
+		rawdata = self.rawdata	# pick up any appended data
+		n = len(rawdata)
 		if self.nomoretags:
 		    self.lex_data(rawdata[i:n])
 		    i = n
 		    break
+		# pick up self._finish_parse as soon as possible:
+		end = end or self._finish_parse
 		j = interesting.search(rawdata, i)
 		if j < 0: j = n
 		if i < j: self.lex_data(rawdata[i:j])
@@ -462,7 +487,7 @@ class SGMLLexer(SGMLLexerBase):
 		self.lex_data(rawdata[i:j])
 		i = j
 	    # end while
-	    if end and i < n:
+	    if (end or self._finish_parse) and i < n:
 		self.lex_data(rawdata[i:n])
 		i = n
 	    self.rawdata = rawdata[i:]
