@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.31 1996/04/11 21:25:20 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.32 1996/04/12 20:36:23 fdrake Exp $'
 
 
 import string
@@ -31,16 +31,22 @@ class TableSubParser:
 
     def start_table(self, parser, attrs):
 	parser.implied_end_p()
+	parser.formatter.add_line_break()
+	parser.save_bgn()
 	# create the table data structure
 	if self._lasttable:
 	    self._table_stack.append(self._lasttable)
 	self._lasttable = Table(parser.viewer, attrs, self._lasttable)
+	parser.formatter.assert_line_data()
+	parser.formatter.nospace = 1
 
     def end_table(self, parser):
 	ti = self._lasttable 
 	if ti:
 	    self._finish_cell(parser)
 	    ti.finish()
+	    parser.formatter.add_line_break()
+	    parser.save_end()
 	    if self._table_stack:
 		self._lasttable = self._table_stack[-1]
 		del self._table_stack[-1]
@@ -50,6 +56,7 @@ class TableSubParser:
     def start_caption(self, parser, attrs):
 	ti = self._lasttable 
 	if ti:
+	    parser.save_end()
 	    caption = ti.caption = Caption(ti, parser.viewer, attrs)
 	    caption.unfreeze()
 	    parser.push_formatter(caption.new_formatter())
@@ -57,6 +64,7 @@ class TableSubParser:
     def end_caption(self, parser):
 	ti = self._lasttable 
 	if ti and ti.caption:
+	    parser.save_bgn()
 	    ti.caption.freeze()
 	    parser.pop_formatter()
 	    ti.caption.finish()
@@ -119,6 +127,9 @@ class TableSubParser:
 	    ti.lastcell = cell
 	    cell.unfreeze()
 	    parser.push_formatter(cell.new_formatter())
+	    parser.save_end()
+	    #parser.formatter.push_alignment(cell.attribute('align',
+	    #					   conv=string.lower))
 	    cell.init_style()
 	    # create a new object to hold the attributes
 	    if not ti.lastbody or not ti.lastbody.trows:
@@ -132,6 +143,7 @@ class TableSubParser:
 	    ti.lastcell.freeze()
 	    ti.lastcell.finish()
 	    ti.lastcell = None
+	    parser.save_bgn()
 	    parser.pop_formatter()
 
     def do_th(self, parser, attrs): self._do_cell(parser, attrs, 1)
@@ -230,7 +242,8 @@ class Table(AttrElem):
 	    return grailutil.conv_enumeration(
 		grailutil.conv_normstring(val),
 		['left', 'center', 'right'])
-	self.Aalign = self.attribute('align', conv=conv_align, default='left')
+	self.Aalign = self.attribute('align', conv=conv_align)
+	parentviewer.prepare_for_insertion(self.Aalign)
 	self.Awidth = self.attribute('width', conv=conv_stdunits)
 	self.Acols = self.attribute('cols', conv=grailutil.conv_integer)
 	if self.Acols:
@@ -328,7 +341,7 @@ class Table(AttrElem):
 	if not self._mapped:
 	    self.container.pack()
 	    pv = self.parentviewer
-	    pv.text.insert(self._mappos, '\n')
+	    #pv.text.insert(self._mappos, '\n')
 	    pv.add_subwindow(self.container, index=self._mappos)
 	    self._mapped = 1
 	
@@ -343,7 +356,7 @@ class Table(AttrElem):
 		self._mappos = pvt.index(END)
 	    else:
 		self._mappos = index
-	    pvt.insert(END, '\n')
+	    #pvt.insert(END, '\n')
 	    self._autolayout_1()
 	    self._autolayout_2()
 	    self._autolayout_3()
