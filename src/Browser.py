@@ -81,6 +81,11 @@ class Browser:
 	self.filemenu.add('command', label='View source',
 			  command=self.view_source_command)
 	self.filemenu.add('separator')
+	self.filemenu.add('command', label='Save As...',
+			  command=self.save_as_command)
+	self.filemenu.add('command', label='Print...',
+			  command=self.print_command)
+	self.filemenu.add('separator')
 	self.filemenu.add('command', label='Close',
 			  command=self.close_command)
 	self.filemenu.add('command', label='Quit',
@@ -264,6 +269,34 @@ class Browser:
 	    b.load(self.url)
 	finally:
 	    b.show_source = save_show_source
+
+    def save_as_command(self):
+	# File/Save As...
+	import FileDialog
+	fd = FileDialog.SaveFileDialog(self.root)
+	file = fd.go()
+	if not file: return
+	ifp, url, content_type = self.app.open_url(self.url)
+	if not ifp:
+	    return
+	try:
+	    ofp = open(file, 'w')
+	except IOError, msg:
+	    ifp.close()
+	    self.app.error_dialog(IOError, msg)
+	    return
+	BUFSIZE = 8*1024
+	while 1:
+	    buf = ifp.read(BUFSIZE)
+	    if not buf: break
+	    ofp.write(buf)
+	ofp.close()
+	ifp.close()
+
+    def print_command(self):
+	# File/Print...
+	self.app.error_dialog(SystemError,
+			      "Sorry, printing is not yet supported")
 
     def close_command(self):
 	# File/Close
