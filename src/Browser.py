@@ -144,6 +144,12 @@ class Browser:
 			  underline=0, accelerator="Alt-P")
 	self.root.bind("<Alt-p>", self.print_command)
 	self.root.bind("<Alt-P>", self.print_command)
+	import DocumentInfo
+	cmd = DocumentInfo.DocumentInfoCommand(self)
+	self.filemenu.add_command(label="Document Info...", command=cmd,
+				  accelerator="Alt-D", underline=0)
+	self.root.bind("<Alt-d>", cmd)
+	self.root.bind("<Alt-D>", cmd)
 	self.filemenu.add_separator()
 	self.filemenu.add_command(label="I/O Status Panel...",
 				  command=self.iostatus_command,
