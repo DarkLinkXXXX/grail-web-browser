@@ -121,6 +121,10 @@ class http_access:
             host, selector = splithost(resturl)
         if not host:
             raise IOError, "no host specified in URL"
+        # save these for cookie processing:
+        self.host = host
+        self.selector = selector
+        #
         i = string.find(host, '@')
         if i >= 0:
             user_passwd, host = host[:i], host[i+1:]
@@ -148,6 +152,9 @@ class http_access:
             if key[:1] != '.':
                 self.h.putheader(key, value)
         self.h.putheader('Accept', '*/*')
+        #  Cookie support!
+        self.app.cookies.on_request(self, self.h)
+        #
         self.h.endheaders()
         if data:
             self.h.send(data)
@@ -206,6 +213,9 @@ class http_access:
         errcode, errmsg, headers = self.h.getreply(file)
         self.state = DATA
         self.readahead = file.read()
+        # Cookie support!
+        self.app.cookies.on_receipt(self, headers)
+        #
         return errcode, errmsg, headers
 
     def polldata(self):

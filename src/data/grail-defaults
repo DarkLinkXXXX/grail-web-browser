@@ -284,6 +284,9 @@ applets--load: all
 #
 security--enable-ilu: 0
 #
+cookies--receive-action: ask
+cookies--send-action:    always-send
+#
 # Disk Cache preferences:
 # (directory is relative to $GRAILDIR unless absolute)
 #
