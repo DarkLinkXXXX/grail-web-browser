@@ -54,7 +54,7 @@ class Context:
 	self.viewer.clear_reset()
 	if self.on_top():
 	    self.browser.clear_reset()
-	    self.set_url("")
+	self.set_url("")
 
     def on_top(self):
 	return self.browser.context is self
