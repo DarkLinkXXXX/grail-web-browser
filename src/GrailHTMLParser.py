@@ -143,7 +143,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def show_tb(self):
 	print "-"*40
-	print "Exception during extension loading:"
+	print "Exception during applet loading:"
 	traceback.print_exc()
 	print "-"*40
 
