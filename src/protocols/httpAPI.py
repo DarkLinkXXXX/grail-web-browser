@@ -143,7 +143,8 @@ class http_access:
 	    host, selector = resturl	# For proxy interface
 	else:
 	    host, selector = splithost(resturl)
-	assert(host!="")
+	if not host:
+	    raise IOError, "no host specified in URL"
 	i = string.find(host, '@')
 	if i >= 0:
 	    user_passwd, host = host[:i], host[i+1:]
