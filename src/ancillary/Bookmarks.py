@@ -157,6 +157,7 @@ class TkListboxWriter(OutlinerViewer):
     def __init__(self, root, listbox):
 	self._listbox = listbox
 	OutlinerViewer.__init__(self, root)
+	self.select_node(0)
 
     def _insert(self, node, index=None):
 	if not index: index = 'end'
@@ -177,20 +178,19 @@ class TkListboxWriter(OutlinerViewer):
 
 
 class BookmarkWindow:
-    def __init__(self, filename):
+    def __init__(self, root, toplevel):
 	# this flag controls collapse of children.  it is either
 	# aggressive or normal.  in aggressive mode, if a node is
 	# collapsed that is either a leaf or an already collapsed
 	# branch node, then the parent node is actually collapsed
 	# instead.
+	self._frame = toplevel
 	self._aggressive_p = 1
-	# create basic Tk stuff
-	tk = self._tkroot = Tk()
 	# create the list box
-	self._listbox, frame = tktools.make_list_box(tk, 80, 24, 1, 1)
+	self._listbox, frame = tktools.make_list_box(toplevel, 80, 24, 1, 1)
 	self._listbox.config(font='fixed')
 	# create the buttons
-	btnframe = Frame(tk)
+	btnframe = Frame(toplevel)
 	prevbtn = Button(btnframe, text='Previous', command=self.previous)
 	nextbtn = Button(btnframe, text='Next', command=self.next)
 
@@ -215,11 +215,12 @@ class BookmarkWindow:
 	# bind keys
 	self._listbox.bind('<Key-Down>', self.next)
 	self._listbox.bind('<Key-Up>', self.previous)
-	self._listbox.bind('<Double-Button-1>', self.expand)
+	self._listbox.bind('<Key-Right>', self.expand)
+	self._listbox.bind('<Key-Left>', self.collapse)
+	self._listbox.bind('<Double-Button-1>', self.details)
 	self._listbox.focus_set()
 	# populate the list box
-	r = NetscapeBookmarkReader()
-	self._noderoot = r.read_file(filename)
+	self._noderoot = root
 	self._writer = TkListboxWriter(self._noderoot, self._listbox)
 
     def set_aggressive_mode(self, flag):
@@ -231,7 +232,7 @@ class BookmarkWindow:
 	node = self._writer.node(selection)
 	return node, selection
 
-    def collapse(self):
+    def collapse(self, event=None):
 	node, selection = self._get_selected_node()
 	# This node is only collapsable if it is an unexpanded branch
 	# node, or the aggressive collapse flag is set.
@@ -285,16 +286,88 @@ class BookmarkWindow:
 	if index < self._writer.count()-1: index = index + 1
 	self._writer.select_node(index)
 
-    def quit(self): sys.exit(0)
-    def close(self): sys.exit(0)
+    def goto(self, event=None):
+	pass
 
-    def run(self):
-	self._writer.select_node(0)
-	self._tkroot.mainloop()
+    def details(self, event=None):
+	pass
+
+    def quit(self): sys.exit(0)
+    def close(self): self._frame.iconify()
 
 
 
+class BookmarksMenuLeaf:
+    def __init__(self, node, browser):
+	self._node = node
+	self._browser = browser
+    def goto(self):
+	self._browser.load(self._node.uri())
+
+class BookmarksMenuViewer(OutlinerViewer):
+    def __init__(self, root, menu, browser):
+	self._browser = browser
+	self._depth = 0
+	self._menustack = [menu]
+	OutlinerViewer.__init__(self, root)
+
+    def _insert(self, node, index=None):
+	# forget about the root.  it's not useful
+	depth = node.depth()
+	if depth == 0: return
+	# this is the best way to pop the stack.  kinda kludgy...
+	if depth < len(self._menustack):
+	    del self._menustack[depth:]
+	# get the current menu we're building
+	menu = self._menustack[depth-1]
+	if node.leaf_p():
+	    leaf = BookmarksMenuLeaf(node, self._browser)
+	    menu.add_command(label=node.title(), command=leaf.goto)
+	else:
+	    submenu = Menu(menu, tearoff='No')
+	    self._menustack.append(submenu)
+	    menu.add_cascade(label=node.title(), menu=submenu)
+
+class BookmarksMenu:
+    def __init__(self, menu):
+	self._menu = menu
+	self._browser = menu.grail_browser
+	menu.add_command(label='Add Current',
+			 command=self.add_current,
+			 underline=0, accelerator='Alt-A')
+	self._browser.root.bind('<Alt-a>', self.add_current)
+ 	menu.add_command(label='View...',
+			 command=self.view,
+			 underline=0, accelerator='Alt-B')
+	self._browser.root.bind('<Alt-b>', self.view)
+	menu.add_separator()
+	# currently, too difficult to coordinate edits to bookmarks
+	# with tear-off menus, so just disable these for now
+	menu.config(tearoff='No', postcommand=self.post)
+	self._dialog = None
+	# read in the bookmarks file
+	reader = NetscapeBookmarkReader()
+	self._bmroot = reader.read_file("~/.netscape-bookmarks.html")
+
+    def add_current(self, event=None):
+	pass
+
+    def post(self, event=None):
+	last = self._menu.index('end')
+	if last > 2: self._menu.delete(3, 'end')
+	BookmarksMenuViewer(self._bmroot, self._menu, self._browser)
+
+    def view(self, event=None):
+	if not self._dialog:
+	    toplevel = Toplevel(self._browser.root)
+	    self._dialog = BookmarkWindow(self._bmroot, toplevel)
+	self._dialog._frame.deiconify()
+	self._dialog._listbox.focus_set()
+
+
 if not InGrail_p:
-    #bookmarks = BookmarkWindow("/tmp/test.html")
-    bookmarks = BookmarkWindow("~/.netscape-bookmarks.html")
-    bookmarks.run()
+    reader = NetscapeBookmarkReader()
+    root = reader.read_file("~/.netscape-bookmarks.html")
+    tkroot = Tk()
+    bookmarks = BookmarkWindow(root, tkroot)
+    tkroot.mainloop()

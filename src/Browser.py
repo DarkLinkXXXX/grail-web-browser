@@ -153,6 +153,17 @@ class Browser:
 	import SearchMenu
 	SearchMenu.SearchMenu(self.searchmenu)
 
+	# Create the Bookmarks menu
+
+	self.bookmarksbutton = Menubutton(self.mbar, text="Bookmarks")
+	self.bookmarksbutton.pack(side=LEFT)
+
+	self.bookmarksmenu = Menu(self.bookmarksbutton)
+	self.bookmarksbutton['menu'] = self.bookmarksmenu
+	self.bookmarksmenu.grail_browser = self # Applet compatibility
+	import Bookmarks
+	Bookmarks.BookmarksMenu(self.bookmarksmenu)
+
 	# Create Stop button
 
 	self.stopbutton = Button(self.mbar, text="Stop",
