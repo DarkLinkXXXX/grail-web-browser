@@ -47,7 +47,8 @@ class History:
 	try: return self._hmap[link]
 	except KeyError: return None
 
-    def link(self, index):
+    def link(self, index=None):
+	if not index: index = self._current
 	if 0 <= index < len(self._history):
 	    self._current = index
 	    if self._dialog: self._dialog.select(self._current)

@@ -504,10 +504,9 @@ class Browser:
 	else: self.load(uri, new=0)
 
     def reload_command(self, event=None):
-	if not 0 <= self.current < len(self.history.links()):
-	    self.root.bell()
-	    return
-	self.load(self.history.link(self.current), new=0, reload=1)
+	link = self.history.link()
+	if not link: self.root.bell()
+	else: self.load(link, new=0, reload=1)
 
     def forward_command(self, event=None):
 	uri = self.history.forward()
