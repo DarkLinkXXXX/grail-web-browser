@@ -1,11 +1,6 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.13 $"
-# $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
+__version__ = "$Revision: 1.14 $"
 
 # Base class for the panel:
 import PrefsPanels

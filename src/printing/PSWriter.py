@@ -1,12 +1,6 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Wrapper for the PSStream to support the standard AbstractWriter interface.
 """
-__version__ = '$Revision: 1.9 $'
-#  $Source: /home/john/Code/grail/src/printing/PSWriter.py,v $
+__version__ = '$Revision: 1.10 $'
 
 import formatter
 import string
