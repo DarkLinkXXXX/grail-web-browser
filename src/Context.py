@@ -294,7 +294,7 @@ class Context:
 	self.history = other.history.clone()
 	self.future, page = self.history.peek()
 	if page:
-	    self.load(page.url(), page.scrollpos())
+	    self.load(page.url(), scrollpos=page.scrollpos())
 
     # Internals handle loading pages
 
