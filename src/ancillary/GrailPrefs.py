@@ -4,7 +4,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.19 $"
+__version__ = "$Revision: 2.20 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -69,7 +69,6 @@ class Preferences:
 	if not self.deleted.has_key(group):
 	    self.deleted[group] = {}
 	self.deleted[group][cmpnt] = 1
-
 
     def items(self):
 	"""Return a list of ((group, cmpnt), value) tuples."""
@@ -223,29 +222,36 @@ class AllPreferences:
 
     def Save(self):
 	"""Save (only) values different than sys defaults in the users file."""
-	# XxX Callbacks are done before actual save.
-	if not self.user.Editable():
-	    raise IOError, 'Unable to get user prefs ' + self.user.filename
-	# Process the callbacks:
-	did_groups = {}
-	callbacks = self.callbacks
-	for group in self.user.mods.keys():
-	    if not did_groups.has_key(group):
-		did_groups[group] = 1
-		if self.callbacks.has_key(group):
-		    for callback in callbacks[group]:
-			apply(callback, ())
+	# Callbacks are processed after the save.
+
+	# Identify the pending callbacks before user-prefs culling:
+	pending_groups = self.user.mods.keys()
+
+	# Cull the user items to remove any settings that are identical to
+	# the ones in the system defaults:
 	for (g, c), v in self.user.items():
-	    # Discard items that duplicate settings in sys defaults:
-	    # XxX avoid repeated try/except setup by implementing prefs.has_key
 	    try:
 		if self.sys.Get(g, c) == v:
 		    del self.user[(g, c)]
 	    except KeyError:
-		# User's file pref absent from system defaults file - ok.
+		# User file pref absent from system file - may be for
+		# different version, so leave it be:
 		continue
-	self.user.Save()
 
+	try:
+	    self.user.Save()
+	except IOError:
+	    print "Failed save of user prefs."
+
+	# Process the callbacks:
+	callbacks, did_callbacks = self.callbacks, {}
+	for group in pending_groups:
+	    if self.callbacks.has_key(group):
+		for callback in callbacks[group]:
+		    # Ensure each callback is invoked only once per save: 
+		    if not did_callbacks.has_key(callback):
+			did_callbacks[callback] = 1
+			apply(callback, ())
 
 def make_key(group, cmpnt):
     """Produce a key from preference GROUP, COMPONENT strings."""
