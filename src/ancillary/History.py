@@ -17,6 +17,15 @@ DEFAULT_GRAIL_HIST_FILE = os.path.join(getgraildir(), 'grail-history')
 def now():
     return int(time.time())
 
+class HistoryInfo:
+    def __init__(self, link='', title='', timestamp=None, formdata=[]):
+	# for convenience, and since this object is never exposed to
+	# the upper layers, just make it's data members public.
+	self.title = title
+	self.link = link
+	self.timestamp = timestamp or now()
+	self.formdata = formdata
+
 
 class HistoryLineReader:
     def _error(self, line):
@@ -25,27 +34,30 @@ class HistoryLineReader:
 
 class NetscapeHistoryReader(HistoryLineReader):
     def parse_line(self, line):
-	link = timestamp = ''
 	try:
 	    fields = string.splitfields(line, '\t')
 	    link = string.strip(fields[0])
-	    timestamp = string.atoi(string.strip(fields[1]))
-	    return link, link, timestamp
+	    return HistoryInfo(link=link,
+			       title=link,
+			       timestamp=string.atoi(string.strip(fields[1]))
+			       )
 	except:
 	    self._error(line)
-	    return None, None, None
+	    return None
 
 class GrailHistoryReader(HistoryLineReader):
     def parse_line(self, line):
 	link = timestamp = title = ''
 	try:
 	    if GRAIL_RE.match(line) >= 0:
-		link, timestamp, title = GRAIL_RE.group(1, 2, 3)
-	    if not title: title = link
-	    return link, title, string.atoi(string.strip(timestamp))
+		link, ts, title = GRAIL_RE.group(1, 2, 3)
+		return HistoryInfo(link=link,
+				   title=title or link,
+				   timestamp=string.atoi(string.strip(ts))
+				   )
 	except:
 	    self._error(line)
-	    return None, None, None
+	    return None
 
 class HistoryReader:
     def read_file(self, fp, histobj):
@@ -63,9 +75,9 @@ class HistoryReader:
 	while line:
 	    line = fp.readline()
 	    if line:
-		link, title, timestamp = linereader.parse_line(line)
-		if link and title and timestamp:
-		    ghist.append((link, title, timestamp))
+		infonode = linereader.parse_line(line)
+		if infonode:
+		    ghist.append(infonode)
 	# now mass update the history object
 	histobj.mass_append(ghist)
 
@@ -73,9 +85,8 @@ class HistoryReader:
 class GlobalHistory:
     def __init__(self, app):
 	self._app = app
+	self._linkmap = {}
 	self._history = []
-	self._hmap = {}
-	self._dialog = None
     	# first try to load the Grail global history file
 	fp = None
 	try:
@@ -90,48 +101,22 @@ class GlobalHistory:
 	app.register_on_exit(self.on_app_exit)
 
     def mass_append(self, histlist):
-	list = histlist[:]
-	list.reverse()
-	for link, title, timestamp in list:
-	    if not self._hmap.has_key(link):
-		self._history.append(link)
-		linkdata = {'title': title,
-			    'timestamp': timestamp,
-			    'formdata': []
-			    }
-		self._hmap[link] = linkdata
+	histlist = histlist[:]
+	histlist.reverse()
+	for infonode in histlist:
+	    self._linkmap[infonode.link] = infonode
+	    self._history.append(infonode.link)
 
-    def append_link(self, link, title=None):
-	if not self._hmap.has_key(link):
-	    linkdata = {'title': title,
-			'timestamp': now(),
-			'formdata': []
-			}
-	    self._hmap[link] = linkdata
-	    self._history.append(link)
-	    if self._dialog: self._dialog.refresh()
+    def append_link(self, infonode):
+	if not self._linkmap.has_key(infonode.link):
+	    self._history.append(infonode.link)
+	self._linkmap[infonode.link] = infonode
 
-    def set_title(self, link, title):
-	if self._hmap.has_key(link):
-	    linkdata = self._hmap[link]
-	    if linkdata['title'] == title or link == title:
-		return
-	    linkdata['title'] = title
-	    linkdata['timestamp'] = now()
-	    if self._dialog: self._dialog.refresh()
+    def link(self, link):
+	return self._linkmap.has_key(link) and self._linkmap[link]
 
-    def title(self, link):
-	if self._hmap.has_key(link): return self._hmap[link]['title']
-	else: return None
-
-    def set_formdata(self, link, data=[]):
-	if self._hmap.has_key(link):
-	    self._hmap[link]['formdata'] = data
-
-    def formdata(self, link):
-	if self._hmap.has_key(link):
-	    return self._hmap[link]['formdata']
-	else: return []
+    def links(self):
+	return self._history[:]
 
     def on_app_exit(self):
 	stdout = sys.stdout
@@ -139,18 +124,14 @@ class GlobalHistory:
 	    fp = open(DEFAULT_GRAIL_HIST_FILE, 'w')
 	    sys.stdout = fp
 	    print 'GRAIL-global-history-file-1'
-	    hlist = self._history[:]
-	    hlist.reverse()
-	    for link in hlist:
-		linkdata = self._hmap[link]
-		title = linkdata['title']
-		timestamp = linkdata['timestamp']
-		#formdata = linkdata['formdata']
-		if title == link:
-		    print '%s\t%d' % (link, timestamp)
+	    links = self.links()
+	    links.reverse()
+	    for link in links:
+		n = self._linkmap[link]
+		if n.title == n.link:
+		    print '%s\t%d' % (n.link, n.timestamp)
 		else:
-		    print '%s\t%d\t%s' % (link, timestamp, title)
-		# TBD: form data not saved across sessions!
+		    print '%s\t%d\t%s' % (n.link, n.timestamp, n.title)
 	finally:
 	    sys.stdout = stdout
 	    fp.close()
@@ -160,8 +141,12 @@ class GlobalHistory:
 
 class History:
     def __init__(self, app):
+	class DummyDialog:
+	    def refresh(self): pass
+	    def select(self, index): pass
+
 	self._history = []
-	self._dialog = None
+	self._dialog = DummyDialog()
 	self._current = 0
 	self._app = app
 	# initialize global history the first time through
@@ -175,46 +160,55 @@ class History:
 	newhist._current = self._current
 	return newhist
 
-    def set_dialog(self, dialog): self._dialog = dialog
+    def set_dialog(self, dialog):
+	self._dialog = dialog
 
     def append_link(self, link, title=None):
-#	print 'append_link:', link, title
-	# Netscape-ism.  Discard alternative future.  TBD: IMHO bogus
-	# semantics, since it loses complete historical trace
+	# Netscape-ism: Discard alternative future.  The Jump Trail
+	# (Global History) should be exposed to the user, IMHO.
 	del self._history[self._current+1:]
-	# don't add duplicate the last entry
-	try:
-	    if self._history[-1] == link: return
-	except IndexError: pass
-	self._history.append(link)
+	# don't add duplicate of the last entry
+	if len(self._history) > 0 and self._history[-1].link == link:
+	    return
+	infonode = HistoryInfo(link, title or link)
+	self._history.append(infonode)
 	self._current = len(self._history)-1
-	if not title: title = link
-	# update global history
-	self._ghistory.append_link(link, title)
-	# update the display
-	if self._dialog: self._dialog.refresh()
+	self._ghistory.append_link(infonode)
+	self._dialog.refresh()
 
     def set_title(self, link, title):
-#	print 'set_title:', link, title
-	self._ghistory.set_title(link, title)
-	if self._dialog: self._dialog.refresh()
+	infonode = self._ghistory.link(link)
+	if infonode and infonode.title <> title and link <> title:
+	    infonode.title = title
+	    infonode.timestamp = now()
+	    self._dialog.refresh()
 
     def title(self, link):
-#	print 'title:', link, '=>', self._ghistory.title(link)
-	return self._ghistory.title(link)
+	infonode = self._ghistory.link(link)
+	if infonode:
+	    return infonode.title or infonode.link
+	else:
+	    return ''
 
     def set_formdata(self, link, data=[]):
-	self._ghistory.set_formdata(link, data)
+	infonode = self._ghistory.link(link)
+	if infonode:
+	    infonode.formdata = data
 
     def formdata(self, link):
-	return self._ghistory.formdata(link)
+	# Netscapism: form data is associated with the stack, since as
+	# the stack is cleared, so is form data.
+	for n in self._history:
+	    if n.link == link:
+		return n.formdata
+	return []
 
     def link(self, index=None):
 	if index is None: index = self._current
 	if 0 <= index < len(self._history):
 	    self._current = index
-	    if self._dialog: self._dialog.select(self._current)
-	    return self._history[self._current]
+	    self._dialog.select(self._current)
+	    return self._history[self._current].link
 	else: return None
 
     def inhistory_p(self, link):
@@ -223,8 +217,8 @@ class History:
 	has_title = self.title(link) or self.title(link + '/')
 	return not not has_title
 
-    def links(self): return self._history
     def current(self): return self._current
+    def links(self): return map(lambda n: n.link, self._history)
 
     def forward(self): return self.link(self.current()+1)
     def back(self): return self.link(self.current()-1)
@@ -287,7 +281,7 @@ class HistoryDialog:
 	# populate listbox
 	self._listbox.delete(0, 'end')
 	# view in reverse order
-	hlist = self._history.links()[:]
+	hlist = self._history.links()
 	hlist.reverse()
 	for link in hlist:
 	    title = self._history.title(link)
