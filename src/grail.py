@@ -28,6 +28,7 @@ from Browser import Browser, DEFAULT_HOME
 import SafeTkinter
 from AppletRExec import AppletRExec
 from Cache import Cache
+import TbDialog
 if 0:
     import dummies
 
@@ -179,12 +180,22 @@ class Application:
 	    return None
 	if self.image_cache.has_key(url):
 	    return self.image_cache[url]
-	fp, url, content_type = self.open_url(url, 0)
-	if not fp:
+	# XXX Ought to complete this asynchronously
+	try:
+	    api = self.open_url(url, 'GET', {})
+	except IOError:
 	    return None
+	errcode, errmsg, params = api.getmeta()
+	if errcode != 200:
+	    api.close()
+	    return None
+	if params.has_key('content-type'):
+	    content_type = params['content-type']
+	else:
+	    content_type = None
 	if content_type and content_type[:6] != 'image/':
 	    print '***', url, 'is not an image'
-	    fp.close()
+	    api.close()
 	    return None
 	if content_type[6:] in ('x-xbitmap', 'xbitmap'):
 	    imgtype = 'bitmap'
@@ -197,7 +208,7 @@ class Application:
 	    BLOCKSIZE = 8*1024
 	    try:
 		while 1:
-		    data = fp.read(BLOCKSIZE)
+		    data = api.getdata(BLOCKSIZE)
 		    if not data: break
 		    f.write(data)
 	    except IOError, msg:
@@ -213,7 +224,7 @@ class Application:
 	    self.image_cache[url] = image
 	    return image
 	finally:
-	    fp.close()
+	    api.close()
 	    if f:
 		f.close()
 	    try:
@@ -221,7 +232,10 @@ class Application:
 	    except os.error:
 		pass
 
-    def open_url(self, url, error=1):
+    def open_url(self, url, method, params):
+	return self.url_cache.open(url, 'GET', params)
+
+    def open_url_old(self, url, error=1):
 	# Open a URL:
 	# - return (fp, url, content_type) if successful
 	# - display dialog and return (None, url) for errors
@@ -308,15 +322,25 @@ class Application:
 	    return None
 
     def exception_dialog(self, message=""):
-	print '-'*40
-	print "An exception occurred", message
-	traceback.print_exc()
-	print '-'*40
+	exc, val, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+	msg = "An exception occurred " + str(message) + ' :\n'
+	msg = msg + str(exc) + " : " + str(val)
+	dlg = SafeDialog.Dialog(self.root,
+				text=msg,
+				title="Python Exception: " + str(exc),
+				bitmap='error',
+				default=0,
+				strings=('OK', 'Show traceback'),
+				)
+	if dlg.num == 1:
+	    self.traceback_dialog(exc, val, tb)
+
+    def traceback_dialog(self, exc, val, tb):
+	TbDialog.TracebackDialog(self.root, exc, val, tb)
 
     def error_dialog(self, exc, msg):
 	# Display an error dialog.
 	# Return when the user clicks OK
-	# XXX This looks horrible
 	if type(msg) in (ListType, TupleType):
 	    s = ''
 	    for item in msg:
@@ -326,7 +350,7 @@ class Application:
 	    msg = str(msg)
 	SafeDialog.Dialog(self.root,
 		      text=msg,
-		      title=exc,
+		      title="Error: " + str(exc),
 		      bitmap='error',
 		      default=0,
 		      strings=('OK',),
