@@ -349,28 +349,32 @@ class EPSImage:
 
 
 class PSStream:
+    _pageno = 1
+    _margin = 0.0
+    _leading = 0.0
+    _align = ALIGN_LEFT
+    _inliteral_p = None
+    _render = 'S'			# S == normal string, U == underline
+    _prev_render = _render
+
+    # current line state
+    _space_width = 0.0
+    _baseline = None
+    _descender = 0.0
+    _xpos = 0.0
+    _ypos = 0.0
+    _vtab = _leading			# extra vertical tab before the line
+    _lineshift = 0.0			# adjustment at start of line
+
     def __init__(self, psfont, ofp, title='', url=''):
 	self._font = psfont
 	self._ofp = ofp
 	self._title = title
 	self._url = url
-	self._pageno = 1
-	self._margin = 0.0
-	self._align = ALIGN_LEFT
 	# current line state
-	self._space_width = 0.0
 	self._linestr = []
-	self._baseline = None
-	self._descender = 0.0
-	self._xpos = 0.0
-	self._ypos = 0.0
-	self._vtab = 0.0		# extra vertical tab before the line
 	self._yshift = [(0.0, 0.0)]	# vertical baseline shift w/in line
-	self._lineshift = 0.0		# adjustment at start of line
 	self._linefp = StringIO.StringIO()
-	self._inliteral_p = None
-	self._render = 'S'		# S == normal string, U == underline
-	self._prev_render = self._render
 
     def start(self):
 	# print document preamble
@@ -405,6 +409,9 @@ class PSStream:
 	    sys.stdout = oldstdout
 	self.print_page_preamble()
 	self.push_font_change(None)
+
+    def set_leading(self, value=0.0):
+	self._leading = max(0.0, value)
 
     def push_eps(self, img, align=None):
 	"""Insert encapsulated postscript in stream.
@@ -793,12 +800,17 @@ class PSStream:
 ##	_debug('ypos= %f, linesz= %f, diff= %f, PH= %f' %
 ##	       (self._ypos, linesz, (self._ypos - linesz), -PAGE_HEIGHT))
 	self._ypos = self._ypos - linesz
-	if self._ypos <= -PAGE_HEIGHT:
-	    self.print_page_postamble()
-	    self._pageno = self._pageno + 1
-	    self.print_page_preamble()
-	    self._ypos = -linesz
-	    self._vtab = 0.0
+	if (self._ypos - linesz) <= -PAGE_HEIGHT:
+	    self.push_page_break()
+
+    def push_page_break(self):
+	linesz = self._baseline + self._descender + self._vtab
+	self._ypos = self._ypos - linesz
+	self.print_page_postamble()
+	self._pageno = self._pageno + 1
+	self.print_page_preamble()
+	self._ypos = -linesz
+	self._vtab = self._leading
 
     def close_line(self, linestr=None):
 	if linestr is None:
@@ -825,7 +837,8 @@ class PSStream:
 	# reset cache
 	self._linefp = StringIO.StringIO()
 	self._lineshift = yshift
-	self._xpos = self._vtab = 0.0
+	self._xpos = 0.0
+	self._vtab = self._leading
 	self._baseline = None
 
     def close_string(self, linestr=None):
@@ -1016,7 +1029,7 @@ class PrintingHTMLParser(HTMLParser):
     _inited = 0
 
     def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=1, underline_anchors=1):
+		 greyscale=1, underline_anchors=1, leading=1.0):
 	if not self._inited:
 	    for k, v in self.fontdingbats.items():
 		self.dingbats[(k, 'grey')] = v
@@ -1027,6 +1040,7 @@ class PrintingHTMLParser(HTMLParser):
 		self.dingbats[(k, 'grey')] = tup
 		self.dingbats[(k, 'color')] = tup
 	    PrintingHTMLParser._inited = 1
+	writer.ps.set_leading(leading)
 	from formatter import AbstractFormatter
 	HTMLParser.__init__(self, AbstractFormatter(writer), verbose)
 	self._baseurl = baseurl
