@@ -15,14 +15,14 @@ class Viewer(formatter.AbstractWriter):
 
     """
 
-    def __init__(self, master, browser=None, stylesheet=None):
+    def __init__(self, master, browser=None, stylesheet=None, height=40):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
 	self.browser = browser
 	self.stylesheet = stylesheet
 	self.subwindows = []
 	self.rules = []
-	self.create_widgets()
+	self.create_widgets(height)
 	self.fonttag = None		# Tag specifying font
 	self.margintag = None		# Tag specifying margin
 	self.marginlevel = 0		# Numeric margin level
@@ -33,8 +33,9 @@ class Viewer(formatter.AbstractWriter):
 	self.flowingtags = ()		# Tags for flowed text
 	self.freeze()
 
-    def create_widgets(self):
-	self.text, self.frame = tktools.make_text_box(self.master, height=40)
+    def create_widgets(self, height):
+	self.text, self.frame = tktools.make_text_box(self.master,
+						      height=height)
 	self.text['insertwidth'] = 0
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
