@@ -247,6 +247,9 @@ class CacheAPI:
 	self.fno = -1
 ##	print self, "__init__()"
 
+    def iscached(self):
+	return self.item.stage == DONE
+
     def __repr__(self):
 	return "CacheAPI(%s)" % self.item
 
