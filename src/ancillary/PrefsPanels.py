@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.4 $"
+__version__ = "$Revision: 2.5 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -77,8 +77,8 @@ class Framework:
 	raise SystemError, "Derived class should override .CreateLayout()"
 
     # Optional preferences-specific delete method.
-    def DeleteLayout(self):
-	"""Override this method for deletion cleanup, if any."""
+    def Dismiss(self):
+	"""Override this method for cleanup on dismissal, if any."""
 	pass
 
     # Use this routine in category layout to associate preference with the
@@ -122,7 +122,7 @@ class Framework:
 	widget.config(textvariable=v)
 	return v.set
 
-    def post(self):
+    def post(self, browser):
 	"""Called from menu interface to engage dialog."""
 
 	if not self.widget:
@@ -130,6 +130,10 @@ class Framework:
 	else:
 	    self.widget.deiconify()
 	    self.widget.tkraise()
+	# Stash the browser from which we were last posted, in case the
+	# panel code needs to know...
+	self.browser = browser
+
 	self.poll_modified()
 
     def create_widget(self):
@@ -228,6 +232,7 @@ class Framework:
 	self.revert_cmd()
 
     def hide(self):
+	self.Dismiss()
 	self.widget.withdraw()
 
     def reload_panel_cmd(self, event=None):
@@ -273,14 +278,15 @@ class Framework:
 class PrefsDialogsMenu:
     """Setup prefs dialogs and populate the browser menu."""
 
-    def __init__(self, menu, app):
-	self.app = app
+    def __init__(self, menu, browser):
+	self.browser = browser
+	self.app = browser.app
 	self.menu = menu
-	if hasattr(app, 'prefs_dialogs'):
-	    self.dialogs = app.prefs_dialogs.dialogs
+	if hasattr(self.app, 'prefs_dialogs'):
+	    self.dialogs = self.app.prefs_dialogs.dialogs
 	else:
 	    self.dialogs = {}
-	    app.prefs_dialogs = self
+	    self.app.prefs_dialogs = self
 	    for (nm, clnm, modnm, moddir) in self.discover_dialog_modules():
 		if not self.dialogs.has_key(nm):
 		    # [module name, class name, directory, instance]
@@ -324,7 +330,7 @@ class PrefsDialogsMenu:
 	entry = self.dialogs[name]
 	if entry[3]:
 	    # Already loaded:
-	    entry[3].post()
+	    entry[3].post(self.browser)
 	else:
 	    # Needs to be loaded:
 	    if self.load(name):
