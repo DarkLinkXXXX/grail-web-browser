@@ -21,7 +21,7 @@ class IndexWidget:
 
     def submit(self, event):
 	data = self.w.get()
-	url = self.browser.url
+	url = self.browser.baseurl()
 	i = string.find(url, '?')
 	if i >= 0:
 	    url = url[:i]
