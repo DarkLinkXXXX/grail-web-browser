@@ -289,8 +289,12 @@ class Reader(BaseReader):
 	self.viewer.unfreeze()
 	try:
 	    self.parser.feed(data)
-	except IOError, (errno, errmsg):
+	except IOError, msg:
 	    self.stop()
+	    try:
+		errno, errmsg = msg
+	    except:
+		errno, errmsg = 0, str(msg)
 	    self.handle_error(errno, errmsg, [])
 	self.viewer.freeze()
 
