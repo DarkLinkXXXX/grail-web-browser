@@ -8,6 +8,9 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 """
 
 
+__version__ = "0.1"
+
+
 import sys
 import getopt
 import string
