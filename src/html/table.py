@@ -6,7 +6,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.54 1997/02/11 17:39:23 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.55 1997/02/19 17:45:31 bwarsaw Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -751,7 +751,10 @@ class Table(AttrElem):
 		canvaswidth = self.get_available_width()
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
-	    height = self.caption.height()
+	    try:
+		height = self.caption.height()
+	    except BadMojoError:
+		height = 7		# completely arbitrary
 	    self.caption.situate(x=bw, y=ypos, height=height)
 	    ypos = ypos + height + self.Acellspacing
 
@@ -874,7 +877,9 @@ def _get_widths(tw):
     longest_word = reduce(max, map(len, string.split(contents)), 0)
     tw['width'] = longest_word + 1
     width_min = tw.winfo_reqwidth() + (2 * border_x)
-    return float(width_min)+2, float(width_max)+2
+    wn = float(width_min)+2
+    wx = float(width_max)+2
+    return min(wn, wx), max(wn, wx)
 
 def _get_height(tw):
     linecount = _get_linecount(tw)
