@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.14 1996/04/03 00:34:45 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.15 1996/04/03 01:23:39 bwarsaw Exp $'
 
 
 import string
@@ -273,19 +273,15 @@ class Table(AttrElem):
 	self.Acellspacing = self.attribute('cellspacing',
 					   conv=conv_stdunits,
 					   default=0)
-	# TBD: horrid kludge, however without this, either the cell
-	# contents will be too narrow, or the canvas placement
-	# coordinates put the cells just a little too far apart.  This
-	# probablyshouldn't be hardcoded, but should be derived from
-	# some widget's borderwidth.
-	self.Acellspacing = self.Acellspacing - 2
 	self.Acellpadding = self.attribute('cellpadding',
 					   conv=conv_stdunits,
 					   default=0)
 	# geometry
  	self.container = Canvas(parentviewer.text,
 				relief=relief,
-				borderwidth=borderwidth)
+				borderwidth=borderwidth,
+				highlightthickness=0,
+				background=parentviewer.text['background'])
 
 	self.caption = None
 	self.cols = []			# multiple COL or COLGROUP
@@ -460,7 +456,7 @@ class Table(AttrElem):
 
 	borderwidth = grailutil.conv_integer(self.container['borderwidth'])
 	borderwidth = borderwidth
-	ypos = borderwidth + 2
+	ypos = borderwidth
 
 	# if caption aligns top, then insert it now.  it doesn't need
 	# to be moved, just resized
@@ -468,13 +464,13 @@ class Table(AttrElem):
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
-	    self.caption.situate(xdelta=borderwidth+2, ydelta=ypos,
+	    self.caption.situate(xdelta=borderwidth, ydelta=ypos,
 				 height=height)
 	    ypos = ypos + height + self.Acellspacing
 
 	# now place and size each cell
 	for row in range(rowcount):
-	    xpos = borderwidth + 2
+	    xpos = borderwidth
 	    tallest = 0
 	    for col in range(colcount):
 		cell = table[(row, col)]
@@ -496,11 +492,12 @@ class Table(AttrElem):
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
-	    self.caption.situate(xdelta=borderwidth+2, ydelta=ypos,
+	    self.caption.situate(xdelta=borderwidth, ydelta=ypos,
 				 height=height)
 	    ypos = ypos + height + self.Acellspacing
 
-	self.container.config(width=canvaswidth, height=ypos+self.Acellspacing)
+	# TBD: still one small kludgery left in layout calculation
+	self.container.config(width=canvaswidth, height=ypos-2)
 	return canvaswidth
 
     def _reset(self, viewer):
@@ -605,7 +602,7 @@ class ContainedText(AttrElem):
 			      parent=parentviewer)
 	self._fw = self._viewer.frame
 	self._tw = self._viewer.text
-	self._tw['background'] = parentviewer.text['background']
+	self._tw.config(highlightthickness=0)
 	self._width = 0
 	self._height = None		# if None do expensive calculation
 
