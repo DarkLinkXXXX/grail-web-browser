@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.43 $"
+__version__ = "$Revision: 2.44 $"
 
 try:
 	# See if modern _tkinter is present
@@ -1193,9 +1193,10 @@ class Frame(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		cnf = _cnfmerge((cnf, kw))
 		extra = ()
-		if cnf.has_key('class'):
-			extra = ('-class', cnf['class'])
-			del cnf['class']
+		for wmkey in ('class', 'class_'):
+			if cnf.has_key(wmkey):
+				extra = ('-class', cnf[wmkey])
+				del cnf[wmkey]
 		Widget.__init__(self, master, 'frame', cnf, {}, extra)
 
 class Label(Widget):
