@@ -55,6 +55,7 @@ class GrailHTMLParser(HTMLParser):
 	if not _inited:
 	    init_module(self.app.prefs)
 	HTMLParser.__init__(self, self.formatter_stack[-1])
+	self._ids = {}
 	# Hackery so reload status can be reset when all applets are loaded
 	import AppletLoader
 	self.reload1 = self.reload and AppletLoader.set_reload(self.context)
@@ -137,6 +138,8 @@ class GrailHTMLParser(HTMLParser):
 	    return
 	massage_attributes(attrs)
 	method(attrs)
+	if attrs.has_key('id'):
+	    self.register_id(attrs['id'])
 
     def handle_starttag_nohead(self, tag, method, attrs):
 	if tag in self.head_only_tags:
@@ -149,6 +152,8 @@ class GrailHTMLParser(HTMLParser):
 	    if attrs.has_key(k) and attrs[k]:
 		attrs[k] = string.joinfields(string.split(attrs[k]), '')
 	method(attrs)
+	if attrs.has_key('id'):
+	    self.register_id(attrs['id'])
 
     def handle_starttag_nohead_isbad(self, tag, method, attrs):
 	if self.suppress_output and tag not in self.object_aware_tags:
@@ -158,6 +163,8 @@ class GrailHTMLParser(HTMLParser):
 	    if attrs.has_key(k) and attrs[k]:
 		attrs[k] = string.joinfields(string.split(attrs[k]), '')
 	method(attrs)
+	if attrs.has_key('id'):
+	    self.register_id(attrs['id'])
 
     def handle_endtag(self, tag, method):
 	if self.suppress_output and tag not in self.object_aware_tags:
@@ -168,11 +175,18 @@ class GrailHTMLParser(HTMLParser):
 	if not self.suppress_output:
 	    HTMLParser.handle_data_nohead(self, data)
 
+    def register_id(self, id):
+	if self._ids.has_key(id):
+	    self.badhtml = 1
+	    return 0
+	self._ids[id] = id
+	self.viewer.add_target('#' + id)
+	return 1
 
-    def anchor_bgn(self, href, name, type, target=""):
+    def anchor_bgn(self, href, name, type, target="", id=None):
 	self.anchor = href
 	self.target = target
-	atag, utag = None, None
+	atag, utag, idtag = None, None, None
 	if href:
 	    atag = 'a'
 	    if target:
@@ -182,15 +196,15 @@ class GrailHTMLParser(HTMLParser):
 	    self.viewer.bind_anchors(utag)
 	    if self.app.global_history.inhistory_p(self.context.baseurl(href)):
 		atag = 'ahist'
-	if name:
-	    ntag = '#' + name
-	    self.viewer.add_target(ntag)
-	    self.formatter.push_style(atag, utag, ntag)
+	if id and self.register_id(id):
+	    idtag = id and ('#' + id) or None
+	if name and self.register_id(name):
+	    self.formatter.push_style(atag, utag, '#' + name, idtag)
 	else:
-	    self.formatter.push_style(atag, utag, None)
+	    self.formatter.push_style(atag, utag, None, idtag)
 
     def anchor_end(self):
-	self.formatter.pop_style(3)
+	self.formatter.pop_style(4)
 	self.anchor = self.target = None
 
     def do_hr(self, attrs):
@@ -328,12 +342,14 @@ class GrailHTMLParser(HTMLParser):
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
 	href = name = type = target = ''
+	id = None
 	has_key = attrs.has_key
 	if has_key('href'): href = attrs['href']
 	if has_key('name'): name = attrs['name']
 	if has_key('type'): type = string.lower(attrs['type'] or '')
 	if has_key('target'): target = attrs['target']
-        self.anchor_bgn(href, name, type, target)
+	if has_key('id'): id = attrs['id']
+        self.anchor_bgn(href, name, type, target, id)
 
     # New tag: <MAP> (for client side image maps)
 
@@ -598,9 +614,12 @@ class GrailHTMLParser(HTMLParser):
 		return
 	function, as_dict, has_end = self.app.find_html_start_extension(tag)
 	if function:
+	    id = attrs.has_key('id') and attrs['id'] or None
 	    if not as_dict:
 		attrs = attrs.items()
 	    function(self, attrs)
+	    if id:
+		self.register_id(id)
 	    if has_end:
 		self.stack.append(tag)
 	else:
