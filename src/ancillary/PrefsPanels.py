@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.7 $"
+__version__ = "$Revision: 2.8 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -15,17 +15,16 @@ if __name__ == "__main__":
     sys.path = [grail_root, '../utils', '../pythonlib'] + sys.path
 
 import GrailPrefs
+from GrailPrefs import typify
 
 from Tkinter import *
 import tktools
 import grailutil
 import string, regex, regsub
+from types import StringType
 
 
 DIALOG_CLASS_NAME_SUFFIX = 'Panel'
-
-GET_METHODS = {'string': 'Get', 'int': 'GetInt', 'float': 'GetFloat',
-	       'Boolean': 'GetBoolean'}
 
 from __main__ import grail_root
 
@@ -83,7 +82,7 @@ class Framework:
 
     # Use this routine in category layout to associate preference with the
     # user interface mechanism for setting them.
-    def RegisterUI(self, group, component, type, uiget, uiset):
+    def RegisterUI(self, group, component, type_nm, uiget, uiset):
 	"""Associate preference with User Interface setting mechanism.
 
 	Preference is specified by group and component.  Type is used for
@@ -92,7 +91,7 @@ class Framework:
 	preference.  (.widget_set_func() is useful for producing the uiset
 	func for many tkinter widgets.)"""
 
-	self.collection[(group, component)] = (type, uiget, uiset)
+	self.collection[(group, component)] = (type_nm, uiget, uiset)
 
     # Helpers
 
@@ -155,11 +154,11 @@ class Framework:
 	self.create_disposition_bar(widget)
 
 	# Frame for the user to build within:
-	container = Frame(widget, width=(width + 10), relief='groove', bd=2)
-	container.pack(side='top', fill='x', expand=1,
+	container = Frame(widget, width=(width + 10), relief=GROOVE, bd=2)
+	container.pack(side=TOP, fill=BOTH, expand=1,
 		       padx='4m', pady='2m') 
 	self.framework_widget = Frame(container)
-	self.framework_widget.pack(side='top', fill='x', expand=1,
+	self.framework_widget.pack(side=TOP, fill=BOTH, expand=1,
 				   padx='2m', pady='2m') 
 
 	# Do the user's setup:
@@ -167,7 +166,6 @@ class Framework:
 
 	# And now initialize the widget values:
 	self.set_widgets()
-	
 
     def create_disposition_bar(self, frame):
 	bar = Frame(frame)
@@ -199,23 +197,37 @@ class Framework:
 	"""Initialize dialog widgets with preference db values.
 
 	Optional FACTORY true means use system defaults for values."""
-	for (g, c), (type, uiget, uiset) in self.collection.items():
-	    getter = getattr(self.app.prefs, GET_METHODS[type])
-	    uiset(getter(g, c, factory))
+	prefsgetter = getattr(self.app.prefs, 'GetTyped')
+	for (g, c), (type_nm, uiget, uiset) in self.collection.items():
+	    try:
+		uiset(prefsgetter(g, c, type_nm, factory))
+	    except TypeError, ValueError:
+		e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+		self.app.root.report_callback_exception(e, v, tb)
 
     def done_cmd(self, event=None):
 	"""Conclude dialog: commit and withdraw it."""
-	self.apply_cmd()
-	self.hide()
+	if self.apply_cmd():
+	    self.hide()
 
     def apply_cmd(self):
 	"""Apply settings from dialog to preferences."""
 	prefsset = self.app.prefs.Set
 	# Snarf the settings from the widgets:
-	for (g, c), (type, uiget, uiset) in self.collection.items():
-	    prefsset(g, c, uiget())
+	try:
+	    for (g, c), (type_nm, uiget, uiset) in self.collection.items():
+		val = uiget()
+		if type(val) == StringType:
+			val = typify(val, type_nm)
+		prefsset(g, c, val)
+	except TypeError, ValueError:
+	    # Reject the value registered in the UI, notify, and fail save:
+	    e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+	    self.app.root.report_callback_exception(e, v, tb)
+	    return 0
 	self.app.prefs.Save()
-	self.poll_modified()
+	self.set_widgets()
+	return 1
 
     def factory_defaults_cmd(self):
 	"""Reinit dialog widgets with system-defaults preference db values."""
@@ -223,12 +235,8 @@ class Framework:
 	self.poll_modified()
 
     def revert_cmd(self):
-	"""Return settings to currently applied ones."""
-	prefsget = getattr(self.app.prefs, GET_METHODS['string'])
-	# Snarf the settings from the widgets:
-	for (g, c), (type, uiget, uiset) in self.collection.items():
-	    uiset(prefsget(g, c))
-	self.poll_modified()
+	"""Return settings to currently saved ones."""
+	self.set_widgets()
 	
     def cancel_cmd(self, event=None):
 	self.hide()
@@ -270,11 +278,21 @@ class Framework:
 
 	Optional 'factory' keyword means check wrt system default settings."""
 
-	prefsget = getattr(self.app.prefs, GET_METHODS['string'])
-	for (g, c), (type, uiget, uiset) in self.collection.items():
-	    if uiget() != prefsget(g, c, factory):
-		return 1
-	return 0
+	prefsgettyped = getattr(self.app.prefs, 'GetTyped')
+	prefsgetstr = getattr(self.app.prefs, 'Get')
+	try:
+	    for (g, c), (type_nm, uiget, uiset) in self.collection.items():
+		uival = uiget()
+		if type_nm != 'string':
+		    if type(uival) == StringType:
+			uival = typify(uival, type_nm)
+		    if uival != prefsgettyped(g, c, type_nm, factory):
+			return 1
+		elif uival != prefsgetstr(g, c, factory):
+		    return 1
+	    return 0
+	except TypeError:
+	    return 1
 
 # Setup
 
@@ -379,6 +397,8 @@ def standalone():
 	    root.report_callback_exception = self.report_callback_exception
 	def report_callback_exception(self, e, v, tb):
 	    print "Callback error: %s, %s" % (e, v)
+	    import traceback
+	    traceback.print_exception(e, v, tb)
 	def register_on_exit(self, func): pass
 	def unregister_on_exit(self, func): pass
 
