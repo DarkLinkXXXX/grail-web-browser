@@ -56,6 +56,7 @@ class Viewer(formatter.AbstractWriter):
 
     def bind_anchors(self):
 	self.text.tag_bind('a', '<Enter>', self.anchor_enter)
+	self.text.tag_bind('a', '<Motion>', self.anchor_enter)
 	self.text.tag_bind('a', '<Leave>', self.anchor_leave)
 	self.text.tag_bind('a', '<ButtonRelease-1>', self.anchor_click)
 
