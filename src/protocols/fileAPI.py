@@ -29,7 +29,7 @@ class file_access:
 	self.method = method
 	self.params = params
 	self.headers = {}
-	if os.path.isdir(self.url):
+	if os.path.isdir(self.pathname):
 	    self.format_directory()
 	else:
 	    self.fp = open(self.pathname) # May raise IOError!
