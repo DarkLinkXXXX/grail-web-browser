@@ -54,8 +54,7 @@ class Browser:
 	self.readers = []
 	self.url = ""
 	self.title = ""
-	self.history = History.History()
-	self.current = -1
+	self.history = History.History(app)
 	self.create_widgets(height)
 	self.history_dialog = None
 
@@ -297,6 +296,7 @@ class Browser:
 	if not self.readers:
 	    self.clearstop()
 	    self.message("Done.")
+	    self.viewer.remove_temp_tag()
 
     def busy(self):
 	return not not self.readers
@@ -336,7 +336,6 @@ class Browser:
 
     def set_history(self, new):
 	if new:
-	    self.current = self.current + 1
 	    self.history.append_link(self.url, self.title)
 	else:
 	    self.history.set_title(self.url, self.title)
@@ -489,11 +488,9 @@ class Browser:
 	self.load(home)
 
     def back_command(self, event=None):
-	if self.current <= 0:
-	    self.root.bell()
-	    return
-	self.current = self.current-1
-	self.load(self.history.link(self.current), new=0)
+	uri = self.history.back()
+	if not uri: self.root.bell()
+	else: self.load(uri, new=0)
 
     def reload_command(self, event=None):
 	if not 0 <= self.current < len(self.history.links()):
@@ -502,11 +499,9 @@ class Browser:
 	self.load(self.history.link(self.current), new=0, reload=1)
 
     def forward_command(self, event=None):
-	if self.current+1 >= len(self.history.links()):
-	    self.root.bell()
-	    return
-	self.current = self.current+1
-	self.load(self.history.link(self.current), new=0)
+	uri = self.history.forward()
+	if not uri: self.root.bell()
+	else: self.load(uri, new=0)
 
     def show_history_command(self, event=None):
 	if not self.history_dialog:
