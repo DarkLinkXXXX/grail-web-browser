@@ -237,7 +237,6 @@ class Reader(BaseReader):
 		    self.context.addreader(self)
 		    self.viewer = self.context.viewer
 	self.context.clear_reset()
-	self.context.set_headers(headers)
 	self.context.set_url(self.url)
 	self.parser = parserclass(self.viewer, reload=self.reload)
 	self.istext = istext
