@@ -37,6 +37,8 @@ def parseprefs(fp):
 	if not line:
 	    break
 	lineno = lineno + 1
+	if line[0] == '#':
+	    continue
 	if line[0] in ' \t':
 	    # It looks line a continuation line.
 	    if group:
@@ -58,7 +60,7 @@ def parseprefs(fp):
 	    else:
 		group = groups[groupname]
 	    group[cn] = value # XXX Override a previous value
-	elif line[:2] != "C:" and string.strip(line) != "":
+	elif string.strip(line) != "":
 	    # It's a bad line.  Ignore it.
 	    if debug:
 		print "Error at", lineno, ":", `line`
