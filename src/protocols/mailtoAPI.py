@@ -3,17 +3,21 @@
 from Tkinter import *
 import tktools
 import os
+import sys
 import time
 
-from __main__ import app
+from __main__ import app, GRAILVERSION
 from nullAPI import null_access
-
+from Context import LAST_CONTEXT
 
 class mailto_access(null_access):
 
-    def __init__(self, url, method, params):
+    def __init__(self, url, method, params, data=None):
 	null_access.__init__(self, url, method, params)
-	toplevel = MailDialog(app.root, url)
+	# when a form's action is a mail URL, the data field will be
+	# non-None.  In that case, initialize the dialog with the data
+	# contents
+	toplevel = MailDialog(app.root, url, data)
 
 if os.sys.platform[:3] == 'sco': 
     # Use MMDF instead of sendmail
@@ -23,6 +27,10 @@ if os.sys.platform[:3] == 'sco':
 To: %(to)s
 Date: %(date)s
 Subject: %(subject)s
+MIME-Version: 1.0
+Content-Type: %(ctype)s
+X-Mailer: %(mailer)s
+X-URL: %(url)s
 
 """
 else:
@@ -30,6 +38,10 @@ else:
     TEMPLATE ="""\
 To: %(to)s
 Subject: %(subject)s
+MIME-Version: 1.0
+Content-Type: %(ctype)s
+X-Mailer: %(mailer)s
+X-URL: %(url)s
 
 """
 
@@ -38,7 +50,7 @@ class MailDialog:
 
     template = TEMPLATE
 
-    def __init__(self, master, address):
+    def __init__(self, master, address, data):
 	self.master = master
 	self.root = tktools.make_toplevel(self.master,
 					  title="Mail Dialog")
@@ -54,11 +66,16 @@ class MailDialog:
 				    command=self.cancel_command)
 	self.cancel_button.pack(side=RIGHT)
 	variables = {
-	    'to': address,
-	    'date': time.ctime(time.time()),
-	    'subject': "",		# XXX
+	    'to':	address,
+	    'date':	time.ctime(time.time()),
+	    'subject':	data and 'Form posted from Grail' or '',
+	    'mailer':	GRAILVERSION,
+	    'ctype':    data and 'application/x-www-form-urlencoded' \
+	                      or """text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit""",
+	    'url':	LAST_CONTEXT and LAST_CONTEXT.get_baseurl() or ''
 	    }
-	self.text.insert(END, self.template % variables)
+	self.text.insert(END, self.template % variables + (data or ''))
 
     def send_command(self):
 	message = self.text.get("1.0", END)
