@@ -9,7 +9,7 @@ from Context import Context
 from Cursors import *
 from types import StringType
 from urlparse import urljoin
-from DefaultStylesheet import DefaultStylesheet
+from DefaultStylesheet import DefaultStylesheet, UndefinedStyle
 
 
 DINGBAT_FONT = None
@@ -60,11 +60,23 @@ class Viewer(formatter.AbstractWriter):
 	if self.parent:
 	    self.parent.add_subviewer(self)
 	self.message("")
+	self.add_styles_callbacks()
 
+    def add_styles_callbacks(self):
+	"""Add prefs callbacks so text widget's reconfigured on major changes.
+	"""
 	self.prefs.AddGroupCallback('styles-common',
 				    self.configure_styles_hard)
 	self.prefs.AddGroupCallback('styles',
 				    self.configure_styles)
+
+    def remove_styles_callbacks(self):
+	"""Add prefs callbacks so text widget's reconfigured on major changes.
+	"""
+	self.prefs.RemoveGroupCallback('styles-common',
+				       self.configure_styles_hard)
+	self.prefs.RemoveGroupCallback('styles',
+				       self.configure_styles)
 
     def message(self, message):
 	if not self.context or self.linkinfo:
@@ -99,6 +111,7 @@ class Viewer(formatter.AbstractWriter):
 
     def close(self):
 	context = self.context
+	self.remove_styles_callbacks()
 	if context and context.viewer is self:
 	    context.stop()
 	if context:
@@ -162,15 +175,18 @@ class Viewer(formatter.AbstractWriter):
 	"""Used on widget creation, clear, and as a callback when style
 	preferences change."""
 	selected_style = self.prefs.Get('styles', 'group')
+	style_ok = 1
 	if not self.stylesheet or (self.current_style != selected_style):
-	    self.current_style = selected_style
-	    self.stylesheet = DefaultStylesheet(self.prefs,
-						self.current_style)
-	self.configure_tags(self.stylesheet)
+	    try:
+		self.stylesheet = DefaultStylesheet(self.prefs,
+						    selected_style)
+		self.current_style = selected_style
+	    except UndefinedStyle:
+		style_ok = 0
+	if style_ok:
+	    self.configure_tags(self.stylesheet)
 
     def configure_tags(self, stylesheet):
-	# Self.text would be gone if the viewer was dismissed, in which
-	# case we need do no work:
 	if self.text:
 	    self.text.config(stylesheet.default)
 	    for tag, cnf in stylesheet.styles.items():
