@@ -223,6 +223,7 @@ class GrailHTMLParser(HTMLParser):
 	    # so things like indents and centering work
 	    self.viewer.prepare_for_insertion()
 	self.viewer.add_subwindow(w, align=align)
+	self.formatter.assert_line_data()
 
     # Extend tag: </TITLE>
 
