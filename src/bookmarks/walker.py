@@ -1,14 +1,19 @@
 """Tree walker for visiting the nodes of a bookmarks tree."""
 
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 
 class TreeWalker:
-    def __init__(self, root):
+    def __init__(self, root=None):
         self.__root = root
 
     def get_root(self):
         return self.__root
+
+    def set_root(self, root):
+        if self.__root is not None:
+            raise RuntimeError, "cannot change root node"
+        self.__root = root
 
     def walk(self):
         self.__walk(self.get_root())
