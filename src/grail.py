@@ -67,7 +67,7 @@ KEEPALIVE_TIMER = 500
 BIGLOGO = "biglogo.gif"
 
 # Notice displayed underneath the big logo
-NOTICE = """Copyright \251 1995
+NOTICE = """Copyright \251 1995, 1996
 Corporation for National
 Research Initiatives
 
