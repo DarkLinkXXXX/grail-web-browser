@@ -27,9 +27,14 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def anchor_bgn(self, href, name, type):
 	self.anchor = href
-	self.formatter.push_style(href and 'a' or None)
-	self.formatter.push_style(href and '>' + href or None)
-	self.formatter.push_style(name and '#' + name or None)
+	atag = href and 'a' or None
+	utag = href and '>' + href or None
+	ntag = name and '#' + name or None
+	self.formatter.push_style(atag)
+	self.formatter.push_style(utag)
+	self.formatter.push_style(ntag)
+	if utag:
+	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
 	self.formatter.pop_style()
@@ -37,15 +42,12 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.formatter.pop_style()
 	self.anchor = None
 
-    def handle_image(self, src, alt):
-	image = self.browser.get_image(src)
-	if not image:
-	    self.handle_data(alt)
-	    return
-	label = AnchorLabel(self.viewer.text, image=image)
-	if self.anchor:
-	    label.setinfo(self.anchor, self.browser)
-	self.add_subwindow(label)
+    def handle_image(self, src, alt, ismap, align, width, height, border=2):
+	from ImageWindow import ImageWindow
+	window = ImageWindow(self.viewer, self.anchor,
+			     src, alt, ismap, align,
+			     width, height, border)
+	self.add_subwindow(window)
 
     def add_subwindow(self, w):
 	if self.formatter.nospace:
@@ -56,6 +58,31 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    data = ''
 	self.handle_data(data)
 	self.viewer.add_subwindow(w)
+
+    # XXX This is only here until htmllib.py is fixed:
+    def do_img(self, attrs):
+        align = ''
+        alt = '(image)'
+        ismap = ''
+        src = ''
+	width = 0
+	height = 0
+        for attrname, value in attrs:
+            if attrname == 'align':
+                align = value
+            if attrname == 'alt':
+                alt = value
+            if attrname == 'ismap':
+                ismap = value
+            if attrname == 'src':
+                src = value
+	    if attrname == 'width':
+		try: width = string.atoi(value)
+		except: pass
+	    if attrname == 'height':
+		try: height = string.atoi(value)
+		except: pass
+        self.handle_image(src, alt, ismap, align, width, height)
 
     # New tag: <CENTER> (for Amy)
 
@@ -189,23 +216,3 @@ class AppletMenu(Menu, AppletMagic):
     def __init__(self, master, parser=None, cnf={}, **kw):
 	apply(Menu.__init__, (self, master, cnf), kw)
 	AppletMagic.__init__(self, parser)
-
-
-class AnchorLabel(Label):
-
-    def setinfo(self, url, browser):
-	self.url = url
-	self.browser = browser
-	self.bind('<ButtonRelease-1>', self.follow)
-	self.bind('<Enter>', self.enter)
-	self.bind('<Leave>', self.leave)
-	self.config(borderwidth=2, background='blue')
-
-    def enter(self, event):
-	self.browser.enter(self.url)
-
-    def leave(self, event):
-	self.browser.leave()
-
-    def follow(self, event):
-	self.browser.follow(self.url)
