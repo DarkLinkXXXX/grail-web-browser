@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.40 $"
+__version__ = "$Revision: 2.41 $"
 
 try:
 	# See if modern _tkinter is present
@@ -141,8 +141,8 @@ class Misc:
 	def tk_bisque(self):
 		self.tk.call('tk_bisque')
 	def tk_setPalette(self, *args, **kw):
-		apply(self.tk.call, 'tk_setPalette',
-		      _flatten(args) + _flatten(kw.items()))
+		apply(self.tk.call, ('tk_setPalette',)
+		      + _flatten(args) + _flatten(kw.items()))
 	def tk_menuBar(self, *args):
 		pass # obsolete since Tk 4.0
 	def wait_variable(self, name='PY_VAR'):
