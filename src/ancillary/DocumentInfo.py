@@ -1,6 +1,6 @@
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import string
@@ -9,6 +9,7 @@ import tktools
 import urlparse
 
 FIELD_BREAKER = string.maketrans("&", "\n")
+MAX_TEXT_FIELD_LINES = 10
 
 
 class DocumentInfoDialog(Tkinter.Toplevel):
@@ -53,7 +54,7 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 	postdata = context.get_postdata()
 	if postdata:
 	    postdata = string.translate(postdata, FIELD_BREAKER)
-	    self.add_text_field("POST data", postdata, "postdata")
+	    self.add_text_field("POST fields", postdata, "postdata")
 	#
 	# Bottom button
 	#
@@ -80,11 +81,11 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 
     def add_text_field(self, label, value, name):
 	fr = self.add_field(label, name)
-	if value and value[-1] == "\n":
-	    value = value[:-1]
+	if value and value[-1] != "\n":
+	    value = value + "\n"
 	text, frame = tktools.make_text_box(
-	    fr, takefocus=0, width=60, vbar=0,
-	    height=1 + map(None, value).count("\n"))
+	    fr, takefocus=0, width=60, vbar=1,
+	    height=min(MAX_TEXT_FIELD_LINES, 1 + map(None, value).count("\n")))
 	frame.pack(side=Tkinter.LEFT)
 	text.insert(Tkinter.END, value)
 	text["state"] = Tkinter.DISABLED
