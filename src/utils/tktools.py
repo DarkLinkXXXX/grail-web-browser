@@ -60,7 +60,7 @@ def set_transient(widget, master, relx=0.5, rely=0.3):
     return widget
 
 
-def make_scrollbars(parent, hbar, vbar):
+def make_scrollbars(parent, hbar, vbar, pack=1):
 
     """Subroutine to create a frame with scrollbars.
 
@@ -75,7 +75,8 @@ def make_scrollbars(parent, hbar, vbar):
     """
 
     frame = Frame(parent)
-    frame.pack(fill=BOTH, expand=1)
+    if pack:
+	frame.pack(fill=BOTH, expand=1)
 
     if vbar:
 	if not hbar:
@@ -122,7 +123,7 @@ def set_scroll_commands(widget, hbar, vbar):
 
 
 def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1, wrap=WORD):
+		  fill=BOTH, expand=1, wrap=WORD, pack=1):
 
     """Subroutine to create a text box.
 
@@ -136,7 +137,7 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 
     """
 
-    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar)
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack)
 
     widget = Text(frame, wrap=wrap)
     if width: widget.config(width=width)
@@ -149,7 +150,7 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 
 
 def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1):
+		  fill=BOTH, expand=1, pack=1):
 
     """Subroutine to create a list box.
 
@@ -157,7 +158,7 @@ def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
 
     """
 
-    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar)
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack)
 
     widget = Listbox(frame)
     if width: widget.config(width=width)
@@ -170,7 +171,7 @@ def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
 
 
 def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
-		  fill=BOTH, expand=1):
+		  fill=BOTH, expand=1, pack=1):
 
     """Subroutine to create a canvas.
 
@@ -178,7 +179,7 @@ def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
 
     """
 
-    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar)
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack)
 
     widget = Canvas(frame, scrollregion=(0, 0, width, height))
     if width: widget.config(width=width)
