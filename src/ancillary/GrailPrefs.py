@@ -5,7 +5,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.14 $"
+__version__ = "$Revision: 2.15 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -24,8 +24,8 @@ verbose = 0
 class Preferences:
     """Get and set fields in a customization-values file."""
 
-    # We maintain an rfc822 snapshot of the file (._db), which we read only
-    # once, and dicts for:
+    # We maintain an rfc822 snapshot of the file, which we read only once
+    # and dicts for:
     #  - ._new: new settings not yet saved
     #  - ._established: new settings saved and referenced read-in settings
     #  - ._deleted: deleted settings, so user default values duplicating
@@ -38,22 +38,25 @@ class Preferences:
 	    f = open(filename)
 	except IOError:
 	    f = None
-	self._db = None			# Settings read in from file.
+	self._rfc822 = None			# Settings read in from file.
 	self._new = {}			# Settings not read in, not yet saved.
-	self._established = {}		# Settings not read, but saved to file.
+	self._established = {}		# Settings referenced and saved.
 	self._deleted = {}		# Settings overridden, not yet saved.
 	if f:
 	    self._last_mtime = os.stat(filename)[9]
-	    self._db = rfc822.Message(f)
+	    self._rfc822 = rfc822.Message(f)
 	    # Check for content misplaced after first blank line:
 	    residue = string.strip(f.read())
 	    if residue:
 		sys.stderr.write("Ignoring preferences following blank line"
 				 + " in %s\n" % f.name)
+	    for k, v in self._rfc822.items():
+		# _established dict is much faster than _rfc822 object -
+		# bite the bullet and transfer at the beginning:
+		self._established[k] = v
 	    f.close()
 	else:
 	    self.file_mtime = 0
-	    self._db = {}
 	self._modified = 0
 
     def Get(self, group, component):
@@ -64,17 +67,8 @@ class Preferences:
 	elif self._established.has_key(key):
 	    return self._established[key]
 	else:
-	    try:
-		if not self._db:
-		    raise KeyError
-		else:
-		    got = self._db[key]
-		    # Migrate from rfc822 db obj to faster dict:
-		    self._established[key] = got
-		    return got
-	    except KeyError:
-		raise KeyError, "Preference %s not found" % ((group,
-							      component),)
+	    raise KeyError, "Preference %s not found" % ((group,
+							  component),)
 
     def Set(self, group, component, val):
 	"""Set preference GROUP, COMPONENT to VALUE."""
@@ -98,19 +92,6 @@ class Preferences:
 	"""Return a list of ("group--component", value) tuples."""
 	got = []
 	did = {}
-	# Process portion of db read from file:
-	for k, v in self._db.items():
-	    if self._deleted.has_key(k):
-		continue
-	    elif self._new.has_key(k):
-		got.append((k, self._new[k]),)
-		did[k] = 1
-	    elif self._established.has_key(k):
-		got.append((k, self._established[k]),)
-		did[k] = 1
-	    else:
-		got.append((k, v,),)
-	# Process stuff added since file was read:
 	for k, v in self._established.items() + self._new.items():
 	    if not (did.has_key(k) or self._deleted.has_key(k)):
 		got.append((k, v),)
@@ -340,6 +321,7 @@ def test():
     exercise("prefs.Save()", env, "Save as it was originally.")
     
 
+    return prefs
     print "GrailPrefs tests passed."
 
 if __name__ == "__main__":
@@ -347,4 +329,4 @@ if __name__ == "__main__":
     global grail_root
     grail_root = '..'
 
-    test()
+    prefs = test()
