@@ -726,6 +726,9 @@ class BookmarksDialog:
 	self._controller.hide()
     def hide(self): self._frame.withdraw()
 
+    def visible_p(self):
+	return self._frame.state() <> 'withdrawn'
+
     def set_labels(self, filename, title):
 	self._file.config(text=filename)
 	self._title.config(text=title)
@@ -944,6 +947,8 @@ class BookmarksController(OutlinerController):
     def set_listbox(self, listbox): self._listbox = listbox
     def set_dialog(self, dialog): self._dialog = dialog
     def filename(self): return self._iomgr.filename()
+    def dialog_is_visible_p(self):
+	return self._dialog and self._dialog.visible_p()
 
     def _get_selected_node(self):
 	node = selection = None
@@ -983,7 +988,7 @@ class BookmarksController(OutlinerController):
 	# into the tree, updating the listbox
 	now = int(time.time())
 	browser = self._browser()
-	node = BookmarkNode(browser.title, browser.url, now, now)
+	node = BookmarkNode(browser.title(), browser.baseurl(), now, now)
 	addlocation = self.addcurloc.get()
 	if addlocation == NEW_AT_END:
 	    # add this node to the end of root's child list.
@@ -1239,4 +1244,6 @@ class BookmarksMenu:
 	# make sure controller is initialized
 	self._controller.initialize(active_browser=self._browser)
 	self._controller.add_current()
-	self._controller.save()
+	# if the dialog is unmapped, then do a save
+	if not self._controller.dialog_is_visible_p():
+	    self._controller.save()
