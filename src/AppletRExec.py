@@ -28,6 +28,7 @@ class AppletRHooks(RHooks):
 	if is_url(p):
 	    if mode not in ('r', 'rb'):
 		raise IOError, "Can't open URL for writing"
+	    # XXX Should use Application's open_url()
 	    return urllib.urlopen(p)
 	else:
 	    return open(p, mode, buf)
