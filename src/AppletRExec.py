@@ -15,7 +15,15 @@ import urlparse
 
 def is_url(p):
     u = urlparse.urlparse(p)
-    return u[0] or u[1]
+    #
+    # Unfortunately path names on the MAC and Windows parse
+    # similarly to URL's.  We currently have to not recognize
+    # URL's that have single letter scheme identifiers because
+    # they can be confused with the drive letter component
+    # of a disk path on these platforms.  
+    if u[0] and len(u[0]) > 1:
+	return u[0]
+    return u[1]
 
 
 class AppletRHooks(RHooks):
