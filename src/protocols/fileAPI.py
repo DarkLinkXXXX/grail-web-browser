@@ -4,7 +4,11 @@
 
 from Assert import Assert
 import grailutil
+import ht_time
 import os
+
+from stat import ST_MTIME, ST_SIZE
+
 
 META, DATA, DONE = 'META', 'DATA', 'DONE'
 
@@ -46,6 +50,13 @@ class file_access:
         self.method = method
         self.params = params
         self.headers = {}
+        try:
+            stats = os.stat(self.pathname)
+        except (IOError, os.error, AttributeError):
+            pass
+        else:
+            self.headers['content-length'] = str(stats[ST_SIZE])
+            self.headers['last-modified'] = ht_time.unparse(stats[ST_MTIME])
         if os.path.isdir(self.pathname):
             self.format_directory()
         else:
@@ -54,13 +65,6 @@ class file_access:
             ctype, cencoding = app.guess_type(self.pathname)
             if ctype: self.headers['content-type'] = ctype
             if cencoding: self.headers['content-encoding'] = cencoding
-            try:
-                stats = os.stat(self.pathname)
-            except (IOError, os.error, AttributeError):
-                pass
-            else:
-                from stat import ST_SIZE
-                self.headers['content-length'] = str(stats[ST_SIZE])
         self.state = META
 
     def pollmeta(self):
