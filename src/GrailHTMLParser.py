@@ -592,12 +592,10 @@ class GrailHTMLParser(HTMLParser):
 		else:
 		    self.handle_data(s)
 	    else:
-		if self.formatter.nospace:
-		    self.viewer.prepare_for_insertion()
 		bgcolor = self.viewer.text['background']
-		self.viewer.add_subwindow(Label(self.viewer.text, image = img,
-						background = bgcolor,
-						borderwidth = 0))
+		self.add_subwindow(Label(self.viewer.text, image = img,
+					 background = bgcolor,
+					 borderwidth = 0))
 	    self.inhead = 0
 	else:
 	    #  Could not load image, allow parent class to handle:
