@@ -6,7 +6,7 @@ from grailutil import *
 from Outliner import OutlinerNode, OutlinerViewer, OutlinerController
 import tktools
 import formatter
-import htmllib
+from HTMLParser import HTMLParser
 import string
 import time
 
@@ -180,7 +180,7 @@ class DummyWriter(formatter.AbstractWriter):
 
 
 
-class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
+class NetscapeBookmarkHTMLParser(HTMLParser):
     def __init__(self):
 	self._root = None
 	self._current = None
@@ -189,7 +189,7 @@ class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
 	self._state = []
 	w = DummyWriter()
 	f = formatter.AbstractFormatter(w)
-	htmllib.HTMLParser.__init__(self, f)
+	HTMLParser.__init__(self, f)
 
     def _push_new(self):
 	if not self._current: raise BookmarkFormatError, 'file corrupted'
@@ -238,13 +238,13 @@ class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
 		self._prevleaf.set_description(self._buffer)
 	    del self._state[-1]
 	else:
-	    htmllib.HTMLParser.ddpop(self, bl)
+	    HTMLParser.ddpop(self, bl)
 
     def handle_data(self, data):
 	if len(self._state) > 0 and self._state[-1] == 'dd':
 	    self._buffer = self._buffer + data
 	else:
-	    htmllib.HTMLParser.handle_data(self, data)
+	    HTMLParser.handle_data(self, data)
 
     def start_a(self, attrs):
 	self._push_new()
