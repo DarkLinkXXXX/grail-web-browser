@@ -106,6 +106,10 @@ class _socketfile:
 
 class MyHTTP(httplib.HTTP):
 
+    def putrequest(self, request, selector):
+	self.selector = selector
+	httplib.HTTP.putrequest(self, request, selector)
+
     def getreply(self):
 	# Use unbuffered file so we can use the raw socket later on;
 	# don't zap the socket
@@ -115,6 +119,11 @@ class MyHTTP(httplib.HTTP):
 	if replyprog.match(line) < 0:
 	    # Not an HTTP/1.0 response.  Fall back to HTTP/0.9.
 	    self.headers = {}
+	    c_type, c_encoding = __main__.app.guess_type(self.selector)
+	    if c_encoding:
+		self.headers['content-encoding'] = c_encoding
+	    # HTTP/0.9 sends HTML by default
+	    self.headers['content-type'] = c_type or "text/html"
 	    return -1, line, self.headers
 	errcode, errmsg = replyprog.group(1, 2)
 	errcode = string.atoi(errcode)
