@@ -42,6 +42,13 @@ class file_access:
 	    ctype, cencoding = app.guess_type(self.pathname)
 	    if ctype: self.headers['content-type'] = ctype
 	    if cencoding: self.headers['content-encoding'] = cencoding
+	    try:
+		stats = os.fstat(self.fp.fileno())
+	    except (IOError, os.error):
+		pass
+	    else:
+		from stat import ST_SIZE
+		self.headers['content-length'] = str(stats[ST_SIZE])
 	self.state = META
 
     def pollmeta(self):
@@ -118,6 +125,7 @@ class file_access:
 	data = data + self.listing_trailer
 	self.fp = StringIO.StringIO(data)
 	self.headers['content-type'] = 'text/html'
+	self.headers['content-length'] = str(len(data))
 
     listing_header = LISTING_HEADER
     listing_trailer = LISTING_TRAILER
