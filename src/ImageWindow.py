@@ -100,7 +100,7 @@ class ImageWindow(Frame):
         if url:
             app = self.context.app
             self['background'] = app.prefs.Get(STYLEGROUP, ATEMPPREF)
-            url = self.context.baseurl(url)
+            url = self.context.get_baseurl(url)
             from Browser import Browser
             Browser(app.root, app).context.load(url)
             self['background'] = app.prefs.Get(STYLEGROUP, AHISTPREF)

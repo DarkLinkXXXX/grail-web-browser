@@ -34,7 +34,7 @@ class IndexWidget:
 
     def submit(self, event):
         data = self.w.get()
-        url = self.query_url or self.context.baseurl()
+        url = self.query_url or self.context.get_baseurl()
         i = string.find(url, '?')
         if i >= 0:
             url = url[:i]

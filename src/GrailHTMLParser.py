@@ -128,7 +128,8 @@ class GrailHTMLParser(HTMLParser):
             else:
                 utag = '>' + href
             self.viewer.bind_anchors(utag)
-            if self.app.global_history.inhistory_p(self.context.baseurl(href)):
+            hist = self.app.global_history
+            if hist.inhistory_p(self.context.get_baseurl(href)):
                 atag = 'ahist'
         if id and self.register_id(id):
             idtag = id and ('#' + id) or None
