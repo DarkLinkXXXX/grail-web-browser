@@ -89,9 +89,9 @@ class http_access:
 	self.state = WAIT
 	self.h = None
 	self.reader_callback = None
-	self.app.sq.request_socket(self,self.open)
+	self.app.sq.request_socket(self, self.open)
 
-    def register_reader(self, reader_callback):
+    def register_reader(self, reader_callback, ignore):
 	if self.state == WAIT:
 	    self.reader_callback = reader_callback
 	else:
