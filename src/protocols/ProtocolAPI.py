@@ -85,7 +85,7 @@ def protocol_access(url, mode, params, data=None):
 	if no_proxy:
 	    list = map(string.strip, string.split(no_proxy, ","))
 	    url_host, url_remains = splithost(resturl)
-	    url_host = string.lower(url_host)
+	    url_host = string.lower(url_host or '')
 	    if url_host in list:
 		do_proxy = 0
 	    else:
