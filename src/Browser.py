@@ -218,7 +218,7 @@ class Browser:
 	self.preferencesmenu = Menu(self.preferencesbutton)
 	self.preferencesbutton['menu'] = self.preferencesmenu
 	from PrefsDialogs import PrefsDialogsMenu
-	PrefsDialogsMenu(self.preferencesmenu, self.app)
+	PrefsDialogsMenu(self.preferencesmenu, self)
 
 	# List of user menus (reset on page load)
 	self.user_menus = []
