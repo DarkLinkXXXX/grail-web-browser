@@ -67,6 +67,8 @@ class AsyncImage(PhotoImage):
 	self.blank()
 
     def set_file(self, filename):
+	self.browser.root.tk.setvar("TRANSPARENT_GIF_COLOR",
+				    self.browser.viewer.text["background"])
 	try:
 	    self['file'] = filename
 	except TclError:
