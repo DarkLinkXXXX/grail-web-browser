@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.6 $"
+__version__ = "$Revision: 2.7 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -151,13 +151,16 @@ class Framework:
 
 	width=80			# Of the settings frame.
 
+	# Do this before the panel container, so the buttons are squoze last:
+	self.create_disposition_bar(widget)
+
 	# Frame for the user to build within:
 	container = Frame(widget, width=(width + 10), relief='groove', bd=2)
-	container.pack(side='top', fill='x', padx='4m', pady='2m')
+	container.pack(side='top', fill='x', expand=1,
+		       padx='4m', pady='2m') 
 	self.framework_widget = Frame(container)
-	self.framework_widget.pack(side='top', fill='x', padx='2m', pady='2m')
-
-	self.create_disposition_bar(widget)
+	self.framework_widget.pack(side='top', fill='x', expand=1,
+				   padx='2m', pady='2m') 
 
 	# Do the user's setup:
 	self.CreateLayout(self.name, self.framework_widget)
@@ -189,7 +192,7 @@ class Framework:
 
 	bartop.pack(fill='both')
 	barbottom.pack(fill='both')
-	bar.pack(fill='both')
+	bar.pack(fill='both', side=BOTTOM)
 
     # Operational commands:
     def set_widgets(self, factory=0):
@@ -227,7 +230,7 @@ class Framework:
 	    uiset(prefsget(g, c))
 	self.poll_modified()
 	
-    def cancel_cmd(self):
+    def cancel_cmd(self, event=None):
 	self.hide()
 	self.revert_cmd()
 
