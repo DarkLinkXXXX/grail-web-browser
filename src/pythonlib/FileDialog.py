@@ -77,6 +77,10 @@ class FileDialog:
 				    text="Cancel",
 				    command=self.cancel_command)
 	self.cancel_button.pack(side=RIGHT)
+	self.top.protocol('WM_DELETE_WINDOW', self.cancel_command)
+	# XXX Are the following okay for a general audience?
+	self.top.bind('<Alt-w>', self.cancel_command)
+	self.top.bind('<Alt-W>', self.cancel_command)
 
     def go(self, dir_or_file=os.curdir, pattern="*", default=""):
 	if os.path.isdir(dir_or_file):
@@ -153,7 +157,7 @@ class FileDialog:
 	    filter = filter + "*"
 	return os.path.split(filter)
 
-    def cancel_command(self):
+    def cancel_command(self, event=None):
 	raise SystemExit, None
 
     def set_filter(self, dir, pat):
