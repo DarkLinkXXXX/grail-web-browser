@@ -1,6 +1,6 @@
 """Parser to pull links from an HTML document."""
 
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 
 import bookmarks.nodes
@@ -33,16 +33,10 @@ class Parser(sgml.SGMLHandler.BaseSGMLHandler):
     def save_bgn(self):
         self.__buffer = ''
 
-    __tr = string.maketrans("\r\n\t", "   ")
-    def reflow(self, s):
-        s = string.translate(s, self.__tr)
-        s = string.join(string.split(s))
-        return s
-
     def save_end(self, reflow=1):
         s, self.__buffer = self.__buffer, ''
         if reflow:
-            s = self.reflow(s)
+            s = string.join(string.split(s))
         return s
 
     def handle_data(self, data):
@@ -75,7 +69,7 @@ class Parser(sgml.SGMLHandler.BaseSGMLHandler):
             if self.__baseurl:
                 uri = urlparse.urljoin(self.__baseurl, uri)
             self.__node.set_uri(uri)
-            title = self.reflow(attrs.get("title", ""))
+            title = string.join(string.split(attrs.get("title", "")))
             if title:
                 self.__node.set_title(title)
         else:
