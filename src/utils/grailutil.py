@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.6 $"
+__version__ = "$Revision: 2.7 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -29,9 +29,11 @@ def getenv(s):
     if os.environ.has_key(s): return os.environ[s]
     return None
 
-def which(filename):
-    import sys
-    for dir in sys.path:
+def which(filename, searchlist=None):
+    if searchlist is None:
+	import sys
+	searchlist = sys.path
+    for dir in searchlist:
 	found = os.path.join(dir, filename)
 	if os.path.exists(found):
 	    return found
