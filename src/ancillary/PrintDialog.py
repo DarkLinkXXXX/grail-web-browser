@@ -63,10 +63,18 @@ def PrintDialog(context, url, title):
     except IOError, msg:
         context.error_dialog(IOError, msg)
         return
+    content_encoding, transfer_encoding = Reader.get_encodings(infp.info())
     try:
         ctype = infp.info()['content-type']
     except KeyError:
+        ctype, encoding = context.app.guess_type(url)
+        if not content_encoding:
+            content_encoding = encoding
+    if not ctype:
         MaybePrintDialog(context, url, title, infp)
+        return
+    if not Reader.support_encodings(content_encoding, transfer_encoding):
+        # create an alert of some sort....
         return
     ctype, ctype_params = grailutil.conv_mimetype(ctype)
     name, mod = context.app.find_type_extension("printing.filetypes", ctype)
@@ -316,7 +324,9 @@ class RealPrintDialog:
         #
         self.update_settings()
         if self.ctype == "application/postscript":
-            fp.write(self.infp.read())
+            parser = self.wrap_parser(FileOutputParser(fp))
+            parser.feed(self.infp.read())
+            parser.close()
             self.infp.close()
             return
         apply(self.settings.set_scaling, get_scaling_adjustments(self.root))
@@ -326,10 +336,19 @@ class RealPrintDialog:
         w = PSWriter.PSWriter(fp, self.title, self.baseurl, paper=paper,
                               settings=self.settings)
         p = self.mod.parse(w, self.settings, self.context)
+        # need to decode the input stream a bit here:
+        p = self.wrap_parser(p)
         p.feed(self.infp.read())
         self.infp.close()
         p.close()
         w.close()
+
+    def wrap_parser(self, parser):
+        # handle the content-encoding and content-transfer-encoding headers
+        headers = self.infp.info()
+        content_encoding, transfer_encoding = Reader.get_encodings(headers)
+        return Reader.wrap_parser(parser, self.ctype,
+                                  content_encoding, transfer_encoding)
 
     def update_settings(self):
         settings = self.settings
@@ -342,3 +361,14 @@ class RealPrintDialog:
         settings.orientation = string.lower(self.orientation.get())
         if hasattr(self.mod, "update_settings"):
             self.mod.update_settings(self, settings)
+
+
+class FileOutputParser:
+    def __init__(self, fp):
+        self.__fp = fp
+
+    def feed(self, data):
+        self.__fp.write(data)
+
+    def close(self):
+        pass
