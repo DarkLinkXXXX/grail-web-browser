@@ -10,7 +10,9 @@ class IOStatusPanel:
 	self.update()
 
     def create_widgets(self):
-	self.top = Toplevel()
+	self.top = tktools.make_toplevel(self.app.root,
+					 title="Grail: I/O Status",
+					 class_="Grail")
 	self.closebutton = Button(self.top, text="Close", command=self.close)
 	self.closebutton.pack(side=BOTTOM)
 	self.infobox, self.frame = tktools.make_list_box(self.top, width=40)
