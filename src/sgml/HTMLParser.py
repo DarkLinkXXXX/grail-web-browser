@@ -265,15 +265,14 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         import copy
         message = extract_keyword('standby', attrs, '')
         message = string.join(string.split(message))
-        for dev in self.get_devicetypes():
-            info = self.context.app.find_type_extension(
-                "html." + dev, embedtype)
-            embedder = info and info.embed
-            obj = embedder and embedder(self, copy.copy(attrs))
-            if obj:
-                if message:
-                    self.context.message(message)
-                return obj
+        info = self.context.app.find_type_extension(
+            "filetypes", embedtype)
+        embedder = info and info.embed
+        obj = embedder and embedder(self, copy.copy(attrs))
+        if obj:
+            if message:
+                self.context.message(message)
+            return obj
         return None
 
     def do_param(self, attrs):
