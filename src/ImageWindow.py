@@ -85,6 +85,7 @@ class ImageWindow(Frame):
     # table width calculation interface
 
     def table_geometry(self):
+	import string
 	bw = string.atoi(self['borderwidth'])
 	w = self.image.width() + 2 * bw
 	h = self.image.height() + 2 * bw
