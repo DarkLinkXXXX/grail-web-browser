@@ -166,13 +166,33 @@ class FormInfo:
 	state = []
 	for i in self.inputs:
 	    value = i.getstate()
-	    state.append(value)
+	    name = hasattr(i, 'name') and i.name or ''
+	    class_ = i.__class__
+	    state.append((class_, name, value))
 	return state
 
     def done(self):			# Called for </FORM>
 	if self.parser:
 	    self.parser.start_p({})
 	self.parser = None
+	# only restore the form data if it matches, as best as can be
+	# determined, the current layout of the form.  Otherwise, just
+	# reset the form.
+	reset = 1
+	if self.formdata and len(self.formdata) == len(self.inputs):
+	    for i in self.inputs:
+		class_, name, value = self.formdata[0]
+		iclass = i.__class__
+		iname = hasattr(i, 'name') and i.name or ''
+		del self.formdata[0]
+		if class_ == iclass and name == iname:
+		    i.set(value)
+		else:
+		    break
+	    else:
+		reset = None
+	if reset:
+	    self.reset_command()
 
     def do_input(self, type, options):
 	type = string.lower(type) or 'text'
@@ -180,10 +200,6 @@ class FormInfo:
 	if hasattr(self, classname):
 	    klass = getattr(self, classname)
 	    instance = klass(self, options)
-	    # update any cached form status
-	    if self.formdata:
-		instance.set(self.formdata[0])
-		del self.formdata[0]
 	else:
 	    print "*** Form with <INPUT TYPE=%s> not supported ***" % type
 
@@ -302,10 +318,6 @@ class FormInfo:
     def end_select(self):
 	if self.select:
 	    self.select.done()
-	    # update any cached form status
-	    if self.formdata:
-		self.select.set(self.formdata[0])
-		del self.formdata[0]
 	    self.select = None
 
     def do_option(self, value, selected):
@@ -318,10 +330,6 @@ class FormInfo:
     def end_textarea(self):
 	if self.textarea:
 	    self.textarea.done()
-	    # update any cached form status
-	    if self.formdata:
-		self.textarea.set(self.formdata[0])
-		del self.formdata[0]
 	    self.textarea = None
 
     # The following classes are nested so we can use getattr(self, 'Input...')
@@ -441,8 +449,7 @@ class FormInfo:
 	    self.var.set(self.checked and self.value or '')
 
 	def set(self, value):
-	    if self.value == value:
-		self.var.set(self.value)
+	    self.var.set(value)
 
 	def get(self):
 	    return self.var.get()
