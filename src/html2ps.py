@@ -38,6 +38,7 @@ if __name__ == '__main__':
 import ni
 
 # standard imports as part of Grail or as standalone
+import grailutil
 import string
 import StringIO
 import regsub
@@ -1363,6 +1364,16 @@ class PrintingHTMLParser(HTMLParser):
 	else:
 	    self.handle_data(alt)
 
+    def header_bgn(self, tag, level, attrs):
+	HTMLParser.header_bgn(self, tag, level, attrs)
+	dingbat = grailutil.extract_keyword('dingbat', attrs)
+	if dingbat:
+	    self.unknown_entityref(dingbat, '')
+	    self.formatter.add_flowing_data(' ')
+	elif attrs.has_key('src'):
+	    self.do_img(attrs)
+	    self.formatter.add_flowing_data(' ')
+
     # List attribute extensions:
 
     def start_ul(self, attrs, *args, **kw):
@@ -1684,9 +1695,9 @@ def main():
     #  load preferences
     #
     prefs = {}
-    from grailutil import getgraildir
     load_prefs(os.path.join(script_dir, "grail-defaults"), prefs)
-    load_prefs(os.path.join(getgraildir(), "grail-preferences"), prefs)
+    load_prefs(os.path.join(grailutil.getgraildir(),
+			    "grail-preferences"), prefs)
     #
     fontsize, leading = parse_fontsize(prefs['font-size'])
     footnote_anchors = string.atoi(prefs['footnote-anchors'])
@@ -1850,7 +1861,6 @@ setup_template = """%%%%BeginSetup
 """
 
 # Load the PostScript prologue:
-import grailutil
 standard_header_file = grailutil.which(
     "header.ps", (script_dir, grailutil.getgraildir()))
 if standard_header_file and os.path.exists(standard_header_file):
