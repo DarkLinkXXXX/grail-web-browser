@@ -684,9 +684,7 @@ class Viewer(formatter.AbstractWriter):
 	    align = self.align
 	prev_align, self.align = self.align, align
 	self.new_tags()
-	# test the block-level tags; if none are set we can skip this garbage
-	if self.align or self.fonttag or self.margintag or self.spacingtag:
-	    self.pendingdata = self.pendingdata + MIN_IMAGE_LEADER
+	self.pendingdata = self.pendingdata + MIN_IMAGE_LEADER
 	self.align = prev_align
 	self.new_tags()
 
