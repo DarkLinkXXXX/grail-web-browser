@@ -41,16 +41,19 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if not image:
 	    self.handle_data(alt)
 	    return
+	label = AnchorLabel(self.viewer.text, image=image)
+	if self.anchor:
+	    label.setinfo(self.anchor, self.browser)
+	self.add_subwindow(label)
+
+    def add_subwindow(self, w):
 	if self.formatter.nospace:
 	    # Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
 	    self.formatter.add_literal_data(' ')
 	else:
 	    self.formatter.add_literal_data('')
-	label = AnchorLabel(self.viewer.text, image=image)
-	if self.anchor:
-	    label.setinfo(self.anchor, self.browser)
-	self.viewer.add_subwindow(label)
+	self.viewer.add_subwindow(w)
 
     # New tag: <CENTER> (for Amy)
 
@@ -77,7 +80,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    self.show_tb()
 	    frame.destroy()
 	    return
-	self.viewer.add_subwindow(frame)
+	self.add_subwindow(frame)
 
     def applet_menu(self, C, keywords, menuname):
 	browser = self.browser
