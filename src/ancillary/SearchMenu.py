@@ -83,7 +83,7 @@ class SearchDialog:
 	self.close_button.pack(side=RIGHT)
 
     def return_event(self, event):
-	self.search()
+	self.search_close_command()
 
     def search_command(self):
 	self.search()
