@@ -16,7 +16,6 @@ class ImageWindow(Frame):
 		       background=bg)
 	self.label = Label(self, text=self.alt, background=bg)
 	self.label.pack(fill=BOTH, expand=1)
-	self.pack()
 	self.image_loaded = 0
 	if width > 0 and height > 0:
 	    self.propagate(0)
