@@ -31,3 +31,18 @@ def which(filename):
 	if os.path.exists(found):
 	    return found
     return None
+
+def complete_url(url):
+    import urlparse
+    scheme, netloc = urlparse.urlparse(url)[:2]
+    if not scheme:
+	if not netloc:
+	    # XXX url2pathname/pathname2url???
+	    if os.path.exists(url):
+		import urllib
+		url = "file:" + urllib.quote(url)
+	    else:
+		url = "http://" + url
+	else:
+	    url = "http:" + url
+    return url
