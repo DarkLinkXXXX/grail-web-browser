@@ -3,23 +3,37 @@
 
 """Grail -- an extensible web browser.
 
-This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
-
 """
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.2a4"		# PRE 0.2; alpha == lacking features
+__version__ = "Grail/0.2b1"		# PRE 0.2; beta == buggy
 
+
+import sys
+import os
+
+# Hack sys.path:
+# replace the last occurrence of curdir or "" by dirname of argv[0]
+progname = sys.argv[0]
+dirname = os.path.dirname(progname)
+if dirname and dirname != os.curdir:
+    index = -1
+    for i in range(len(sys.path)):
+	p = sys.path[i]
+	if p in ("", os.curdir):
+	    index = i
+    if index >= 0:
+	sys.path[index] = dirname
+    else:
+	sys.path.insert(0, dirname)
 
 from grailutil import *
-import sys
 import getopt
 import string
 import urllib
 import tempfile
 import posixpath
-import os
 import traceback
 import mimetools
 from Tkinter import *
