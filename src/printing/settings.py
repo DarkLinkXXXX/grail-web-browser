@@ -1,6 +1,6 @@
 """Configuration object for the printing subsystem.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/printing/settings.py,v $
 
 
@@ -75,6 +75,7 @@ class PrintSettings:
 	    self.margins = tuple(map(string.atoi, string.split(margins)))
 	self.printcmd = prefs.Get(self.GROUP, 'command') or self.PRINTCMD
 	self.paragraph_indent = prefs.GetFloat(self.GROUP, 'paragraph-indent')
+	self.paragraph_skip = prefs.GetFloat(self.GROUP, 'paragraph-skip')
 
     def get_fontsize(self):
 	return self.fontsize, self.leading
