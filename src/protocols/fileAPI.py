@@ -6,6 +6,11 @@ class file_access:
 
     def __init__(self, url, method, params):
 	self.fp = open(url)		# May raise IOError!
+	from __main__ import app
+	ctype, cencoding = app.guess_type(url)
+	self.headers = {}
+	if ctype: self.headers['content-type'] = ctype
+	if cencoding: self.headers['content-encoding'] = cencoding
 	self.state = META
 
     def pollmeta(self):
@@ -15,7 +20,7 @@ class file_access:
     def getmeta(self):
 	assert(self.state == META)
 	self.state = DATA
-	return 200, "OK", {}
+	return 200, "OK", self.headers
 
     def polldata(self):
 	assert(self.state == DATA)
