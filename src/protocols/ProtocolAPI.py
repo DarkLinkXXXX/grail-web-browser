@@ -19,24 +19,58 @@ non-proxy usage, the url parameter is a string.)
 
 """
 
-
 import regsub
 import string
 import socket
 from urllib import splittype, splithost, splitport
+import grailutil
 
+VALID_PROXIES = ('http_proxy', 'ftp_proxy', 'no_proxy')
 
 def protocol_access(url, mode, params, data=None):
+    from __main__ import app
     scheme, resturl = splittype(url)
     if not scheme:
 	raise IOError, ("protocol error", "no scheme identifier in URL", url)
     scheme = string.lower(scheme)
     sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
-    proxy = getenv(sanitized + "_proxy")
+    #
+    # Check first to see if proxies are enabled
+    manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled',
+					      type_name='Boolean')
+
+    if manual_proxy_enabled:
+	#
+	# believe preferences for proxy info... if no preferences,
+	# see if any proxy environment variables are set, if so,
+	# believe the environment and set preferences to believe also.
+	proxy = grailutil.pref_or_getenv(sanitized + "_proxy",
+				      check_ok=VALID_PROXIES)
+    else:
+	proxy = None
+	
     if proxy:
+	# force  Booleans to be set in prefs, since we
+	# may have ignored the env to get here
+	if not app.prefs.GetBoolean('proxies', 'manual_proxy_enabled'):
+	    app.prefs.Set('proxies', 'manual_proxy_enabled', 1)
+	if not valid_proxy(proxy):
+	    error = 'Invalid proxy: ' + proxy
+	    raise IOError, error
 	do_proxy = 1
-	no_proxy = getenv("no_proxy")
+	no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled',
+					   type_name='Boolean')
+	if no_proxy_enabled:
+	    no_proxy = grailutil.pref_or_getenv("no_proxy")
+	else:
+	    no_proxy = None
+	    
 	if no_proxy:
+	    # force  Booleans to be set in prefs, since we may
+	    # have ignored the env to get here
+	    if not app.prefs.GetBoolean('proxies', 'no_proxy_enabled'):
+		app.prefs.Set('proxies', 'no_proxy_enabled', 1)
+
 	    list = map(string.strip, string.split(no_proxy, ","))
 	    url_host, url_remains = splithost(resturl)
 	    url_host = string.lower(url_host)
@@ -92,14 +126,13 @@ def test(url = "http://www.python.org/"):
 		break
     api.close()
 
-
-def getenv(name):
-    import os
-    try:
-	return os.environ[name]
-    except:
-	return None
-
-
+def valid_proxy(proxy):
+    """Return 1 if the proxy string looks loke a valid url, for an proxy URL else return 0."""
+    import urlparse
+    scheme, netloc, url, params, query, fragment = urlparse.urlparse(proxy)
+    if scheme != 'http' or params or query or fragment:
+	return 0
+    return 1
+    
 if __name__ == '__main__':
     test()
