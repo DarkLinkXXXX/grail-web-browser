@@ -1,8 +1,8 @@
 """Printing interface for HTML documents."""
 
-import PSParser
+import printing.PSParser
 
-parse = PSParser.PrintingHTMLParser
+parse = printing.PSParser.PrintingHTMLParser
 
 
 def add_options(dialog, settings, top):
