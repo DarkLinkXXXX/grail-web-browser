@@ -88,7 +88,10 @@ class BaseReader:
             # No fileno() -- check every 100 ms
 	    self.checkapi_regularly()
 
-
+	# Delete pervious context local protocol handlers
+	# We've gotten far enough into the next page without errors
+	self.context.remove_local_api_handlers()
+	
     def __str__(self):
 	if self.maxbytes:
 	    percent = self.nbytes*100/self.maxbytes
