@@ -1,8 +1,7 @@
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 
 import fonts                            # a package
 import utils                            # || module
-import grailutil
 import os
 import regsub
 import settings
@@ -10,24 +9,26 @@ import string
 import sys
 import time
 import urlparse
-from StringIO import StringIO
+
 try:
     from cStringIO import StringIO
 except ImportError:
-    pass
+    from StringIO import StringIO
 
 from types import StringType, TupleType
 
 
 RECT_DEBUG = 0
 
+SYSTEM_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
 
 # Load the PostScript prologue:
 def get_systemheader():
-    fn = grailutil.which(
-        "header.ps", (os.path.join(grailutil.get_grailroot(), "data"),
-                      os.path.join(grailutil.getgraildir(), "data"))
-    if fn and os.path.exists(fn):
+    options = settings.get_settings()
+    fn = utils.which(
+        "header.ps", list(options.user_data_dirs) + [SYSTEM_DATA_DIR])
+    if fn:
         return open(fn).read()
     return "%%\%%  System header %s not found!\n%%" % fn
 
@@ -36,18 +37,18 @@ USERHEADER_INFO = """\
 %%
 %% This is custom header material was loaded from:
 %%      %s
-%%
-"""
+%%"""
 
 # Allow the user to provide supplemental prologue material:
 def get_userheader():
-    datadir = os.path.join(grailutil.getgraildir(), "data")
+    options = settings.get_settings()
     templates = []
     for fn in settings.get_settings().user_headers:
-        filename = os.path.join(datadir, fn)
-        if os.path.isfile(filename):
-            templates.append((USERHEADER_INFO % fn) + open(filename).read())
-    return string.joinfields(templates, '\n')
+        filename = utils.which(fn, options.user_data_dirs)
+        if filename:
+            templates.append(USERHEADER_INFO % fn)
+            templates.append(open(filename).read())
+    return string.join(templates, '\n')
 
 
 # Regular expressions.
