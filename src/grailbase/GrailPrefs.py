@@ -4,14 +4,14 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.32 $"
+__version__ = "$Revision: 2.33 $"
 
 import os
 import sys
 import string
 if __name__ == "__main__":
     sys.path.insert(0, '../utils')
-import grailutil
+import utils
 
 import parseprefs
 
@@ -85,7 +85,7 @@ class Preferences:
 
     def Editable(self):
         """Ensure that the user has a graildir and it is editable."""
-        if not grailutil.establish_dir(os.path.split(self.filename)[0]):
+        if not utils.establish_dir(os.path.split(self.filename)[0]):
             return 0
         elif os.path.exists(self.filename):
             return 1
@@ -135,9 +135,9 @@ class AllPreferences:
 
     def load(self):
         """Load preferences from scratch, discarding any mods and deletions."""
-        self.user = Preferences(os.path.join(grailutil.getgraildir(),
-                                              USERPREFSFILENAME))
-        self.sys = Preferences(os.path.join(grailutil.get_grailroot(),
+        self.user = Preferences(os.path.join(utils.getgraildir(),
+                                             USERPREFSFILENAME))
+        self.sys = Preferences(os.path.join(utils.get_grailroot(),
                                             SYSPREFSFILENAME),
                                1)
 
