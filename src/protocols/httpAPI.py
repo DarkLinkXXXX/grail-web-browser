@@ -23,13 +23,14 @@ import string
 import httplib
 from urllib import splithost
 import mimetools
-from assert import assert
-import __main__
+from Assert import Assert
+import grailutil
 import select
 import regex
 import StringIO
 import socket
 import sys
+from __main__ import GRAILVERSION
 
 
 httplib.HTTP_VERSIONS_ACCEPTED = 'HTTP/1\.[0-9.]+'
@@ -67,7 +68,8 @@ class MyHTTP(httplib.HTTP):
 	    # Push the data back into the file.
 	    self.file.seek(-len(line), 1)
 	    self.headers = {}
-	    c_type, c_encoding = __main__.app.guess_type(self.selector)
+	    app = grailutil.get_grailapp()
+	    c_type, c_encoding = app.guess_type(self.selector)
 	    if c_encoding:
 		self.headers['content-encoding'] = c_encoding
 	    # HTTP/0.9 sends HTML by default
@@ -95,7 +97,7 @@ class MyHTTP(httplib.HTTP):
 class http_access:
 
     def __init__(self, resturl, method, params, data=None):
-	self.app = __main__.app
+	self.app = grailutil.get_grailapp()
 	self.args = (resturl, method, params, data)
 	self.state = WAIT
 	self.h = None
@@ -110,13 +112,12 @@ class http_access:
 	    reader_callback()
 
     def open(self):
-	assert(self.state == WAIT)
-	grailversion = __main__.__version__
+	Assert(self.state == WAIT)
 	resturl, method, params, data = self.args
 	if data:
-	    assert(method=="POST")
+	    Assert(method=="POST")
 	else:
-	    assert(method in ("GET", "POST"))
+	    Assert(method in ("GET", "POST"))
 	if type(resturl) == type(()):
 	    host, selector = resturl	# For proxy interface
 	else:
@@ -135,7 +136,7 @@ class http_access:
 	    auth = None
 	self.h = MyHTTP(host)
 	self.h.putrequest(method, selector)
-	self.h.putheader('User-agent', grailversion)
+	self.h.putheader('User-agent', GRAILVERSION)
 	if auth:
 	    self.h.putheader('Authorization', 'Basic %s' % auth)
 	if not params.has_key('host'):
@@ -162,7 +163,7 @@ class http_access:
 	self.h = None
 
     def pollmeta(self, timeout=0):
-	assert(self.state == META)
+	Assert(self.state == META)
 
 	sock = self.h.sock
 	try:
@@ -193,7 +194,7 @@ class http_access:
 	return "receiving server response", 0
 
     def getmeta(self):
-	assert(self.state == META)
+	Assert(self.state == META)
 	if not self.readahead:
 	    x, y = self.pollmeta(None)
 	    while not y:
@@ -205,14 +206,14 @@ class http_access:
 	return errcode, errmsg, headers
 
     def polldata(self):
-	assert(self.state == DATA)
+	Assert(self.state == DATA)
 	if self.readahead:
 	    return "processing readahead data", 1
 	return ("waiting for data",
 		len(select.select([self], [], [], 0)[0]))
 
     def getdata(self, maxbytes):
-	assert(self.state == DATA)
+	Assert(self.state == DATA)
 	if self.readahead:
 	    data = self.readahead[:maxbytes]
 	    self.readahead = self.readahead[maxbytes:]
