@@ -4,7 +4,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.17 $"
+__version__ = "$Revision: 2.18 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -117,6 +117,9 @@ class Preferences:
 		    if not self.saved.has_key(g):
 			self.saved[g] = {}
 		    self.saved[g][c] = v
+		elif self.saved.has_key(g) and self.saved[g].has_key(c):
+		    # Deleted - remove from saved version:
+		    del self.saved[g][c]
 	# ... and reinit mods and deleted records:
 	self.mods = {}
 	self.deleted = {}
