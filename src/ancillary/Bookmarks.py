@@ -342,10 +342,11 @@ class FileDialogExtras:
 	frame.pack(fill=X)
 	label = Label(frame, text='Bookmark File Shortcuts:')
 	label.pack(side=LEFT, anchor=W)
-	grailbtn = Button(frame, text='Grail', width=8,
+	grailbtn = Button(frame, text='Grail',
 			  command=self.set_for_grail)
 	netscapebtn = Button(frame, text='Netscape',
 			     command=self.set_for_netscape)
+	tktools.unify_button_widths(grailbtn, netscapebtn)
 	netscapebtn.pack(side=RIGHT, padx='1m', pady='1m')
 	grailbtn.pack(side=RIGHT)
 
@@ -532,6 +533,11 @@ class BookmarksDialog:
 	self._frame.bind("<Alt-S>", self._controller.save)
 	filemenu.add_command(label="Save As...",
 			     command=self._controller.saveas)
+	filemenu.add_command(label="Title...",
+			     command=self._controller.title_dialog,
+			     underline=0, accelerator="Alt-T")
+	self._frame.bind("<Alt-t>", self._controller.title_dialog)
+	self._frame.bind("<Alt-T>", self._controller.title_dialog)
 	filemenu.add_command(label="View Bookmarks in Grail",
 			     command=self._controller.bookmark_goto,
 			     underline=0, accelerator="Alt-V")
@@ -757,13 +763,12 @@ class DetailsDialog:
 	self._frame.iconname("Bookmark Details")
 	self._node = node
 	self._controller = controller
-	top = Frame(self._frame)
-	top.pack(padx='1m', pady='1m')
+	fr, top, bottom = tktools.make_double_frame(self._frame)
 	self._create_form(top)
-	fr = Frame(self._frame, relief=SUNKEN, height=3, borderwidth=1)
-	fr.pack(expand=1, fill=X)
-	self._create_buttonbar()
+	self._create_buttonbar(bottom)
 	self._frame.bind('<Return>', self.done)
+	self._frame.bind('<Alt-W>', self.cancel)
+	self._frame.bind('<Alt-w>', self.cancel)
 
     def _create_form(self, top):
 	make = tktools.make_labeled_form_entry # convenience
@@ -780,20 +785,21 @@ class DetailsDialog:
 	    self._form[3][0].config(relief=GROOVE)
 	self.revert()
 
-    def _create_buttonbar(self):
-	btnbar = Frame(self._frame)
+    def _create_buttonbar(self, top):
+	btnbar = Frame(top)
 ##	revertbtn = Button(btnbar, text='Revert',
 ##			   command=self.revert)
-	donebtn = Button(btnbar, text='OK', width=6,
+	donebtn = Button(btnbar, text='OK',
 			 command=self.done)
-	applybtn = Button(btnbar, text='Apply', width=6,
+	applybtn = Button(btnbar, text='Apply',
 			  command=self.apply)
 	cancelbtn = Button(btnbar, text='Cancel',
 			   command=self.cancel)
+	tktools.unify_button_widths(donebtn, applybtn, cancelbtn)
 ##	revertbtn.pack(side=LEFT)
-	donebtn.pack(side=LEFT, padx='1m', pady='1m')
-	applybtn.pack(side=LEFT)
-	cancelbtn.pack(side=RIGHT, padx='1m')
+	donebtn.pack(side=LEFT)
+	applybtn.pack(side=LEFT, padx='1m')
+	cancelbtn.pack(side=RIGHT)
 	btnbar.pack(fill=BOTH)
 
     def revert(self):
@@ -826,11 +832,14 @@ class DetailsDialog:
 	if self._node.islink_p():
 	    self._node.set_uri(self._form[1][0].get())
 	    self._node.set_description(self._form[4][0][0].get(1.0, 'end'))
-	self._controller.viewer().update_node(self._node)
-	self._controller.viewer().select_node(self._node)
+	if self._node is self._controller.root():
+	    self._controller.update_title_node()
+	else:
+	    self._controller.viewer().update_node(self._node)
+	    self._controller.viewer().select_node(self._node)
 	self._controller.set_modflag(True)
 
-    def cancel(self):
+    def cancel(self, event=None):
 	self.revert()
 	self.hide()
 
@@ -1085,6 +1094,9 @@ class BookmarksController(OutlinerController):
 
     def details(self, event=None):
 	node, selection = self._get_selected_node()
+	self.show_details(node)
+
+    def show_details(self, node):
 	if not node or node.isseparator_p(): return
 	if self._details.has_key(id(node)):
 	    details = self._details[id(node)]
@@ -1092,6 +1104,12 @@ class BookmarksController(OutlinerController):
 	else:
 	    details = DetailsDialog(self._master, node, self)
 	    self._details[id(node)] = details
+
+    def title_dialog(self, event=None):
+	self.show_details(self.root())
+
+    def update_title_node(self):
+	self._dialog.set_labels(self._iomgr.filename(), self.root().title())
 
     def show(self, event=None):
 	# note that due to a weird Tk `buglet' if you do a deiconify
