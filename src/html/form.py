@@ -456,12 +456,24 @@ class FormInfo:
 	    else:
 		self.first = 0
 	    self.var = self.fi.radios[self.name]
-	    if self.first:
-		self.var.set(self.value)
+	    #
+	    # N.B. The HTML 2.0 spec is explicit in its description of
+	    # what user agents should do when no radio elements are
+	    # CHECKED.  See section 8.1.2.4.  But because Netscape and
+	    # Mosaic ignore this, many people consider the spec
+	    # broken.  If you want to be pedantic, uncomment these two
+	    # lines.  With these lines commented out, Grail uses the
+	    # same liberal interpretation that those other browsers
+	    # employ.
+	    #
+## 	    if self.first:
+## 		self.var.set(self.value)
 	    self.w = Radiobutton(self.viewer.text, variable=self.var,
 				 value=self.value)
 
 	def reset(self):
+	    if self.first:
+		self.var.set('')
 	    if self.checked:
 		self.var.set(self.value)
 
