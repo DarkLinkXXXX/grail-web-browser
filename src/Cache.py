@@ -174,6 +174,7 @@ class CacheItem:
 	if self.stage == META:
 	    self.meta = self.api.getmeta()
 	    self.stage = DATA
+	print "getdata(%5d,%5d)\tdatalen %5d" % (offset,maxbytes,self.datalen)
 	while self.stage == DATA and offset >= self.datalen:
 	    buf = self.api.getdata(maxbytes)
 	    if not buf:
@@ -201,7 +202,7 @@ class CacheItem:
 	    ###          cost is O(k), where k is # of chunks
 	    ###          if you use this a lot, you'll get O(N^2) reads
 	    ###
-	    delta = offset
+	    delta = offset + 1
 	    chunk_key = None
 	    for chunk_offset in self.datamap.keys():
 		if offset > chunk_offset:
@@ -209,6 +210,10 @@ class CacheItem:
 		    if diff < delta:
 			delta = diff
 			chunk_key = chunk_offset
+	    print self
+	    print "\tfailed to find chunk for offset ", offset
+	    print "\tcloset chunk starts at ", chunk_key
+	    print self.datamap
 	    chunk = self.data[self.datamap[chunk_key]]
 	    return chunk[delta:]
 
@@ -279,6 +284,7 @@ class CacheAPI:
 	assert(self.stage == DATA)
 	data = self.item.getdata(self.offset, maxbytes)
 	self.offset = self.offset + len(data)
+	print "api:getdata(%5d,%5d) got %5d bytes" % (self.offset,maxbytes,len(data))
 	if not data:
 	    self.close()
 	return data
