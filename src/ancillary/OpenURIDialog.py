@@ -14,7 +14,7 @@ class OpenURIDialog:
 	self._entry.bind('<Return>', self.okay)
 	btnframe = Frame(self._frame)
 	btnframe.pack(fill=BOTH)
-	okbtn = Button(btnframe, text='Ok', command=self.okay)
+	okbtn = Button(btnframe, text='OK', command=self.okay)
 	okbtn.pack(side=LEFT)
 	cancelbtn = Button(btnframe, text='Cancel', command=self.cancel)
 	cancelbtn.pack(side=RIGHT)
