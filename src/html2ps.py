@@ -1,12 +1,14 @@
-"""HTML to PostScript generator.
+"""HTML to PostScript translator.
 
-This module uses the HTMLParser class in the htmllib module as the
-front-end parser of HTML 2.0.  It sets itself up as the backend
-formatter and generates PostScript instead of rendering HTML on a
-screen.
+This module uses the AbstractWriter class interface defined by Grail
+to generate PostScript corresponding to a stream of HTML text.  The
+HTMLParser class scans the HTML stream, generating high-level calls to
+an AbstractWriter object.  This module defines a class derived from
+AbstractWriter, called PSWriter, that supports this high level
+interface as appropriate for PostScript generation.
 """
 
-__version__ = "$Id: html2ps.py,v 1.10 1995/09/14 19:50:27 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.11 1995/09/14 20:03:07 bwarsaw Exp $"
 
 import sys
 import string
@@ -625,8 +627,13 @@ class PSWriter(AbstractWriter):
 	raise RuntimeError
 
     def new_styles(self, styles):
-	#print "new_styles(%s)" % `styles`
-	raise RuntimeError
+	# semantics of STYLES is a tuple of single char strings.
+	# Right now the only styles we support are lower case 'u' for
+	# underline.
+	if 'u' in styles:
+	    self.ps.push_underline(1)
+	else:
+	    self.ps.push_underline(0)
 
     def send_paragraph(self, blankline):
 	for nl in range(blankline+1):
@@ -666,6 +673,9 @@ class PSWriter(AbstractWriter):
 
 
 def html_test():
+    import getopt
+    options = getopt.getopt('')
+
     try:
 	inputfile = sys.argv[1]
 	ifile = open(inputfile, 'r')
