@@ -38,6 +38,8 @@ Grail.Bookmarks.Detail*Frame.revert.text:	Revert
 Grail.Bookmarks.Detail*Frame.apply.text:	Apply
 Grail.Bookmarks.Detail*Frame.cancel.text:	Cancel
 
+Grail.IOStatusPanel.close.text:		Close
+
 Grail*History.goto.text:		Go To
 Grail*History.close.text:		Close
 Grail*History.titles.text:		View by Titles
