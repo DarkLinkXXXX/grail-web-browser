@@ -22,22 +22,21 @@ class Reader(BaseReader):
 
     """Helper class to read documents asynchronously.
 
-    This is created by the Browser.load() method and it is deleted
+    This is created by the Context.load() method and it is deleted
     when the document is fully read or when the user stops it.
 
     There should never be two Reader instances attached to the same
-    Browser instance, but if there were, the only harm done would be
-    that their output would be merged in the browser's viewer.
+    Context instance, but if there were, the only harm done would be
+    that their output would be merged in the context's viewer.
 
     """
 
-    def __init__(self, browser, url, method, params, new, show_source, reload,
+    def __init__(self, context, url, method, params, show_source, reload,
 		 data=None, scrollpos=None):
 
-	self.last_browser = browser
+	self.last_context = context
 	self.method = method
 	self.params = params
-	self.new = new
 	self.show_source = show_source
 	self.reload = reload
 	self.data = data
@@ -54,8 +53,8 @@ class Reader(BaseReader):
     def restart(self, url):
 	self.maxrestarts = self.maxrestarts - 1
 
-	self.viewer = self.last_browser.viewer
-	self.app = self.last_browser.app
+	self.viewer = self.last_context.viewer
+	self.app = self.last_context.app
 
 	self.parser = None
 
@@ -89,7 +88,7 @@ class Reader(BaseReader):
 					    self.method, self.params,
 					    data=self.data)
 
-	BaseReader.__init__(self, self.last_browser, api)
+	BaseReader.__init__(self, self.last_context, api)
 
     def stop(self):
 	BaseReader.stop(self)
@@ -181,11 +180,11 @@ class Reader(BaseReader):
 	    # No relief from mailcap either.
 	    # Ask the user whether and where to save it.
 	    # Stop the transfer, and restart when we're ready.
-	    browser = self.last_browser
+	    context = self.last_context
 	    self.stop()
-	    browser.message("Wait for save dialog...")
+	    context.message("Wait for save dialog...")
 	    import FileDialog
-	    fd = FileDialog.SaveFileDialog(browser.root)
+	    fd = FileDialog.SaveFileDialog(context.root)
 	    # give it a default filename on which save within the
 	    # current directory
 	    urlasfile = string.splitfields(self.url, '/')
@@ -198,13 +197,14 @@ class Reader(BaseReader):
 	    try:
 		self.save_file = open(fn, "wb")
 	    except IOError, msg:
-		browser.error_dialog(IOError, msg)
+		context.error_dialog(IOError, msg)
 		return
 	    self.restart(self.url)
-	    browser.message("Saving to %s" % fn)
+	    context.message("Saving to %s" % fn)
 	    return
 
-	self.browser.clear_reset(self.url, self.new)
+	self.context.clear_reset()
+	self.context.set_url(self.url)
 	self.parser = parserclass(self.viewer, reload=self.reload)
 	self.istext = istext
 	self.last_was_cr = 0
@@ -241,14 +241,14 @@ class Reader(BaseReader):
 	i = string.find(netloc, ':')
 	if i >= 0: netloc = netloc[:i]
 	key = (netloc, realmvalue)
-	browser = self.last_browser
-	app = browser.app
+	context = self.last_context
+	app = context.app
 	if app.login_cache.has_key(key):
 	    if self.user_passwd:
 		del app.login_cache[key]
 	    else:
 		return app.login_cache[key]
-	login = LoginDialog(browser.root, netloc, realmvalue)
+	login = LoginDialog(context.root, netloc, realmvalue)
 	user_passwd = login.go()
 	if user_passwd:
 	    app.login_cache[key] = user_passwd
@@ -272,13 +272,6 @@ class Reader(BaseReader):
 	self.parser.feed(data)
 	self.viewer.freeze()
 
-	self.browser.page_is_good()
-
-	if hasattr(self.parser, 'title'):
-	    title = self.parser.title
-	    if title:
-		self.browser.set_title(title)
-
     def handle_eof(self):
 	if not self.save_file:
 	    if self.fragment:
@@ -289,7 +282,7 @@ class Reader(BaseReader):
 	self.save_file.close()
 	self.save_file = None
 	if not self.save_mailcap:
-	    self.last_browser.message("Saved.")
+	    self.last_context.message("Saved.")
 	    return
 	import mailcap
 	command, entry = mailcap.findmatch(
@@ -297,7 +290,7 @@ class Reader(BaseReader):
 	    self.save_filename, self.save_plist)
 	if not command:
 	    command = self.save_mailcap
-	self.last_browser.message("Mailcap: %s" % command)
+	self.last_context.message("Mailcap: %s" % command)
 	command = "(%s; rm -f %s)&" % (command, self.save_filename)
 	sts = os.system(command)
 	if sts:
@@ -310,7 +303,7 @@ class Reader(BaseReader):
 	    return None
 	type = regsub.gsub("[^a-zA-Z0-9_]", "_", type)
 	subtype = regsub.gsub("[^a-zA-Z0-9_]", "_", subtype)
-	app = self.browser.app
+	app = self.context.app
 	for modname in (type + "_" + subtype, type):
 	    m = app.find_extension('filetypes', modname)
 	    if m:

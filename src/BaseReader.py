@@ -30,8 +30,8 @@ class BaseReader:
     bufsize = BUFSIZE
     sleeptime = SLEEPTIME
 
-    def __init__(self, browser, api):
-	self.browser = browser
+    def __init__(self, context, api):
+	self.context = context
 	self.api = api
 
 	self.callback = self.checkmeta
@@ -40,7 +40,7 @@ class BaseReader:
 	if TkVersion == 4.0 and sys.platform == 'irix5':
 	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
 
-	self.browser.addreader(self)
+	self.context.addreader(self)
 
 	if self.fno >= 0:
 	    tkinter.createfilehandler(
@@ -57,9 +57,9 @@ class BaseReader:
 	self.handle_error(-1, "Killed", {})
 
     def stop(self):
-	if self.browser:
-	    self.browser.rmreader(self)
-	    self.browser = None
+	if self.context:
+	    self.context.rmreader(self)
+	    self.context = None
 
 	if self.fno >= 0:
 	    fno = self.fno
@@ -81,7 +81,7 @@ class BaseReader:
 	if self.callback:
 	    sleeptime = self.sleeptime
 	    if self.poller and self.poller()[1]: sleeptime = 0
-	    self.browser.root.after(sleeptime, self.checkapi_regularly)
+	    self.context.root.after(sleeptime, self.checkapi_regularly)
 
     def checkapi(self, *args):
 	if not self.callback:

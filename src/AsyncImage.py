@@ -4,10 +4,10 @@ from Tkinter import *
 
 class ImageTempFileReader(TempFileReader):
 
-    def __init__(self, browser, api, image):
+    def __init__(self, context, api, image):
 	self.image = image
 	self.image.reader = self
-	TempFileReader.__init__(self, browser, api)
+	TempFileReader.__init__(self, context, api)
 
     def handle_meta(self, errcode, errmsg, headers):
 	TempFileReader.handle_meta(self, errcode, errmsg, headers)
@@ -54,32 +54,32 @@ class ImageTempFileReader(TempFileReader):
 
 class AsyncImage(PhotoImage):
 
-    def __init__(self, browser, url, **kw):
+    def __init__(self, context, url, **kw):
 	apply(PhotoImage.__init__, (self,), kw)
-	self.browser = browser
+	self.context = context
 	self.url = url
 	self.reader = None
 	self.loaded = 0
 
-    def load_synchronously(self, browser=None):
+    def load_synchronously(self, context=None):
 	if not self.loaded:
-	    self.start_loading(browser)
+	    self.start_loading(context)
 	    if self.reader:
 		self.reader.geteverything()
 	return self.loaded
 
-    def start_loading(self, browser=None, reload=0):
-	if browser: self.browser = browser
+    def start_loading(self, context=None, reload=0):
+	if context: self.context = context
 	if self.reader:
 	    return
 	self['file'] = makestopsign()
 	try:
-	    api = self.browser.app.open_url(self.url, 'GET', {},
+	    api = self.context.app.open_url(self.url, 'GET', {},
 					    reload) # Through cache
 	except IOError, msg:
 	    self.blank()
 	    return
-	ImageTempFileReader(self.browser, api, self)
+	ImageTempFileReader(self.context, api, self)
 
     def stop_loading(self):
 	if not self.reader:
@@ -88,8 +88,8 @@ class AsyncImage(PhotoImage):
 	self.blank()
 
     def set_file(self, filename):
-	self.browser.root.tk.setvar("TRANSPARENT_GIF_COLOR",
-				    self.browser.viewer.text["background"])
+	self.context.root.tk.setvar("TRANSPARENT_GIF_COLOR",
+				    self.context.viewer.text["background"])
 	try:
 	    self['file'] = filename
 	except TclError:
@@ -97,7 +97,7 @@ class AsyncImage(PhotoImage):
 	    print "*** bad image type:", self.url
 	else:
 	    self.loaded = 1
-	self.browser.root.update_idletasks()
+	self.context.root.update_idletasks()
 
     def set_error(self, errcode, errmsg, headers):
 	self.blank()

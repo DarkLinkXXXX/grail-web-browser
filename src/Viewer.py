@@ -1,25 +1,26 @@
-"""Viewer class for web browser."""
+"""Viewer class."""
 
 
 from Tkinter import *
 import tktools
 import formatter
 import string
+from Context import Context
 
 
 class Viewer(formatter.AbstractWriter):
 
-    """A viewer is mostly a fancy text widget with a scroll bar.
+    """A viewer is mostly a fancy text widget with scroll bars.
 
     It also doubles as the 'writer' for a Formatter.
 
     """
 
-    def __init__(self, master, browser=None, stylesheet=None,
+    def __init__(self, master, browser=None, context=None, stylesheet=None,
 		 width=80, height=40):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
-	self.browser = browser
+	self.context = context or Context(self, browser)
 	self.stylesheet = stylesheet
 	self.subwindows = []
 	self.rules = []
@@ -72,6 +73,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_bind(tag, '<Enter>', self.anchor_enter)
 	self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
 	self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
+	self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
 	self.text.tag_bind(tag, '<ButtonRelease-3>', self.anchor_click_new)
 	# XXX Don't tag bindings need to be garbage-collected?
 
@@ -192,16 +194,16 @@ class Viewer(formatter.AbstractWriter):
 
     def anchor_enter(self, event):
 	url = self.find_tag_url() or '???'
-	self.browser.enter(url)
+	self.context.enter(url)
 
     def anchor_leave(self, event):
-	self.browser.leave()
+	self.context.leave()
 
     def anchor_click(self, event):
 	url = self.find_tag_url()
 	if url:
 	    self.add_temp_tag()
-	    self.browser.follow(url)
+	    self.context.follow(url)
 
     def anchor_click_new(self, event):
 	url = self.find_tag_url()
@@ -212,7 +214,7 @@ class Viewer(formatter.AbstractWriter):
 	    from __main__ import app
 	    import urlparse
 	    b = Browser(self.master, app)
-	    b.load(urlparse.urljoin(self.browser.baseurl(), url))
+	    b.load(self.context.baseurl(url))
 	    self.remove_temp_tag(histify=1)
 
     def add_temp_tag(self):

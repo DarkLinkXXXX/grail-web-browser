@@ -26,15 +26,15 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def __init__(self, viewer, reload=0):
 	self.viewer = viewer
 	self.reload = reload
-	self.app = self.viewer.browser.app
-	self.formatter = formatter.AbstractFormatter(self.viewer)
-	htmllib.HTMLParser.__init__(self, self.formatter)
-	self.browser = self.viewer.browser
+	self.context = self.viewer.context
+	self.app = self.context.app
 	self.style_stack = []
 	self.loaded = []
 	self.page_tag_count = 0
 	self.insert_stack = []
 	self.insert_active = 0		# Length of insert_stack at activation
+	self.formatter = formatter.AbstractFormatter(self.viewer)
+	htmllib.HTMLParser.__init__(self, self.formatter)
 
     def close(self):
 	htmllib.HTMLParser.close(self)
@@ -66,8 +66,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    utag = '>' + href
 	    otag = '%%%d' % self.page_tag_count
 	    self.page_tag_count = self.page_tag_count + 1
-	    fulluri = urlparse.urljoin(self.browser.baseurl(), href)
-	    if self.browser.global_history.inhistory_p(fulluri):
+	    fulluri = self.context.baseurl(href)
+	    if self.app.global_history.inhistory_p(fulluri):
 		htag = 'ahist'
 	ntag = name and '#' + name or None
 	self.formatter.push_style(atag)
@@ -134,6 +134,12 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    self.handle_data("\240") # Non-breaking space
 	self.viewer.add_subwindow(w)
 
+    # Extend tag: </TITLE>
+
+    def end_title(self):
+	htmllib.HTMLParser.end_title(self)
+	self.context.set_title(self.title)
+
     # Override tag: <BODY colorspecs...>
 
     def start_body(self, attrs):
@@ -159,9 +165,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
         for a, v in attrs:
             if a == 'href':
                 base = v
-	if base:
-	    url = urlparse.urljoin(self.browser.baseurl(), base)
-	    self.browser.set_baseurl(url)
+	self.context.set_baseurl(base)
 
     # New tag: <CENTER> (for Amy)
 
@@ -278,13 +282,11 @@ class AppletHTMLParser(htmllib.HTMLParser):
     # Handle HTML extensions
 
     def unknown_starttag(self, tag, attrs):
-	app = self.viewer.browser.app
-	function = app.find_html_start_extension(tag)
+	function = self.app.find_html_start_extension(tag)
 	if function:
 	    function(self, attrs)
 
     def unknown_endtag(self, tag):
-	app = self.viewer.browser.app
-	function = app.find_html_end_extension(tag)
+	function = self.app.find_html_end_extension(tag)
 	if function:
 	    function(self)

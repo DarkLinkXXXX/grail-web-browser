@@ -2,7 +2,7 @@
 
 This class has no methods, only class variables.  It is not intended
 to be instantiated; rather, you pass the class itself as the
-stylesheet argument to the Viewer browser.  It is useful to inherit
+stylesheet argument to the Viewer object.  It is useful to inherit
 from it though, if you want to define a style sheet that is just a
 little bit different.
 

@@ -5,9 +5,9 @@ class ImageWindow(Frame):
     def __init__(self, viewer, url,
 		 src, alt, ismap, align, width, height, borderwidth):
 	self.viewer = viewer
+	self.context = self.viewer.context
 	self.url = url
 	self.src, self.alt, self.ismap, self.align = src, alt, ismap, align
-	self.browser = self.viewer.browser
 	bg = viewer.text['background']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
@@ -30,21 +30,21 @@ class ImageWindow(Frame):
 ##	    self['background'] = 'black' # XXX for debug
 	    self.label.bind('<ButtonRelease-1>', self.toggle_loading_image)
 	self.label.bind('<ButtonRelease-3>', self.toggle_loading_image)
-	self.image = self.browser.get_async_image(self.src)
+	self.image = self.context.get_async_image(self.src)
 	if self.image:
 	    self.label['image'] = self.image
 
     def enter(self, event):
-	self.browser.enter(self.url)
+	self.context.enter(self.url)
 
     def leave(self, event):
-	self.browser.leave()
+	self.context.leave()
 
     def motion(self, event):
-	self.browser.enter(self.whichurl(event))
+	self.context.enter(self.whichurl(event))
 
     def follow(self, event):
-	self.browser.follow(self.whichurl(event))
+	self.context.follow(self.whichurl(event))
 
     def whichurl(self, event):
 	if not self.ismap:

@@ -33,7 +33,7 @@ class AppletLoader:
 	"""Store the essential data (from the app or applet tag)"""
 	self.parser = parser
 	self.viewer = self.parser.viewer
-	self.browser = self.parser.browser
+	self.context = self.viewer.context
 	self.app = self.parser.app
 
 	self.name = name
@@ -63,7 +63,7 @@ class AppletLoader:
 
     def close(self):
 	"""Delete all references to external objects."""
-	self.parser = self.viewer = self.browser = self.app = None
+	self.parser = self.viewer = self.context = self.app = None
 	self.params = {}
 	self.modname = self.codeurl = None
 	self.parent = self.module = self.klass = self.instance = None
@@ -114,7 +114,7 @@ class AppletLoader:
 	    # Asynchronous loading
 	    self.parent = self.make_parent()
 	    api = self.app.open_url(self.codeurl, 'GET', {}, self.reload)
-	    ModuleReader(self.browser, api, self)
+	    ModuleReader(self.context, api, self)
 
     def make_parent(self):
 	"""Return a widget that will be the applet's parent.
@@ -123,7 +123,7 @@ class AppletLoader:
 
 	"""
 	if self.menu:
-	    browser = self.browser
+	    browser = self.context.browser
 	    menubutton = Menubutton(browser.mbar, text=self.menu)
 	    menubutton.pack(side=LEFT)
 	    menu = AppletMenu(menubutton, self)
@@ -131,8 +131,9 @@ class AppletLoader:
 	    browser.user_menus.append(menubutton)
 	    parent = menu
 	else:
-	    bg = self.viewer.text['background']
-	    frame = AppletFrame(self.viewer.text, self, background=bg)
+	    text = self.viewer.text
+	    bg = text['background']
+	    frame = AppletFrame(text, self, background=bg)
 	    if self.width: frame.config(width=self.width)
 	    if self.height: frame.config(height=self.height)
 	    self.parser.add_subwindow(frame)
@@ -158,16 +159,16 @@ class AppletLoader:
 	    if self.reload and rexec.modules.has_key(mod) and \
 	       mod not in self.parser.loaded:
 		# XXX Hack, hack
-		msg, crs = self.browser.message("Reloading module " + mod)
+		self.context.message("Reloading module " + mod)
 		self.module = rexec.modules[mod]
 		rexec.r_reload(self.module)
 	    else:
-		msg, crs = self.browser.message("Loading module " + mod)
+		self.context.message("Loading module " + mod)
 		self.module = rexec.r_import(mod)
 	finally:
 	    del rexec.loader.load_module
 	self.parser.loaded.append(mod)
-	self.browser.message(msg, crs)
+	self.context.message("Done loading.")
 	self.klass = getattr(self.module, self.name)
 	self.instance = apply(self.klass, (self.parent,), self.params)
 
@@ -179,11 +180,7 @@ class AppletLoader:
 	    self.modname = "?" # Shouldn't happen
 	if not self.name:
 	    self.name = self.modname
-	codeurl = self.browser.baseurl()
-	if self.codebase:
-	    codeurl = urlparse.urljoin(codeurl, self.codebase)
-	codeurl = urlparse.urljoin(codeurl, self.code)
-	self.codeurl = codeurl
+	self.codeurl = self.context.baseurl(self.codebase, self.code)
 
     def get_easy_module(self, mod):
 	"""Internal -- import a module if it can be done locally."""
@@ -250,7 +247,7 @@ class AppletLoader:
     def show_tb(self):
 	"""Internal -- post an exception dialog (via the app)."""
 	self.app.exception_dialog("during applet loading",
-				  root=self.browser.root)
+				  root=self.context.root)
 
 
 class ModuleReader(BaseReader):
@@ -263,9 +260,9 @@ class ModuleReader(BaseReader):
 
     """
 
-    def __init__(self, browser, api, apploader):
+    def __init__(self, context, api, apploader):
 	self.apploader = apploader
-	BaseReader.__init__(self, browser, api)
+	BaseReader.__init__(self, context, api)
 
     def handle_error(self, errno, errmsg, headers):
 	self.apploader.close()
@@ -282,13 +279,15 @@ class AppletMagic:
 
     def __init__(self, parser):
 	self.grail_parser = parser
-	self.grail_viewer = self.grail_browser = self.grail_app = None
+	self.grail_viewer = self.grail_context = \
+			  self.grail_browser = self.grail_app = None
 	if parser:
 	    self.grail_viewer = viewer = parser.viewer
 	    if viewer:
-		self.grail_browser = browser = viewer.browser
-		if browser:
-		    self.grail_app = app = browser.app
+		self.grail_context = context = viewer.context
+		if context:
+		    self.grail_browser = context.browser
+		    self.grail_app = context.app
 
 
 class AppletFrame(Frame, AppletMagic):

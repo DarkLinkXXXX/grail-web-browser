@@ -23,10 +23,10 @@ class FileReader(BaseReader):
 
     filemode = "wb"
 
-    def __init__(self, browser, api, filename):
+    def __init__(self, context, api, filename):
 	self.filename = filename
 	self.fp = None
-	BaseReader.__init__(self, browser, api)
+	BaseReader.__init__(self, context, api)
 
     def handle_data(self, data):
 	if self.fp is None:
@@ -57,11 +57,11 @@ class TempFileReader(FileReader):
     This also supports inserting a filtering pipeline.
     """
 
-    def __init__(self, browser, api):
+    def __init__(self, context, api):
 	self.pipeline = None
 	import tempfile
 	filename = tempfile.mktemp()
-	FileReader.__init__(self, browser, api, filename)
+	FileReader.__init__(self, context, api, filename)
 
     def set_pipeline(self, pipeline):
 	"""New method to select the filter pipeline."""

@@ -1,16 +1,15 @@
 #! /depot/sundry/plat/bin/python
 
-"""Grail -- an extensible web browser."""
+"""Grail -- the Extensible Internet Browser."""
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3a1"
+__version__ = "Grail/0.3a2"
 
 
 # Standard python imports (needed by path munging code)
 import os
 import sys
-import string
 
 # Path munging
 script_dir = os.path.dirname(sys.argv[0])
@@ -88,7 +87,7 @@ def main():
     if url:
 	app.home = url
     if sys.platform != 'mac':
-    	browser.load(app.home)
+    	browser.context.load(app.home)
     SafeTkinter._castrate(app.root.tk)
     tktools.install_keybindings(app.root)
     # Make everybody who's still using urllib.urlopen go through the cache
