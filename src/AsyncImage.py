@@ -62,8 +62,13 @@ class AsyncImage(PhotoImage):
 	self.blank()
 
     def set_file(self, filename):
-	self['file'] = filename
-	self.loaded = 1
+	try:
+	    self['file'] = filename
+	except TclError:
+	    self.blank()
+	    print "*** bad image type:", self.url
+	else:
+	    self.loaded = 1
 
     def set_error(self, errcode, errmsg, headers):
 	self.blank()
