@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.9 $"
+__version__ = "$Revision: 1.10 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -229,6 +229,10 @@ class SGMLLexer(SGMLLexerBase):
 	    self.lex_endtag(tagname[2:])
 
 	def _lex_got_starttag(self, name, attributes):
+	    for k, v in attributes.items():
+		if v and '&' in v:
+		    from SGMLReplacer import replace
+		    attributes[k] = replace(v, self.entitydefs)
 	    self.lex_starttag(name[1:], attributes)
 
 	def _lex_declaration(self, types, strings):
@@ -469,6 +473,9 @@ class SGMLLexer(SGMLLexerBase):
 		elif attrvalue[:1] == LITA == attrvalue[-1:] or \
 		     attrvalue[:1] == LIT == attrvalue[-1:]:
 		    attrvalue = attrvalue[1:-1]
+		    if '&' in attrvalue:
+			from SGMLReplacer import replace
+			attrvalue = replace(attrvalue, self.entitydefs)
 		attrs[self._normfunc(attrname)] = attrvalue
 		k = k + l
 	    if rawdata[j] == '>':
