@@ -215,9 +215,8 @@ class HTMLParser(SGMLParser):
 	self.header_end('h6', 5)
 
     def header_bgn(self, tag, level, attrs):
-	self.element_close_maybe('h1', 'h2', 'h3', 'h4', 'h5', 'h6')
+	self.element_close_maybe('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p')
 	if self.strict_p():
-	    self.close_paragraph()
 	    while self.list_stack:
 		self.badhtml = 1
 		self.lex_endtag(self.list_stack[0][0])
@@ -272,8 +271,9 @@ class HTMLParser(SGMLParser):
 		self.lex_endtag(self.stack[-1])
 	    #  Remove <P> surgically:
 	    del self.stack[-1]
-	    self.end_p(parbreak = 0)
-	self.formatter.add_line_break()
+	    self.end_p(parbreak=0)
+	else:
+	    self.formatter.add_line_break()
 
     def start_div(self, attrs):
 	self.start_p(attrs, parbreak=0)
