@@ -893,6 +893,8 @@ class ViewerMenu:
 				command=self.__open_image)
 	self.__menu.add_command(label="Save Image %s..." % self.__image_file,
 				command=self.__save_image)
+	self.__menu.add_command(label="Copy Image Location",
+				command=self.__select_image_url)
 
     def __add_link_items(self):
 	self.__have_link = 1
@@ -903,6 +905,26 @@ class ViewerMenu:
 				command=self.__print_link)
 	self.__menu.add_command(label="Save Link As...",
 				command=self.__save_link)
+	self.__menu.add_command(label="Copy Link Location",
+				command=self.__select_link_url)
+
+    __selection = ''
+    def __select_image_url(self, event=None):
+	self.__select(self.__context.get_baseurl(self.__image_url))
+
+    def __select_link_url(self, event=None):
+	self.__select(self.__context.get_baseurl(self.__link_url))
+
+    def __select(self, selection):
+	self.__selection = selection
+	self.__viewer.text.selection_handle(self.__selection_handler)
+	self.__viewer.text.selection_own()
+
+    def __selection_handler(self, offset, maxbytes):
+	offset = string.atoi(offset)
+	maxbytes = string.atoi(maxbytes)
+	endpos = min(maxbytes + offset, len(self.__selection))
+	return self.__selection[offset:endpos]
 
     def __bkmark_link(self, event=None):
 	try:
