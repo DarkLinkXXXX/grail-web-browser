@@ -13,7 +13,8 @@ class ImageTempFileReader(TempFileReader):
 	self.image.set_file(self.getfilename())
 	self.cleanup()
 
-    def handle_error(self, *args):
+    def handle_error(self, errcode, errmsg, headers):
+	self.image.set_error(errcode, errmsg, headers)
 	self.cleanup()
 
     def stop(self):
@@ -63,6 +64,13 @@ class AsyncImage(PhotoImage):
     def set_file(self, filename):
 	self['file'] = filename
 	self.loaded = 1
+
+    def set_error(self, errcode, errmsg, headers):
+	self.blank()
+	self.loaded = 0
+	if errcode in (301, 302) and headers.has_key('location'):
+	    self.url = headers['location']
+	    self.start_loading()
 
     def get_load_status(self):
 	if self.reader:
