@@ -1063,6 +1063,12 @@ class HTMLParser(SGMLGatherer.BaseSGMLGatherer):
 
     # a few interesting UNICODE values:
     __charrefs = {
+	# these first four are really supposed to be ligatures
+	140: "OE",			# invalid, but compatible w/ Win32
+	156: "oe",
+	338: "OE",			# valid versions of the same
+	339: "oe",
+	#
 	8204: "",			# zero-width non-joiner
 	8205: "",			# zero-width joiner
 	8482: "\xe4",			# 
