@@ -909,6 +909,8 @@ class Canvas(Widget):
 		return self.tk.getint(self._do('index', args))
 	def insert(self, *args):
 		self._do('insert', args)
+	def itemcget(self, tagOrId, option):
+		return self._do('itemcget', (tagOrId, '-'+option))
 	def itemconfig(self, tagOrId, cnf=None, **kw):
 		if cnf is None and not kw:
 			cnf = {}
