@@ -80,17 +80,20 @@ class MailDialog:
 	self.master = master
 	self.root = tktools.make_toplevel(self.master,
 					  title="Mail Dialog")
-	self.text, self.frame = tktools.make_text_box(self.root, 80, 24)
-	self.botframe = Frame(self.root)
-	self.botframe.pack(fill=X)
-	self.send_button = Button(self.botframe,
+	self.root.protocol("WM_DELETE_WINDOW", self.cancel_command)
+	self.root.bind("<Alt-w>", self.cancel_command)
+	self.root.bind("<Alt-W>", self.cancel_command)
+	fr, top, botframe = tktools.make_double_frame(self.root)
+	self.text, fr = tktools.make_text_box(top, 80, 24)
+	self.send_button = Button(botframe,
 				  text="Send",
 				  command=self.send_command)
 	self.send_button.pack(side=LEFT)
-	self.cancel_button = Button(self.botframe,
+	self.cancel_button = Button(botframe,
 				    text="Cancel",
 				    command=self.cancel_command)
 	self.cancel_button.pack(side=RIGHT)
+	tktools.unify_button_widths(self.send_button, self.cancel_button)
 	variables = {
 	    'to':	address,
 	    'date':	time.ctime(time.time()),
@@ -128,5 +131,5 @@ Content-Transfer-Encoding: 7bit""",
 		print "*** Sendmail exit status", sts, "***"
 	self.root.destroy()
 
-    def cancel_command(self):
+    def cancel_command(self, event=None):
 	self.root.destroy()
