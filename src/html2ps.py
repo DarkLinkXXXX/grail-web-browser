@@ -653,30 +653,28 @@ class PrintingHTMLParser(HTMLParser):
 
     """Class to override HTMLParser's default methods for anchors."""
 
-    def __init__(self, formatter, verbose=0):
-	HTMLParser.__init__(self, formatter, verbose)
-	self._anchorlist = []
-
     def close(self):
 	self.formatter.add_hor_rule()
 	self.formatter.add_flowing_data('URLs referenced in this document:')
 	self.formatter.end_paragraph(1)
 	self.formatter.push_margin(1)
 	self.formatter.push_font((8, None, None, None))
-	for anchor in self._anchorlist:
-	    self.formatter.add_literal_data(anchor + '\n')
+	acnt = len(self.anchorlist)
+	format = '[%%%dd] ' % (acnt >= 100 and 3 or acnt >= 10 and 2 or 1)
+	count = 1
+	for anchor in self.anchorlist:
+	    self.formatter.add_literal_data((format % count) + anchor + '\n')
+	    count = count + 1
 	self.formatter.pop_margin()
 	HTMLParser.close(self)
 
     def anchor_bgn(self, href, name, type):
-	self.anchor = href
+	HTMLParser.anchor_bgn(self, href, name, type)
 	self.formatter.push_style(href and 'u' or None)
-	if href:
-	    self._anchorlist.append(href)
 
     def anchor_end(self):
+	HTMLParser.anchor_end(self)
 	self.formatter.pop_style()
-	self.anchor = None
 
 
 
