@@ -45,7 +45,7 @@ def norm_uri(uri):
 		del loc[-1]
 		netloc = string.joinfields(loc, ':')
     return urlparse.urlunparse((scheme, string.lower(netloc), path,
-				params, query, ''))
+				params, query, fragment))
 
 
 class BookmarkNode(Outliner.OutlinerNode):
@@ -98,6 +98,7 @@ class BookmarkNode(Outliner.OutlinerNode):
     def leaf_p(self): return self._leaf_p
 
     def clone(self):
+	# subclasses really should override this method!
 	newnode = BookmarkNode(self._title, self._uri, self._add_date,
 			       self._visited, self._desc)
 	# TBD: no good way to do this
@@ -178,9 +179,18 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 
     from htmlentitydefs import entitydefs
 
-    def __init__(self, filename):
+    def __init__(self, filename, node_class=BookmarkNode):
 	self._filename = filename
 	SGMLParser.SGMLParser.__init__(self)
+	#
+	# Based on comments from Malcolm Gillies <M.B.Gillies@far.ruu.nl>,
+	# take the class to instantiate as a node as a parameter.  This
+	# could have been done using a method, which can be overridden by
+	# subclasses, this is faster.  Since performance is still a major
+	# problem, we'll do this for now.  Any callable will do other than
+	# an unbound method.
+	#
+	self.new_node = node_class
 
     def save_bgn(self):
 	self._buffer = ''
@@ -198,12 +208,12 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
     def _push_new(self):
 	if not self._current:
 	    raise BookmarkFormatError(self._filename, 'file corrupted')
-	newnode = BookmarkNode()
+	newnode = self.new_node()
 	self._current.append_child(newnode)
 	self._current = newnode
 
     def start_h1(self, attrs):
-	self._root = self._current = BookmarkNode()
+	self._root = self._current = self.new_node()
 	self.save_bgn()
 
     def end_h1(self):
@@ -222,7 +232,7 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 	self._store_node = self._current
 
     def do_hr(self, attrs):
-	snode = BookmarkNode()
+	snode = self.new_node()
 	snode.set_separator()
 	self._current.append_child(snode)
 
@@ -235,13 +245,16 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 	self.save_bgn()
 	self._storing = 1
 
-    def ddpop(self, *args):
+    def ddpop(self):
 	if self._store_node:
 	    self._store_node.set_description(self.save_end())
 	    self._store_node = None
 
-    do_dt = ddpop
-    start_dl = ddpop
+    def do_dt(self, attrs):
+	self.ddpop()
+
+    def start_dl(self, attrs):
+	self.ddpop()
 
     def start_a(self, attrs):
 	self._push_new()
