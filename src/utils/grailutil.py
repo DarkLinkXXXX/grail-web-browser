@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.8 $"
+__version__ = "$Revision: 2.9 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -156,9 +156,11 @@ def conv_normstring(val):
 
 def conv_enumeration(val, mapping_or_list):
     if type(mapping_or_list) == type([]):
-	return (val in mapping_or_list) and val
+	if val in mapping_or_list: return val
+	else: return None
     else:
-	mapping_or_list.has_key(val) and mapping_or_list[val]
+	if mapping_or_list.has_key(val): return mapping_or_list[val]
+	else: return None
 
 def conv_exists(val):
     return 1
