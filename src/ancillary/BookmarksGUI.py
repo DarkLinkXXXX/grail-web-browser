@@ -1,6 +1,6 @@
 # Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:cnri/19980302135001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
+# license agreement obtained from handle "hdl:1895.22/1003",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
 
 import bookmarks
 import bookmarks.collection
@@ -292,7 +292,10 @@ class IOErrorDialog:
         label.pack()
         errlabel = Label(self._frame, text=errmsg)
         errlabel.pack()
-        Button(self._frame, text="OK", command=self.close).pack()
+        b = Button(self._frame, text="OK", command=self.close)
+        b.pack()
+        b.focus_set()
+        b.config(default="active")
         self._frame.grab_set()
 
     def close(self):
@@ -525,7 +528,6 @@ class BookmarksDialog:
         btmframe = Frame(self._frame)
         btmframe.pack(side=BOTTOM, fill=BOTH)
         topframe = Frame(self._frame)
-        topframe.pack(side=BOTTOM, fill=BOTH)
         # bottom buttonbar buttons
         okbtn = Button(self._frame, name='ok', command=self.okay_cmd)
         okbtn.pack(side=LEFT, in_=btmframe)
@@ -542,22 +544,34 @@ class BookmarksDialog:
         self._frame.bind('<Control-c>', self.cancel_cmd)
         self._frame.bind('<Control-C>', self.cancel_cmd)
         # top buttonbar buttons
-        if self._controller.optionalbuttons.get():
-            prevbtn = Button(self._frame, name='prev',
-                             command=self._controller.previous_cmd)
-            nextbtn = Button(self._frame, name='next',
-                             command=self._controller.next_cmd)
-            prevbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
-            nextbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
-            gotobtn = Button(self._frame, name='goto',
-                             command=self._controller.goto)
-            gotobtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
-            colbtn = Button(self._frame, name='collapse',
-                            command=self._controller.collapse_cmd)
-            expbtn = Button(self._frame, name='expand',
-                            command=self._controller.expand_cmd)
-            colbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
-            expbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+        self._optional_frame = topframe
+        prevbtn = Button(self._frame, name='prev',
+                         command=self._controller.previous_cmd)
+        nextbtn = Button(self._frame, name='next',
+                         command=self._controller.next_cmd)
+        prevbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+        nextbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+        gotobtn = Button(self._frame, name='goto',
+                         command=self._controller.goto)
+        gotobtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+        colbtn = Button(self._frame, name='collapse',
+                        command=self._controller.collapse_cmd)
+        expbtn = Button(self._frame, name='expand',
+                        command=self._controller.expand_cmd)
+        colbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+        expbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+        self.update_prefs()
+
+    _optional_buttons_packed = 0
+
+    def update_prefs(self):
+        pack = self._controller.optionalbuttons.get()
+        if self._optional_buttons_packed != pack:
+            if pack:
+                self._optional_frame.pack(side=BOTTOM, fill=BOTH)
+            else:
+                self._optional_frame.forget()
+            self._optional_buttons_packed = pack
 
     def _create_other_bindings(self):
         # bindings not associated with menu entries or buttons
@@ -573,8 +587,10 @@ class BookmarksDialog:
     def load(self, event=None):
         try:
             self._controller.load()
-        except (IOError, bookmarks.BookmarkFormatError), errmsg:
+        except IOError, errmsg:
             IOErrorDialog(self._frame, 'during loading', errmsg)
+        except bookmarks.BookmarkFormatError, e:
+            IOErrorDialog(self._frame, 'during loading', e.problem)
 
     def show(self):
         self._frame.deiconify()
@@ -777,6 +793,8 @@ class BookmarksController(OutlinerController):
         self.includepulldown.set(self.__get_boolean_pref(INCLUDE_PREF))
         self.optionalbuttons.set(self.__get_boolean_pref(BUTTONS_PREF))
         self.autodetails.set(self.__get_boolean_pref(AUTO_DETAILS_PREF))
+        if self._dialog:
+            self._dialog.update_prefs()
 
     def __get_boolean_pref(self, option, default=0):
         try:
