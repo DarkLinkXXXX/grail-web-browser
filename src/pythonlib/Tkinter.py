@@ -1,10 +1,22 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
 try:
+	# See if modern _tkinter is present
 	import _tkinter
 	tkinter = _tkinter # b/w compat
 except ImportError:
+	# No modern _tkinter -- try oldfashioned tkinter
 	import tkinter
+	if hasattr(tkinter, "__path__"):
+		import sys, os
+		# Append standard platform specific directory
+		p = tkinter.__path__
+		for dir in sys.path:
+			if (dir not in p and
+			    os.path.basename(dir) == sys.platform):
+				p.append(dir)
+		del sys, os, p, dir
+		from tkinter import tkinter
 TclError = tkinter.TclError
 from types import *
 from Tkconstants import *
@@ -59,35 +71,35 @@ class Variable:
 		self._name = 'PY_VAR' + `_varnum`
 		_varnum = _varnum + 1
 	def __del__(self):
-		self._tk.unsetvar(self._name)
+		self._tk.globalunsetvar(self._name)
 	def __str__(self):
 		return self._name
 	def set(self, value):
-		return self._tk.setvar(self._name, value)
+		return self._tk.globalsetvar(self._name, value)
 
 class StringVar(Variable):
 	def __init__(self, master=None):
 		Variable.__init__(self, master)
 	def get(self):
-		return self._tk.getvar(self._name)
+		return self._tk.globalgetvar(self._name)
 
 class IntVar(Variable):
 	def __init__(self, master=None):
 		Variable.__init__(self, master)
 	def get(self):
-		return self._tk.getint(self._tk.getvar(self._name))
+		return self._tk.getint(self._tk.globalgetvar(self._name))
 
 class DoubleVar(Variable):
 	def __init__(self, master=None):
 		Variable.__init__(self, master)
 	def get(self):
-		return self._tk.getdouble(self._tk.getvar(self._name))
+		return self._tk.getdouble(self._tk.globalgetvar(self._name))
 
 class BooleanVar(Variable):
 	def __init__(self, master=None):
 		Variable.__init__(self, master)
 	def get(self):
-		return self._tk.getboolean(self._tk.getvar(self._name))
+		return self._tk.getboolean(self._tk.globalgetvar(self._name))
 
 def mainloop(n=0):
 	_default_root.tk.mainloop(n)
@@ -331,44 +343,29 @@ class Misc:
 			return splitlist(self.tk.call('bindtags', self._w))
 		else:
 			self.tk.call('bindtags', self._w, tagList)
-	def bind(self, sequence=None, func=None, add='', brk=''):
-		if add: add = '+'
+	def _bind(self, what, sequence, func, add):
+		add = add and '+' or ''
 		if func:
+			import string
 			name = self._register(func, self._substitute)
-			self.tk.call('bind', self._w, sequence, 
-				     (add + name,) + self._subst_format)
-			if brk:
-				self.tk.call('bind', self._w, sequence,
-					     "+break")
+			cmd = name + " " + string.join(self._subst_format)
+			cmd = "set _tkinter_break [%s]\n" % cmd
+			cmd = cmd + 'if {"$_tkinter_break" == "break"} break\n'
+			apply(self.tk.call, what + (sequence, add + cmd))
+		elif func == '':
+			apply(self.tk.call, what + (sequence, func))
 		else:
-		    return self.tk.call('bind', self._w, sequence)
+			return apply(self.tk.call, what + (sequence,))
+	def bind(self, sequence=None, func=None, add=None):
+		return self._bind(('bind', self._w), sequence, func, add)
 	def unbind(self, sequence):
 		self.tk.call('bind', self._w, sequence, '')
-	def bind_all(self, sequence=None, func=None, add='', brk=''):
-		if add: add = '+'
-		if func:
-			name = self._register(func, self._substitute)
-			self.tk.call('bind', 'all' , sequence, 
-				     (add + name,) + self._subst_format)
-			if brk:
-				self.tk.call('bind', self._w, sequence,
-					     "+break")
-		else:
-			return self.tk.call('bind', 'all', sequence)
+	def bind_all(self, sequence=None, func=None, add=None):
+		return self._bind(('bind', 'all'), sequence, func, add)
 	def unbind_all(self, sequence):
 		self.tk.call('bind', 'all' , sequence, '')
-	def bind_class(self, className, sequence=None,
-		       func=None, add='', brk=''):
-		if add: add = '+'
-		if func:
-			name = self._register(func, self._substitute)
-			self.tk.call('bind', className , sequence, 
-				     (add + name,) + self._subst_format)
-			if brk:
-				self.tk.call('bind', self._w, sequence,
-					     "+break")
-		else:
-			return self.tk.call('bind', className, sequence)
+	def bind_class(self, className, sequence=None, func=None, add=None):
+		self._bind(('bind', className), sequence, func, add)
 	def unbind_class(self, className, sequence):
 		self.tk.call('bind', className , sequence, '')
 	def mainloop(self, n=0):
@@ -827,14 +824,9 @@ class Canvas(Widget):
 		return self._getints(self._do('bbox', args)) or None
 	def tag_unbind(self, tagOrId, sequence):
 		self.tk.call(self._w, 'bind', tagOrId, sequence, '')
-	def tag_bind(self, tagOrId, sequence, func, add='', brk=''):
-		if add: add='+'
-		name = self._register(func, self._substitute)
-		self.tk.call(self._w, 'bind', tagOrId, sequence, 
-			     (add + name,) + self._subst_format)
-		if brk:
-			self.tk.call(self._w, 'bind', tagOrId, sequence,
-				     "+break")
+	def tag_bind(self, tagOrId, sequence=None, func=None, add=None):
+		return self._bind((self._w, 'tag', 'bind', tagOrId),
+				  sequence, func, add)
 	def canvasx(self, screenx, gridspacing=None):
 		return self.tk.getdouble(self.tk.call(
 			self._w, 'canvasx', screenx, gridspacing))
@@ -843,7 +835,7 @@ class Canvas(Widget):
 			self._w, 'canvasy', screeny, gridspacing))
 	def coords(self, *args):
 		return self._do('coords', args)
-	def _create(self, itemType, args, kw): # Args: (value, value, ..., cnf={})
+	def _create(self, itemType, args, kw): # Args: (val, val, ..., cnf={})
 		args = _flatten(args)
 		cnf = args[-1]
 		if type(cnf) in (DictionaryType, TupleType):
@@ -1242,16 +1234,9 @@ class Text(Widget):
 			self._w, 'tag', 'add', tagName, index1, index2)
 	def tag_unbind(self, tagName, sequence):
 		self.tk.call(self._w, 'tag', 'bind', tagName, sequence, '')
-	def tag_bind(self, tagName, sequence, func, add='', brk=''):
-		if add: add='+'
-		name = self._register(func, self._substitute)
-		self.tk.call(self._w, 'tag', 'bind', 
-			     tagName, sequence, 
-			     (add + name,) + self._subst_format)
-		if brk:
-			self.tk.call(self._w, 'tag', 'bind',
-				     tagName, sequence,
-				     "+break")
+	def tag_bind(self, tagName, sequence, func, add=None):
+		return self._bind((self._w, 'tag', 'bind', tagName),
+				  sequence, func, add)
 	def tag_config(self, tagName, cnf={}, **kw):
 		apply(self.tk.call, 
 		      (self._w, 'tag', 'configure', tagName)
