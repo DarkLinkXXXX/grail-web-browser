@@ -1,7 +1,7 @@
 """This extension loader can load TagInfo objects which provide implementations
 of HTML/SGML element start/end events.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 
 import grailbase.extloader
@@ -18,7 +18,7 @@ class TagExtensionLoader(grailbase.extloader.ExtensionLoader):
         else:
             return None
 
-    def __load_tag_handlers(mod):
+    def __load_tag_handlers(self, mod):
         as_list = 1
         if hasattr(mod, "ATTRIBUTES_AS_KEYWORDS"):
             as_list = not mod.ATTRIBUTES_AS_KEYWORDS
