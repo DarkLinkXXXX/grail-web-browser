@@ -615,7 +615,7 @@ class Select:
     def __init__(self, fi, name, size, multiple):
 	self.fi = fi
 	self.viewer = fi.viewer
-	self.bgcolor = fi.viewer.text["background"]
+	self.bgcolor = fi.parser.viewer.text["background"]
 	self.parser = fi.parser
 	self.name = name
 	self.size = size
@@ -653,7 +653,7 @@ class Select:
 	self.w = apply(OptionMenu,
 		       (self.viewer.text, self.v) + values)
 	self.w["width"] = width
-	self.w["highlightbackground"] = self.viewer.text["background"]
+	self.w["highlightbackground"] = self.bgcolor
 	self.reset_menu()
 	self.fi.inputs.append(self)
 	self.parser.add_subwindow(self.w)
