@@ -183,15 +183,22 @@ class HistoryDialog:
 	self._listbox.bind('<Double-Button-1>', self._goto)
 	self._listbox.bind('<Double-Button-2>', self._goto_new)
 	self._listbox.bind('<ButtonPress-2>', self._highlight)
-	# yes, yes, the mapping seems inverted, but it has to do with
+	# Yes, yes, the mapping seems inverted, but it has to do with
 	# the way history elements are displayed in reverse order in
-	# the listbox...
-	self._frame.bind("<Up>", self.next_cmd)
-	self._frame.bind("p", self.next_cmd)
-	self._frame.bind("P", self.next_cmd)
-	self._frame.bind("<Down>", self.previous_cmd)
-	self._frame.bind("n", self.previous_cmd)
-	self._frame.bind("N", self.previous_cmd)
+	# the listbox.  These mappings mirror those used in the Bookmarks
+	# dialog.
+	self._frame.bind("<Right>", self.next_cmd)
+	self._frame.bind("<Alt-Right>", self.next_cmd)
+	self._frame.bind("<Left>", self.previous_cmd)
+	self._frame.bind("<Alt-Left>", self.previous_cmd)
+	self._frame.bind("<Up>", self.up_cmd)
+	self._frame.bind("p", self.up_cmd)
+	self._frame.bind("P", self.up_cmd)
+	self._frame.bind("<Down>", self.down_cmd)
+	self._frame.bind("n", self.down_cmd)
+	self._frame.bind("N", self.down_cmd)
+	self._frame.bind("g", self._goto)
+	self._frame.bind("G", self._goto)
 	self._frame.bind('<Alt-W>', self._close)
 	self._frame.bind('<Alt-w>', self._close)
 	tktools.set_transient(self._frame, self._context.root)
@@ -228,6 +235,13 @@ class HistoryDialog:
     def next_cmd(self, event=None):
 	if self._history.forward(): self._goto()
 	else: self._frame.bell()
+
+    def up_cmd(self, event=None):
+	if not self._history.forward():
+	    self._frame.bell()
+    def down_cmd(self, event=None):
+	if not self._history.back():
+	    self._frame.bell()
 
     def _load_url(self, which, context):
 	selection = string.atoi(which)
