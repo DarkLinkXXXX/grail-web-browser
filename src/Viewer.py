@@ -779,6 +779,9 @@ class ViewerMenu:
 	menu.add_separator()
 	menu.add_command(label="View Frame Source",
 			 command=context.view_source)
+	import DocumentInfo
+	menu.add_command(label="Document Info...",
+			 command=DocumentInfo.DocumentInfoCommand(viewer))
 	self.__source_item = menu.index(END)
 	menu.add_separator()
 	menu.add_command(label="Print Frame...",
