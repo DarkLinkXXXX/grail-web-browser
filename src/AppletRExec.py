@@ -344,6 +344,10 @@ class OSSurrogate:
     def listdir(self, path):
 	return os.listdir(self._path(path))
 
+    def unlink(self, path):
+	path = self._path(path, 1)
+	os.unlink(path)
+
 
 TEMPLATE1 = """
 def %(name)s(self, arg):
