@@ -68,7 +68,6 @@ class PrintSettings:
 
     def update(self):
 	"""Load / reload settings from preferences subsystem."""
-	print "PrintSettings.update()"
 	prefs = self.__prefs
 	#
 	self.imageflag = prefs.GetBoolean(self.GROUP, 'images')
