@@ -1,10 +1,3 @@
-"""Jeremy's cache classes.
-
-"""
-
-# need these?
-META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
-
 from Cache import CacheItem, CacheAPI
 from assert import assert
 import urlparse
@@ -18,6 +11,8 @@ import grailutil
 import regsub
 import pickle
 
+META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
+
 CacheMiss = 'Cache Miss'
 CacheEmpty = 'Cache Empty'
 CacheItemExpired = 'Cache Item Expired'
@@ -28,13 +23,34 @@ class CacheManager:
     The only methods that should be used by the application is
     open() and add_cache(). Other methods are intended for use by the
     cache itself.  
+
+    overview of CacheManager and Cache organization
+
+    CM has list of caches (could have more than one cache)
+    
+    items = {}: contains an entry for all the URLs in all the
+    caches. value is a cache entry object (cf DiskCacheEntry
+    below), has a get method that returns an protocol API object
+
+    active = {}: contains an entry for each URL that is open in a
+    browser window. this is the shared object list. if there is a
+    request for an active page, a second CacheAPI for the same object
+    is returned. the list stores CacheItems, which contain a reference
+    count; when that cound reaches zero, it removes itself from the
+    list. 
+
+    freshness: CM is partly responsible for checking the freshness of
+    pages. (pages with explicit TTL know when they expire.) freshness
+    tests are preference driven, can be never, per session, or per
+    time-unit. on each open, check to see if we should send an
+    If-Mod-Since to the original server (based on fresh_p method).
+
     """
     
     def __init__(self, app):
-	"""Initializes cache manager, storing pointer to application.
+	"""Initializes cache manager, creates disk cache.
 
-	Currently creates the disk cache and hardcodes its maximum
-	size and location. Those things shouldn't happen here.
+	Basic disk cache characteristics loaded from preferences.
 	"""
 	
 	self.app = app
@@ -58,34 +74,54 @@ class CacheManager:
 	elif fresh_type == 'never':
 	    self.fresh_p = lambda x: 1
 
-    def activate(self,item):
-	self.active[item.key] = item
-	return CacheAPI(self.active[item.key])
-
-    def deactivate(self,key):
-	if self.active.has_key(key):
-	    del self.active[key]
-
     def open(self, url, mode, params, reload=0, data=None):
+	"""Opens a URL and returns a protocol API for it.
+
+	This is the method called by the Application to load a
+	URL. First, it checks the shared object list (and returns a
+	second reference to a URL that is currently active). Then it
+	calls open routines specialized for GET or POST.
+	"""
+
 	key = self.url2key(url, mode, params)
 	if self.active.has_key(key):
+	    ### probably does the wrong thing on a reload
 	    return CacheAPI(self.active[key])
 	if mode == 'GET':
 	    return self.open_get(key, url, mode, params, reload, data)
 	elif mode == 'POST':
 	    return self.open_post(key, url, mode, params, reload, data)
 
+    def activate(self,item):
+	"""Adds a CacheItem to the shared object list and returns CacheAPI.
+	"""
+	self.active[item.key] = item
+	return CacheAPI(self.active[item.key])
+
+    def deactivate(self,key):
+	"""Removes a CacheItem from the shared object list."""
+	if self.active.has_key(key):
+	    del self.active[key]
+
     def add_cache(self, cache):
 	"""Called by cache to notify manager this it is ready."""
 	self.caches.append(cache)
 
     def cache_read(self,key):
+	"""Checks cache for URL. Returns protocol API on hit.
+
+	Looks for a cache entry object in the items dictionary. If the
+	CE object is found, call its method get() to create a protocol
+	API for the item.
+	"""
 	if self.items.has_key(key):
 	    return self.items[key].get()
 	else:
 	    return None
 
     def check_cache_image(self,url):
+	"""This routine is no longer used."""
+	assert('night' == 'day')
 	key = self.url2key(url, 'GET', {})
 	if self.items.has_key(key):
 	    return self.caches[0].get_file_path(key)
@@ -93,10 +129,26 @@ class CacheManager:
 	    return None
 
     def touch(self,key):
-	if self.items.has_key(key):
-	    self.items[key].touch()
+	"""Calls touch() method of CacheEntry object."""
+
+	assert(self.items.has_key(key))
+	self.items[key].touch()
 
     def open_get(self, key, url, mode, params, reload, data):
+	"""open() method specialized for GET request.
+
+	Performs several steps:
+	1. Check for the URL in the cache.
+	2. If it is in the cache,
+	      1. Create a CacheItem for it.
+	      2. Reload the cached copy if reload flag is on.
+	      3. Refresh the page if the freshness test fails.
+	   If it isn't in the cache,
+	      1. Create a CacheItem (which will create a CacheEntry 
+   	      after the page has been loaded.)
+	3. call activate(), which adds the URL to the shared object
+	list and creates a CacheAPI for the item
+	"""
 	try:
 	    api = self.cache_read(key)
 	except CacheItemExpired, cache:
@@ -108,7 +160,6 @@ class CacheManager:
 	    if reload:
 		item.reset(reload)
 		self.touch(key)
-	    # problem: 
 	    elif not self.fresh_p(key):
 		# is this direct reference to the headers dangerous?
 		item.refresh(self.items[key].lastmod)
@@ -119,31 +170,44 @@ class CacheManager:
 	return self.activate(item)
 
     def open_post(self, key, url, mode, params, reload, data):
-	# for now, never cache a POST
+	"""Open a URL with a POST request. Do not cache."""
 	key = self.url2key(url, mode, params)
 	return self.activate(CacheItem(url, mode, params, None, key, data))
 
     def expire(self,key):
-	if self.items.has_key(key):
-	    self.items[key].evict()
+	"""Should not be used."""
+	assert('night' == 'day')
+	assert(self.items.has_key(key))
+	self.items[key].evict()
 
     def delete(self, object):
-	print "delete called on %s" % object
-	# should delete cache entry too?
+	# does anything need to happen here
+	pass
 
     def add(self,item,reload=0):
-	if len(self.caches): # need to guarantee that this can't happen
-	    if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
-		self.caches[0].add(item)
-	    elif reload == 1:
-		self.caches[0].add(item)
+	"""If item is not in the cache and is allowed to be cached, add it.
+	"""
+	assert(len(self.caches) > 0)
+	if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
+	    self.caches[0].add(item)
+	elif reload == 1:
+	    print "calling cachemgr.add with reload==1,", item
+	    self.caches[0].add(item)
 
+    # list of protocols that we can cache
     cache_protocols = ['http', 'ftp', 'hdl']
 
     def okay_to_cache_p(self,item):
 	"""Check if this item should be cached.
 
 	This routine probably (definitely) needs more thought.
+	Currently, we do not cache URLs with the following properties:
+	1. The scheme is not on the list of cacheable schemes.
+	2. The item is bigger than a quarter of the cache size.
+	3. The 'Pragma: no-cache' header was sent
+	4. The 'Expires: 0' header was sent
+	5. The URL includes a query part '?'
+	
 	"""
 
 	(scheme, netloc, path, parm, query, frag) = \
@@ -173,12 +237,13 @@ class CacheManager:
 		return 0
 
 	# dont' cache a query
-	if query == '':
+	if query != '':
 	    return 0
 
 	return 1
 
     def fresh_every_session(self,entry):
+	"""Not implemented: Refresh the page once per session"""
 	return 1
 
     def fresh_periodic(self,entry,max_age):
@@ -242,10 +307,15 @@ class DiskCacheEntry:
     """Data about item stored in a disk cache.
 
     __init__ only store the cache this entry is in. To place real data
-    r    in a cache item, you must call fill() to create a new item or call
-    parse() to read an entry in the transaction log. This is done to
-    simplify the interface for reading to and writing from the log.
+    in a cache item, you must call fill() to create a new item. 
 
+    The DiskCacheEntry object is shared by the DiskCache and the
+    CacheManager. The method get() is called by the
+    CacheManager and change the state of the DiskCache.
+
+    The data members include:
+    date -- the date of the most recent HTTP request to the server
+    (either a regular load or an If-Modified-Since request)
     """
 
     def __init__(self, cache=None):
@@ -270,6 +340,7 @@ class DiskCacheEntry:
 	self.type = ctype
 
     def __getstate__(self):
+	"""Don't pickel a pointer to the cache."""
 	return { 'key'    : self.key,
 		 'url'    : self.url,
 		 'size'   : self.size,
@@ -279,22 +350,31 @@ class DiskCacheEntry:
 		 'type'   : self.type }
 
     def get(self):
+	"""Create a disk_cache_access API object and return it.
+
+	Calls cache.get() to update the LRU information.
+
+	Also checks to see if a page with an explicit Expire date has
+	expired; raises a CacheItemExpired if it has.
+	"""
 	if self.expires:
 	    if self.expires and self.expires.get_secs() < time.time():
 		# we need to refresh the page; can we just reload?
 		raise CacheItemExpired, self.cache
-	self.cache.get(self.key) #update the replace queue
+	self.cache.get(self.key)
 	api = disk_cache_access(self.cache.get_file_path(self.key),
 				self.type, self.date)
 	return api
 
     def touch(self):
+	"""Change the date of most recent check with server."""
 	self.date = HTTime(secs=time.time())
 
     def delete(self):
 	pass
 
 def compare_expire_items(item1,item2):
+    """used with list.sort() to sort list of CacheEntries by expiry date."""
     e1 = item1.expires.get_secs() 
     e2 = item2.expires.get_secs()
     if e1 > e2:
@@ -306,6 +386,22 @@ def compare_expire_items(item1,item2):
     
 class DiskCache:
     """Persistent object cache.
+
+    need to discuss:
+
+    use_order
+
+    the log: writes every change to cache or use_order, writes
+    flushed, do a checkpoint run on startup, format is tuple (entry
+    type, object), where entry type is add, evict, update use_order,
+    version. 
+
+    expires
+
+    evict
+
+    Note: Nowhere do we verify that the disk has enough space for a
+    full cache.
 
     """
 
@@ -330,10 +426,15 @@ class DiskCache:
     log_version = "1.0"
 
     def _read_metadata(self):
-	###
-	### this trashes all the data about what is LRU
-	###
+	"""Read the transaction log from the cache directory.
 
+	Reads the pickled log entries and re-creates the cache's
+	current contents and use_order from the log.
+
+	A version number is included, but currently we only assert
+	that a the version number read is the same as the current
+	version number.
+	"""
 	logpath = os.path.join(self.directory, 'LOG')
 	try:
 	    log = open(logpath)
@@ -373,6 +474,11 @@ class DiskCache:
 	self._checkpoint_metadata()
 
     def _checkpoint_metadata(self):
+	"""Checkpoint the transaction log.
+
+	Creates a new log that contains only the current state of the
+	cache.
+	"""
 	if self.log:
 	    self.log.close()
 	newpath = os.path.join(self.directory, 'CHECKPOINT')
@@ -386,36 +492,36 @@ class DiskCache:
 	self._reinit_log()
 
     def _reinit_log(self):
+	"""Open the log for writing new transactions."""
 	logpath = os.path.join(self.directory, 'LOG')
 	self.log = open(logpath, 'a')
 
     def log_entry(self,entry,delete=0):
+	"""Write to the log adds and evictions."""
 	pickle.dump((delete,entry), self.log)
 	self.log.flush()
 
     def log_use_order(self,key):
+	"""Write to the log changes in use_order."""
 	if self.items.has_key(key):
 	    pickle.dump((2,key), self.log)
 	    # should we flush() here? probably...
 	    self.log.flush()
 
     def get(self,key):
-	if self.items.has_key(key):
-	    self.use_order.remove(key)
-	    self.use_order.append(key)
-	    self.log_use_order(key)
-	    # should probably do more here...
-	    #  check for freshness
-	    #  promote to memory cache for example?
-	else:
-	    ### UNTRAPPED EXCEPTION
-	    # this should only be called if the CacheManager
-	    # knows that this Cache has the key
-	    raise CacheMiss
+	"""Update and log use_order."""
+	assert(self.items.has_key(key))
+	self.use_order.remove(key)
+	self.use_order.append(key)
+	self.log_use_order(key)
 
     def add(self,object):
-##	print "DiskCache.add(%s)" % (object.key)
-	
+	"""Creates a DiskCacheEntry for object and adds it to cache.
+
+	Examines the object and its headers for size, date, type,
+	etc. The DiskCacheEntry is placed in the DiskCache and the
+	CacheManager and the entry is logged.
+	"""
 	respcode, msg, headers = object.meta
 	size = len(object.data)
 
@@ -457,21 +563,39 @@ class DiskCache:
 
 	return newitem
 
-    def add_expireable(self,item):
-	self.expires.append(item)
+    def add_expireable(self,entry):
+	"""Adds entry to list of pages with explicit expire date."""
+	self.expires.append(entry)
 
     def get_file_path(self,key):
+	"""Turn cache key into cache path."""
 	filename = regsub.gsub(os.sep,'_',key)
 	path = os.path.join(self.directory, filename)
 	return path
 
     def make_file(self,object):
+	"""Write the object's data to disk."""
 	path = self.get_file_path(object.key)
-	f = open(path, 'w')
-	f.write(object.data)
-	f.close()
+	try:
+	    f = open(path, 'w')
+	    f.write(object.data)
+	    f.close()
+	except IOError, err:
+	    print "failed to create cached copy of %s: %s" % (object.key, err)
+	    self.evict(object.key)
 
     def make_space(self,amount):
+	"""Ensures that there are amount bytes free in the disk cache.
+
+	If the cache does not have amount bytes free, pages are
+	evicted. First, we check the list of pages with explicit
+	expire dates and evict any that have expired. If we need more
+	space, evict the least recently used page. Continue LRU
+	eviction until enough space is available.
+
+	Raises CacheEmpty if there are no entries in the cache, but
+	amount bytes are not available.
+	"""
 	# perhaps expire would be a good thing to call here
 	# definitely don't want to evict live things when we
 	# could evict stale things
@@ -488,11 +612,8 @@ class DiskCache:
 	    # but I don't think this should ever happen
 	self.size = self.size + amount
 
-    def expire(self):
-	# get rid of things known to be stale
-	pass
-
     def evict_any_page(self):
+	"""Evict the least recently used page."""
 	# get ride of least-recently used thing
 	if len(self.items) > 0:
 	    key = self.use_order[0]
@@ -501,6 +622,7 @@ class DiskCache:
 	    raise CacheEmpty
 
     def evict_expired_pages(self):
+	"""Evict any pages on the expires list that have expired."""
 	self.expires.sort(compare_expire_items)
 	size = len(self.expires)
 	if size > 0 \
@@ -514,6 +636,7 @@ class DiskCache:
 	    del self.expires[0:index]
 
     def evict(self,key):
+	"""Remove an entry from the cache and delete the file from disk."""
 ##	print "evict(%s)" % (key)
 	self.use_order.remove(key)
 	evictee = self.items[key]
@@ -521,7 +644,10 @@ class DiskCache:
 	del self.items[key]
 	if key in self.expires:
 	    self.expires.remove(key)
-	os.unlink(self.get_file_path(key))
+	try:
+	    os.unlink(self.get_file_path(key))
+	except IOError, err:
+	    print "error deleteing %s from cache: %s" % (key, err)
 	self.log_entry(evictee,1) # 1 indicates delete entry
 	evictee.delete()
 	self.size = self.size - evictee.size
@@ -569,6 +695,11 @@ class disk_cache_access:
 	    fp.close()
 
     def tk_img_access(self):
+	"""Return the cached filename and content-type.
+
+	Used by AsyncImage to create Tk image objects directly from
+	the file in the disk cache.
+	"""
 	return self.filename, self.headers['content-type']
 
 class HTTime:
@@ -576,6 +707,12 @@ class HTTime:
 
     Lazy conversions from one format to the other.
     """
+    # HTTP defines three date formats, but only one is supposed to be
+    # produced by an HTTP application. (The other two you're supposed to
+    # handle for backwards compatibility.) It would be nice to accept
+    # the two old date formats as str input and convert them to the
+    # preferred format.
+
     def __init__(self,any=None,str=None,secs=None):
 	if any:
 	    if type(any) == type(''):
