@@ -62,9 +62,9 @@ class Viewer(formatter.AbstractWriter):
 	self.message("")
 
 	self.prefs.AddGroupCallback('styles-common',
-						self.configure_styles_hard)
+				    self.configure_styles_hard)
 	self.prefs.AddGroupCallback('styles',
-						self.configure_styles)
+				    self.configure_styles)
 
     def message(self, message):
 	if not self.context or self.linkinfo:
@@ -411,15 +411,19 @@ class Viewer(formatter.AbstractWriter):
 			highlightbackground=self.text['background'])
 	window._width = abswidth	# store for resizing
 	window._percent = percentwidth
+	self.rules.append(window)
 	self.prepare_for_insertion(align)
-	self.add_subwindow(window=window)
+	self.text.insert(END, self.pendingdata, self.flowingtags)
+	self.text.window_create(END, window=window)
 	self.pendingdata = '\n'
 ##	self.text.update_idletasks()
 
     def rule_width(self):
 	return (self.text.winfo_width()
 		- 16 - 2*string.atoi(self.text['padx'])
-		- self.marginlevel*INDENTATION_WIDTH)
+		- self.marginlevel*INDENTATION_WIDTH
+		- ((('blockquote' in self.addtags) and 1 or 0)
+		   *INDENTATION_WIDTH))
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
