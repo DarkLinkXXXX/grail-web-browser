@@ -180,7 +180,7 @@ class Application:
     """The application class represents a group of browser windows."""
 
     def __init__(self):
-	self.root = Tk()
+	self.root = Tk(className='Grail')
 	self.splash = SplashScreen(self.root)
 	self.load_images = 1
 	self.home = DEFAULT_HOME
