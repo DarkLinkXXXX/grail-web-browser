@@ -137,6 +137,7 @@ class HistoryDialog:
 	self._history.set_dialog(self)
 	self._frame = tktools.make_toplevel(self._context.viewer.frame,
 					    title="History Dialog")
+	self._frame.protocol("WM_DELETE_WINDOW", self._close)
 	# get preferences
 	self._viewby = StringVar()
 	from __main__ import app
