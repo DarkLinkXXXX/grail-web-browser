@@ -120,7 +120,7 @@ styles-fonts--styles-h6_b_sym-font:
 styles-fonts--styles-_sym-font:
 	-*-*symbol*-*-*-*-*-%(default)d-*-*-*-*-*-*-*
 styles-fonts--styles-_ding-font:
-	-*-*dingbat*-*-*-*-*-*-*-*-*-*-*-*-*
+	-*-*dingbat*-*-*-*-*-%(default)d-*-*-*-*-*-*-*
 styles-fonts--styles-_i-font:
 	-*-%(family)s-medium-%(italic)s-normal-*-%(_i)d-*-*-*-*-*-*-*
 styles-fonts--styles-_i_sym-font:
