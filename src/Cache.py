@@ -128,7 +128,6 @@ class CacheItem:
 	return self.stage is not DONE or self.complete
 
     def reset(self):
-	print "reset() for", self.url
 	self.api = ProtocolAPI.protocol_access(self.url,
 					       self.mode, self.params)
 	self.meta = None
