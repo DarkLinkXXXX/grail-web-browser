@@ -331,6 +331,8 @@ class TkListboxViewer(OutlinerViewer):
                 title = "> " + (refnode.title() or "")
             else:
                 title = "  " + (refnode.title() or "")
+        elif nodetype == "Separator":
+            title = "  ------------------------------------"
         else:
             title = "  " + (node.title() or "")
         self._listbox.insert(index, "  "*(node.depth() - 1) + title)
