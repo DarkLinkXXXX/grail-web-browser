@@ -1,14 +1,10 @@
 #! /usr/bin/env python
 
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Grail -- the Extensible Internet Browser."""
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.5"
+__version__ = "Grail/0.6"
 GRAILVERSION = __version__
 
 # Standard python imports (needed by path munging code)
@@ -45,7 +41,6 @@ import tempfile
 import posixpath
 from Tkinter import *
 import tktools
-import session
 import BaseApplication
 import GrailPrefs
 import Stylesheet
@@ -239,7 +234,6 @@ class Application(BaseApplication.BaseApplication):
     def __init__(self, prefs=None, display=None):
         self.root = Tk(className='Grail', screenName=display)
         self.root.withdraw()
-        self.session = session.Session()
         resources = os.path.join(script_dir, "Grail.ad")
         if os.path.isfile(resources):
             self.root.option_readfile(resources, "startupFile")
@@ -295,10 +289,8 @@ class Application(BaseApplication.BaseApplication):
 
     def add_browser(self, browser):
         self.browsers.append(browser)
-        self.session.add_window(browser.root)
 
     def del_browser(self, browser):
-        self.session.del_window(browser.root)
         try: self.browsers.remove(browser)
         except ValueError: pass
 
