@@ -32,16 +32,19 @@ class ImageWindow(Frame):
 	    self.ismap = None
 	    self.map = None
 	# figure out colors for link, if the image is a link
-	if self.url:
-	    histurl = self.context.get_baseurl(self.url)
-	    if app.global_history.inhistory_p(histurl):
-		bg = app.prefs.Get(STYLEGROUP, AHISTPREF)
-	    else:
+	if borderwidth:
+	    if self.url:
+		histurl = self.context.get_baseurl(self.url)
+		if app.global_history.inhistory_p(histurl):
+		    bg = app.prefs.Get(STYLEGROUP, AHISTPREF)
+		else:
+		    bg = app.prefs.Get(STYLEGROUP, APREF)
+	    elif self.map:
 		bg = app.prefs.Get(STYLEGROUP, APREF)
-	elif self.map:
-	    bg = app.prefs.Get(STYLEGROUP, APREF)
+	    else:
+		bg = viewer.text['foreground']
 	else:
-	    bg = viewer.text['foreground']
+	    bg = viewer.text['background']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
 	self.borderwidth = borderwidth
