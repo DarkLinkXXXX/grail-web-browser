@@ -155,7 +155,7 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 					class_=class_, name=name,
 					takefocus=takefocus)
 
-    widget = Text(frame, wrap=wrap, name="text")
+    widget = Text(frame, wrap=wrap, name="text", font=font)
     if width: widget.config(width=width)
     if height: widget.config(height=height)
     widget.pack(expand=expand, fill=fill, side=LEFT)
