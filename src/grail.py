@@ -236,10 +236,12 @@ class Application:
 
     def go(self):
 	try:
-	    self.root.mainloop()
-	except KeyboardInterrupt:
-	    pass
-	self.exit_notification()
+	    try:
+		self.root.mainloop()
+	    except KeyboardInterrupt:
+		pass
+	finally:
+	    self.exit_notification()
 
     def keep_alive(self):
 	# Exercise the Python interpreter regularly so keyboard
