@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.5 $"
+__version__ = "$Revision: 1.6 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -57,3 +57,4 @@ class GeneralPanel(PrefsPanels.Framework):
 			      'browser', 'smooth-scroll-hack')
 
 	frame.pack()
+ 
