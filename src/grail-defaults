@@ -17,6 +17,7 @@ browser--default-height:	40
 browser--default-width:		80
 browser--load-images:		1
 browser--show-logo:		1
+browser--load-initial-page:	1
 C: Empty initial geometry implies manual placement with most window managers:
 browser--initial-geometry:	
 C:
