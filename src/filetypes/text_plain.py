@@ -4,7 +4,7 @@
 
 """Grail parser for text/plain.
 """
-__version__ = '$Revision: 2.5 $'
+__version__ = '$Revision: 2.6 $'
 #  $Source: /home/john/Code/grail/src/filetypes/text_plain.py,v $
 
 import formatter
@@ -15,7 +15,7 @@ import string
 
 def parse_text_plain(*args, **kw):
     headers = args[0].context.get_headers()
-    ctype = headers['content-type']
+    ctype = headers.get('content-type')
     if ctype:
         ctype, opts = grailutil.conv_mimetype(ctype)
         if opts.get('format'):
