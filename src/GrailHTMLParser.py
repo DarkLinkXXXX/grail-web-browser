@@ -56,10 +56,14 @@ class GrailHTMLParser(HTMLParser):
     def push_formatter(self, formatter):
 	self.formatter_stack.append(formatter)
 	self.formatter = formatter	## in base class
+	self.viewer = self.formatter.writer
+	self.context = self.viewer.context
 
     def pop_formatter(self):
 	del self.formatter_stack[-1]
 	self.formatter = self.formatter_stack[-1] ## in base class
+	self.viewer = self.formatter.writer
+	self.context = self.viewer.context
 
     # Override HTMLParser internal methods
 
