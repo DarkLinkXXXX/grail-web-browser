@@ -345,6 +345,7 @@ class FormInfo:
 	def __init__(self, fi, options):
 	    self.fi = fi
 	    self.viewer = fi.viewer
+	    self.bgcolor = fi.viewer.text["background"]
 	    self.options = options
 	    self.getopt('name')
 	    self.getopt('value')
@@ -393,7 +394,8 @@ class FormInfo:
 	    self.getopt('size')
 
 	def setup(self):
-	    self.w = self.entry = Entry(self.viewer.text)
+	    self.w = self.entry = Entry(self.viewer.text,
+					highlightbackground=self.bgcolor)
 	    self.setup_entry()
 
 	def setup_entry(self):
@@ -446,7 +448,8 @@ class FormInfo:
 	def setup(self):
 	    self.var = StringVar()
 	    self.w = Checkbutton(self.viewer.text, variable=self.var,
-				 offvalue='', onvalue=self.value)
+				 offvalue='', onvalue=self.value,
+				 highlightbackground=self.bgcolor)
 
 	def reset(self):
 	    self.var.set(self.checked and self.value or '')
@@ -481,7 +484,8 @@ class FormInfo:
 	    if strict and self.first:
 		self.var.set(self.value)
 	    self.w = Radiobutton(self.viewer.text, variable=self.var,
-				 value=self.value)
+				 value=self.value,
+				 highlightbackground=self.bgcolor)
 
 	def reset(self):
 	    from __main__ import app
@@ -542,7 +546,8 @@ class FormInfo:
 	def setup(self):
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
-			    command=self.submit_command)
+			    command=self.submit_command,
+			    highlightbackground=self.bgcolor)
 	    self.w.bind("<Enter>", self.enter)
 	    self.w.bind("<Leave>", self.leave)
 
@@ -572,17 +577,19 @@ class FormInfo:
 	def setup(self):
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
-			    command=self.fi.reset_command)
+			    command=self.fi.reset_command,
+			    highlightbackground=self.bgcolor)
 
     class InputFile(InputText):
 
 	def setup(self):
-	    self.w = Frame(self.viewer.text)
-	    self.entry = Entry(self.w)
+	    self.w = Frame(self.viewer.text, background=self.bgcolor)
+	    self.entry = Entry(self.w, highlightbackground=self.bgcolor)
 	    self.entry.pack(side=LEFT)
 	    self.setup_entry()
 	    self.browse = Button(self.w, text="Browse...",
-				 command=self.browse_command)
+				 command=self.browse_command,
+				 highlightbackground=self.bgcolor)
 	    self.browse.pack(side=RIGHT)
 
 	def reset(self):
@@ -603,6 +610,7 @@ class Select:
     def __init__(self, fi, name, size, multiple):
 	self.fi = fi
 	self.viewer = fi.viewer
+	self.bgcolor = fi.viewer.text["background"]
 	self.parser = fi.parser
 	self.name = name
 	self.size = size
@@ -626,7 +634,7 @@ class Select:
 	if size <= 0:
 	    if self.multiple: size = 4
 	    else: size = 1
-	size = min(len(self.options), size)
+	#size = min(len(self.options), size)
 	if size == 1 and not self.multiple:
 	    self.make_menu()
 	else:
@@ -638,6 +646,7 @@ class Select:
 	values = tuple(map(lambda (v,s,t): t, self.options))
 	self.w = apply(OptionMenu,
 		       (self.viewer.text, self.v) + values)
+	self.w["highlightbackground"] = self.viewer.text["background"]
 	self.reset_menu()
 	self.fi.inputs.append(self)
 	self.parser.add_subwindow(self.w)
@@ -651,9 +660,12 @@ class Select:
 	self.w['exportselection'] = 0
 	if self.multiple:
 	    self.w['selectmode'] = 'extended'
+	wid = 0
 	for v, s, t in self.options:
+	    wid = max(wid, len(t))
 	    self.w.insert(END, t)
 	self.reset_list()
+	self.w['width'] = wid
 	self.fi.inputs.append(self)
 	self.parser.add_subwindow(self.frame)
 
