@@ -58,12 +58,13 @@ DEBUG = 0				# Default debugging flag
 # Internal constants
 # XXX These need reorganizing
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash.tbl'
+DEFAULT_GLOBAL_SERVER = "hs.handle.net"
 DEFAULT_SERVERS = ['132.151.1.155',
 		   '198.32.1.37',
 		   '132.151.1.159',
 		   '198.32.1.73']
 DEFAULT_NUM_OF_BITS = 2
-DEFAULT_HASH_FILE = '/etc/hdl_hash.tbl'
+DEFAULT_HASH_FILE = '/usr/local/etc/hdl_hash.tbl'
 DEFAULT_UDP_PORT = 2222
 DEFAULT_TCP_PORT = 2222
 DEFAULT_ADMIN_PORT = 2223
@@ -98,6 +99,8 @@ HP_HASH_HEADER_SIZE = 36
 # Handle protocol commands (packet types)
 HP_QUERY = 0
 HP_QUERY_RESPONSE = 1
+HP_HASH_REQUEST = 2
+HP_HASH_RESPONSE = 3
 
 
 # Handle data types
@@ -160,12 +163,25 @@ HDL_ERR_INTERNAL_ERROR = HP_INTERNAL_ERROR
 # error class for this module
 class Error:
     """Exception class for module hdllib."""
-    def __init__(self, msg=None):
-	self.msg = msg
+    def __init__(self, msg, err=None, info=None):
+	self.msg = msg			# Error message (string) or None
+	self.err = err			# Error code (int) or None
+	self.info = info		# Additional info or None
     def __repr__(self):
-	return repr(self.msg)
+	msg = "Error(%s" % `self.msg`
+	if self.err is not None:
+	    msg = msg + ", %s" % `self.err`
+	if self.info is not None:
+	    msg = msg + ", %s" % `self.info`
+	msg = msg + ")"
+	return msg
     def __str__(self):
-	return str(self.msg)
+	msg = self.msg or ""
+	if self.err is not None:
+	    msg = msg + " (err=%s)" % str(self.err)
+	if self.info is not None:
+	    msg = msg + " (info=%s)" % str(self.info)
+	return msg
 
 
 
@@ -445,27 +461,31 @@ class HashTable:
 
     Public methods:
 
-    - __init__([filename, [debug, [server]]]) -- constructor
+    - __init__([filename, [debug, [server, [data]]]]) -- constructor
     - set_debuglevel(debug) -- set debug level
     - hash_handle(hdl) -- hash a handle to handle server info
     - get_data(hdl, [types, [flags, [timeout, [interval]]]]]) --
       resolve a handle
 
     """	
-    def __init__(self, filename = None, debug = None, server = None):
+    def __init__(self, filename=None, debug=None, server=None, data=None):
 	"""Hash table constructor.
 
-	Read the hash table file header from optional filename and
-	hold on to the open file.  Store the header fields as instance
-	variables.  Optional debug argument sets debugging level.
+	If the optional data argument is given, filename and server
+	are ignored, and the hash table is parsed directly from the
+	data.
 
-	If filename is None and the optional server argument is given,
-	a single bucket hash table is constructed using the default
-	port and the given server.
+	Otherwise, If the optional server argument is given, filename
+	is ignored, and a single bucket hash table is constructed
+	using the default port and the given server.
 
-	If both filename and server are none, we try to load a hash
-	table from the default location or from the fallback location,
-	and if both fail, we construct one using hardcoded defaults.
+	Otherwise, if a filename is give, read the hash table from
+	that file.
+
+	If neither filename nor server nor data are given, we try to
+	load a hash table from the default location or from the
+	fallback location, and if both fail, we construct one using
+	hardcoded defaults.
 
 	XXX This has only been tested with the default hash table at
 	"ftp://cnri.reston.va.us/handles/client_library/hdl_hash.tbl;type=i"
@@ -475,7 +495,8 @@ class HashTable:
 
 	- Error
 	- IOError
-	- whatever xdrlib raises
+	- EOFError
+	- whatever xdrlib raises besides EOFError
 
 	"""
 
@@ -486,17 +507,19 @@ class HashTable:
 
 	self.bucket_cache = {}
 
-	if filename:
-	    self._read_hash_table(filename)
+	if data:
+	    self._parse_hash_table(data)
 	elif server:
 	    self._set_hardcoded_hash_table(server)
+	elif filename:
+	    self._read_hash_table(filename)
 	else:
 	    for fn in (DEFAULT_HASH_FILE, HASH_TABLE_FILE_FALLBACK):
 		try:
 		    self._read_hash_table(fn)
-		except IOError, msg:
+		except (IOError, Error), msg:
 		    if self.debug:
-			print "IOError for %s: %s" % (`fn`, str(msg))
+			print "Error for %s: %s" % (`fn`, str(msg))
 		else:
 		    break
 	    else:
@@ -534,38 +557,48 @@ class HashTable:
     def _read_hash_table(self, filename):
 	"""Read the hash table from a given filename -- internal.
 
-	Raise IOError if the file can't be opened or if the MD5
-	checksum is invalid.  Raise EOFError if xdrlib finds a
-	problem.
-
-	If the file is valid, set a bunch of ivars to info read from
-	the hash table header, and set self.fp to the (still open)
-	hash table file.
+	Raise IOError if the file can't be opened.  After that, all
+	its data is read and self._parse_hash_table() called.
 
 	"""
 	if self.debug: print "Opening hash table:", `filename`
-	self.fp = fp = open(filename, 'rb')
+	fp = open(filename, 'rb')
+	data = fp.read()
+	fp.close()
+	self._parse_hash_table(data)
+
+
+    def _parse_hash_table(self, data):
+	"""Parse the hash table from given data -- internal.
+
+	Raise Error if the MD5 checksum is invalid.  Raise EOFError
+	if xdrlib finds a problem.
+
+	If the data is valid, set a bunch of ivars to info read from
+	the hash table header.  Note that the entire hash table is
+	parsed here -- this simplifies the logic of hash_handle().
+
+	"""
 
 	# Verify the checksum before proceeding
-	checksum = fp.read(16)
-	if md5.new(fp.read()).digest() != checksum:
-	    fp.close()
-	    raise IOError, "checksum error for hash table " + filename
-
-	# Seek back to start of header
-	fp.seek(16)
+	checksum = data[:16]
+	data = data[16:]
+	if md5.new(data).digest() != checksum:
+	    raise Error("checksum error for hash table %s" % `filename`)
 
 	# Read and decode header
-	u = xdrlib.Unpacker(fp.read(4))
+	u = xdrlib.Unpacker(data[:4])
 	self.schema_version = u.unpack_int()
 	# The header_length field is not present if schema version < 2
 	if self.schema_version < 2:
 	    if self.debug: print "*** Old hash table detected ***"
 	    self.header_length = HP_HASH_HEADER_SIZE
+	    restofheader = data[4:self.header_length]
 	else:
-	    u = xdrlib.Unpacker(fp.read(4))
+	    u = xdrlib.Unpacker(data[4:8])
 	    self.header_length = u.unpack_int()
-	u = xdrlib.Unpacker(fp.read(self.header_length - 4))
+	    restofheader = data[8:self.header_length]
+	u = xdrlib.Unpacker(restofheader)
 	self.data_version = u.unpack_int()
 	self.num_of_bits = u.unpack_int()
 	self.max_slot_size = u.unpack_int()
@@ -584,8 +617,44 @@ class HashTable:
 	    print "unique ID:     ", hexstr(self.unique_id)
 	    print '*'*20
 
-	# Calculate file offset of first bucket
-	self.bucket_offset = 16 + self.header_length
+	# Parse the buckets
+	for i in range(1<<self.num_of_bits):
+	    lo = self.header_length + i*self.max_slot_size
+	    hi = lo + self.max_slot_size
+	    bucketdata = data[lo:hi]
+	    self._parse_bucket(i, bucketdata)
+
+
+    def _parse_bucket(self, index, data):
+	"""Parse one hash bucket and store it in the bucket cache."""
+
+	u = xdrlib.Unpacker(data)
+
+	slot_no = u.unpack_int()
+	weight = u.unpack_int()
+	ip_address = u.unpack_opaque()
+	udp_query_port = u.unpack_int()
+	tcp_query_port = u.unpack_int()
+	admin_port = u.unpack_int()
+	secondary_slot_no = u.unpack_int()
+
+	ipaddr = string.joinfields(map(repr, map(ord, ip_address)), '.')
+
+	if self.debug:
+	    print "Hash bucket index:", index
+	    print "slot_no:          ", slot_no
+	    print "weight:           ", weight
+	    print "ip_address:       ", hexstr(ip_address)
+	    print "decoded IP addr:  ", ipaddr
+	    print "udp_query_port:   ", udp_query_port
+	    print "tcp_query_port:   ", tcp_query_port
+	    print "admin_port:       ", admin_port
+	    print "secondary_slot_no:", secondary_slot_no
+	    print "="*20
+
+	result = (slot_no, weight, ipaddr, udp_query_port,
+		  tcp_query_port, admin_port, secondary_slot_no)
+	self.bucket_cache[index] = result
 
 
     def set_debuglevel(self, debug):
@@ -594,7 +663,7 @@ class HashTable:
 
 
     def hash_handle(self, hdl):
-	"""Hash a HANDLE to a tuple of handle server info.
+	"""Hash a handle to a tuple describing a handle server bucket.
 
 	Return an 8-tuple containing the bucket fields:
 	    slot no
@@ -609,11 +678,10 @@ class HashTable:
 	converted to upper case before taking its MD-5 digest.
 	The first 'num_of_bits' bits of the digest are then used to
 	compute the hash table bucket index; the selected
-	bucket is read from the hash table file and decoded --
-	or if it is already in the bucket cache we return that.
+	bucket is returned from the cache.
 
-	Exceptions may be raised by xdrlib if the entry is
-	corrupt.
+	Error is raised when there is no corresponding bucket in the
+	cache.
 
 	"""
 
@@ -631,48 +699,17 @@ class HashTable:
 	    if self.debug: print "return cached bucket for index", index
 	    return self.bucket_cache[index]
 
-	pos = self.bucket_offset + (index * self.max_slot_size)
-	self.fp.seek(pos)
-
-	entry = self.fp.read(self.max_slot_size)
-	u = xdrlib.Unpacker(entry)
-
-	slot_no = u.unpack_int()
-	weight = u.unpack_int()
-	ip_address = u.unpack_opaque()
-	udp_query_port = u.unpack_int()
-	tcp_query_port = u.unpack_int()
-	admin_port = u.unpack_int()
-	secondary_slot_no = u.unpack_int()
-
-	ipaddr = string.joinfields(map(repr, map(ord, ip_address)), '.')
-
-	if self.debug:
-	    print "="*20
-	    print "Hash bucket index:", index
-	    print "slot_no:          ", slot_no
-	    print "weight:           ", weight
-	    print "ip_address:       ", hexstr(ip_address)
-	    print "decoded IP addr:  ", ipaddr
-	    print "udp_query_port:   ", udp_query_port
-	    print "tcp_query_port:   ", tcp_query_port
-	    print "admin_port:       ", admin_port
-	    print "secondary_slot_no:", secondary_slot_no
-	    print "="*20
-
-	result = (slot_no, weight, ipaddr, udp_query_port,
-		  tcp_query_port, admin_port, secondary_slot_no)
-	self.bucket_cache[index] = result
-
-	return result
+	raise Error("no bucket found with index %d" % index)
 
 
-    def get_data(self, hdl, types=[], flags=[], timeout=30, interval=5):
+    def get_data(self, hdl, types=[], flags=[], timeout=30, interval=5,
+		 command=HP_QUERY, response=HP_QUERY_RESPONSE):
 	"""Get data for HANDLE of the handle server.
 
-	Optional arguments are a list of desired TYPES, a list
-	of FLAGS, and a maximum TIMEOUT in seconds (default
-	30 seconds).
+	Optional arguments are a list of desired TYPES, a list of
+	FLAGS, a maximum TIMEOUT in seconds (default 30 seconds), a
+	retry INTERVAL (default 5 seconds), and a COMMAND code
+	(default HP_QUERY).
 
 	Exceptions:
 
@@ -685,7 +722,7 @@ class HashTable:
 	mytag = self.tag.session_tag()
 
 	p = PacketPacker()
-	p.pack_header(mytag)
+	p.pack_header(mytag, command=command)
 	p.pack_body(hdl, flags, types)
 	request = p.get_buffer()
 
@@ -719,7 +756,7 @@ class HashTable:
 
 	    reply, fromaddr = s.recvfrom(1024)
 	    u = PacketUnpacker(reply, self.debug)
-	    (tag, command, err, sequence, total, version) = \
+	    (tag, rcommand, err, sequence, total, version) = \
 		  u.unpack_header()
 
 	    if self.debug:
@@ -727,7 +764,7 @@ class HashTable:
 		print "Reply header:"
 		print "Version:       ", version
 		print "Session tag:   ", tag
-		print "Command:       ", command
+		print "Command:       ", rcommand
 		print "Sequence#:     ", sequence
 		print "#Datagrams:    ", total
 		print "Error code:    ", err,
@@ -740,7 +777,7 @@ class HashTable:
 		if self.debug: print "bad session tag"
 		continue
 
-	    if command != HP_QUERY_RESPONSE:
+	    if rcommand != response:
 		if self.debug: print "bad reply type"
 		continue
 
@@ -762,7 +799,7 @@ class HashTable:
 		    err_name = str(err)
 		if self.debug:
 		    print 'err_name:', `err`
-		raise Error((err, err_name, err_info))
+		raise Error(err_name, err, err_info)
 
 	    flags, items = u.unpack_reply_body()
 
@@ -797,9 +834,73 @@ class HashTable:
 	return (allflags, allitems)
 
 
-# Convert a string to hex
+
 def hexstr(s):
+    """Convert a string to hexadecimal."""
     return "%02x"*len(s) % tuple(map(ord, s))
+
+
+
+def fetch_global_hash_table(ht=None, debug=DEBUG):
+    """Fetch the global hash table from the default global server."""
+    if debug: print "Fetching global hash table"
+    if not ht:
+	ht = HashTable(server=DEFAULT_GLOBAL_SERVER, debug=debug)
+    flags, items = ht.get_data("/service-pointer",
+			       command=HP_HASH_REQUEST,
+			       response=HP_HASH_RESPONSE)
+    hashtable = None
+    for type, data in items:
+	if type == HDL_TYPE_SERVICE_POINTER:
+	    hashtable = data
+	    if debug: print "hash table data =", hexstr(hashtable)
+	    # This data is in the same format as file "hdl_hash.tbl"
+    return HashTable(data=hashtable, debug=debug)
+
+
+def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
+    """Fetch the local hash table for a handle."""
+    if debug: print "Fetching local hash table for", `hdl`
+    # 1. Get the authority name
+    hdl = get_authority(hdl)
+    # 2. Prefix the "ha.auth/" authority
+    hdl = "ha.auth/" + hdl
+    if debug: print "Requesting handle", `hdl`
+    # 3. Create a HashTable object if none is provided
+    if not ht: ht = HashTable(debug=debug)
+    # 4. Send the query and get the reply
+    flags, items = ht.get_data(hdl,
+			       types=[HDL_TYPE_SERVICE_POINTER,
+				      HDL_TYPE_SERVICE_HANDLE])
+    # 5. Inspect the result
+    hashtable = None
+    for type, data in items:
+	if type == HDL_TYPE_SERVICE_HANDLE:
+	    if debug: print "service handle =", hexstr(data)
+	    handle = data
+	elif type == HDL_TYPE_SERVICE_POINTER:
+	    urnscheme = data[:16]
+	    urndata = data[16:]
+	    if debug:
+		print "URN scheme =", `urnscheme`
+		print "data =", hexstr(urndata)
+	    if urnscheme == 'HDL' + 13*' ':
+		if debug: print "got a hash table!"
+		hashtable = urndata
+	else:
+	    if debug: print "type", type, "=", data
+    if hashtable:
+	return HashTable(data=hashtable, debug=debug)
+    raise Error("Didn't get a hash table")
+
+
+def get_authority(hdl):
+    """Return the authority name for a handle."""
+    if hdl[:2] == "//": hdl = hdl[2:]
+    i = string.find(hdl, '/')
+    if i >= 0:
+	hdl = hdl[:i]
+    return string.lower(hdl)
 
 
 # Test sets
@@ -815,12 +916,9 @@ testsets = [
 	"cnri.dlib/december95",
 	"cnri.dlib/november95",
 	"CNRI.License/Grail-Version-0.3",
-	"CNRI/19970131120000",
 	"CNRI/19970131120001",
-	#"nonreg.guido/python-home-web-site",
-	#"nonreg.guido/python-home-page",
-	#"nonreg.guido/python-home-ftp-dir",
-	#"nonreg.guido/python-ftp-dir",
+	"nonreg.guido/python-home-page",
+	"nonreg.guido/python-ftp-dir",
 	],
 	# 2: Test various error conditions
 	[
@@ -845,8 +943,6 @@ testsets = [
 	"nonreg/" + "x"*128,
 	"nonreg/" + "x"*129,
 	"nonreg/" + "x"*500,
-##	"nonreg/" + "x"*1000,
-##	"nonreg/" + "x"*10000,
 	],
 
 	# 4: Test handles on local handle server.
@@ -862,6 +958,28 @@ testsets = [
 ]
 
 
+usage_msg = """
+Usage: hdllib.py [flags] ... [handle] ...
+
+Options:
+
+-a         -- accept all data types (by default, only URL data is requested)
+-b         -- get the hashtable from the server
+-f file    -- read the hashtable from this file
+-i seconds -- retry interval (default 5.0)
+-l         -- on HP_HANDLE_NOT_FOUND, retry using local handle server
+-q         -- quiet: the opposite of -v
+-t seconds -- timeout (default 30.0)
+-s server  -- construct an initial hash table using this server
+-v         -- verbose: print heaps of debug info
+-0         -- test set 0 (official demo handle; default if no arguments)
+-1         -- test set 1 (several demo handles)
+-2         -- test set 2 (various error conditions)
+-3         -- test set 3 (test parsing errors for long handles)
+-4         -- test set 4 (NLM test handles; implies -l and adds to types)
+"""
+
+
 def test(defargs = testsets[0]):
     """Test the HashTable class."""
 
@@ -869,12 +987,15 @@ def test(defargs = testsets[0]):
     import getopt
 
     try:
-	opts, args = getopt.getopt(sys.argv[1:], '01234af:i:qs:t:v')
+	opts, args = getopt.getopt(sys.argv[1:], '01234abf:i:lqs:t:v')
     except getopt.error, msg:
 	print msg
+	print usage_msg
 	sys.exit(2)
 
-    debug = 0
+    bootstrap = 0
+    local = 0
+    debug = DEBUG
     timeout = 30
     interval = 5
     filename = None
@@ -884,8 +1005,10 @@ def test(defargs = testsets[0]):
     
     for o, a in opts:
 	if o == '-a': types = []
+	if o == '-b': bootstrap = 1
 	if o == '-f': filename = a
 	if o == '-i': interval = string.atof(a)
+	if o == '-l': local = 1
 	if o == '-q': debug = 0
 	if o == '-t': timeout = string.atof(a)
 	if o == '-s': server = a
@@ -895,14 +1018,17 @@ def test(defargs = testsets[0]):
 	if o == '-2': args = args + testsets[2]
 	if o == '-3': args = args + testsets[3]
 	if o == '-4':
-	    if not args: args = testsets[4]
-	    if not server: server = 'gather.cnri.reston.va.us'
+	    args = testsets[4]
+	    local = 1
 	    if types: types.append(HDL_TYPE_DLS)
 
     if not args:
 	args = defargs
 
-    ht = HashTable(filename, debug, server)
+    if bootstrap:
+	ht = fetch_global_hash_table(debug=debug)
+    else:
+	ht = HashTable(filename, debug, server)
 
     for hdl in args:
 	print "Handle:", `hdl`
@@ -911,9 +1037,20 @@ def test(defargs = testsets[0]):
 	    replyflags, items = ht.get_data(
 		    hdl, types, flags, timeout, interval)
 	except Error, msg:
-	    print "Error:", msg
-	    print
-	    continue
+	    if not local or msg.err != HP_HANDLE_NOT_FOUND:
+		print "Error:", msg
+		print
+		continue
+	    else:
+		print "(Retry using local hash table)"
+		try:
+		    htl = fetch_local_hash_table(hdl, ht=ht, debug=debug)
+		    replyflags, items = htl.get_data(
+			hdl, types, flags, timeout, interval)
+		except Error, msg:
+		    print "Error:", msg
+		    print
+		    continue
 
 	if debug: print replyflags, items
 
