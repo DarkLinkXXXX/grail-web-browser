@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.5 $"
+__version__ = "$Revision: 1.6 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -29,6 +29,11 @@ class SGMLParser(SGMLLexer):
     def __init__(self, verbose = 0):
 	self.verbose = verbose
 	SGMLLexer.__init__(self)
+
+    def close(self):
+	SGMLLexer.close(self)
+	while self.stack:
+	    self.lex_endtag(self.stack[-1])
 
     # Interface -- reset this instance.  Loses all unprocessed data.
     def reset(self):
