@@ -1,12 +1,12 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.1 $'
-
+__version__ = '$Revision: 1.2 $'
 
 import bookmarks
 import bookmarks.iso8601
 import bookmarks.walker
 import string
+import sys
 
 
 class Writer(bookmarks.walker.TreeWalker):
@@ -15,7 +15,6 @@ class Writer(bookmarks.walker.TreeWalker):
 <!DOCTYPE xbel
   PUBLIC "-//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN"
          "http://www.python.org/topics/xml/dtds/xbel-1.0.dtd">
-<xbel>
 '''
 
     def write_tree(self, fp):
@@ -32,8 +31,15 @@ class Writer(bookmarks.walker.TreeWalker):
         title = node.title()
         fp = self.__fp
         tab = self.__tab()
+        attrs = ''
+        added = node.add_date()
+        if added:
+            attrs = '%s added="%s"' % (attrs, bookmarks.iso8601.ctime(added))
+        if node.id():
+            attrs = '%s id="%s"' % (attrs, node.id())
         #
         if not self.__depth:
+            fp.write("<xbel%s>\n" % attrs)
             if title:
                 fp.write("%s  <title>%s</title>\n"
                          % (tab, bookmarks._prepstring(title)))
@@ -43,12 +49,9 @@ class Writer(bookmarks.walker.TreeWalker):
             return
         #
         if node.expanded_p():
-            attrs = ' folded="no"'
+            attrs = attrs + ' folded="no"'
         else:
-            attrs = ' folded="yes"'
-        added = node.add_date()
-        if added:
-            attrs = '%s added="%s"' % (attrs, bookmarks.iso8601.ctime(added))
+            attrs = attrs + ' folded="yes"'
         if node.children() or title or info:
             fp.write(tab + '<folder%s>\n' % attrs)
             if title:
@@ -72,8 +75,12 @@ class Writer(bookmarks.walker.TreeWalker):
         self.__fp.write(self.__tab() + "<separator/>\n")
 
     def start_Alias(self, node):
-        self.__fp.write('%s<alias ref="%s"/>\n'
-                        % (self.__tab(), node.idref()))
+        idref = node.idref()
+        if idref is None:
+            sys.stderr.write("Alias node has no referent; dropping.\n")
+        else:
+            self.__fp.write('%s<alias ref="%s"/>\n'
+                            % (self.__tab(), idref))
 
     def start_Bookmark(self, node):
         date_attr = self.__fmt_date_attr
