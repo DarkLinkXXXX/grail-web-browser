@@ -662,14 +662,92 @@ class GrailHTMLParser(HTMLParser):
 		    self.handle_data(s)
 	    else:
 		bgcolor = self.viewer.text['background']
-		self.add_subwindow(Label(self.viewer.text, image = img,
-					 background = bgcolor,
-					 borderwidth = 0))
+		label = Label(self.viewer.text, image=img,
+			      background=bgcolor, borderwidth=0)
+		self.add_subwindow(label)
+		# these bindings need to be done *after* the add_subwindow()
+		# call to get the right <Button-3> binding.
+		if self.anchor:
+		    thunk = IconicEntityLinker(self.viewer,
+					       self.anchor, self.target)
+		    label.bind("<ButtonPress-1>", thunk.button_1_press)
+		    label.bind("<ButtonRelease-1>", thunk.button_1_release)
+		    label.bind("<ButtonPress-2>", thunk.button_2_press)
+		    label.bind("<ButtonRelease-2>", thunk.button_2_release)
+		    label.bind("<Button-3>", thunk.button_3_event)
+		    label.bind("<Enter>", thunk.enter)
+		    label.bind("<Leave>", thunk.leave)
 	    self.inhead = 0
 	else:
 	    #  Could not load image, allow parent class to handle:
 	    HTMLParser.unknown_entityref(self, entname, terminator)
 
+
+class IconicEntityLinker:
+    __here = None
+
+    def __init__(self, viewer, url, target):
+	self.__target = target or ''
+	self.__url = url
+	self.__viewer = viewer
+
+    def activate_link(self, event):
+	self.__here = self.__viewer.text.index(At(event.x, event.y))
+	tag = ">" + self.__url
+	if self.__target:
+	    tag = tag + Viewer.TARGET_SEPARATOR + self.__target
+	raw = self.__viewer.text.tag_ranges(tag)
+	list = []
+	for i in range(0, len(raw), 2):
+	    list.append((raw[i], raw[i+1]))
+	if list:
+	    self.__viewer._atemp = list
+	    for (start, end) in list:
+		self.__viewer.text.tag_add('atemp', start, end)
+
+    def button_1_press(self, event):
+	self.__viewer.text.focus_set()
+	self.activate_link(event)
+
+    def button_1_release(self, event):
+	here = self.__viewer.text.index(At(event.x, event.y))
+	if here == self.__here:
+	    self.__viewer.context.follow(self.__url, target=self.__target)
+
+    def button_2_press(self, event):
+	self.activate_link(event)
+
+    def button_2_release(self, event):
+	here = self.__viewer.text.index(At(event.x, event.y))
+	if here != self.__here:
+	    return
+	viewer = self.__viewer
+	url = viewer.context.get_baseurl(self.__url)
+	viewer.master.update_idletasks()
+	import Browser
+	app = viewer.context.app
+	b = Browser.Browser(app.root, app)
+	b.context.load(url)
+	viewer.remove_temp_tag(histify=1)
+
+    def button_3_event(self, event=None):
+	url = self.__viewer.context.get_baseurl(self.__url)
+	self.__viewer.open_popup_menu(event, link_url=url)
+
+    def enter(self, event=None):
+	target = self.__target
+	if not self.__target:
+	    target = self.__viewer.context.get_target()
+	if target:
+	    message = "%s in %s" % (self.__url, target)
+	else:
+	    message = self.__url
+	self.__viewer.enter_message(message)
+
+    def leave(self, event=None):
+	self.__here = None
+	self.__viewer.leave_message()
+	self.__viewer.remove_temp_tag()
 
 
 def conv_align(val):
