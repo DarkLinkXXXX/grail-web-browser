@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.1 $"
+__version__ = "$Revision: 1.2 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the dialog:
@@ -57,4 +57,10 @@ class GeneralPanel(PrefsDialogs.Framework):
 	self.PrefsCheckButton(frame,
 			      "HTML parsing:", "Advanced SGML recognition",
 			      'parsing-html', 'strict')
+
+	self.PrefsCheckButton(frame,
+			      "Smooth scrolling:",
+			      "Install smooth scrolling hack on new windows",
+			      'browser', 'smooth-scroll-hack')
+
 	frame.pack()
