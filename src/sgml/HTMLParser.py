@@ -252,7 +252,7 @@ class HTMLParser(SGMLParser):
 		    self.lex_endtag(self.stack[-1])
 		del self.stack[-1]
 	    return
-	self.close_paragraph()
+	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
         self.formatter.end_paragraph(parbreak)
 	align = None
 	if attrs.has_key('align') and attrs['align']:
@@ -682,7 +682,8 @@ class HTMLParser(SGMLParser):
 	    abswidth, percentwidth = self.parse_width(attrs['width'])
 	else:
 	    abswidth, percentwidth = None, 1.0
-	height = align = None
+	height = None
+	align = 'center'
 	if attrs.has_key('size'):
 	    try: height = string.atoi(attrs['size'])
 	    except: pass
