@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 import bookmarks
 import bookmarks.collection
 import bookmarks.nodes
@@ -912,6 +908,9 @@ class BookmarksController(OutlinerController):
     def dialog_is_visible_p(self):
         return self._dialog and self._dialog.visible_p()
 
+    def get_type_counts(self):
+        return self._collection.get_type_counts()
+
     def get_bookmarks_by_uri(self, uri):
         self.initialize()
         return self._collection.get_bookmarks_by_uri(uri)
@@ -1284,8 +1283,14 @@ class BookmarksController(OutlinerController):
                 return None
             # match can occur in the title, uri string, or
             # description string. get this as one big ol' string
-            text = '%s\n%s\n%s\n' % (node.title(), node.uri(),
-                                     node.description())
+            nodetype = node.get_nodetype()
+            if nodetype == "Folder":
+                text = '%s\n%s\n' % (node.title(), node.description())
+            elif nodetype == "Bookmark":
+                text = '%s\n%s\n%s\n' % (node.title(), node.uri(),
+                                         node.description())
+            else:
+                continue
             if not regex_flag and not case_flag:
                 text = string.lower(text)
             # literal match
