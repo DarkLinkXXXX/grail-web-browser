@@ -133,7 +133,7 @@ PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 
 # horizontal rule spacing, in points
 HR_TOP_MARGIN = 4.0
-HR_BOT_MARGIN = 4.0
+HR_BOT_MARGIN = 2.0
 
 # paragraph rendering
 PARAGRAPH_SEPARATION = DEFAULT_FONT_SIZE
@@ -146,9 +146,9 @@ TAB_STOP = inch_to_pt(0.5)
 HEADER_POS = inch_to_pt(0.25)
 FOOTER_POS = -PAGE_HEIGHT - inch_to_pt(0.5)
 
-ALIGN_LEFT = 0
-ALIGN_CENTER = 1
-ALIGN_RIGHT = 2
+ALIGN_LEFT = 'left'
+ALIGN_CENTER = 'center'
+ALIGN_RIGHT = 'right'
 
 # I don't support color yet
 F_FULLCOLOR = 0
@@ -351,6 +351,7 @@ class EPSImage:
 class PSStream:
     _pageno = 1
     _margin = 0.0
+    _rmargin = 0.0
     _leading = 0.0
     _align = ALIGN_LEFT
     _inliteral_p = None
@@ -410,6 +411,9 @@ class PSStream:
 	self.print_page_preamble()
 	self.push_font_change(None)
 
+    def get_pagewidth(self):
+	return PAGE_WIDTH - self._margin - self._rmargin
+
     def set_leading(self, value=0.0):
 	self._leading = max(0.0, value)
 
@@ -422,7 +426,8 @@ class PSStream:
 	    align = 'bottom'
 
 	#  Determine base scaling factor and dimensions:
-	img.set_maxsize(PAGE_WIDTH, PAGE_HEIGHT)
+	pagewidth = self.get_pagewidth()
+	img.set_maxsize(pagewidth, PAGE_HEIGHT)
 
 	extra = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
 	if align == 'absmiddle':
@@ -448,7 +453,7 @@ class PSStream:
 	below = (below_portion * height) - vshift
 
 	#  Check space available:
-	if width > PAGE_WIDTH - self._xpos:
+	if width > pagewidth - self._xpos:
 	    self.close_line()
 	#  Update page availability info:
 	if self._baseline is None:
@@ -486,7 +491,7 @@ class PSStream:
 	fontobj = self._font.fontobjs[font]
 	size = self._font.font_size()
 	width = fontobj.text_width(size, s)
-	if self._xpos + width > PAGE_WIDTH - self._margin:
+	if self._xpos + width > self.get_pagewidth():
 	    self.close_line()
 	if self._baseline is None:
 	    self._baseline = size
@@ -579,23 +584,26 @@ class PSStream:
 	old_align = self._align
 	if align is not None:
 	    self.push_alignment(align)
-	self._baseline = HR_TOP_MARGIN
+	self._baseline = HR_TOP_MARGIN + height
+	descent = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
+	self._vtab = max(self._vtab, descent)
 	self._descender = HR_BOT_MARGIN
+	pagewidth = self.get_pagewidth()
 	if abswidth:
-	    width = min(1.0 * abswidth, PAGE_WIDTH)
+	    width = min(1.0 * abswidth, pagewidth)
 	elif percentwidth:
-	    width = min(1.0, percentwidth) * PAGE_WIDTH
+	    width = min(1.0, percentwidth) * pagewidth
 	else:
 	    width = PAGE_WIDTH
 	if self._align is ALIGN_LEFT:
 	    start = 0.0
 	elif self._align is ALIGN_CENTER:
-	    start = (PAGE_WIDTH - width) / 2
+	    start = (pagewidth - width) / 2
 	else:	#  ALIGN = right
-	    start = PAGE_WIDTH - width
-	self._linefp.write('%d %f %f HR\n' % (height, start, width))
+	    start = pagewidth - width
+	self._linefp.write('%d %f %f HR\n'
+			   % (height, start + self._margin, width))
 	self.close_line()
-	self._ypos = self._ypos - height
 	self._align = old_align
 
     def push_margin(self, level):
@@ -603,8 +611,12 @@ class PSStream:
 	    self.close_string()
 	distance = level * TAB_STOP
 	self._margin = distance
-	self._ofp.write('/indentmargin %f D\n' % distance)
-	self._ofp.write('CR\n')
+	self._ofp.write('/indentmargin %f D CR\n' % distance)
+
+    def push_rightmargin(self, level):
+	if self._linestr:
+	    self.close_string()
+	self._rmargin = level * TAB_STOP
 
     def push_paragraph(self, blankline):
 	if blankline and self._ypos:
@@ -669,14 +681,13 @@ class PSStream:
 	linestr = self._linestr
 	append = linestr.append
 	text_width = self._font.text_width
-	allowed_width = PAGE_WIDTH - self._margin
+	allowed_width = self.get_pagewidth()
 	# outer loop
 	for line in lines:
 	    # do flowing text
 	    words = string.splitfields(line, ' ')
 	    wordcnt = len(words)-1
-	    for word in words:
-		width = text_width(word)
+	    for word, width in map(None, words, map(text_width, words)):
 		# Does the word fit on the current line?
 		if xpos + width < allowed_width:
 		    append(word)
@@ -687,45 +698,53 @@ class PSStream:
 		# current line width is > 75% of the page width, and
 		# the current text is smaller than the page width,
 		# then just break the line at the last space.
-		elif len(linestr) and len(linestr[-1]) and \
-		     linestr[-1][-1] in [' ', '\t'] and \
+		# (Checking the last whitespace char against a tab is
+		# unnecessary; data is de-tabbed before this method is
+		# called.)
+		elif linestr and linestr[-1] and \
+		     linestr[-1][-1] == ' ' and \
 		     xpos > allowed_width * 0.75 and \
-		     width < PAGE_WIDTH:
+		     width < allowed_width:
 		    #
-		    # first output the current line data
+		    # output the current line data (removes trailing space)
 		    #
+		    linestr[-1] = linestr[-1][:-1]
+		    self._xpos = xpos - self._space_width
 		    self.close_line(linestr=linestr)
-##		    self._ofp.write('CR\n')
 		    # close_line() touches these, but we're using a
 		    # local variable cache, which must be updated.
-		    xpos = 0.0
-		    linestr = []
+		    xpos = width
+		    linestr = [word]
 		    append = linestr.append
-		    append(word)
-		    xpos = xpos + width
 		# Try an alternative line break strategy.  If we're
 		# closer than 75% of the page width to the end of the
 		# line, then start a new line, print the word,
 		# possibly splitting the word if it is longer than a
 		# single line.
 		else:
+		    self._xpos = xpos
 		    self.close_line(linestr=linestr)
-##		    self._ofp.write('CR\n')
 		    # close_line() touches these, but we're using a
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
 		    linestr = []
 		    append = linestr.append
-		    while width > PAGE_WIDTH:
+		    while width > allowed_width:
 			# make our best guess as to the longest bit of
 			# the word we can write on a line.
 			if self._inliteral_p:
 			    append(word)
 			    word = ''
+			    self._xpos = text_width(word)
 			else:
 			    average_charwidth = width / len(word)
-			    chars_on_line = int(PAGE_WIDTH / average_charwidth)
-			    append(word[:chars_on_line] + '-')
+			    chars_on_line = int(allowed_width
+						/ average_charwidth)
+			    s = word[:chars_on_line]
+			    if s[-1] in string.letters:
+				s = s + "-"
+			    append(s)
+			    self._xpos = text_width(s)
 			    word = word[chars_on_line:]
 			# now write the word
 			self.close_line(linestr=linestr)
@@ -830,8 +849,14 @@ class PSStream:
 	# do we need to break the page?
 	self.print_page_break()
 	distance = baseline + self._vtab
-	self._ofp.write('CR 0 -%f R\n' % distance)
-	self._ofp.write(self._linefp.getvalue())
+	if self._align == ALIGN_CENTER:
+	    offset = (self.get_pagewidth() - self._xpos) / 2
+	elif self._align == ALIGN_RIGHT:
+	    offset = self.get_pagewidth() - self._xpos
+	else:
+	    offset = 0.0
+	self._ofp.write('CR %f -%f R\n%s' %
+			(offset, distance, self._linefp.getvalue()))
 	if self._descender > 0:
 	    self._ofp.write('0 -%f R\n' % self._descender)
 	    self._descender = 0.0
@@ -916,10 +941,11 @@ class PSWriter(AbstractWriter):
 
 	# semantics of STYLES is a tuple of single char strings.
 	# Right now the only styles we support are lower case 'underline' for
-	# underline.
+	# underline and a 'blockquote' for each right-hand indentation.
     def new_styles(self, styles):
 ##	_debug('new_styles: %s' % styles)
 	self.ps.push_underline('underline' in styles)
+	self.ps.push_rightmargin(map(None, styles).count('blockquote'))
 
     def send_paragraph(self, blankline):
 ##	_debug('send_paragraph: %s' % blankline)
@@ -1030,7 +1056,8 @@ class PrintingHTMLParser(HTMLParser):
     _inited = 0
 
     def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=1, underline_anchors=1, leading=1.0, fontsize=None):
+		 greyscale=1, underline_anchors=1,
+		 leading=None, fontsize=None):
 	if not self._inited:
 	    for k, v in self.fontdingbats.items():
 		self.dingbats[(k, 'grey')] = v
@@ -1041,7 +1068,8 @@ class PrintingHTMLParser(HTMLParser):
 		self.dingbats[(k, 'grey')] = tup
 		self.dingbats[(k, 'color')] = tup
 	    PrintingHTMLParser._inited = 1
-	writer.ps.set_leading(leading)
+	if leading:
+	    writer.ps.set_leading(leading)
 	from formatter import AbstractFormatter
 	HTMLParser.__init__(self, AbstractFormatter(writer), verbose)
 	self._baseurl = baseurl
@@ -1235,7 +1263,7 @@ class PrintingHTMLParser(HTMLParser):
 	    self.formatter.assert_line_data()
 	elif dingbat:
 	    dingbat.set_size(self.formatter.writer.ps._font.font_size(),
-			     PAGE_WIDTH)
+			     self.formatter.writer.ps.get_pagewidth())
 	    self.formatter.writer.send_eps_data(dingbat, 'absmiddle')
 	    self.formatter.assert_line_data()
 	else:
@@ -1440,8 +1468,10 @@ def main():
     url = ''
     footnote_anchors = 1
     underline_anchors = 0
+    fontsize = None
+    leading = None
     try:
-	options, argv = getopt.getopt(sys.argv[1:], 'hdlaUu:t:')
+	options, argv = getopt.getopt(sys.argv[1:], 'hdlaUu:t:s:L:')
     except getopt.error:
 	error = 1
 	help = 1
@@ -1451,6 +1481,8 @@ def main():
 	elif opt == '-a': footnote_anchors = 0
 	elif opt == '-d': DEBUG = 1
 	elif opt == '-l': logfile = arg
+	elif opt == '-L': leading = string.atof(arg)
+	elif opt == '-s': fontsize = string.atof(arg)
 	elif opt == '-t': title = arg
 	elif opt == '-u': url = arg
 	elif opt == '-U': underline_anchors = 1
@@ -1464,6 +1496,8 @@ def main():
 	    print '    -t: title for header'
 	    print '    -a: disable anchor footnotes'
 	    print '    -U: disable anchor underlining'
+	    print '    -s: base font size, in points (default is 10.0)'
+	    print '    -L: leading (spacing between lines), in points (default si 0.0)'
 	    print '    -d: turn on debugging'
 	    print '    -l: logfile for debugging, otherwise stderr'
 	    print '    -h: this help message'
@@ -1487,9 +1521,11 @@ def main():
 	infile = None
 	infp = sys.stdin
 	outfp = sys.stdout
+    if infile and not url:
+	url = os.path.normpath(os.path.join(os.getcwd(), infile))
     # create the parsers
     w = PSWriter(outfp, title or None, url or infile or '')
-    p = PrintingHTMLParser(w, baseurl=url,
+    p = PrintingHTMLParser(w, baseurl=url, fontsize=fontsize, leading=leading,
 			   underline_anchors=underline_anchors)
     if not footnote_anchors:
 	p.add_anchor_transform(disallow_anchor_footnotes)
