@@ -160,7 +160,6 @@ class Viewer(formatter.AbstractWriter):
 	self.unregister_interest(self.resize_interests, func)
 
     def clear_reset(self):
-	self.message("reset")
 	self._atemp = []
 	for func in self.reset_interests[:]:
 	    func(self)
