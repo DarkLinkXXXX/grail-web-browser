@@ -8,7 +8,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3" # Final!
+__version__ = "Grail/0.4a0"
 GRAILVERSION = __version__
 
 # Standard python imports (needed by path munging code)
@@ -32,7 +32,6 @@ for path in 'utils', 'pythonlib', 'ancillary', 'applets', \
 # More imports
 import Tkinter # Do this first to avoid confusing ni on Mac/Win
 import ni
-import html
 import filetypes
 import grailutil
 # TBD: hack!
@@ -44,6 +43,7 @@ import tempfile
 import posixpath
 from Tkinter import *
 import tktools
+import BaseApplication
 import GrailPrefs
 import Stylesheet
 from CacheMgr import CacheManager
@@ -101,7 +101,6 @@ def main():
 	url = None
     global app
     app = Application(prefs=prefs, display=display)
-    grailutil._grail_app = app		# Whack!
 
     def load_images_vis_prefs(app=app):
 	app.load_images = app.prefs.GetBoolean('browser', 'load-images')
@@ -215,14 +214,17 @@ class SocketQueue:
 	else:
 	    self.open = self.open - 1
 
-class Application:
+class Application(BaseApplication.BaseApplication):
 
     """The application class represents a group of browser windows."""
 
     def __init__(self, prefs=None, display=None):
 	self.root = Tk(className='Grail', screenName=display)
 	self.root.withdraw()
-	self.prefs = prefs or GrailPrefs.AllPreferences()
+	resources = os.path.join(script_dir, "Grail.ad")
+	if os.path.isfile(resources):
+	    self.root.option_readfile(resources, "startupFile")
+	BaseApplication.BaseApplication.__init__(self, prefs)
 	# The stylesheet must be initted before any Viewers, so it
 	# registers its' prefs callbacks first, hence reloads before the
 	# viewers reconfigure w.r.t. the new styles.
@@ -243,25 +245,13 @@ class Application:
 	self.global_history = GlobalHistory.GlobalHistory(self)
 	self.login_cache = {}
 	self.rexec_cache = {}
-	self.graildir = grailutil.getgraildir()
-	grailutil.establish_dir(self.graildir)
-	self.iconpath.insert(0, os.path.join(self.graildir, 'icons'))
 	self.url_cache = CacheManager(self)
 	self.image_cache = ImageCache(self.url_cache)
 	self.auth = AuthenticationManager(self)
-	s = \
-	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
-	  read_mime_types("/usr/local/lib/netscape/mime.types") or \
-	  read_mime_types("/usr/local/etc/httpd/conf/mime.types") or \
-	  {}
-	for key, value in self.suffixes_map.items():
-	    if not s.has_key(key): s[key] = value
-	self.suffixes_map = s
 	self.root.report_callback_exception = self.report_callback_exception
 	if sys.stdin.isatty():
 	    # only useful if stdin might generate KeyboardInterrupt
 	    self.keep_alive()
-	sys.stdout.flush()
 	self.browsers = []
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
@@ -270,15 +260,6 @@ class Application:
 	    Application.dingbatimages[k] = (v, '_sym')
 	self.root.bind_class("Text", "<Alt-Left>", self.dummy_event)
 	self.root.bind_class("Text", "<Alt-Right>", self.dummy_event)
-
-    def _check_font(self, fontName):
-	try:
-	    dummy = Label(text = 'dummy', font = fontName)
-	except TclError:
-	    return 0
-	else:
-	    dummy.destroy()
-	    return 1
 
     def dummy_event(self, event):
 	pass
@@ -328,42 +309,6 @@ class Application:
 	# Exercise the Python interpreter regularly so keyboard
 	# interrupts get through
 	self.root.tk.createtimerhandler(KEEPALIVE_TIMER, self.keep_alive)
-
-    html_start_tags = {}		# 'tag': (startFunc, asDict, startOrDo)
-    html_end_tags = {}
-
-    def find_html_start_extension(self, tag):
-	if self.html_start_tags.has_key(tag):
-	    return self.html_start_tags[tag]
-	mod = self.find_extension('html', tag)
-	if not mod:
-	    self.html_start_tags[tag] = None, None, None
-	    return None, None, None
-	as_dict = hasattr(mod, 'ATTRIBUTES_AS_KEYWORDS') \
-		  and mod.ATTRIBUTES_AS_KEYWORDS
-	for name in dir(mod):
-	    if name[:6] == 'start_':
-		t = name[6:]
-		if t and not self.html_start_tags.has_key(t):
-		    self.html_start_tags[t] = getattr(mod, name), as_dict, 1
-	    elif name[:4] == 'end_':
-		t = name[4:]
-		if t and not self.html_end_tags.has_key(t):
-		    self.html_end_tags[t] = getattr(mod, name)
-	    elif name[:3] == 'do_':
-		t = name[3:]
-		if t and not self.html_start_tags.has_key(t):
-		    self.html_start_tags[t] = getattr(mod, name), as_dict, 0
-	if not self.html_start_tags.has_key(tag):
-	    print "Hmm... module html/%s doesn't define start_%s" % (tag, tag)
-	    self.html_start_tags[tag] = None, None, None
-	return self.html_start_tags[tag]
-
-    def find_html_end_extension(self, tag):
-	if self.html_end_tags.has_key(tag):
-	    return self.html_end_tags[tag]
-	else:
-	    return None
 
     def get_cached_image(self, url):
 	return self.image_cache.get_image(url)
@@ -422,31 +367,6 @@ class Application:
 	'compress': 'compress -d',
 	'x-compress': 'compress -d',
 	}
-
-    def find_extension(self, subdir, module):
-	oldpath = sys.path
-	newpath = oldpath[:]
-	# if the subdir is a name of a package, prepend it's __path__,
-	# but do this before adding the user's $GRAILDIR directory
-	# since it should override the built-in
-	if sys.modules.has_key(subdir):
-	    pkgpath = sys.modules[subdir].__path__
-	    newpath = pkgpath + newpath
-	# prepend the user's subdir
-	usersubdir = os.path.join(self.graildir, subdir)
-	if usersubdir not in newpath:
-	    newpath.insert(0, usersubdir)
-	try:
-	    try:
-		sys.path = newpath
-		return __import__(module)
-	    finally:
-		sys.path = oldpath
-	except ImportError:
-	    return None
-	except:
-	    self.exception_dialog("while importing %s" % module)
-	    return None
 
     def exception_dialog(self, message="", root=None):
 	exc, val, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
@@ -514,6 +434,7 @@ class Application:
 
     dingbatimages = {'ldots': ('...', None),	# math stuff
 		     'sp': (' ', None),
+		     'hairsp': ('\240', None),
 		     'thinsp': ('\240', None),
 		     'emdash': ('--', None),
 		     'endash': ('-', None),
@@ -521,8 +442,6 @@ class Application:
 		     'ndash': ('-', None),
 		     'ensp': (' ', None)
 		     }
-
-    iconpath = [os.path.join(grail_root, 'icons')]
 
     def clear_dingbat(self, entname):
 	if self.dingbatimages.has_key(entname):
@@ -541,141 +460,6 @@ class Application:
 	    return img
 	self.dingbatimages[entname] = None
 	return None
-
-    def guess_type(self, url):
-	"""Guess the type of a file based on its URL.
-
-	Return value is a string of the form type/subtype, usable for
-	a MIME Content-type header; or None if no type can be guessed.
-
-	"""
-	base, ext = posixpath.splitext(url)
-	if ext in ('.tgz', '.taz', '.tz'):
-	    # Special case, can't be encoded in tables
-	    base = base + '.tar'
-	    ext = '.gz'
-	if self.encodings_map.has_key(ext):
-	    encoding = self.encodings_map[ext]
-	    base, ext = posixpath.splitext(base)
-	else:
-	    encoding = None
-	if self.suffixes_map.has_key(ext):
-	    return self.suffixes_map[ext], encoding
-	elif self.suffixes_map.has_key(string.lower(ext)):
-	    return self.suffixes_map[string.lower(ext)], encoding
-	else:
-	    return None, encoding
-
-    encodings_map = {
-	'.gz': 'gzip',
-	'.Z': 'compress',
-	}
-
-    suffixes_map = {
-	'.a': 'application/octet-stream',
-	'.ai': 'application/postscript',
-	'.aif': 'audio/x-aiff',
-	'.aifc': 'audio/x-aiff',
-	'.aiff': 'audio/x-aiff',
-	'.au': 'audio/basic',
-	'.avi': 'video/x-msvideo',
-	'.bcpio': 'application/x-bcpio',
-	'.bin': 'application/octet-stream',
-	'.cdf': 'application/x-netcdf',
-	'.cpio': 'application/x-cpio',
-	'.csh': 'application/x-csh',
-	'.dll': 'application/octet-stream',
-	'.dvi': 'application/x-dvi',
-	'.exe': 'application/octet-stream',
-	'.eps': 'application/postscript',
-	'.etx': 'text/x-setext',
-	'.gif': 'image/gif',
-	'.gtar': 'application/x-gtar',
-	'.hdf': 'application/x-hdf',
-	'.htm': 'text/html',
-	'.html': 'text/html',
-	'.ief': 'image/ief',
-	'.jpe': 'image/jpeg',
-	'.jpeg': 'image/jpeg',
-	'.jpg': 'image/jpeg',
-	'.latex': 'application/x-latex',
-	'.man': 'application/x-troff-man',
-	'.me': 'application/x-troff-me',
-	'.mif': 'application/x-mif',
-	'.mov': 'video/quicktime',
-	'.movie': 'video/x-sgi-movie',
-	'.mpe': 'video/mpeg',
-	'.mpeg': 'video/mpeg',
-	'.mpg': 'video/mpeg',
-	'.ms': 'application/x-troff-ms',
-	'.nc': 'application/x-netcdf',
-	'.o': 'application/octet-stream',
-	'.obj': 'application/octet-stream',
-	'.oda': 'application/oda',
-	'.pbm': 'image/x-portable-bitmap',
-	'.pdf': 'application/pdf',
-	'.pgm': 'image/x-portable-graymap',
-	'.pnm': 'image/x-portable-anymap',
-	'.png': 'image/png',
-	'.ppm': 'image/x-portable-pixmap',
-	'.py': 'text/x-python',
-	'.pyc': 'application/x-python-code',
-	'.ps': 'application/postscript',
-	'.qt': 'video/quicktime',
-	'.ras': 'image/x-cmu-raster',
-	'.rgb': 'image/x-rgb',
-	'.roff': 'application/x-troff',
-	'.rtf': 'application/rtf',
-	'.rtx': 'text/richtext',
-	'.sgm': 'text/x-sgml',
-	'.sgml': 'text/x-sgml',
-	'.sh': 'application/x-sh',
-	'.shar': 'application/x-shar',
-	'.snd': 'audio/basic',
-	'.so': 'application/octet-stream',
-	'.src': 'application/x-wais-source',
-	'.sv4cpio': 'application/x-sv4cpio',
-	'.sv4crc': 'application/x-sv4crc',
-	'.t': 'application/x-troff',
-	'.tar': 'application/x-tar',
-	'.tcl': 'application/x-tcl',
-	'.tex': 'application/x-tex',
-	'.texi': 'application/x-texinfo',
-	'.texinfo': 'application/x-texinfo',
-	'.tif': 'image/tiff',
-	'.tiff': 'image/tiff',
-	'.tr': 'application/x-troff',
-	'.tsv': 'text/tab-separated-values',
-	'.txt': 'text/plain',
-	'.ustar': 'application/x-ustar',
-	'.wav': 'audio/x-wav',
-	'.xbm': 'image/x-xbitmap',
-	'.xpm': 'image/x-xpixmap',
-	'.xwd': 'image/x-xwindowdump',
-	'.zip': 'application/zip',
-	}
-
-
-def read_mime_types(file):
-    try:
-	f = open(file)
-    except IOError:
-	return None
-    map = {}
-    while 1:
-	line = f.readline()
-	if not line: break
-	words = string.split(line)
-	for i in range(len(words)):
-	    if words[i][0] == '#':
-		del words[i:]
-		break
-	if not words: continue
-	type, suffixes = words[0], words[1:]
-	for suff in suffixes:
-	    map['.'+suff] = type
-    f.close()
-    return map
 
 
 if __name__ == "__main__":
