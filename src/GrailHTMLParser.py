@@ -55,8 +55,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
-	    self.formatter.add_literal_data(' ')
-	self.handle_data(' ')
+	    self.formatter.add_literal_data("\240")
 	self.viewer.add_subwindow(w)
 
     # New tag: <CENTER> (for Amy)
