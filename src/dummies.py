@@ -5,8 +5,13 @@
 
 import array
 import audioop
+import binascii
 import imageop
 import math
 import md5
-import sunaudiodev			# Optional
 import struct
+import audiodev
+
+# Platform specific modules
+import sunaudiodev			# SunOS, Solaris
+import al				# SGI
