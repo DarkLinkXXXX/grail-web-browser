@@ -48,7 +48,7 @@ DEBUG = 0				# Default debugging flag
 
 # Internal constants
 # XXX These need reorganizing
-HANDLE_SERVICE_ID = 'HDL             ' # Yes the spaces are important
+HANDLE_SERVICE_ID = 'HDL' + 13*' ' # Yes the spaces are important
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash.tbl'
 DEFAULT_GLOBAL_SERVER = "hs.handle.net"
 DEFAULT_SERVERS = ['132.151.1.155',
@@ -848,10 +848,10 @@ def fetch_global_hash_table(ht=None, debug=DEBUG):
 	    urnscheme = data[:16]
 	    if urnscheme == HANDLE_SERVICE_ID:
 		hashtable = data[16:]
+		# This data is in the same format as file "hdl_hash.tbl"
+		if debug: print "hash table data =", hexstr(hashtable)
 	    else:
-		raise Error("Unknown SERVICE_ID: %s" % data[:16])
-	    if debug: print "hash table data =", hexstr(hashtable)
-	    # This data is in the same format as file "hdl_hash.tbl"
+		raise Error("Unknown SERVICE_ID: %s" % urnscheme)
     return HashTable(data=hashtable, debug=debug)
 
 
@@ -877,15 +877,13 @@ def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
 	    handle = data
 	elif type == HDL_TYPE_SERVICE_POINTER:
 	    urnscheme = data[:16]
-	    if urnscheme != HANDLE_SERVICE_ID:
-		raise Error("Unknown SERVICE_ID: %s" % urnscheme)		
 	    urndata = data[16:]
-	    if debug:
-		print "URN scheme =", `urnscheme`
-		print "data =", hexstr(urndata)
-	    if urnscheme == 'HDL' + 13*' ':
-		if debug: print "got a hash table!"
+	    if debug: print "URN scheme =", `urnscheme`
+	    if urnscheme == HANDLE_SERVICE_ID:
 		hashtable = urndata
+		if debug: print "hash table data =", hexstr(hashtable)
+	    else:
+		raise Error("Unknown SERVICE_ID: %s" % urnscheme)		
 	else:
 	    if debug: print "type", type, "=", data
     if hashtable:
