@@ -26,6 +26,7 @@ import mimetools
 from Assert import Assert
 import grailutil
 import select
+import Reader
 import regex
 import StringIO
 import socket
@@ -141,6 +142,12 @@ class http_access:
 	    self.h.putheader('Authorization', 'Basic %s' % auth)
 	if not params.has_key('host'):
 	    self.h.putheader('Host', host)
+        if not params.has_key('accept-encoding'):
+            encodings = Reader.get_content_encodings()
+            if encodings:
+                encodings.sort()
+                self.h.putheader(
+                    'Accept-Encoding', string.join(encodings, ", "))
 	for key, value in params.items():
 	    if key[:1] != '.':
 		self.h.putheader(key, value)
