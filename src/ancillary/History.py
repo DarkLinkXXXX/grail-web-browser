@@ -159,6 +159,7 @@ class History:
     def set_dialog(self, dialog): self._dialog = dialog
 
     def append_link(self, link, title=None):
+	print 'append_link:', link, title
 	# Netscape-ism.  Discard alternative future.  TBD: IMHO bogus
 	# semantics, since it loses complete historical trace
 	del self._history[self._current+1:]
@@ -175,10 +176,12 @@ class History:
 	if self._dialog: self._dialog.refresh()
 
     def set_title(self, link, title):
+	print 'set_title:', link, title
 	self._ghistory.set_title(link, title)
 	if self._dialog: self._dialog.refresh()
 
     def title(self, link):
+	print 'title:', link, '=>', self._ghistory.title(link)
 	return self._ghistory.title(link)
 
     def link(self, index=None):
@@ -189,7 +192,12 @@ class History:
 	    return self._history[self._current]
 	else: return None
 
-    def inhistory_p(self, link): return not not self.title(link)
+    def inhistory_p(self, link):
+	# horrible kludge is necessary because the link could be in
+	# the history with or without a trailing slash.
+	has_title = self.title(link) or self.title(link + '/')
+	return not not has_title
+
     def links(self): return self._history
     def current(self): return self._current
 
