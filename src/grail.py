@@ -42,19 +42,12 @@ import string
 import urllib
 import tempfile
 import posixpath
-import traceback
-import mimetools
 from Tkinter import *
 import GrailPrefs
 import Stylesheet
-import SafeDialog
-import tktools
-from Browser import Browser
-import SafeTkinter
 from CacheMgr import CacheManager
 from ImageCache import ImageCache
 from Authenticate import AuthenticationManager
-import TbDialog
 if 0:
     import dummies
 import GlobalHistory
@@ -113,12 +106,15 @@ def main():
 	load_images_vis_prefs()
     prefs.AddGroupCallback('browser', load_images_vis_prefs)
 
+    from Browser import Browser
+    import SafeTkinter
     browser = Browser(app.root, app, geometry=geometry)
     if url:
 	browser.context.load(url)
     elif prefs.GetBoolean('browser', 'load-initial-page'):
 	browser.home_command()
     SafeTkinter._castrate(app.root.tk)
+    import tktools
     tktools.install_keybindings(app.root)
     # Make everybody who's still using urllib.urlopen go through the cache
     urllib.urlopen = app.open_url_simple
@@ -496,6 +492,7 @@ class Application:
 	if self.in_exception_dialog:
 	    print
 	    print "*** Recursive exception", message
+	    import traceback
 	    traceback.print_exception(exc, val, tb)
 	    return
 	self.in_exception_dialog = 1
@@ -509,6 +506,7 @@ class Application:
     def _exc_dialog(self, message, exc, val, tb, root=None):
 	# XXX This needn't be a modal dialog --
 	# XXX should SafeDialog be changed to support callbacks?
+	import SafeDialog
 	msg = "An exception occurred " + str(message) + " :\n"
 	msg = msg + str(exc) + " : " + str(val)
 	dlg = SafeDialog.Dialog(root or self.root,
@@ -524,12 +522,14 @@ class Application:
 
     def traceback_dialog(self, exc, val, tb):
 	# XXX This could actually just create a new Browser window...
+	import TbDialog
 	TbDialog.TracebackDialog(self.root, exc, val, tb)
 
     def error_dialog(self, exc, msg, root=None):
 	# Display an error dialog.
 	# Return when the user clicks OK
 	# XXX This needn't be a modal dialog
+	import SafeDialog
 	if type(msg) in (ListType, TupleType):
 	    s = ''
 	    for item in msg:
