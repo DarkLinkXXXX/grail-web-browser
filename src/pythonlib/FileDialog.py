@@ -77,9 +77,12 @@ class FileDialog:
 				    command=self.cancel_command)
 	self.cancel_button.pack(side=RIGHT)
 
-    def go(self, directory=os.curdir, pattern="*", default=""):
-	self.directory = directory
-	self.set_filter(directory, pattern)
+    def go(self, dir_or_file=os.curdir, pattern="*", default=""):
+	if os.path.isfile(dir_or_file):
+	    self.directory, default = os.path.split(dir_or_file)
+	else:
+	    self.directory = dir_or_file
+	self.set_filter(self.directory, pattern)
 	self.filter_command()
 	self.set_selection(default)
 	self.selection.focus_set()

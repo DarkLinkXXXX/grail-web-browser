@@ -85,8 +85,9 @@ class OutlinerViewer:
 	self._gcounter = self._gcounter + 1
 	# calculate the string to insert into the list box
 	self._insert(node)
-	for child in node.children():
-	    self._populate(child)
+	if node.expanded_p():
+	    for child in node.children():
+		self._populate(child)
 
     def populate(self):
 	self._populate(self._root)

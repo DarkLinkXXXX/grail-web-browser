@@ -93,12 +93,8 @@ class HTMLBookmarkReader:
 	self._parser = parser
 
     def read_file(self, fp):
-	root = None
-	try:
-	    self._parser.feed(fp.read())
-	    root = self._parser._root
-	except IOError: pass
-	return root
+	self._parser.feed(fp.read())
+	return self._parser._root
 
 class DummyWriter(formatter.AbstractWriter):
     def new_font(self, font): pass
@@ -239,18 +235,16 @@ class NetscapeBookmarkWriter:
 		self._rwrite(child)
 	    print '%s</DL><p>' % tab
 
-    def write_tree(self, root, filename):
+    def write_tree(self, root, fp):
 	stdout = sys.stdout
-	fp = None
 	try:
-	    fp = open(filename, 'w')
 	    sys.stdout = fp
 	    self._write_header(root)
 	    for child in root.children():
 		self._rwrite(child)
 	    print '</DL><p>'
 	finally:
-	    if fp: fp.close()
+	    fp.close()
 	    sys.stdout = stdout
 
 
@@ -261,7 +255,7 @@ class GrailBookmarkHTMLParser(NetscapeBookmarkHTMLParser):
 	for k, v in attrs:
 	    if k == 'add_date': self._current.set_add_date(string.atoi(v))
 	    elif k == 'expanded':
-		if v: self._current.expand()
+		if string.atoi(v): self._current.expand()
 		else: self._current.collapse()
 
 class GrailBookmarkWriter(NetscapeBookmarkWriter):
@@ -276,7 +270,7 @@ class GrailBookmarkWriter(NetscapeBookmarkWriter):
 
     def _write_branch(self, node):
 	tab = self._tab(node)
-	print '%s<DT><H3 ADD_DATE="%d" EXPANDED="%d">%s</H3>' % \
+	print '%s<DT><H3 ADD_DATE="%d" EXPANDED=%d>%s</H3>' % \
 	      (tab, node.add_date(),
 	       node.expanded_p() and 1 or 0,
 	       node.title())
@@ -339,14 +333,19 @@ class BMLoadDialog(FileDialog.LoadFileDialog):
 	formatbtn = OptionMenu(frame2,
 			       controller.fileformat,
 			       controller.fileformat.get(),
-			       'Grail', 'Netscape')
+			       'Automatic', 'Grail', 'Netscape')
 	formatbtn.pack(anchor='w')
 
-    def set_for_grail(self): pass
-    def set_for_netscape(self): pass
-    def show(self):
-	self.top.deiconify()
-	self.top.tkraise()
+    def _set_to_file(self, path):
+	dir, file = os.path.split(path)
+	olddir, pat = self.get_filter()
+	self.set_filter(dir, pat)
+	self.set_selection(file)
+	self.filter_command()
+
+    def set_for_grail(self): self._set_to_file(DEFAULT_GRAIL_BM_FILE)
+    def set_for_netscape(self): self._set_to_file(DEFAULT_NETSCAPE_BM_FILE)
+
 
 class BookmarksIO:
     def __init__(self, frame, controller):
@@ -355,59 +354,107 @@ class BookmarksIO:
 	self._descriptor = None
 	self._filename = None
 
-    def _open_file_for_reading(self, filename, reader=None):
-	try: fp = open(filename, 'r')
-	except IOError: return (None, reader, None)
-	if not reader:
+    def _choose_reader_writer(self, fp):
+	formatstr = string.lower(self._controller.fileformat.get())
+	parser = reader = writer = None
+	if formatstr == 'grail':
+	    parser = GrailBookmarkHTMLParser()
+	    writer = GrailBookmarkWriter()
+	elif formatstr == 'netscape':
+	    parser = NetscapeBookmarkHTMLParser()
+	    writer = NetscapeBookmarkWriter()
+	elif formatstr == 'automatic':
 	    # we may have to do more than this to figure out what
 	    # format the bookmarks file is written in, but for now
 	    # this works with Netscape v1 and Grail v1 style bookmark
 	    # files.
-	    import regex
-	    line1 = fp.readline()
-	    if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkHTMLParser()
-		writer = NetscapeBookmarkWriter()
-	    elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
-		parser = GrailBookmarkHTMLParser()
-		writer = GrailBookmarkWriter()
-	    else:
-		raise BookmarkFormatError, \
-		      'unknown bookmark file format for file %s' % \
-		      filename
-	    reader = HTMLBookmarkReader(parser)
-	    # be sure to rewind the file
-	    fp.seek(0)
+	    try:
+		import regex
+		line1 = fp.readline()
+		if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
+		    parser = NetscapeBookmarkHTMLParser()
+		    writer = NetscapeBookmarkWriter()
+		elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
+		    parser = GrailBookmarkHTMLParser()
+		    writer = GrailBookmarkWriter()
+	    finally:
+		fp.seek(0)
+	else: pass
+	# sanity checking
+	if not parser or not writer:
+	    raise BookmarkFormatError, \
+		  'unknown bookmark file format for file %s' % filename
+	# create the reader
+	reader = HTMLBookmarkReader(parser)
+	return (reader, writer)
+
+    def _open_file_for_reading(self, filename):
+	reader = writer = None
+	fp = open(filename, 'r')
+	reader, writer = self._choose_reader_writer(fp)
 	return (fp, reader, writer)
 
     def load(self):
-	filename = self._filename
-	# Semantics are: the first time this is called, self._file is
-	# not set, so we want to simply load the default bookmarks
-	# file.  We do not want to interact with the user at this
-	# point.  Afterwards, we'll use the currently loaded filename
-	# as the default, but we will prompt the user with the
-	# FileLoadDialog.
-	if not filename:
-	    # default should be grail's bookmark file if it exists,
-	    # otherwise use netscape's default bookmark file
-	    if os.path.exists(DEFAULT_GRAIL_BM_FILE):
-		filename = DEFAULT_GRAIL_BM_FILE
-	    else: filename = DEFAULT_NETSCAPE_BM_FILE
-	else:
-	    loader = BMLoadDialog(self._frame, self._controller)
-	    loader.show()
-	    filename = loader.go(filename, '*.html')
-	# now given a user selected filename, open it for reading,
-	# then read it using the correct parser.
-	if filename:
-	    fp, reader, writer = self._open_file_for_reading(filename)
-	    root = reader.read_file(fp)
-	    fp.close()
-	    self._filename = filename
-	    return (root, reader, writer)
-	else:
-	    return (None, None, None)
+	root = reader = writer = None
+	try:
+	    filename = self._filename
+	    # Semantics are: the first time this is called, self._file
+	    # is not set, so we want to simply load the default
+	    # bookmarks file.  We do not want to interact with the
+	    # user at this point.  Afterwards, we'll use the currently
+	    # loaded filename as the default, but we will prompt the
+	    # user with the FileLoadDialog.
+	    if not filename:
+		# default should be grail's bookmark file if it
+		# exists, otherwise use netscape's default bookmark
+		# file
+		if os.path.exists(DEFAULT_GRAIL_BM_FILE):
+		    filename = DEFAULT_GRAIL_BM_FILE
+		else: filename = DEFAULT_NETSCAPE_BM_FILE
+	    else:
+		loader = BMLoadDialog(self._frame, self._controller)
+		filename = loader.go(filename, '*.html')
+	    # now given a user selected filename, open it for reading,
+	    # then read it using the correct parser.
+	    if filename:
+		fp, reader, writer = self._open_file_for_reading(filename)
+		root = reader.read_file(fp)
+		fp.close()
+		self._filename = filename
+	except IOError, errmsg:
+	    IOErrorDialog(self._frame, 'loading', errmsg)
+	return (root, reader, writer)
+
+    def _save_to_file_with_writer(self, writer, root, filename=None):
+	try:
+	    fp = open(filename, 'w')
+	    writer.write_tree(root, fp)
+	except IOError, errmsg:
+	    IOErrorDialog(self._frame, 'saving', errmsg)
+
+    def save(self, writer, root):
+	self._save_to_file_with_writer(writer, root, self._filename)
+
+    def saveas(self, writer, root):
+	dialog = FileDialog.SaveFileDialog(self._frame)
+	savefile = dialog.go(self._filename, '*.html')
+	if savefile:
+	    self._save_to_file_with_writer(writer, root, savefile)
+
+class IOErrorDialog:
+    def __init__(self, master, where, errmsg):
+	msg = 'I/O Error encountered during %s:' % where
+	self._frame = Toplevel(master)
+	self._frame.title(msg)
+	label = Label(self._frame, text=msg)
+	label.pack()
+	errlabel = Label(self._frame, text=errmsg)
+	label.pack()
+	self.closebtn = Button(self._frame, text="Ok", command=self.close)
+	self.closebtn.pack()
+
+    def close(self): self._frame.destroy()
+
 
 
 class BookmarksController:
@@ -419,6 +466,8 @@ class BookmarksController:
 	self._iomgr = BookmarksIO(frame, self)
 	self._dialog = None
 	self._details = {}
+	self._listbox = None
+	self._bookmarkfile = None
 	self._tkvars = {
 	    'aggressive': BooleanVar(),
 	    'addcurloc':  IntVar(),
@@ -442,9 +491,6 @@ class BookmarksController:
 
     def set_listbox(self, listbox): self._listbox = listbox
     def set_dialog(self, dialog): self._dialog = dialog
-    def set_bookmark_file(self, filename):
-	self._bookmarkfile = filename
-	self.load()
 
     def root(self): return self._root
 
@@ -533,23 +579,22 @@ class BookmarksController:
 	self._root, reader, self._writer = self._iomgr.load()
 	if self._root: return True
 	else: return False
+
     def load(self, event=None):
-	if self.load_without_show(): self.show()
+	if self.load_without_show():
+	    if self._listbox:
+		self._listbox.delete(0, 'end')
+		self._viewer = None
+	    self.show()
 
     def merge(self, event=None): pass
-    def save(self, event=None): self.saveas()
-
-    def saveas(self, event=None):
-	dialog = FileDialog.SaveFileDialog(self._frame)
-	savefile = dialog.go(getgraildir(), '*.html')
-	if savefile:
-	    writer = GrailBookmarkWriter()
-	    writer.write_tree(self._root, savefile)
+    def save(self, event=None): self._iomgr.save(self._writer, self._root)
+    def saveas(self, event=None): self._iomgr.saveas(self._writer, self._root)
 
     def add_current(self, event=None):
 	# create a new node to represent this addition and then fit it
 	# into the tree, updating the listbox
-	see = True
+	see = not not self._viewer
 	now = int(time.time())
 	node = BookmarkNode(self._browser.title,
 			    self._browser.url,
@@ -558,16 +603,18 @@ class BookmarksController:
 	if addlocation == 1:
 	    # append this to the end of the list, which translates to:
 	    # add this node to the end of root's child list.
-	    lastnode = self._viewer.count()
 	    self._root.append_child(node)
-	    self._viewer.insert_nodes(lastnode, [node], True)
+	    if self._viewer:
+		lastnode = self._viewer.count()
+		self._viewer.insert_nodes(lastnode, [node], True)
 	elif addlocation == 2:
 	    # prepend the node to the front of the list, which
 	    # translates to: add this node to the beginning of root's
 	    # child list.
 	    self._root.insert_child(node, 0)
-	    self._viewer.insert_nodes(0, [node], True)
-	elif addlocation == 3:
+	    if self._viewer:
+		self._viewer.insert_nodes(0, [node], True)
+	elif addlocation == 3 and self._viewer:
 	    # add current as child of selected node, which translates
 	    # to: add this node to the end of the selected node's list
 	    # of children.  The tricky bit is that we have to update
@@ -585,9 +632,8 @@ class BookmarksController:
 		else:
 		    see = False
 		self._viewer.update_node(snode)
-	else:
-	    # really should raise an internal error or some such
-	    pass
+	else: pass
+	# scroll the newly added node into view
 	if see: self._listbox.see(node.index())
 
     def update_node(self, node): self._viewer.update_node(node)
@@ -603,13 +649,20 @@ class BookmarksController:
 	    self._details[id(node)] = details
 
     def show(self, event=None):
+	# note that due to a weird Tk `buglet' if you do a deiconify
+	# on a newly created toplevel widget, it causes a roundtrip
+	# with the X server too early in the widget creation cycle.
+	# for those window managers without automatic (random)
+	# placement, the user will see a zero-sized widget
+	show_p = True
 	if not self._dialog:
 	    self._dialog = BookmarksDialog(self._frame, self)
 	    self._listbox = self._dialog._listbox # TBD: gross
+	    show_p = False
 	if not self._viewer:
 	    self._viewer = TkListboxViewer(self._root, self._listbox)
 	    self._viewer.populate()
-	self._dialog.show()
+	if show_p: self._dialog.show()
 
     def hide(self, event=None): self._dialog.hide()
     def quit(self, event=None): sys.exit(0)
@@ -914,10 +967,10 @@ class BookmarksMenu:
 	self._menu.config(tearoff='No', postcommand=self.post)
 	# fill in the static part of the menu
 	self._menu.add_command(label='Add Current',
-			       command=self._controller.add_current,
+			       command=self.add_current,
 			       underline=0, accelerator='Alt-A')
-	self._browser.root.bind('<Alt-a>', self._controller.add_current)
-	self._browser.root.bind('<Alt-A>', self._controller.add_current)
+	self._browser.root.bind('<Alt-a>', self.add_current)
+	self._browser.root.bind('<Alt-A>', self.add_current)
  	self._menu.add_command(label='Bookmarks Viewer...',
 			       command=self.show,
 			       underline=0, accelerator='Alt-B')
@@ -938,3 +991,7 @@ class BookmarksMenu:
     def show(self, event=None):
 	if self._controller.root(): self._controller.show()
 	else: self._controller.load()
+
+    def add_current(self, event=None):
+	if self._controller.root() or self._controller.load_without_show():
+	    self._controller.add_current()
