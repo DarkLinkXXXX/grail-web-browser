@@ -382,6 +382,7 @@ class PSStream:
 	    self._baseline = above
 	else:
 	    self._baseline = max(self._baseline, above)
+	self._xpos = self._xpos + width
 	#
 	oldstdout = sys.stdout
 	try:
