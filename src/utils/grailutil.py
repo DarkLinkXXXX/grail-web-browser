@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.12 $"
+__version__ = "$Revision: 2.13 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -176,46 +176,49 @@ def conv_enumeration(val, mapping_or_list):
 def conv_exists(val):
     return 1
 
-def pref_or_getenv(name, group='proxies', type_name='string', check_ok=None):
+def pref_or_getenv(name, group='proxies', type_name='string',
+		   check_ok=None, user=0, factory=0):
     """The routine is designed to help integrate environement variables with the use
     of preferences.
 
-    First check preferences, under 'group', for the component 'name'.  If it's not
-    defined in preferences, try to read 'name' from the environment.  If 'name's
-    defined in the environment, migrate the value to preferences.  Return the
-    value associated with the name,  None if it's not defined in either place.
-    Currently Booleans are not checked for in the environment, rather we always
-    return TRUE if the Boolean is not found in preferences. if check_ok is not
-    None, it is expected to be a tuple of valid names. e.g. ('name1', 'name2'). 
+    First check preferences, under 'group', for the component 'name'.  If 'name'
+    is defined as a 'string' and it's NULL, try to read 'name' from the environment.
+    If 'name's defined in the environment, migrate the value to preferences.  Return
+    the value associated with the name,  None if it's not defined in either place
+    (env or prefs... and it's a 'string').  If check_ok is not None, it is expected to
+    be a tuple of valid names. e.g. ('name1', 'name2').  If factory  is TRUE then the
+    value for name is retrieved only from factory defaults and not user
+    preferences and not the environment. If it's not found there,
+    return None. 
     """
-    if check_ok:
-	if name not in check_ok:
+    if check_ok and  name not in check_ok:
 	    return None
-	    
+
     from __main__ import app
 
     if type_name == 'string':
-	component = app.prefs.Get(group, name)
+	component = app.prefs.Get(group, name, factory=factory)
+	if len(component) or factory:
+	    return component
     elif type_name == 'int':
-	component = app.prefs.GetInt(group, name)
+	component = app.prefs.GetInt(group, name, factory=factory)
+	return component
     elif type_name == 'Boolean':
-	component = app.prefs.GetBoolean(group, name)
+	component = app.prefs.GetBoolean(group, name, factory=factory)
+	return component
     elif type_name == 'float':
-	component = app.prefs.GetFloat(group, name)
+	component = app.prefs.GetFloat(group, name, factory=factory)
+	return component
     else:
 	raise ValueError, ('%s not supported - must be one of %s'
-	              % (`type_name`, ['string', 'int', 'float', 'Boolean']))	
-    if component != None:
-	return component
-
-    if type_name == 'Boolean':
-	return 1
+	              % (`type_name`, ['string', 'int', 'float', 'Boolean']))
 
     import os
     try:
 	component = os.environ[name]
     except:
 	return None
-	    
+
     app.prefs.Set(group, name, component)
     return component
+

@@ -25,7 +25,9 @@ import socket
 from urllib import splittype, splithost, splitport
 import grailutil
 
-VALID_PROXIES = ('http_proxy', 'ftp_proxy', 'no_proxy')
+#
+# list of valid scheme environment variables for proxies
+VALID_PROXIES = ('http_proxy', 'ftp_proxy')
 
 def protocol_access(url, mode, params, data=None):
     from __main__ import app
@@ -36,41 +38,51 @@ def protocol_access(url, mode, params, data=None):
     sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
     #
     # Check first to see if proxies are enabled
-    manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled',
-					      type_name='Boolean')
+    manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled', type_name='int')
 
     if manual_proxy_enabled:
-	#
-	# believe preferences for proxy info... if no preferences,
-	# see if any proxy environment variables are set, if so,
-	# believe the environment and set preferences to believe also.
-	proxy = grailutil.pref_or_getenv(sanitized + "_proxy",
-				      check_ok=VALID_PROXIES)
+	proxy_name = sanitized + "_proxy"
+	if manual_proxy_enabled == -1:
+	    #
+	    # We should only get here when there are no user preferences
+	    # for proxies, which should only happen once... so check the
+	    # environment for the rest of the known scheme proxy env vars
+	    # and load them into prefs if they exist.
+	    app.prefs.Set('proxies', 'manual_proxy_enabled', 0)
+	    proxy = None
+	    for next_proxy_name in VALID_PROXIES:
+		next_proxy = grailutil.pref_or_getenv(next_proxy_name,
+					      check_ok=VALID_PROXIES)
+		if next_proxy:
+		    app.prefs.Set('proxies', 'manual_proxy_enabled', 1)
+		    
+		if next_proxy_name == proxy_name:
+		    proxy = next_proxy
+		    
+	    no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled', type_name='int')
+	    if no_proxy_enabled == -1:
+		no_proxy = grailutil.pref_or_getenv('no_proxy')
+	    if no_proxy:
+		app.prefs.Set('proxies', 'no_proxy_enabled', 1)
+	    else:
+		app.prefs.Set('proxies', 'no_proxy_enabled', 0)
+	else:	
+	    proxy = grailutil.pref_or_getenv(proxy_name, check_ok=VALID_PROXIES)
     else:
 	proxy = None
 	
     if proxy:
-	# force  Booleans to be set in prefs, since we
-	# may have ignored the env to get here
-	if not app.prefs.GetBoolean('proxies', 'manual_proxy_enabled'):
-	    app.prefs.Set('proxies', 'manual_proxy_enabled', 1)
 	if not valid_proxy(proxy):
 	    error = 'Invalid proxy: ' + proxy
 	    raise IOError, error
-	do_proxy = 1
-	no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled',
-					   type_name='Boolean')
+	no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled', type_name='int')
 	if no_proxy_enabled:
-	    no_proxy = grailutil.pref_or_getenv("no_proxy")
+	    no_proxy = grailutil.pref_or_getenv('no_proxy')
 	else:
 	    no_proxy = None
 	    
+	do_proxy = 1
 	if no_proxy:
-	    # force  Booleans to be set in prefs, since we may
-	    # have ignored the env to get here
-	    if not app.prefs.GetBoolean('proxies', 'no_proxy_enabled'):
-		app.prefs.Set('proxies', 'no_proxy_enabled', 1)
-
 	    list = map(string.strip, string.split(no_proxy, ","))
 	    url_host, url_remains = splithost(resturl)
 	    url_host = string.lower(url_host)
