@@ -105,13 +105,12 @@ styles--huge-sizes:
 # History Anchors:
 styles-common--history-a-foreground: #0000EE
 styles-common--history-a-underline: 1
+styles-common--history-hover-foreground: #604055
+styles-common--history-hover-underline: 1
 styles-common--history-ahist-foreground: #551A8B
 styles-common--history-ahist-underline: 1
 styles-common--history-atemp-foreground: #FF0000
 styles-common--history-atemp-underline: 1
-# Priorities:
-styles-common--priorities-ahist: a
-styles-common--priorities-atemp: ahist
 #
 # Font templates - these are combined with the respective family and
 # size components to dictate the actual font spec.  These should not
