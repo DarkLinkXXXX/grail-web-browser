@@ -1,6 +1,6 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the panel:
@@ -21,19 +21,32 @@ class StylePanel(PrefsPanels.Framework):
 
 	style_sizes = string.split(self.app.prefs.Get('styles',
 						      'all-sizes'))
-	style_types = string.split(self.app.prefs.Get('styles',
-						      'all-types'))
+	style_families = string.split(self.app.prefs.Get('styles',
+							 'all-families'))
 
 	self.PrefsRadioButtons(frame, "Font size group:", style_sizes,
-			       'styles', 'size')
-	self.PrefsRadioButtons(frame, "Font Type:", style_types,
-			       'styles', 'type')
+			       'styles', 'size', label_width=20)
+	self.PrefsRadioButtons(frame, "Font Family:", style_families,
+			       'styles', 'family', label_width=20)
 	# Anchors:
-	self.anchor_style_item(Frame(frame), "Fresh",
-			       'styles-a-foreground', 'styles-a-underline')
+	
+	v = StringVar()
+	f = Frame(frame)
+	l = self.PrefsWidgetLabel(f, "Anchors:", label_width=20)
+	cb = Checkbutton(f, text="Underline", relief='ridge', bd=1,
+			 variable=v)
+	cb.pack(side=LEFT)
+	f.pack(fill=NONE, side=LEFT, pady='1m')
+	self.RegisterUI('styles-common', 'history-ahist-underline',
+			'Boolean', v.get, v.set)
+	self.RegisterUI('styles-common', 'history-atemp-underline',
+			'Boolean', v.get, v.set)
+	self.RegisterUI('styles-common', 'history-a-underline',
+			'Boolean', v.get, v.set)
 
 	frame.pack()
 
+			   
     def anchor_style_item(self, frame, which, fore_cmpnt, under_cmpnt):
 	f = Frame(frame)
 	self.PrefsWidgetLabel(f, "%s anchor style:" % which)
@@ -46,4 +59,3 @@ class StylePanel(PrefsPanels.Framework):
 	self.PrefsCheckButton(wf, None, under_msg,
 			      'styles-common', under_cmpnt)
 	f.pack(fill=X, side=TOP, pady='1m')
-	frame.pack()
