@@ -116,9 +116,11 @@ class SearchDialog:
 	if not pat:
 	    self._root.bell()
 	    return 0
-	if not self._searchable.search_for_pattern(
+	status = self._searchable.search_for_pattern(
 	    pat, self.case_var.get(), self.regexp_var.get(),
-	    self.backwards_var.get()):
+	    self.backwards_var.get())
+	if not status:
 	    # failure
 	    # TBD: it would be better to bring up a Not Found notice
 	    self._root.bell()
+	return status
