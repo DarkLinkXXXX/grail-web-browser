@@ -334,14 +334,21 @@ class Viewer(formatter.AbstractWriter):
 	if not target:
 	    target = self.context.get_target()
 	if target:
-	    self.linkinfo =  "%s in %s" % (url, target)
+	    message =  "%s in %s" % (url, target)
 	else:
-	    self.linkinfo = url
+	    message = url
+	self.enter_message(message)
+
+    def enter_message(self, message):
+	self.linkinfo = message
 	self.status.set(self.linkinfo)
 	self.context.browser.messagevariable(self.status)
 	self.set_cursor(CURSOR_LINK)
 
     def anchor_leave(self, event):
+	self.leave_message()
+
+    def leave_message(self):
 	self.linkinfo = ""
 	self.context.message_clear()
 
