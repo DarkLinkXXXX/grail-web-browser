@@ -1313,13 +1313,14 @@ class BookmarksMenu:
 			       underline=0, accelerator='Alt-B')
 	self._browser.root.bind('<Alt-b>', self.show)
 	self._browser.root.bind('<Alt-B>', self.show)
-	self._menu.add_separator()
 
     def post(self, event=None):
 	# delete any old existing bookmark entries
 	last = self._menu.index('end')
-	if last > 2: self._menu.delete(3, 'end')
+	if last > 1:
+	    self._menu.delete(2, 'end')
 	if self._controller.includepulldown.get():
+	    self._menu.add_separator()
 	    # First make sure the controller has initialized
 	    self._controller.initialize(active_browser=self._browser)
 	    viewer = BookmarksMenuViewer(self._controller, self._menu)
