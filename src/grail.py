@@ -15,7 +15,6 @@ import sys
 import getopt
 import string
 import urllib
-urllib._urlopener = urllib.URLopener()	# Don't want it too clever
 import tempfile
 import posixpath
 import os
@@ -67,37 +66,42 @@ def main():
 	app.home = url
     browser.load(app.home)
     SafeTkinter._castrate(app.root.tk)
+    # Make everybody who's still using urllib.urlopen go through the cache
+    urllib.urlopen = app.open_url_simple
     app.go()
 
 
-class MyURLopener(urllib.URLopener):
+class URLReadWrapper:
 
-    def __init__(self, app):
-	self.app = app
-	urllib.URLopener.__init__(self)
+    def __init__(self, api, meta):
+	self.api = api
+	self.meta = meta
+	self.eof = 0
 
-    openers = {}			# XXX Should be in Application class
-    
-    def open_unknown(self, fullurl):
-	type, url = urllib.splittype(fullurl)
-	if self.openers.has_key(type):
-	    opener = self.openers[type]
-	else:
-	    opener = self.find_extension(type)
-	    if opener: self.openers[type] = opener
-	if opener:
-	    return opener(url)
-	print "Unknown URL type:", type
-	return urllib.URLopener.open_unknown(self, fullurl)
+    def read(self, nbytes=-1):
+	buf = ''
+	BUFSIZ = 8*1024
+	while nbytes != 0 and not self.eof:
+	    new = self.api.getdata(nbytes < 0 and BUFSIZ or nbytes)
+	    if not new:
+		self.eof = 1
+		break
+	    buf = buf + new
+	    if nbytes > 0:
+		nbytes - nbytes - len(new)
+		if nbytes <= 0:
+		    break
+	return buf
 
-    def find_extension(self, type):
-	mod = self.app.find_extension("protocols", type)
-	if not mod: return None
-	func = "open_" + type
-	try:
-	    return getattr(mod, func)
-	except AttributeError:
-	    return None
+    def info(self):
+	return self.meta
+
+    def close(self):
+	api = self.api
+	self.api = None
+	self.meta = None
+	if api:
+	    api.close()
 
 
 class Application:
@@ -110,7 +114,6 @@ class Application:
 	self.url_cache = Cache()
 	self.image_cache = {}
 	self.rexec = AppletRExec(None, 2, self)
-	self.urlopener = MyURLopener(self)
 	self.graildir = getgraildir()
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
@@ -123,8 +126,6 @@ class Application:
 	self.root = Tk()
 	self.root.report_callback_exception = self.report_callback_exception
 	self.root.withdraw()
-##	self.quit_button = Button(self.root, text='Quit', command=self.quit)
-##	self.quit_button.pack()
 	self.keep_alive()
 
     def quit(self):
@@ -234,46 +235,14 @@ class Application:
 		pass
 
     def open_url(self, url, method, params, reload=0):
-	return self.url_cache.open(url, 'GET', params, reload)
+	return self.url_cache.open(url, method, params, reload)
 
-    # XXX Get rid of this eventually
-    def open_url_old(self, url, error=1):
-	# Open a URL:
-	# - return (fp, url, content_type) if successful
-	# - display dialog and return (None, url) for errors
-	#   (no dialog if errors argument is false)
-	# - handle erro code 302 (redirect) silently
-	try:
-	    fp = self.urlopener.open(url)
-	except IOError, msg:
-	    if type(msg) == TupleType and len(msg) == 4:
-		if msg[1] == 302:
-		    m = msg[3]
-		    if m.has_key('location'):
-			url = m['location']
-			return self.open_url(url)
-		    elif m.has_key('uri'):
-			url = m['uri']
-			return self.open_url(url)
-	    if error:
-		self.error_dialog(IOError, msg)
-	    fp = None
-	content_type = content_encoding = content_transfer_encoding = None
-	if fp and hasattr(fp, 'info'):
-	    headers = fp.info()
-	    if headers:
-		content_type = headers.gettype()
-		content_encoding = headers.getheader('content-encoding')
-		content_transfer_encoding = headers.getencoding()
-	if fp and not content_type:
-	    content_type, content_encoding = self.guess_type(url)
-	# XXX content-transfer-encoding is not yet supported
-##	if fp and content_transfer_encoding:
-##	    fp = self.transfer_decode_pipeline(
-##		fp, content_transfer_encoding, error)
-	if fp and content_encoding:
-	    fp = self.decode_pipeline(fp, content_encoding, error)
-	return fp, url, content_type
+    def open_url_simple(self, url):
+	api = self.open_url(url, 'GET', {})
+	errcode, errmsg, meta = api.getmeta()
+	if errcode != 200:
+	    raise IOError, ('url open error', errcode, errsmg, meta)
+	return URLReadWrapper(api, meta)
 
     def decode_pipeline(self, fp, content_encoding, error=1):
 	if self.decode_prog.has_key(content_encoding):
