@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.13 $"
+__version__ = "$Revision: 1.14 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -35,6 +35,10 @@ class SGMLParser(SGMLLexer):
 	SGMLLexer.close(self)
 	while self.stack:
 	    self.lex_endtag(self.stack[-1])
+	# Clean out circular references:
+	for k in self._tag_methods.keys():
+	    del self._tag_methods[k]
+	self._tag_methods = None
 
     # Interface -- reset this instance.  Loses all unprocessed data.
     def reset(self):
