@@ -2,52 +2,51 @@
 # agreement obtained from handle "hdl:CNRI.License/Grail-Version-0.3",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
+"""Handle Management System client library.
 
-
-
-"""Handle Management System client library
-This module implements the low-level client library for the Handle
-Management System from CNRI.  For more information, see
-http://WWW.CNRI.Reston.VA.US/home/cstr/handle-intro.html
-
-CNRI has made available a C library that implements the protocol,
-however that is not used here for a number of reasons:
-
-  1. The C library has not yet been built as a shared library, so
-     including handle resolution in Grail using the C library would
-     require a re-link of the python binary.
-
-  2. We can experiment more easily with a fully Python protocol
-     implementation.
-
-  3. It's more fun to hack Python than C!
-
-On the downside, this module must remain in sync with the current HMS
-protocol.  The module currently (as of 31-Aug-1995) implements an
-older version of the protocol.  With the imminent release of a version
-supporting local handle systems, this module will have to be
-rewritten.  The LHS changes complicate matters considerably, but we
-will still attempt to implement it in Python.
-
-Last updated Feb-20-96 to include support for 'continuation packets'.  That is
-when the data for a single type spans more than the capacity of a udp body,
-the data spills over into a continuation packet.  These packets are reassembled
-so this uglyness goes no further than here.  -roj
-
-TODO:  The Hashtable class needs to be updated to the current algorithm for
-fetching the hashtable.  as of 2/21/96 this is not documented anywhere.
-However there is some example c code in /projects/cstr/hs/client/get_data.c.
-line 260 
+This module implements the low-level client library for CNRI's Handle
+Management System.  For general info about handles, see
+http://www.handle.net/.  This module was built using the Handle
+Resolution Protocol Specification at
+http://www.handle.net/docs/client_spec.html, and inspection of
+(an earlier version of) the client library sources.
 
 Classes:
 
 - Error -- exception for error conditions specific to this module 
-- HashTable -- hash table class
+- PacketPacker -- helper for packet packing
+- PacketUnpacker -- helper for packet unpacking
+- SessionTag -- helper for session tag management
+- HSConfig -- handle client configuration parser
+- HashTable -- hash table
 
-XXX Should break up get_data in send_request and poll_request
+TO DO, doubts, questions:
+
+XXX The /etc/handle.conf file is not described in the spec, and I
+    can't find any examples -- not sure if the code that parses it is
+    working.
+
+XXX While the format of the hash table file, /etc/hdl_hash_tbl,
+    is in the spec, I can't find any examples either, so the same
+    caveat applies.
+
+XXX We don't use cache servers nor do we download the hash table from
+    the server.
+
+XXX Constants should only have a prefix 'HP_' or 'HDL_' when their
+    name occurs in the spec.  I've tried to fix this but may have
+    missed some cases.
+
+XXX Should break up get_data in send_request and poll_request.
+
 XXX When retrying, should we generate a new tag or reuse the old one?
+    (new -- let's not confuse ourselves further)
+
 XXX When an incomplete result is returned, should we raise an exception?
+    (yes)
+
 XXX Should we cache the hash table entries read from the file?
+    (yes)
 
 """
 
@@ -63,9 +62,8 @@ import xdrlib
 DEBUG = 0				# Default debugging flag
 
 
+# Internal constants
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash_tbl'
-
-internal_consts = """
 CONFIG_FILE = '/etc/handle.conf'
 DEFAULT_SERVER = 'hs.cnri.reston.va.us'
 DEFAULT_HASH_FILE = '/etc/hdl_hash_tbl'
@@ -81,30 +79,19 @@ CONFIG = -2
 FIRST_SCAN_OF_CONFIG = -3
 SUCCESS = 1
 FAILURE = -1
-"""
-
-# Put internal_constants mappings into the module's dictionary, and
-# into the data_map dictionary.  Also create an inverted mapping.
-exec internal_consts
-consts_map = {}
-exec internal_consts in consts_map
-for key, value in consts_map.items():
-    if key != '__builtins__':
-	consts_map[value] = key
 
 
 
 # Useful constants
 MAGIC = ".HASH_TABLE"			# Hash table file magic number
 
-
-# The following stuff is from handle.h and handle_protocol.h
+# Flag bits
 HDL_NONMUTABLE = 0			# LSB (0th bit)
 HDL_DISABLED = 1			# (1st bit)
 flags_map = {0: 'HDL_NONMUTABLE', 1: 'HDL_DISABLED'}
 
 # Handle protocol miscellaneous constants
-HP_VERSION = 0				# Handle protocol version
+HP_VERSION = 1				# Handle protocol version
 HP_NAME = "hdl-srv"			# Service name
 HP_PORT = 2222				# Used if service "hdl-srv" is unknown
 
@@ -121,18 +108,19 @@ HP_QUERY_RESPONSE = 1
 # Handle data types
 data_types = """
 HDL_TYPE_NULL = -1			# Indicates End of Type List
-HDL_TYPE_URL = 0			                # Uniform Resource Locator
+HDL_TYPE_URL = 0			# Uniform Resource Locator
 HDL_TYPE_EMAIL_RFC822 = 1		# E-Mail Address Defined In RFC822
 HDL_TYPE_EMAIL_X400 = 2			# E-Mail Address Defined By CCITT
 HDL_TYPE_X500_DN = 3			# Distinguished Name Defined By CCITT
-HDL_TYPE_INET_HOST = 4			# Internet Host Name Or IP Address
+HDL_TYPE_INET_HOST = 4			# Internet host name or IP address
 HDL_TYPE_INET_SERVICE = 5		# "hostname":"tcp"|"udp":"port"
 HDL_TYPE_CONTACT_INFO = 6		# Same Syntax As EMAIL_RFC822
-HDL_TYPE_DLS = 7			                # TBD
-HDL_TYPE_CACHE_PERIOD = 8		# default caching period
-HDL_TYPE_HANDLE_TYPE = 9		# For HDM Internal Use
-HDL_TYPE_SERVICE_HANDLE = 10	                # Handle name containing hash table info
-HDL_TYPE_SERVICE_POINTER  = 11                     # Containing hash table info
+HDL_TYPE_DLS = 7			# To be determined
+HDL_TYPE_CACHE_PERIOD = 8		# Default caching period timeout
+HDL_TYPE_HANDLE_TYPE = 9		# For Handle Service internal use
+HDL_TYPE_SERVICE_HANDLE = 10		# Handle containing hash table info
+HDL_TYPE_SERVICE_POINTER  = 11		# Service's hash table info
+# Non-registered types are > 65535
 """
 
 # Put data_types mappings into the module's dictionary, and into the
@@ -149,36 +137,17 @@ for key, value in data_map.items():
 # Handle protocol error codes
 error_codes = """
 HP_OK = 0
-HDL_ERR_OK = 0
+HP_PARSING_FAILURE = 1
+HP_VERSION_MISMATCH = 2
+HP_ACCESS_TEMPORARILY_DENIED = 3
+HP_NOT_RESPONSIBLE_FOR_HANDLE = 4
 HP_HANDLE_NOT_FOUND = 5
-HDL_ERR_INVALID	= -1
-HDL_ERR_TIMEOUT = -2
-HDL_ERR_REDIRECTED = -3
-HDL_ERR_NO_SUCH_SERVER	= -4
-HDL_ERR_INVALID_FLAG = -5
-HDL_ERR_PROTOCOL = -6
-HDL_ERR_INTERNAL_ERROR = -7
-HDL_ERR_VERSION	 = -8
-HDL_ERR_PARSING_FAILURE	= -9
-HDL_ERR_ACCESS_DENIED = -10
-HDL_ERR_SERVER_NOT_RESP = -11
-HDL_ERR_NOT_FOUND = -12
-HDL_ERR_USAGE = -13
-HDL_ERR_SESSION_TAG_MISMATCH = -14
-HDL_ERR_TYPES_NOT_FOUND = -15
-HDL_ERR_SERVER_ERROR = -16
-HDL_ERR_HASH_TBL_FILE_NOT_FOUND = -17
-HDL_ERR_HASH_TBL_FILE_CORRUPTED = -18
-HDL_ERR_HASH_TBL_ENTRY_NOT_FOUND = -19
-HDL_ERR_DOES_NOT_EXIST = -20
-HDL_ERR_CORRUPTED_STRUCTURE = -21
-HDL_ERR_DUPLICATE = -22
-HDL_ERR_TO_MANY_HOPS = -23
-HDL_ERR_SERVICE_HANDLE_NOT_FOUND = -24
-HDL_ERR_FORWARD_QUERY_ERROR = -25
-HDL_ERR_QUERY_FORWARDED = -26
-HDL_ERR_NOT_WITHIN_HANDLE_SERVICE = -27
-HDL_ERR_MISSING_SERVICE_HANDLE  = -28
+HP_FORWARDED = 6
+HP_INTERNAL_ERROR = 7
+HP_TYPES_NOT_FOUND = 8
+HP_REQUEST_TIMED_OUT = 9
+HP_HANDLE_DOES_NOT_EXIST = 10
+HP_FORWARD_ERROR = 11
 """
 
 # See data_types comment above
@@ -189,6 +158,8 @@ for key, value in error_map.items():
     if key != '__builtins__':
 	error_map[value] = key
 
+# Error code set by the parser
+HDL_ERR_INTERNAL_ERROR = HP_INTERNAL_ERROR
 
 
 # error class for this module
@@ -254,9 +225,8 @@ class PacketUnpacker:
     """Helper class to unpack packets."""
 
     def __init__(self, data, debug=0):
-	""" set the debug ivar to zero and call the init stuff
-	needed by xdrlib.Unpacker.
-	"""
+	# Set the debug ivar and call the init stuff
+	# needed by xdrlib.Unpacker.
 	self.debug = debug
 	self.u = xdrlib.Unpacker(data)
 	
@@ -290,7 +260,9 @@ class PacketUnpacker:
 
     def check_body_length(self):
 	"""Check that the body length matches what the header says.
-	setting self.total_length. If it doesn't, raise Error.
+
+	Set self.total_length.  If it doesn't, raise Error.
+
 	"""
 	self.length_from_header = self.u.unpack_uint()
 	if len(self.buf()) - self.u.get_position() != self.length_from_header:
@@ -312,9 +284,11 @@ class PacketUnpacker:
 	
     def unpack_item_array_cont_chk(self, start):
 	"""Unpack an array of (type, value) pairs.
-	but checking to see if there is a continuation
+
+	Check to see if there is a continuation
 	for this packet or if this *is* a continuation
 	packet itself.
+
 	"""
 	nopts = self.u.unpack_uint()
 	if self.debug: print 'nopts=' + str(nopts)
@@ -323,19 +297,17 @@ class PacketUnpacker:
 	    opt = self.u.unpack_uint()
 	    if self.debug: print 'type=' + str(opt)
 	    #
-	    # unpack the length value to determine if we have
-	    # a continuation packet
+	    # Unpack the length value to determine if we have
+	    # a continuation packet.
 	    #
 	    length_from_body = self.u.unpack_int()
 	    if self.debug: print 'length from body=' + str(length_from_body)
 	    if length_from_body == 0:
 		raise Error("Invalid zero packet length")
 	    #
-	    # If length_from_body < 0 , we've found a continuation packet.
-	    # you must pull off an additional field containing the
-	    # beginning offset in the buffer. This algorithm was roughly
-	    # derived from the continuations hack found in:
-	    # /projects/cstr/hs/client/poll_data.c, line 580ish -roj
+	    # If length_from_body < 0 , we've found a continuation
+	    # packet.  Pull off an additional field containing the
+	    # beginning offset in the buffer.
 	    #
 	    if length_from_body < 0:
 		total_length = length_from_body * -1
@@ -345,7 +317,7 @@ class PacketUnpacker:
 		    error = 'Bad offset in UDP body: ' + str(offset)
 		    raise Error(error)
 		if nopts > 1:
-		    # found the end of a continuation packet
+		    # Found the end of a continuation packet
 		    self.value_length = total_length - offset
 		else:
 		    # The entire packet is a continuation (16 is the number of
@@ -354,11 +326,11 @@ class PacketUnpacker:
 		    #
 		    self.value_length = len(self.buf()) \
 					- self.u.get_position() - 16
-		# change opt to be negative flagging this as a continuation 
+		# Change opt to be negative flagging this as a continuation 
 		opt = opt * -1
 
 	    else:
-		# normal packet, but it may be the start of a continuation
+		# Normal packet, but it may be the start of a continuation
 		if self.debug: print 'Normal Packet'
 		total_length = self.value_length = length_from_body
 		if self.debug: print "length from body =", length_from_body
@@ -380,7 +352,7 @@ class PacketUnpacker:
 	return opts
 
     def set_debug(self):
-	"""Increment the debug ivar"""
+	"""Increment the debug ivar."""
 	self.debug = self.debug + 1
 	
     def unpack_request_body(self):
@@ -427,22 +399,28 @@ class PacketUnpacker:
     def unpack_error_body(self, err):
 	"""Unpack an error reply body according to the error code."""
 
-	# XXX Should save the error code in self.unpack_header()?
+	# XXX It would be convenient if the error code was saved as an
+	# XXX ivar by unpack_header().
 
 	self.check_body_length()
 
-	if err == HDL_ERR_SESSION_TAG_MISMATCH:
-	    return self.u.unpack_uint()
-	elif err == HDL_ERR_NOT_FOUND:
-	    return None
-	elif err in (HDL_ERR_SERVER_NOT_RESP,
-#		     HDL_ERR_FORWARDED,
-		     HDL_ERR_ACCESS_DENIED,
-		     HDL_ERR_PARSING_FAILURE):
+	if err == HP_NOT_RESPONSIBLE_FOR_HANDLE:
+	    server = self.u.unpack_string()
+	    udpport = self.u.unpack_int()
+	    tcpport = self.u.unpack_int()
+	    return (server, udpport, tcpport)
+	elif err == HP_FORWARD_ERROR:
+	    return self.u.unpack_string()
+	elif err == HP_VERSION_MISMATCH:
+	    return self.u.unpack_int()
+	elif err == HP_ACCESS_TEMPORARILY_DENIED:
+	    return self.u.unpack_string()
+	elif err == HP_PARSING_FAILURE:
 	    return self.u.unpack_string()
 	else:
-	    return `self.buf()[self.u.get_position():]`
-
+	    # According to the spec, the other errors have no other
+	    # information associated with them.
+	    return None
 
 
 class SessionTag:
@@ -465,6 +443,7 @@ class SessionTag:
 
 class HSConfig:
     """Handle client configuration file parser.
+
     See hdl_client_config.c:process_config()
 
     Methods:
@@ -479,6 +458,7 @@ class HSConfig:
         udp_port     -- port number for udp
         tcp_port     -- port number for tcp
         hash_path    -- path in filesystem to hash table
+
     """
     def __init__(self, filename=CONFIG_FILE):
 	# set up defaults
@@ -658,7 +638,7 @@ class HashTable:
 	    if self.debug: print "Using hardcoded fallback scheme"
 	    self.nbits = 0
 	    if not server:
-		server = consts_map['DEFAULT_SERVER']
+		server = DEFAULT_SERVER
 	    if self.debug: print 'Using Handle Server: ' + server
 	    self.bucket_cache[0] = (server,
 				    2222,
@@ -837,25 +817,16 @@ class HashTable:
 	    if err != HP_OK:
 		if self.debug:
 		    print 'err: ', err
-		# TODO - Once were correctly traversing all the handle servers
-		# we need to to insure the handle's indeed not found,
-		# we probably won't want to return here.  Because
-		# HP_HANDLE_NOT_FOUND may mean we need to look on a
-		# different handle server
-		if err == HP_HANDLE_NOT_FOUND:
-		    return HDL_ERR_DOES_NOT_EXIST, None
-
-		error_body = u.unpack_error_body(err)
-		clean_error_body = ''
-		#
-		# Remove unprintable characters that tend to show up :(
-		for char in error_body:
-		    if char in string.letters or char in string.whitespace:
-			clean_error_body = clean_error_body + char
-		clean_error_body = string.strip(clean_error_body)
+		err_info = u.unpack_error_body(err)
 		if self.debug:
-		    print "Error body:", error_body
-		raise Error((err, clean_error_body))
+		    print 'err_info:', `err_info`
+		try:
+		    err_name = error_map[err]
+		except KeyError:
+		    err_name = str(err)
+		if self.debug:
+		    print 'err_name:', `err`
+		raise Error((err, err_name, err_info))
 
 	    flags, items = u.unpack_reply_body()
 
@@ -899,10 +870,13 @@ testsets = [
 	"//cnri-1/cnri_home",
 	"cnri-1/cnri_home",
 	],
-	# 1: Some demo handles I added
+	# 1: Some demo handles
 	[
 	"cnri.dlib/december95",
 	"cnri.dlib/november95",
+	"CNRI.License/Grail-Version-0.3",
+	"CNRI/19970131120000",
+	"CNRI/19970131120001",
 	#"nonreg.guido/python-home-web-site",
 	#"nonreg.guido/python-home-page",
 	#"nonreg.guido/python-home-ftp-dir",
@@ -954,7 +928,11 @@ def test(defargs = testsets[0]):
     import sys
     import getopt
 
-    opts, args = getopt.getopt(sys.argv[1:], '01234af:i:qt:v')
+    try:
+	opts, args = getopt.getopt(sys.argv[1:], '01234af:i:qt:v')
+    except getopt.error, msg:
+	print msg
+	sys.exit(2)
 
     debug = 0
     timeout = 30
@@ -994,9 +972,6 @@ def test(defargs = testsets[0]):
 	except Error, msg:
 	    print "Error:", msg
 	    continue
-	#except EOFError:
-	#    print "EOFError"
-	#    continue
 
 	if debug: print replyflags, items
 
@@ -1014,12 +989,9 @@ def test(defargs = testsets[0]):
 		else:
 		    print i,
 	print
-	print
 
-	print "ADD_HANDLE =", hdl
 	if bits & (1L<<HDL_NONMUTABLE): print "\tSTATIC"
 	if bits & (1L<<HDL_DISABLED): print "\tDISABLED"
-
 
 	for stufftype, stuffvalue in items:
 	    if data_map.has_key(stufftype):
