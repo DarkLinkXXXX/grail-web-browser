@@ -154,7 +154,7 @@ class FormInfo:
 	self.parser.start_p({})
 	# gather cached form data if we've been to this page before
 	formdata_list = self.context.get_formdata()
-	if formdata_list:
+	if formdata_list and len(formdata_list) > len(parser.forms):
 	    self.formdata = formdata_list[len(parser.forms)]
 	else:
 	    self.formdata = []
