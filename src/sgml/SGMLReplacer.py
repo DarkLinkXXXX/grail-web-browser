@@ -1,6 +1,6 @@
 """Simple parser that handles only what's allowed in attribute values.
 """
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 #  $Source: /home/john/Code/grail/src/sgml/SGMLReplacer.py,v $
 
 
@@ -48,11 +48,11 @@ class SGMLReplacer(SGMLLexer):
     def lex_data(self, str):
 	self._data = self._data + str
 
-    def lex_entityref(self, name):
+    def lex_entityref(self, name, terminator):
 	if self.entitydefs.has_key(name):
 	    self._data = self._data + self.entitydefs[name]
 	else:
-	    self.unknown_entityref(name)
+	    self.unknown_entityref(name, terminator)
 
     named_characters = {'re' : '\r',
 			'rs' : '\n',
