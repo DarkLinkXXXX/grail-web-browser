@@ -25,8 +25,7 @@ if __name__ == '__main__':
 else:
     script_dir = os.path.dirname(__file__)
     grail_root = script_dir
-for path in 'utils', 'pythonlib', 'ancillary', 'applets', \
-    'sgml_lex', script_dir:
+for path in 'utils', 'pythonlib', 'ancillary', 'applets', script_dir:
     sys.path.insert(0, os.path.join(grail_root, path))
 
 # More imports
