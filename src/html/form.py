@@ -366,9 +366,7 @@ class FormInfo:
 	    self.getopt('size')
 
 	def setup(self):
-	    bgcolor = self.viewer.text['background']
-	    self.w = self.entry = Entry(self.viewer.text,
-					highlightbackground=bgcolor)
+	    self.w = self.entry = Entry(self.viewer.text)
 	    self.setup_entry()
 
 	def setup_entry(self):
@@ -500,12 +498,9 @@ class FormInfo:
 	value = "Submit"
 
 	def setup(self):
-	    bgcolor = self.viewer.text['background']
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
-			    command=self.submit_command,
-			    background=bgcolor,
-			    highlightbackground=bgcolor)
+			    command=self.submit_command)
 	    self.w.bind("<Enter>", self.enter)
 	    self.w.bind("<Leave>", self.leave)
 
@@ -533,12 +528,9 @@ class FormInfo:
 	value = "Reset"
 
 	def setup(self):
-	    bgcolor = self.viewer.text['background']
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
-			    command=self.fi.reset_command,
-			    background=bgcolor,
-			    highlightbackground=bgcolor)
+			    command=self.fi.reset_command)
 
     class InputFile(InputText):
 
@@ -548,9 +540,7 @@ class FormInfo:
 	    self.entry.pack(side=LEFT)
 	    self.setup_entry()
 	    self.browse = Button(self.w, text="Browse...",
-				 command=self.browse_command,
-				 background=bgcolor,
-				 highlightbackground=bgcolor)
+				 command=self.browse_command)
 	    self.browse.pack(side=RIGHT)
 
 	def reset(self):
@@ -578,7 +568,6 @@ class Select:
 	self.option = None
 	self.options = []
 	self.parser.save_bgn()
-	self.bgcolor = fi.viewer.text['background']
 
     def done(self):
 	self.end_option()
@@ -607,7 +596,6 @@ class Select:
 	values = tuple(map(lambda (v,s,t): t, self.options))
 	self.w = apply(OptionMenu,
 		       (self.viewer.text, self.v) + values)
-	self.w['background'] = self.w['highlightbackground'] = self.bgcolor
 	self.reset_menu()
 	self.fi.inputs.append(self)
 	self.parser.add_subwindow(self.w)
@@ -619,9 +607,6 @@ class Select:
 						   height=size,
 						   vbar=needvbar)
 	self.w['exportselection'] = 0
-	self.w['background'] = self.w['highlightbackground'] = self.bgcolor
-	self.frame['background'] = \
-		self.frame['highlightbackground'] = self.bgcolor
 	if self.multiple:
 	    self.w['selectmode'] = 'extended'
 	for v, s, t in self.options:
@@ -726,8 +711,6 @@ class Textarea:
 						   width=self.cols,
 						   height=self.rows,
 						   hbar=1, vbar=1)
-	self.frame['background'] = \
-		self.frame['highlightbackground'] = self.bgcolor
 	self.w['wrap'] = NONE
 	self.data = data
 	self.reset()
