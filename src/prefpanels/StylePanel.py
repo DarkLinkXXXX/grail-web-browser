@@ -1,6 +1,6 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.6 $"
+__version__ = "$Revision: 1.7 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the panel:
@@ -47,17 +47,3 @@ class StylePanel(PrefsPanels.Framework):
 			'Boolean', v.get, v.set)
 
 	frame.pack()
-
-			   
-    def anchor_style_item(self, frame, which, fore_cmpnt, under_cmpnt):
-	f = Frame(frame)
-	self.PrefsWidgetLabel(f, "%s anchor style:" % which)
-	wf = Frame(f, relief=SUNKEN, bd=2)
-	fore_msg = "Foreground color" 
-	self.PrefsEntry(wf, fore_msg,
-			'styles-common', fore_cmpnt,
-			label_width=len(fore_msg) + 2, entry_width=9)
-	under_msg = "Underline"
-	self.PrefsCheckButton(wf, None, under_msg,
-			      'styles-common', under_cmpnt)
-	f.pack(fill=X, side=TOP, pady='1m')
