@@ -17,6 +17,59 @@ MIN_IMAGE_LEADER = "\240"		# Non-spacing space
 INDENTATION_WIDTH = 40			# Pixels / indent level
 TARGET_SEPARATOR = '\1'			# url TARGET_SEPARATOR target
 
+
+class WidthMagic:
+    def __init__(self, viewer, abswidth, percentwidth):
+	# initialize mixin stuff:
+	self.__abswidth = abswidth
+	self.__percentwidth = percentwidth
+	self.__text = viewer.text
+	if 'blockquote' in viewer.addtags:
+	    dents = viewer.marginlevel + 1
+	else:
+	    dents = viewer.marginlevel
+	self.__removable = (dents * INDENTATION_WIDTH) \
+			   + viewer.RULE_WIDTH_MAGIC
+
+    def close(self):
+	del self.__text
+
+    def get_available_width(self):
+	#  Getting the 'padx' option of the text widget needs to be done
+	#  here for an as-yet undetermined reason.
+	return int(self.__text.winfo_width() - self.__removable
+		   - (2 * string.atoi(self.__text["padx"])))
+
+    def get_requested_widths(self):
+	return self.__abswidth, self.__percentwidth
+
+
+class HRule(Canvas):
+    def __init__(self, viewer, abswidth, percentwidth, height=2, **kw):
+	self.__magic = viewer.width_magic(abswidth, percentwidth)
+	kw["borderwidth"] = 1
+	kw["relief"] = SUNKEN
+	kw["height"] = max(0, height - 2)
+	bgcolor = viewer.text["background"]
+	kw["background"] = bgcolor
+	kw["highlightbackground"] = bgcolor
+	kw["highlightthickness"] = 0
+	kw["width"] = self.get_width()
+	apply(Canvas.__init__, (self, viewer.text), kw)
+
+    def get_width(self):
+	maxwid = self.__magic.get_available_width()
+	abswidth, percentwidth = self.__magic.get_requested_widths()
+	if abswidth:
+	    return min(abswidth, maxwid)
+	else:
+	    return maxwid * percentwidth
+
+    def destroy(self):
+	self.__magic.close()
+	Canvas.destroy(self)
+
+
 class Viewer(formatter.AbstractWriter):
 
     """A viewer is mostly a fancy text widget with scroll bars.
@@ -348,13 +401,8 @@ class Viewer(formatter.AbstractWriter):
 	    func(self)
 
     def resize_rules(self):
-	if self.rules:
-	    width = self.rule_width()
-	    for rule in self.rules:
-		if rule._width:
-		    rule['width'] = min(rule._width, width)
-		else:
-		    rule['width'] = int(rule._percent * width)
+	for rule in self.rules:
+	    rule["width"] = rule.get_width()
 
     def unfreeze(self):
 	self.text['state'] = NORMAL
@@ -444,20 +492,12 @@ class Viewer(formatter.AbstractWriter):
 	self.pendingdata = self.pendingdata + '\n'
 ##	self.text.update_idletasks()
 
+    def width_magic(self, abswidth, percentwidth):
+	return WidthMagic(self, abswidth, percentwidth)
+
     def send_hor_rule(self, abswidth=None, percentwidth=1.0,
 		      height=None, align=None):
-	width = self.rule_width()
-	if abswidth:
-	    width = min(width, abswidth)
-	elif percentwidth:
-	    width = min(width, int(percentwidth * width))
-	bgcolor = self.text['background']
-	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
-			width=width, height=max((height or 0) - 2, 0),
-			background=bgcolor, highlightbackground=bgcolor,
-			highlightthickness=0)
-	window._width = abswidth	# store for resizing
-	window._percent = percentwidth
+	window = HRule(self, abswidth, percentwidth, height=(height or 0))
 	self.rules.append(window)
 	self.prepare_for_insertion(align)
 	self.add_subwindow(window)
@@ -465,14 +505,7 @@ class Viewer(formatter.AbstractWriter):
 	self.send_line_break()
 ##	self.text.update_idletasks()
 
-    RULE_WIDTH_MAGIC = 11
-
-    def rule_width(self):
-	return (self.text.winfo_width()
-		- self.RULE_WIDTH_MAGIC - 2*string.atoi(self.text['padx'])
-		- self.marginlevel*INDENTATION_WIDTH
-		- ((('blockquote' in self.addtags) and 1 or 0)
-		   *INDENTATION_WIDTH))
+    RULE_WIDTH_MAGIC = 10
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
