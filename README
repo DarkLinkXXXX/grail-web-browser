@@ -30,9 +30,9 @@ There are three steps to take before you can use Grail:
 
 - Install Tcl 7.6 and Tk 4.2.  (You *may* be able to get away with
 older versions up to 7.4/4.0; newer versions could be okay, too.)  You
-can get it at http://www.sunlabs.com/research/tcl/; or try ftp to
-ftp.sunlabs.com in directory /pub/tcl/.  See also the new commercial
-Tcl/Tk site, http://sunscript.sun.com/.
+can get it at http://sunscript.sun.com/; or try ftp to ftp.sunlabs.com
+in directory /pub/tcl/.  See also the new commercial Tcl/Tk site,
+http://www.scriptics.com/.
 
 - Install Python 1.4, configured for use with Tk.  The URL to get
 Python is http://www.python.org; or try ftp to ftp.python.org in
