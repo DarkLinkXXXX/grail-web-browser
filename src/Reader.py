@@ -204,10 +204,10 @@ class Reader(BaseReader):
 	    browser.message("Saving to %s" % fn)
 	    return
 
+	self.browser.clear_reset(self.url, self.new)
 	self.parser = parserclass(self.viewer, reload=self.reload)
 	self.istext = istext
 	self.last_was_cr = 0
-	self.browser.clear_reset(self.url, self.new)
 
     def handle_auth_error(self, errcode, errmsg, headers):
 	# Return nonzero if handle_error() should return now
@@ -306,28 +306,14 @@ class Reader(BaseReader):
 	    return None
 	type = regsub.gsub("[^a-zA-Z0-9_]", "_", type)
 	subtype = regsub.gsub("[^a-zA-Z0-9_]", "_", subtype)
-	modname = type + "_" + subtype
-	# XXX Some of this needs to be moved into the Application class
-	home = getenv("HOME") or os.curdir
-	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
-	mimetypesdir = os.path.join(graildir, "mimetypes")
-	if mimetypesdir not in sys.path: sys.path.insert(0, mimetypesdir)
-	# XXX Hack, hack, hack
-	cmd = "import %s; parser = %s.parse_%s" % (modname, modname, modname)
-	cmd2 = "import %s; parser = %s.parse_%s" % (type, type, type)
-	try:
-	    try:
-		exec cmd
-	    except ImportError:
-		modname = type
-		try:
-		    exec cmd2
-		except ImportError:
-		    return None
-	    return parser
-	except:
-	    self.app.exception_dialog("during import of %s" % modname)
-	    return None
+	app = self.browser.app
+	for modname in (type + "_" + subtype, type):
+	    m = app.find_extension('filetypes', modname)
+	    if m:
+		pname = "parse_" + modname
+		if hasattr(m, pname):
+		    return getattr(m, pname)
+	return None
 
 
 class LoginDialog:
