@@ -624,9 +624,10 @@ class Select:
 	if not len(self.options):
 	    self.w = None
 	    return
-	any = 0
+	any = wid = 0
 	for v, s, t in self.options:
 	    if s: any = 1
+	    wid = max(wid, len(t))
 	if not any:
 	    v, s, t = self.options[0]
 	    self.options[0] = v, 1, t
@@ -636,16 +637,18 @@ class Select:
 	    else: size = 1
 	#size = min(len(self.options), size)
 	if size == 1 and not self.multiple:
-	    self.make_menu()
+	    print "width =", wid
+	    self.make_menu(wid)
 	else:
 	    self.make_list(size)
 
-    def make_menu(self):
+    def make_menu(self, width):
 	self.v = StringVar()
 	self.v.set(self.name)
 	values = tuple(map(lambda (v,s,t): t, self.options))
 	self.w = apply(OptionMenu,
 		       (self.viewer.text, self.v) + values)
+	self.w["width"] = width
 	self.w["highlightbackground"] = self.viewer.text["background"]
 	self.reset_menu()
 	self.fi.inputs.append(self)
