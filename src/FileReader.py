@@ -24,9 +24,9 @@ class FileReader(BaseReader):
     filemode = "wb"
 
     def __init__(self, browser, api, filename):
-	BaseReader.__init__(self, browser, api)
 	self.filename = filename
 	self.fp = None
+	BaseReader.__init__(self, browser, api)
 
     def handle_data(self, data):
 	if self.fp is None:

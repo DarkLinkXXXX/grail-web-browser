@@ -5,9 +5,9 @@ from Tkinter import *
 class ImageTempFileReader(TempFileReader):
 
     def __init__(self, browser, api, image):
-	TempFileReader.__init__(self, browser, api)
 	self.image = image
 	self.image.reader = self
+	TempFileReader.__init__(self, browser, api)
 
     def handle_done(self):
 	self.image.set_file(self.getfilename())
