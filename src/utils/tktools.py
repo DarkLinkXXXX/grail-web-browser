@@ -217,7 +217,8 @@ def make_form_entry(parent, label):
 # The one annoying bug is that the text entry field should be
 # expandable while still aligning the colons.  This doesn't work yet.
 #
-def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1):
+def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
+			    labelwidth=0):
     """Subroutine to create a form entry.
 
     Create:
@@ -232,14 +233,12 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1):
     frame = Frame(parent)
     frame.pack(fill='x')
 
+    label = Label(frame, text=label, width=labelwidth, anchor=E)
+    label.pack(side=LEFT)
     if entryheight == 1:
-	entry = Entry(frame, relief='sunken', border= 2, width=entrywidth)
-	entry.pack(side='right', fill='x')
-	label = Label(frame, text=label)
-	label.pack(side='right')
+	entry = Entry(frame, relief=SUNKEN, border=2, width=entrywidth)
+	entry.pack(side=RIGHT, expand=1, fill=X)
     else:
-	label = Label(frame, text=label)
-	label.pack(side='left')
 	entry = make_text_box(frame, entrywidth, entryheight, 1, 1)
 
     return entry, frame, label
