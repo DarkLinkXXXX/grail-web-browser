@@ -447,6 +447,7 @@ class DiskCacheEntry:
         except IndexError:
             # log version 1.2
             self.encoding = None
+            self.transfer_encoding = None
         else:
             if self.encoding == 'None':
                 self.encoding = None
