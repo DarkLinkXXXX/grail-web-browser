@@ -49,6 +49,7 @@ browser--help-menu:
 #
 # Presentation defaults
 #
+presentation--show-link-titles: 1
 presentation--message-font:
 	-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*
 #
