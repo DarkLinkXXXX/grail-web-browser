@@ -4,7 +4,7 @@
 
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.17 $"
+__version__ = "$Revision: 2.18 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -216,6 +216,45 @@ def conv_fontsize(spec):
 	spec = [spec, spec]
     spec = map(string.atof, map(string.strip, spec))
     return tuple(spec)
+
+
+def conv_mimetype(type):
+    """Convert MIME media type specifications to tuples of
+    ('type/subtype', {'option': 'value'}).
+    """
+    if not type:
+	return None, {}
+    if ';' in type:
+	i = string.index(type, ';')
+	opts = _parse_mimetypeoptions(type[i + 1:])
+	type = type[:i]
+    else:
+	opts = {}
+    fields = string.splitfields(string.lower(type), '/')
+    if len(fields) != 2:
+	raise ValueError, "Illegal media type specification."
+    type = string.joinfields(fields, '/')
+    return type, opts
+
+
+def _parse_mimetypeoptions(options):
+    opts = {}
+    options = string.strip(options)
+    while options:
+	if '=' in options:
+	    pos = string.find(options, '=')
+	    name = string.lower(string.strip(options[:pos]))
+	    value = string.strip(options[pos + 1:])
+	    options = ''
+	    if ';' in value:
+		pos = string.find(value, ';')
+		options = string.strip(value[pos + 1:])
+		value = string.strip(value[:pos])
+	    if name:
+		opts[name] = value
+	else:
+	    options = None
+    return opts
 
 
 def pref_or_getenv(name, group='proxies', type_name='string',
