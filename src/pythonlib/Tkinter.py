@@ -1054,6 +1054,10 @@ class Listbox(Widget):
 		self.tk.call(self._w, 'scan', 'dragto', x, y)
 	def see(self, index):
 		self.tk.call(self._w, 'see', index)
+	def index(self, index):
+		i = self.tk.call(self._w, 'index', index)
+		if i == 'none': return None
+		return self.tk.getint(i)
 	def select_adjust(self, index):
 		self.tk.call(self._w, 'select', 'adjust', index)
 	if TkVersion >= 4.0:
