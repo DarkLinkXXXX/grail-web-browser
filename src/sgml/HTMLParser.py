@@ -490,16 +490,26 @@ class HTMLParser(SGMLParser):
         self.end_ul()
 
     def start_dl(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-	if self.list_stack and self.list_stack[-1][3]:
+	margin = None
+	if self.list_stack:
+	    self.implied_end_p()
+	    self.formatter.end_paragraph(0)
+	    if self.list_stack[-1][3]:
+		attrs['compact'] = None
+	    if self.list_stack[-1][0] == 'dl':
+		margin = 'dl'
 	    attrs['compact'] = None
+	else:
+	    self.close_paragraph()
+	    self.formatter.end_paragraph(1)
+	self.formatter.push_margin(margin)
         self.list_stack.append(['dl', '', 0, attrs.has_key('compact'),
 				len(self.stack) + 1])
 
     def end_dl(self):
-        self.ddpop(1)
+        self.ddpop(not (self.list_stack and self.list_stack[-1][3]))
         if self.list_stack: del self.list_stack[-1]
+	self.formatter.pop_margin()
 
     def do_dt(self, attrs):
         self.ddpop()
