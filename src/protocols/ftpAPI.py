@@ -288,7 +288,7 @@ class ftpwrapper:
 	conn = None
 	if file and not isdir:
 	    try:
-		cmd = 'RETR ' + file
+		cmd = 'RETR ' + unquote(file)
 		conn = self.ftp.transfercmd(cmd)
 	    except ftplib.error_perm, reason:
 		if reason[:3] != '550':
