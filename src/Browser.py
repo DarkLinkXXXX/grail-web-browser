@@ -449,7 +449,7 @@ class Browser:
 
     def open_uri_command(self, event=None):
 	import OpenURIDialog
-	dialog = OpenURIDialog.OpenURIDialog(self.master)
+	dialog = OpenURIDialog.OpenURIDialog(self.root)
 	uri = dialog.go()
 	if uri: self.load(uri)
 
