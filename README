@@ -71,6 +71,9 @@ units) through the General preference panel.
 The "-i" option inhibits loading of images for this session.
 This option can also be set via the General preference panel.
 
+The "-d <display>" option lets you override the $DISPLAY environment
+variable.
+
 Command line arguments:
 
 The only positional command line argument is an optional URL of a page

@@ -60,7 +60,8 @@ KEEPALIVE_TIMER = 500
 USAGE = """Usage: %s [options] [url]
 Options:
     -i, --noimages : inhibit loading of images
-    -g <geom>, --geometry <geom> : initial window geometry""" % sys.argv[0]
+    -g <geom>, --geometry <geom> : initial window geometry
+    -d <display>, --display <display> : override $DISPLAY""" % sys.argv[0]
 
 def main():
     prefs = GrailPrefs.AllPreferences()
