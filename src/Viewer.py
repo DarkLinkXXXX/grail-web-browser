@@ -9,7 +9,7 @@ from string import strip
 from Context import Context
 from Cursors import *
 from types import StringType
-from urlparse import urljoin
+from urlparse import urljoin, urlparse
 from Stylesheet import UndefinedStyle
 
 
@@ -761,6 +761,8 @@ class ViewerMenu:
     __have_image = 0
     __link_url = None
     __image_url = None
+    __image_file = None
+    __image_prev = None
 
     def __init__(self, master, viewer):
 	self.__menu = menu = Menu(master, tearoff=0)
@@ -788,7 +790,8 @@ class ViewerMenu:
 	need_link = self.__link_url and 1 or 0
 	need_image = self.__image_url and 1 or 0
 	if (need_link != self.__have_link
-	    or need_image != self.__have_image):
+	    or need_image != self.__have_image
+	    or self.__image_prev != self.__image_file):
 	    if self.__have_link or self.__have_image:
 		self.__menu.delete(self.__last_standard_index + 1, END)
 		self.__have_link = self.__have_image = 0
@@ -803,13 +806,17 @@ class ViewerMenu:
 
     def set_image_url(self, url):
 	self.__image_url = url or None
+	url = self.__context.get_baseurl(url)
+	from posixpath import basename
+	self.__image_file = basename(urlparse(url)[2])
 
     def __add_image_items(self):
 	self.__have_image = 1
 	self.__menu.add_separator()
-	self.__menu.add_command(label="Open Image",
+	self.__image_prev = self.__image_file
+	self.__menu.add_command(label="Open Image " + self.__image_file,
 				command=self.__open_image)
-	self.__menu.add_command(label="Save Image As...",
+	self.__menu.add_command(label="Save Image %s..." % self.__image_file,
 				command=self.__save_image)
 
     def __add_link_items(self):
