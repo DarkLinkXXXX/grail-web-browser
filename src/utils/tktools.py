@@ -60,7 +60,8 @@ def set_transient(widget, master, relx=0.5, rely=0.3):
     return widget
 
 
-def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None):
+def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
+		    takefocus=None):
 
     """Subroutine to create a frame with scrollbars.
 
@@ -84,12 +85,12 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None):
 
     if vbar:
 	if not hbar:
-	    vbar = Scrollbar(frame)
+	    vbar = Scrollbar(frame, takefocus=takefocus)
 	    vbar.pack(fill=Y, side=RIGHT)
 	else:
 	    vbarframe = Frame(frame, borderwidth=0)
 	    vbarframe.pack(fill=Y, side=RIGHT)
-	    vbar = Scrollbar(frame, name="vbar")
+	    vbar = Scrollbar(frame, name="vbar", takefocus=takefocus)
 	    vbar.pack(in_=vbarframe, expand=1, fill=Y, side=TOP)
 	    sbwidth = vbar.winfo_reqwidth()
 	    corner = Frame(vbarframe, width=sbwidth, height=sbwidth)
@@ -98,7 +99,8 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None):
 	vbar = None
 
     if hbar:
-	hbar = Scrollbar(frame, orient=HORIZONTAL, name="hbar")
+	hbar = Scrollbar(frame, orient=HORIZONTAL, name="hbar",
+			 takefocus=takefocus)
 	hbar.pack(fill=X, side=BOTTOM)
     else:
 	hbar = None
@@ -128,7 +130,7 @@ def set_scroll_commands(widget, hbar, vbar):
 
 def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 		  fill=BOTH, expand=1, wrap=WORD, pack=1,
-		  class_=None, name=None):
+		  class_=None, name=None, takefocus=None):
 
     """Subroutine to create a text box.
 
@@ -142,7 +144,8 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 
     """
     hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack,
-					class_=class_, name=name)
+					class_=class_, name=name,
+					takefocus=takefocus)
 
     widget = Text(frame, wrap=wrap, name="text")
     if width: widget.config(width=width)
@@ -155,14 +158,16 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 
 
 def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1, pack=1, class_=None, name=None):
+		  fill=BOTH, expand=1, pack=1, class_=None, name=None,
+		  takefocus=None):
 
     """Subroutine to create a list box.
 
     Like make_text_box().
     """
     hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack,
-					class_=class_, name=name)
+					class_=class_, name=name,
+					takefocus=takefocus)
 
     widget = Listbox(frame, name="listbox")
     if width: widget.config(width=width)
@@ -175,7 +180,8 @@ def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
 
 
 def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
-		  fill=BOTH, expand=1, pack=1, class_=None, name=None):
+		fill=BOTH, expand=1, pack=1, class_=None, name=None,
+		takefocus=None):
 
     """Subroutine to create a canvas.
 
@@ -184,7 +190,8 @@ def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
     """
 
     hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack,
-					class_=class_, name=name)
+					class_=class_, name=name,
+					takefocus=takefocus)
 
     widget = Canvas(frame, scrollregion=(0, 0, width, height), name="canvas")
     if width: widget.config(width=width)
@@ -232,7 +239,8 @@ def make_form_entry(parent, label, borderwidth=None):
 # expandable while still aligning the colons.  This doesn't work yet.
 #
 def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
-			    labelwidth=0, borderwidth=None):
+			    labelwidth=0, borderwidth=None,
+			    takefocus=None):
     """Subroutine to create a form entry.
 
     Create:
@@ -257,7 +265,8 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
 	entry.pack(side=RIGHT, expand=1, fill=X)
 	frame.pack(fill=X)
     else:
-	entry = make_text_box(frame, entrywidth, entryheight, 1, 1)
+	entry = make_text_box(frame, entrywidth, entryheight, 1, 1,
+			      takefocus=takefocus)
 	frame.pack(fill=BOTH, expand=1)
 
     return entry, frame, label
@@ -276,8 +285,8 @@ def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
     top = Frame(frame, name="topframe", relief=relief,
 		borderwidth=borderwidth)
     bottom = Frame(frame, name="bottomframe")
+    bottom.pack(fill=X, padx='1m', pady='1m', side=BOTTOM)
     top.pack(expand=1, fill=BOTH, padx='1m', pady='1m')
-    bottom.pack(fill=X, padx='1m', pady='1m')
     frame.pack(expand=1, fill=BOTH)
     top = Frame(top)
     top.pack(expand=1, fill=BOTH, padx='2m', pady='2m')
