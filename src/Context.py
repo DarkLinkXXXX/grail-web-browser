@@ -1,6 +1,6 @@
 """Context class."""
 
-from urlparse import urljoin, urlparse, urlunparse
+from urlparse import urljoin, urlparse, urlunparse, urldefrag
 from Cursors import *
 import History
 import string
@@ -77,7 +77,7 @@ class Context:
 
     # Load URL, base URL and target
 
-    def set_url(self, url, baseurl=None, target=None):
+    def set_url(self, url, baseurl=None, target=None, histify=1):
 	"""Set loaded URL, base URL and target for the current page.
 
 	The loaded URL is what this page was loaded from; the base URL
@@ -85,8 +85,10 @@ class Context:
 	loaded URL.  The target is the default viewer name
 	where followed links will appear, and defaults to this viewer.
 
+	HISTIFY flag, if true, adds the URL to the history stack.
+
 	"""
-	if url:
+	if url and histify:
 	    self.app.global_history.remember_url(url)
 	    if not self.page:
 		self.page = History.PageInfo(url)
@@ -143,27 +145,28 @@ class Context:
 	"""Return the default target for this page (which may be None)."""
 	return self._target
 
-    def follow(self, url, target="", pended=0):
+    def follow(self, url, target="", pended=0, histify=1):
 	"""Follow a link, given by a relative URL.
 
 	If the relative URL is *just* a fragment id (#name), just
 	scroll there; otherwise do a full load of a new page.
 
 	"""
-	if url[:1] == '#':
-	    fragment = url[1:]
+	newurl, frag = urldefrag(url)
+	current, f = urldefrag(self._url)
+	if frag and (not newurl or newurl == current):
 	    if self.readers:
 		# we're still reading in text, so don't try to scroll
 		# there now, but instead, remember the scroll position
 		# for later when the reader is done.
-		self.pending_frag = fragment
+		self.pending_frag = frag
 	    else:
-		self.viewer.scroll_to(fragment)
+		self.viewer.scroll_to(frag)
 		self.viewer.remove_temp_tag(histify=1)
 		baseurl = self.get_baseurl(url)
 		if not pended:
-		    self.page = None
-		    self.set_url(baseurl)
+		    self.page = None # triggers set_url() to update history
+		    self.set_url(baseurl, histify=histify)
 	    return
 	if not target:
 	    target = self._target
@@ -300,13 +303,11 @@ class Context:
 	    return
 	self.future = future
 	# optimize for fragments
-	s, n, p, a, q, frag = urlparse(page.url())
-	target = urlunparse((s, n, p, a, q, ''))
-	s, n, p, a, q, f = urlparse(self._url)
-	current = urlunparse((s, n, p, a, q, ''))
+	target, frag = urldefrag(page.url())
+	current, f = urldefrag(self._url)
 	if target == current and not reload:
 	    if frag and self._url <> page.url():
-		self.follow('#' + frag)
+		self.follow('#' + frag, histify=0)
 	    else:
 		self.viewer.scroll_to_position(page.scrollpos())
 		self.history.page(self.future)
