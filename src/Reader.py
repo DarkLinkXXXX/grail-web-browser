@@ -58,7 +58,27 @@ class ParserWrapper:
 	    self.__viewer.freeze()
 	    self.__closed = 1
 
+
+class TextLineendWrapper:
+    """Perform lineend translation so text data always looks like text (using
+    '\n' for lineends)."""
 
+    def __init__(self, parser):
+        self.__parser = parser
+        self.__last_was_cr = 0
+
+    def feed(self, data):
+        if self.__last_was_cr and data[0:1] == '\n':
+            data = data[1:]
+        self.__last_was_cr = data[-1:] == '\r'
+        data = string.replace(data, '\r\n', '\n')
+        data = string.replace(data, '\r', '\n')
+        self.__parser.feed(data)
+
+    def close(self):
+        self.__parser.close()
+
+
 _hex_digit_values = {
     '0': 0, '1': 1, '2': 2, '3': 3, '4': 4,
     '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
@@ -73,9 +93,18 @@ class QuotedPrintableWrapper:
         """Initialize the decoder.  Pass in the real parser as a parameter."""
         self.__parser = parser
         self.__buffer = ''
+        self.__last_was_cr = 0
 
     def feed(self, data):
         """Decode data and feed as much as possible to the real parser."""
+        # handle lineend translation inline
+        if self.__last_was_cr and data[0:1] == '\n':
+            data = data[1:]
+        self.__last_was_cr = data[-1:] == '\r'
+        data = string.replace(data, '\r\n', '\n')
+        data = string.replace(data, '\r', '\n')
+
+        # now get the real buffer
         data = self.__buffer + data
         pos = string.find(data, '=')
         if pos == -1:
@@ -138,12 +167,20 @@ class Base64Wrapper:
         self.__parser = parser
         self.__buffer = ''
         self.__app = parser.viewer.context.app
+        self.__last_was_cr = 0
 
     def feed(self, data):
+        # handle lineend translation inline
+        if self.__last_was_cr and data[0:1] == '\n':
+            data = data[1:]
+        self.__last_was_cr = data[-1:] == '\r'
+        data = string.replace(data, '\r\n', '\n')
+        data = string.replace(data, '\r', '\n')
+
+        # now get the real buffer
         data = self.__buffer + data
         lines = string.split(data, '\n')
         if len(lines) > 1:
-            import binascii
             data = lines[-1]
             del lines[-1]
             stuff = ''
@@ -165,7 +202,6 @@ class Base64Wrapper:
 
     def close(self):
         if self.__buffer:
-            import binascii
             try:
                 bin = binascii.a2b_base64(self.__buffer)
             except (binascii.Error, binascii.Incomplete):
@@ -293,14 +329,20 @@ class GzipWrapper:
 # forbids it), but it's never a good idea to ignore the possibility.
 #
 transfer_decoding_wrappers = {
-    "base64": Base64Wrapper,
     "quoted-printable": QuotedPrintableWrapper,
     }
+
+try:
+    import binascii
+except ImportError:
+    pass
+else:
+    transfer_decoding_wrappers["base64"] = Base64Wrapper
 
 
 # This table maps content-encoding values to the appropriate decoding
 # wrappers.  This can (and should if you care about bandwidth) be used
-# whenever possible.  We needed to send an accept-encoding header when
+# whenever possible.  We need to send an accept-encoding header when
 # push comes to shove, but we'll ignore that for the moment.
 #
 content_decoding_wrappers = {}
@@ -312,6 +354,11 @@ except ImportError, error:
 else:
     content_decoding_wrappers["gzip"] = GzipWrapper
     content_decoding_wrappers["x-gzip"] = GzipWrapper
+
+
+def get_content_encodings():
+    """Return a list of supported content-encoding values."""
+    return content_decoding_wrappers.keys()
 
 
 class Reader(BaseReader):
@@ -561,14 +608,14 @@ class Reader(BaseReader):
 	self.context.set_url(self.url)
 	parser = parserclass(self.viewer, reload=self.reload)
         # decode the content
+        if istext:
+            parser = TextLineendWrapper(parser)
         if content_encoding:
             parser = content_decoding_wrappers[content_encoding](parser)
         if transfer_encoding:
             parser = transfer_decoding_wrappers[transfer_encoding](parser)
         # protect from re-entrance
         self.parser = ParserWrapper(parser, self.viewer)
-	self.istext = istext
-	self.last_was_cr = 0
 
     def handle_auth_error(self, errcode, errmsg, headers):
 	# Return nonzero if handle_error() should return now
@@ -602,16 +649,6 @@ class Reader(BaseReader):
 	if self.save_file:
 	    self.save_file.write(data)
 	    return
-	if self.istext:
-	    if self.last_was_cr and data[0] == '\n':
-		data = data[1:]
-	    self.last_was_cr = data[-1:] == '\r'
-	    if '\r' in data:
-		if '\n' in data:
-		    data = regsub.gsub('\r\n', '\n', data)
-		if '\r' in data:
-		    data = regsub.gsub('\r', '\n', data)
-
 	try:
 	    self.parser.feed(data)
 	except IOError, msg:
