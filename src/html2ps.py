@@ -18,6 +18,7 @@ from formatter import *
 
 
 # debugging
+DEFAULT_FONT_SIZE = 10
 RECT_DEBUG = 0
 DEBUG = 0
 
@@ -63,7 +64,7 @@ fonts = {
 
 # The values used by Grail
 font_sizes = {
-    None: 12,
+    None: DEFAULT_FONT_SIZE,
     'h1': 18,
     'h2': 14,
     'h3': 12,
@@ -99,8 +100,8 @@ def pt_to_inch(points): return points / 72.0
 
 TOP_MARGIN = inch_to_pt(10)
 BOT_MARGIN = inch_to_pt(0.5)
-LEFT_MARGIN = inch_to_pt(0.75)
-RIGHT_MARGIN = inch_to_pt(1.0)
+LEFT_MARGIN = inch_to_pt(1.0)		# was 0.75
+RIGHT_MARGIN = inch_to_pt(1.0)		# was 1.0
 PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN)
 PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 
@@ -110,6 +111,7 @@ HR_BOT_MARGIN = 8.0
 
 # distance after a label tag in points
 LABEL_TAB = 8.0
+TAB_STOP = inch_to_pt(0.5)
 
 # page indicator yposition
 PAGE_TAB = -PAGE_HEIGHT - 32
@@ -149,7 +151,7 @@ class PSFont:
 	# current font is a tuple of size, family, italic, bold
 	self.vfamily = varifamily
 	self.ffamily = fixedfamily
-	self.font = (12, 'FONTV', '', '')
+	self.font = (DEFAULT_FONT_SIZE, 'FONTV', '', '')
 
 	# TBD: this number is slightly bogus, but the rational is
 	# thus.  The original code was tied fairly closely with X so
@@ -246,7 +248,7 @@ class PSFont:
 	try:
 	    if type(tuple_sz) != type(1): return font_sizes[tuple_sz]
 	    else: return tuple_sz
-	except KeyError: return 12
+	except KeyError: return DEFAULT_FONT_SIZE
 
 
 
@@ -349,7 +351,8 @@ class PSStream:
     def push_margin(self, level):
 #	print 'push_margin:', level
 	self.close_line()
-	distance = level * LEFT_MARGIN
+	distance = level * TAB_STOP
+	self._margin = distance
 	self._ofp.write('/indentmargin %f D\n' % distance)
 	self._ofp.write('NL\n')
 
@@ -359,20 +362,24 @@ class PSStream:
 	    distance = self._font.text_width(bullet) + LABEL_TAB
 	    self._ofp.write('gsave NL -%f 0 R\n' % distance)
 	else:
+	    ypos = self._ypos
 	    self.close_line()
+	    self._ypos = ypos
 	    self._ofp.write('grestore\n')
 
     def push_hard_newline(self, blanklines=1):
 #	print 'push_hard_newline:', blanklines
 	self.close_line()
 	self._ofp.write('NL\n')
+	if self._inliteral_p:
+	    blanklines = blanklines - 1
 	if blanklines > 0:
 	    # TBD: should we use self._tallest here?  Doesn't look so
 	    # good if we do.
 	    vtab = 10.0 * 1.1 * blanklines
 	    self._ofp.write('0 -%f R\n' % vtab)
 	    self._ypos = self._ypos - vtab
-	
+	    print 'push_hard_newline:', self._ypos
 
     def push_vtab(self, distance):
 #	print 'push_vtab:', self._vtab, '+', distance
@@ -388,6 +395,8 @@ class PSStream:
 
     def push_literal(self, flag):
 #	print 'push_literal:', flag
+        if self._linestr:
+	    self.close_string()
 	self._inliteral_p = flag
 
     def push_string(self, data):
@@ -465,6 +474,7 @@ class PSStream:
 		wordcnt = wordcnt - 1
 	    # for every line but the last, put a hard newline after it
 	    if linecnt > 0:
+		self._linestr = linestr
 		self.push_hard_newline()
 		# the close_line() call in push_hard_newline() touches
 		# these, but we're using a local variable cache, which
@@ -674,7 +684,7 @@ def html_test():
     stderr = sys.stderr
     try:
 	if lfile: sys.stderr = lfile
-	w = PSWriter(ofile, None)
+	w = PSWriter(ofile, None, url=infile or '')
 	f = AbstractFormatter(w)
 
 	# We don't want to be dependent on Grail, but we do want to
@@ -734,7 +744,7 @@ save
 /NL {indentmargin currentpoint E pop M} D
 /SQ {newpath 0 0 M 0 1 L 1 1 L 1 0 L closepath} D
 /C {dup stringwidth pop pagewidth exch sub 2 div 0 R S} D
-/EDGE {NL dup stringwidth pop pagewidth exch sub 0 R S} D
+/EDGE {0 currentpoint E pop M dup stringwidth pop pagewidth exch sub 0 R S} D
 /U {
   gsave currentpoint currentfont /FontInfo get /UnderlinePosition get
   0 E currentfont /FontMatrix get dtransform E pop add newpath moveto
