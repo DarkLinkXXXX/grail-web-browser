@@ -289,13 +289,14 @@ class PSFont:
 
 
 class PSStream:
-    def __init__(self, psfont, ofp, title='', url=''):
+    def __init__(self, psfont, ofp, title='', url='', greyscale=0):
 	self._font = psfont
 	self._ofp = ofp
 	self._title = title
 	self._url = url
 	self._pageno = 1
 	self._margin = 0.0
+	self._greyscale = greyscale
 	# current line state
 	self._space_width = 0.0
 	self._linestr = []
@@ -669,12 +670,12 @@ class PSWriter(AbstractWriter):
 
     Exported ivars:
     """
-    def __init__(self, ofile, title='', url=''):
+    def __init__(self, ofile, title='', url='', greyscale=0):
 	if not title:
 	    title = url
 	font = PSFont()
 	font.set_font((10, 'FONTV', '', ''))
-        self.ps = PSStream(font, ofile, title, url)
+        self.ps = PSStream(font, ofile, title, url, greyscale)
 	self.ps.start()
 
     def close(self):
@@ -733,6 +734,30 @@ class PSWriter(AbstractWriter):
 #  Exception which should not propogate outside this module.
 EPSError = 'html2ps.EPSError'
 
+#  Dictionary of image converters from key ==> EPS.
+#  The values need to be formatted against a dictionary that contains the
+#  values `i' for the input filename and `o' for the output filename.
+image_converters = {
+    ('gif', 'color') : 'giftopnm %(i)s | pnmtops -noturn >%(o)s',
+    ('gif', 'grey') : 'giftopnm %(i)s | ppmtopgm | pnmtops -noturn >%(o)s',
+    ('jpeg', 'color') : 'djpeg -pnm %(i)s | pnmtops -noturn >%(o)s',
+    ('jpeg', 'grey') : 'djpeg -grayscale -pnm %(i) | pnmtops -noturn >%(o)s',
+    ('pbm', 'grey') : 'pbmtoepsi %(i)s >%(o)s',
+    ('pgm', 'grey') : 'pnmtops -noturn %(i)s >%(o)s',
+    ('ppm', 'color') : 'pnmtops -noturn %(i)s >%(o)s',
+    ('ppm', 'grey') : 'ppmtopgm %(i)s | pnmtops -noturn >%(o)s',
+    ('rast', 'color') : 'rasttopnm %(i)s | pnmtops -noturn >%(o)s',
+    ('rast', 'grey') : 'rasttopnm %(i)s | ppmtopgm | pnmtops -noturn >%(o)s',
+    ('rgb', 'color') : 'rgb3toppm %(i)s | pnmtops -noturn >%(o)s',
+    ('rgb', 'grey') : 'rgb3toppm %(i)s | ppmtopgm | pnmtops -noturn >%(o)s',
+    ('tiff', 'color') : 'tifftopnm %(i)s | pnmtops -noturn >%(o)s',
+    ('tiff', 'grey') : 'tifftopnm %(i)s | ppmtopgm | pnmtops -noturn >%(o)s',
+    ('xbm', 'grey') : 'xbmtopbm %(i)s | pbmtoepsi >%(o)s',
+    ('xpm', 'color') : 'xpmtoppm %(i)s | pnmtops -noturn >%(o)s',
+    ('xpm', 'grey') : 'xpmtoppm %(i)s | ppmtopgm | pnmtops -noturn >%(o)s'
+    }
+
+
 class PrintingHTMLParser(HTMLParser):
 
     """Class to override HTMLParser's default methods for anchors and images.
@@ -745,9 +770,11 @@ class PrintingHTMLParser(HTMLParser):
     file and the string `ppm', indicating that a Portable PixMap
     representation is required.
     """
-    def __init__(self, formatter, verbose=0, baseurl=None, image_loader=None):
+    def __init__(self, formatter, verbose=0, baseurl=None, image_loader=None,
+		 greyscale=0):
 	HTMLParser.__init__(self, formatter, verbose)
 	self._baseurl = baseurl
+	self._greyscale = greyscale
 	self._image_loader = image_loader
 	self._image_cache = {}
 	self._anchors = {}
@@ -818,16 +845,40 @@ class PrintingHTMLParser(HTMLParser):
 	image = self._image_loader(imageurl)
 	if not image:
 	    raise EPSError, 'Image could not be loaded.'
+	from imghdr import what
 	from tempfile import mktemp
-	ppm_fn = mktemp()
+	img_fn = mktemp()
+	fp = open(img_fn, 'w')
 	try:
-	    image.write(ppm_fn, 'ppm')
+	    fp.write(image)
 	except:
 	    raise EPSError, 'Failed to write image to external file.'
+	fp.close()
+	imgtype = what(img_fn)
+	if not imgtype:
+	    os.unlink(img_fn)
+	    raise EPSError, 'Could not identify image type.'
+	cnv_key = (imgtype, (self._greyscale and 'grey') or 'color')
+	if not image_converters.has_key(cnv_key):
+	    cnv_key = (imgtype, 'grey')
+	if not image_converters.has_key(cnv_key):
+	    os.unlink(img_fn)
+	    raise EPSError, 'No converter defined for %s images.' % imgtype
 	eps_fn = mktemp()
-	os.system('pnmtops -scale 1 -nocenter -noturn %s >%s 2>/dev/null'
-		  % (ppm_fn, eps_fn))
-	os.unlink(ppm_fn)
+	img_command = image_converters[cnv_key]
+	img_command = img_command % {'i':img_fn, 'o':eps_fn}
+	try:
+	    if os.system(img_command + ' 2>/dev/null'):
+		os.unlink(img_fn)
+		if os.path.exists(eps_fn):
+		    os.unlink(eps_fn)
+		raise EPSError, 'Could not convert image to EPS.'
+	except:
+	    os.unlink(img_fn)
+	    if os.path.exists(eps_fn):
+		os.unlink(eps_fn)
+	    raise EPSError, 'Could not run conversion process.'
+	os.unlink(img_fn)
 	fp = open(eps_fn)
 	lines = fp.readlines()
 	fp.close()
@@ -836,14 +887,23 @@ class PrintingHTMLParser(HTMLParser):
 	    lines.remove('showpage\n')
 	except:
 	    pass			# o.k. if not found
-	bbox = None
-	for line in lines:
-	    if len(line) > 15 and line[:15] == '%%BoundingBox: ':
-		bbox = tuple(map(string.atoi, string.split(line[15:])))
-		break
-	if not bbox:
-	    raise EPSError, 'Bounding box not specified.'
+	bbox = load_bounding_box(lines)
 	return (string.joinfields(lines, ''), bbox)
+
+
+def load_bounding_box(lines):
+    """Determine bounding box for EPS figure given as a sequence of text lines.
+    """
+    from string import lower
+    bbox = None
+    for line in lines:
+	if len(line) > 21 and lower(line[:15]) == '%%boundingbox: ':
+	    bbox = tuple(map(string.atoi, string.split(line[15:])))
+	    break
+    if not bbox:
+	raise EPSError, 'Bounding box not specified.'
+    return bbox
+
 
 
 
