@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.16 1996/04/03 16:38:14 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.17 1996/04/04 20:39:49 bwarsaw Exp $'
 
 
 import string
@@ -118,6 +118,8 @@ class TableSubParser:
 	    parser.push_formatter(cell.new_formatter())
 	    cell.init_style()
 	    # create a new object to hold the attributes
+	    if not ti.lastbody:
+		self.do_tr(parser, {})
 	    rows = ti.lastbody.trows
 	    if rows:
 		rows[-1].cells.append(cell)
@@ -206,6 +208,7 @@ class Table(AttrElem):
     def __init__(self, parentviewer, attrs):
 	AttrElem.__init__(self, attrs)
 	self.parentviewer = parentviewer
+	self.parentviewer.context.register_notification(self._notify)
 	# attributes
 	def conv_align(val):
 	    return grailutil.conv_enumeration(
@@ -310,6 +313,7 @@ class Table(AttrElem):
 	# internal representation of the table as a sparse array
 	table = {}
 	bodies = (self.thead or []) + self.tbodies + (self.tfoot or [])
+	borderwidth = grailutil.conv_integer(self.container['borderwidth'])
 
 	# calculate row and column counts
 	colcount = 0
@@ -380,9 +384,11 @@ class Table(AttrElem):
 ## 	print '==========', id(self)
 
 	# calculate column widths
-	cellmaxwidths = [0] * colcount
-	cellminwidths = [0] * colcount
+	
+	maxwidths = [0] * colcount
+	minwidths = [0] * colcount
 	cellheights = [0] * rowcount
+	bw = borderwidth
 	for col in range(colcount):
 	    for row in range(rowcount):
 		cell = table[(row, col)]
@@ -398,14 +404,14 @@ class Table(AttrElem):
 		maxwidth = cell.maxwidth() / cell.colspan
 		minwidth = cell.minwidth() / cell.colspan
 		for col_i in range(col, col + cell.colspan):
-		    cellmaxwidths[col_i] = max(cellmaxwidths[col_i], maxwidth)
-		    cellminwidths[col_i] = max(cellminwidths[col_i], minwidth)
+		    maxwidths[col_i] = max(maxwidths[col_i], maxwidth) + bw
+		    minwidths[col_i] = max(minwidths[col_i], minwidth) + bw
 
-	mincanvaswidth = 0
-	maxcanvaswidth = 0
+	mincanvaswidth = 2 * borderwidth
+	maxcanvaswidth = 2 * borderwidth
 	for col in range(colcount):
-	    mincanvaswidth = mincanvaswidth + cellminwidths[col]
-	    maxcanvaswidth = maxcanvaswidth + cellmaxwidths[col]
+	    mincanvaswidth = mincanvaswidth + minwidths[col]
+	    maxcanvaswidth = maxcanvaswidth + maxwidths[col]
 
 	# calculate the available width that the table should render
 	# itself in. first get the actual width, then apply any <TABLE
@@ -434,11 +440,11 @@ class Table(AttrElem):
 	# available space.  Assign min widths and let the user scroll
 	# horizontally.
 	if mincanvaswidth >= suggestedwidth:
-	    cellwidths = cellminwidths
+	    cellwidths = minwidths
 	# case 2: maximum table width fits within the available space.
 	# set columns to their maximum width.
 	elif maxcanvaswidth < suggestedwidth:
-	    cellwidths = cellmaxwidths
+	    cellwidths = maxwidths
 	# case 3: maximum width of the table is greater than the
 	# available space, but the minimum table width is smaller.
 	else:
@@ -446,8 +452,8 @@ class Table(AttrElem):
 	    D = maxcanvaswidth - mincanvaswidth
 	    adjustedwidths = [0] * colcount
 	    for col in range(colcount):
-		d = cellmaxwidths[col] - cellminwidths[col]
-		adjustedwidths[col] = cellminwidths[col] + d * W / D
+		d = maxwidths[col] - minwidths[col]
+		adjustedwidths[col] = minwidths[col] + d * W / D
 	    cellwidths = adjustedwidths
 
 	# calculate column heights.  this should be done *after*
@@ -470,8 +476,6 @@ class Table(AttrElem):
 	for col in range(colcount):
 	    canvaswidth = canvaswidth + cellwidths[col]
 
-	borderwidth = grailutil.conv_integer(self.container['borderwidth'])
-	borderwidth = borderwidth
 	ypos = borderwidth
 
 	# if caption aligns top, then insert it now.  it doesn't need
@@ -512,8 +516,7 @@ class Table(AttrElem):
 				 height=height)
 	    ypos = ypos + height + self.Acellspacing
 
-	# TBD: still one small kludgery left in layout calculation
-	self.container.config(width=canvaswidth, height=ypos-2)
+	self.container.config(width=canvaswidth, height=ypos-borderwidth)
 	return canvaswidth
 
     def _reset(self, viewer):
@@ -521,6 +524,9 @@ class Table(AttrElem):
 
     def _resize(self, viewer):
 	print '_resize:', viewer
+
+    def _notify(self, context):
+	print '_notify:', context
 	    
 
 class Colgroup(AttrElem):
@@ -566,8 +572,8 @@ def _get_widths(tw):
     # get minimum width of cell: longest word
     tw['wrap'] = WORD
     contents = tw.get(1.0, END)
-    longest_word = reduce(max, map(len, string.split(contents)), 0) + 1
-    tw['width'] = longest_word
+    longest_word = reduce(max, map(len, string.split(contents)), 0)
+    tw['width'] = longest_word + 1
     width_min = tw.winfo_width() + (2 * border_x)
     return float(width_min), float(width_max)
 
@@ -596,9 +602,9 @@ def _get_height(tw):
     # that's not correct for the lower border.  I think we can ask the
     # textwidget for it's internal border space, but we may need to
     # add in relief space too.  Close approximation for now...
-##    return (2 * border_y) + y + h
-    # this seems to work better
-    return y+h+border_y
+    #
+    # Add 2 for descenders
+    return y+h+border_y + 2
 
 
 
@@ -616,6 +622,7 @@ class ContainedText(AttrElem):
 			      scrolling=0,
 			      stylesheet=parentviewer.stylesheet,
 			      parent=parentviewer)
+	# for callback notification
 	self._fw = self._viewer.frame
 	self._tw = self._viewer.text
 	self._tw.config(highlightthickness=0)
@@ -675,7 +682,6 @@ class ContainedText(AttrElem):
 	else:
 	    self._container.itemconfigure(self._tag, height=height)
 
-
 
 class Caption(ContainedText):
     """A table caption element."""
@@ -704,7 +710,6 @@ class Cell(ContainedText):
 	# relief and borderwidth are defined as table tag attributes
 	if table.Arules == 'none':
 	    relief = FLAT
-	    borderwidth = 0
 	# TBD: rules=rows and rules=cols not yet implemented (is it
 	# even possible in Tk?  probably, but could be painful
 	else:
@@ -712,8 +717,7 @@ class Cell(ContainedText):
 		relief = FLAT
 	    else:
 		relief = SUNKEN
-	    borderwidth = table.Aborder
-	self._tw.config(relief=relief, borderwidth=borderwidth)
+	self._tw.config(relief=relief, borderwidth=1)
 	self.layout = table.layout
 	# dig out useful attributes
 	self.cellpadding = table.attribute('cellpadding', 0)
