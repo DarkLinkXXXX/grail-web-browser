@@ -55,6 +55,7 @@ class Context:
 	self.applet_group = None
 	self.notifications = []		# callbacks when no readers left
 	self.image_maps = {}		# For ImageMap
+	self.set_headers({})
 
     def register_notification(self, callback):
 	if callback not in self.notifications:
@@ -76,6 +77,12 @@ class Context:
 
     def on_top(self):
 	return self.browser.context is self
+
+    def set_headers(self, headers):
+	self.__headers = headers
+
+    def get_headers(self):
+	return self.__headers
 
     # Load URL, base URL and target
 
