@@ -1,5 +1,6 @@
 from FileReader import TempFileReader
 from Tkinter import *
+import grailutil
 
 
 class ImageTempFileReader(TempFileReader):
@@ -78,15 +79,12 @@ class AsyncImage(PhotoImage):
 	if self.reader:
 	    return
 	try:
-	    self['file'] = makestopsign()
-	except TclError:
-	    pass
-	try:
 	    api = self.context.app.open_url(self.url, 'GET', {},
 					    self.reload or reload) 
 	except IOError, msg:
-	    self.blank()
+	    self.show_bad()
 	    return
+	self.show_busy()
 	cached_file, content_type = api.tk_img_access()
 	if cached_file \
 	   and ImageTempFileReader.image_filters.has_key(content_type) \
@@ -102,7 +100,7 @@ class AsyncImage(PhotoImage):
 	if not self.reader:
 	    return
 	self.reader.kill()
-	self.blank()
+	self.show_bad()
 
     def set_file(self, filename):
 	self.context.root.tk.setvar("TRANSPARENT_GIF_COLOR",
@@ -110,14 +108,11 @@ class AsyncImage(PhotoImage):
 	try:
 	    self['file'] = filename
 	except TclError:
-	    self.blank()
-	    print "*** bad image type:", self.url
+	    self.show_bad()
 	else:
 	    self.loaded = 1
-	self.context.root.update_idletasks()
 
     def set_error(self, errcode, errmsg, headers):
-	self.blank()
 	self.loaded = 0
 	if errcode in (301, 302) and headers.has_key('location'):
 	    self.url = headers['location']
@@ -129,47 +124,14 @@ class AsyncImage(PhotoImage):
 	else:
 	    return 'idle'
 
-
-STOPDATA = """GIF87a \000 \000\360\000\000\377\377\377\000\000\000,\
-\000\000\000\000 \000 \000\000\002z\204o\241\313\035\010#ptI\251\356\
-\315:\275\016q\333\007bdx\226\210x\260\252\271\246/\352\315*c\227\370\
-TY|\314\331\365|,a#R\374\004\225\024\344iY\3439\234\261\350rJk1\255\307\
-\237\266\3525B\277\344+3\031\345\246\245\317m\331\355A{\325s6X>\216w\
-\327\353$\226_\207\'\223\0238\230\343Rg\203\010\370\262H\326h\010\006\
-\0119\264CY\351X\000\000;"""
-
-_stopsign = None
-def makestopsign():
-    global _stopsign
-    if not _stopsign:
-	import sys
-	if not hasattr(sys, 'exitfunc'): sys.exitfunc = None
-	sys.exitfunc = lambda chain=sys.exitfunc: _cleanup(chain)
-	_stopsign = _makestopsign()
-    return _stopsign
-
-def _makestopsign():
-    import tempfile
-    tfn = tempfile.mktemp()
-    try:
-	f = open(tfn, 'wb')
-	f.write(STOPDATA)
-	f.close()
-    except IOError:
-	print "Error creating temporary file! ",
-	print "Make sure", tempfile.gettempdir(), "is writable."
-	return ""
-    return tfn
-
-def _cleanup(chain=None):
-    global _stopsign
-    if _stopsign:
-	import os
-	tfn = _stopsign
-	_stopsign = None
+    def show_bad(self):
 	try:
-	    os.unlink(tfn)
-	except os.error:
-	    pass
-    if chain:
-	chain()
+	    self['file'] = grailutil.which("icons/sadsmiley.gif") or ""
+	except TclError:
+	    self.blank()
+
+    def show_busy(self):
+	try:
+	    self['file'] = grailutil.which("icons/image.gif") or ""
+	except TclError:
+	    self.blank()
