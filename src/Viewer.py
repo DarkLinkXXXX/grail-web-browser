@@ -19,14 +19,17 @@ class Viewer(formatter.AbstractWriter):
 
     def __init__(self, master, browser=None, context=None, stylesheet=None,
 		 width=80, height=40, name="", scrolling="auto",
-		 parentviewer=None):
+		 parent=None):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
+	if not browser:
+	    if parent:
+		browser = parent.context.browser
 	self.context = context or Context(self, browser)
 	self.stylesheet = stylesheet
 	self.name = name
 	self.scrolling = scrolling
-	self.parentviewer = parentviewer
+	self.parent = parent
 	self.subwindows = []
 	self.rules = []
 	self.subviewers = []
@@ -37,6 +40,29 @@ class Viewer(formatter.AbstractWriter):
 	self.freeze()
 	self.text.bind('<Configure>', self.resize_event)
 	self._atemp = []
+	self.status = StringVar()
+	self.linkinfo = ""
+	self.frame.bind('<Enter>', self.enter_frame)
+	if self.parent:
+	    self.parent.add_subviewer(self)
+	self.message("")
+
+    def message(self, message):
+	if not self.context or self.linkinfo:
+	    return
+	if self.name:
+	    message = "%s: %s" % (self.name, message)
+	self.status.set(message)
+	if not self.parent:
+	    self.context.browser.messagevariable(self.status)
+	if self.context.busy():
+	    cursor = CURSOR_WAIT
+	else:
+	    cursor = CURSOR_NORMAL
+	self.set_cursor(cursor)
+
+    def enter_frame(self, event):
+	self.context.browser.messagevariable(self.status)
 
     def reset_state(self):
 	self.fonttag = None		# Tag specifying font
@@ -51,15 +77,20 @@ class Viewer(formatter.AbstractWriter):
 	self.close()
 
     def close(self):
-	self.context.stop()
-	self.clear_reset()
+	context = self.context
+	if context:
+	    context.stop()
+	    self.clear_reset()
+	    self.context = None
 	frame = self.frame
 	if frame:
-	    self.frame = None
 	    self.text = None
 	    frame.destroy()
-	self.parentviewer = None
-	self.context = None		# XXX close it?
+	    self.frame = None
+	parent = self.parent
+	if parent:
+	    parent.remove_subviewer(self)
+	    self.parent = None
 
     def create_widgets(self, width, height):
 	bars = self.scrolling == "auto" or self.scrolling
@@ -129,6 +160,7 @@ class Viewer(formatter.AbstractWriter):
 	self.unregister_interest(self.resize_interests, func)
 
     def clear_reset(self):
+	self.message("reset")
 	self._atemp = []
 	for func in self.reset_interests[:]:
 	    func(self)
@@ -255,24 +287,30 @@ class Viewer(formatter.AbstractWriter):
     # Viewer's own methods
 
     def anchor_enter(self, event):
-	url = self.find_tag_url() or '???'
-	url, target = self.split_target(url)
+	url, target = self.split_target(self.find_tag_url())
+	if url:
+	    if url[0] != '#':
+		url = self.context.get_baseurl(url)
+	else:
+	    url = "???"
 	if not target:
 	    target = self.context.get_target()
 	if target:
-	    url =  "%s in %s" % (url, target)
-	if not self.context.busy():
-	    self.text.config(cursor=CURSOR_LINK)
-	    self.context.enter(url)
+	    self.linkinfo =  "%s in %s" % (url, target)
+	else:
+	    self.linkinfo = url
+	self.status.set(self.linkinfo)
+	self.context.browser.messagevariable(self.status)
+	self.set_cursor(CURSOR_LINK)
 
     def anchor_leave(self, event):
-	if not self.context.busy():
-	    self.text.config(cursor=CURSOR_NORMAL)
-	    self.context.leave()
+	self.linkinfo = ""
+	self.context.message_clear()
 
     def anchor_click(self, event):
 	url = self.find_tag_url()
 	if url:
+	    self.linkinfo = ""
 	    url, target = self.split_target(url)
 	    self.add_temp_tag()
 	    self.context.follow(url, target)
@@ -330,6 +368,7 @@ class Viewer(formatter.AbstractWriter):
 
     def set_cursor(self, cursor):
 	self.text['cursor'] = cursor
+	self.text.update_idletasks()
 
     def scrollpos(self): return self.text.index('@0,0')
     def scroll_to_position(self, pos): self.text.yview(pos)
@@ -361,13 +400,19 @@ class Viewer(formatter.AbstractWriter):
 	self.subwindows.append(window)
 	self.text.window_create(END, window=window)
 
+    def add_subviewer(self, subviewer):
+	self.subviewers.append(subviewer)
+
+    def remove_subviewer(self, subviewer):
+	if subviewer in self.subviewers:
+	    self.subviewers.remove(subviewer)
+
     def make_subviewer(self, master, name="", scrolling="auto"):
-	self.subwindows.append(master)
 	depth = 0
 	v = self
 	while v:
 	    depth = depth + 1
-	    v = v.parentviewer
+	    v = v.parent
 	if depth > 5:
 	    return None			# Ridiculous nesting
 	viewer = Viewer(master=master,
@@ -375,9 +420,8 @@ class Viewer(formatter.AbstractWriter):
 			stylesheet=self.stylesheet,
 			name=name,
 			scrolling=scrolling,
-			parentviewer=self)
+			parent=self)
 	viewer.context.set_baseurl(self.context.get_baseurl())
-	self.subviewers.append(viewer)
 	return viewer
 
     def find_subviewer(self, name):
@@ -389,7 +433,7 @@ class Viewer(formatter.AbstractWriter):
 		return v
 
     def find_parentviewer(self):
-	return self.parentviewer
+	return self.parent
 
 
 def test():
