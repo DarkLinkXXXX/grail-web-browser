@@ -211,8 +211,7 @@ def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
     return widget, frame
 
 
-
-def make_form_entry(parent, label, borderwidth=None):
+def make_form_entry(parent, label, borderwidth=None, name=None):
 
     """Subroutine to create a form entry.
 
@@ -225,16 +224,20 @@ def make_form_entry(parent, label, borderwidth=None):
 
     """
 
-    frame = Frame(parent)
+    if name:
+	frame = Frame(parent, name=name)
+    else:
+	frame = Frame(parent)
     frame.pack(fill=X)
 
-    label = Label(frame, text=label)
+    label = Label(frame, text=label, name="label")
     label.pack(side=LEFT)
 
     if borderwidth is None:
-	entry = Entry(frame, relief=SUNKEN)
+	entry = Entry(frame, relief=SUNKEN, name="value")
     else:
-	entry = Entry(frame, relief=SUNKEN, borderwidth=borderwidth)
+	entry = Entry(frame, relief=SUNKEN, name="value",
+		      borderwidth=borderwidth)
     entry.pack(side=LEFT, fill=X, expand=1)
 
     return entry, frame
@@ -248,7 +251,7 @@ def make_form_entry(parent, label, borderwidth=None):
 #
 def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
 			    labelwidth=0, borderwidth=None,
-			    takefocus=None):
+			    takefocus=None, name=None, class_=None):
     """Subroutine to create a form entry.
 
     Create:
@@ -260,21 +263,26 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
     """
     if label and label[-1] != ':': label = label + ':'
 
-    frame = Frame(parent)
+    if class_:
+	if name: frame = Frame(parent, name=name, class_=class_)
+	else: frame = Frame(parent, class_=class_)
+    else:
+	if name: frame = Frame(parent, name=name)
+	else: frame = Frame(parent)
 
-    label = Label(frame, text=label, width=labelwidth, anchor=E)
+    label = Label(frame, text=label, width=labelwidth, anchor=E, name="label")
     label.pack(side=LEFT)
     if entryheight == 1:
 	if borderwidth is None:
-	    entry = Entry(frame, relief=SUNKEN, width=entrywidth)
+	    entry = Entry(frame, relief=SUNKEN, width=entrywidth, name="value")
 	else:
-	    entry = Entry(frame, relief=SUNKEN, width=entrywidth,
+	    entry = Entry(frame, relief=SUNKEN, width=entrywidth, name="value",
 			  borderwidth=borderwidth)
 	entry.pack(side=RIGHT, expand=1, fill=X)
 	frame.pack(fill=X)
     else:
 	entry, tbframe = make_text_box(frame, entrywidth, entryheight, 1, 1,
-				       takefocus=takefocus)
+				       takefocus=takefocus, name="value")
 	if borderwidth is not None:
 	    entry["borderwidth"] = borderwidth
 	frame.pack(fill=BOTH, expand=1)
@@ -304,7 +312,7 @@ def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
 
 
 def make_group_frame(master, name=None, label=None, fill=Y,
-		     side=None, expand=None, font=None):
+		     side=None, expand=None, font=None, relief=GROOVE):
     """Create nested frames with a border and optional label.
 
     The outer frame is only used to provide the decorative border, to
@@ -314,7 +322,7 @@ def make_group_frame(master, name=None, label=None, fill=Y,
 
     """
     font = font or "-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*"
-    outer = Frame(master, borderwidth=2, relief=GROOVE)
+    outer = Frame(master, borderwidth=2, relief=relief)
     outer.pack(expand=expand, fill=fill, side=side)
     if label:
 	Label(outer, text=label, font=font, anchor=W).pack(fill=X)
