@@ -34,6 +34,7 @@ import ni
 import string
 import StringIO
 import regsub
+from types import StringType, TupleType
 from HTMLParser import HTMLParser
 from formatter import AbstractFormatter, AbstractWriter
 import fonts
@@ -571,11 +572,17 @@ class PSStream:
     def push_label(self, bullet):
 	if self._linestr:
 	    self.close_string()
-	if type(bullet) is type(''):
+	if type(bullet) is StringType:
 	    distance = self._font.text_width(bullet) + LABEL_TAB
 	    cooked = regsub.gsub(QUOTE_re, '\\\\\\1', bullet)
 	    self._linefp.write('gsave CR -%f 0 R (%s) S grestore\n' %
 			       (distance, cooked))
+	elif type(bullet) is TupleType:
+	    string, font = bullet
+	    cooked = regsub.gsub(QUOTE_re, '\\\\\\1', string)
+	    self._linefp.write('gsave CR (%s) dup\n')
+	    self._linefp.write('/%s findfont %d scalefont setfont\n'
+			       % (font, self._font.font_size()))
 	else:
 	    #  This had better be an EPSImage object!
 	    max_width = TAB_STOP - LABEL_TAB
@@ -1129,7 +1136,7 @@ class PrintingHTMLParser(HTMLParser):
 	    self.formatter.writer.send_eps_data(dingbat, 'absmiddle')
 	    self.formatter.assert_line_data()
 	else:
-	    self.handle_data('&%s;' % entname)
+	    HTMLParser.unknown_entityref(self, entname, terminator)
 
 
     dingbats = {}			# (name, cog) ==> EPSImage | None
