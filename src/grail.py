@@ -68,6 +68,7 @@ def main():
 	app.home = url
     browser.load(app.home)
     SafeTkinter._castrate(app.root.tk)
+    tktools.install_keybindings()
     # Make everybody who's still using urllib.urlopen go through the cache
     urllib.urlopen = app.open_url_simple
     app.go()
