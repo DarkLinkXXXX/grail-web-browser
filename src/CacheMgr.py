@@ -26,7 +26,7 @@ def parse_cache_control(s):
 	    return (s[:i], s[i+1:])
 	return (s, '')
     elts = string.splitfields(s, ',')
-    return filter(parse_directive, elts)
+    return map(parse_directive, elts)
 
 class CacheManager:
     """Manages one or more caches in hierarchy.
@@ -289,10 +289,8 @@ class CacheManager:
 	(scheme, netloc, path, parm, query, frag) = \
 		 urlparse.urlparse(item.url)
 
-	if not scheme in self.cache_protocols:
+	if query or scheme not in self.cache_protocols:
 	    return 0
-
-	code, msg, params = item.meta
 
 	# don't cache really big things
 	#####
@@ -300,6 +298,8 @@ class CacheManager:
 	#####
 	if item.datalen > self.caches[0].max_size / 4:
 	    return 0
+
+	code, msg, params = item.meta
 
 	# don't cache things that don't want to be cached
 	if params.has_key('pragma'):
@@ -319,10 +319,6 @@ class CacheManager:
 		    return 0
 		if k == 'max-age':
 		    expires = string.atoi(v)
-
-	# don't cache a query
-	if query != '':
-	    return 0
 
 	return 1
 
