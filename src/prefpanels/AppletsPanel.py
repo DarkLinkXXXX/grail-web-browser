@@ -25,10 +25,29 @@ class AppletsPanel(PrefsDialogs.Framework):
 							     width=40,
 							     height=10)
 	self.textbox.bind('<Return>', self.return_in_textbox)
+	self.loadvar = StringVar()
+	self.loadall = Radiobutton(frame,
+				   text="Load all applets",
+				   variable=self.loadvar,
+				   value="all")
+	self.loadall.pack(anchor=W)
+	self.loadsome = Radiobutton(
+	    frame,
+	    text="Load applets in indicated groups only",
+	    variable=self.loadvar,
+	    value="some")
+	self.loadsome.pack(anchor=W)
+	self.loadnone = Radiobutton(frame
+				    , text="Load no applets",
+				    variable=self.loadvar,
+				    value="none")
+	self.loadnone.pack(anchor=W)
 	self.helpbtn = Button(frame, text="Help", command=self.help)
-	self.helpbtn.pack(side=RIGHT)
-	self.RegisterUI("applet", "groups", "string",
+	self.helpbtn.pack(side=BOTTOM, anchor=E)
+	self.RegisterUI("applets", "groups", "string",
 			self.getgroups, self.setgroups)
+	self.RegisterUI("applets", "load", "string",
+			self.loadvar.get, self.loadvar.set)
 
     def getgroups(self):
 	data = self.textbox.get("1.0", END)
@@ -52,7 +71,10 @@ class AppletsPanel(PrefsDialogs.Framework):
 	if not app.browsers:
 	    print "No browser left to display help."
 	    return
-	browser = app.browsers[-1]	# Pick one
+	browser = self.browser
+	if not browser or not browser.valid():
+	    browser = app.browsers[-1]	# Pick the last valid one
+	    self.browser = browser
 	grailhome = self.app.prefs.Get('landmarks', 'grail-home-page')
 	browser.context.load(urlparse.urljoin(grailhome, HELP_URL))
 	browser.root.tkraise()
