@@ -12,7 +12,7 @@ import string
 import tktools
 import formatter
 from ImageMap import MapThunk, MapInfo
-from HTMLParser import HTMLParser, set_header_default_format
+from HTMLParser import HTMLParser, HeaderNumber
 from Viewer import MIN_IMAGE_LEADER
 import AppletLoader
 import grailutil
@@ -30,21 +30,19 @@ def init_module(prefs):
     _inited = 1
     for opt in (1, 2, 3, 4, 5, 6):
 	fmt = prefs.Get('parsing-html', 'format-h%d' % opt)
-	set_header_default_format(opt - 1, eval(fmt))
+	HeaderNumber.set_default_format(opt - 1, eval(fmt))
 
 
 class GrailHTMLParser(HTMLParser):
 
     insert_aware_tags = ['param', 'alias', 'applet']
-    iconpath = ()
 
-    def __init__(self, viewer, reload=0, iconpath=(), autonumber=None):
-	if iconpath:
-	    self.iconpath = iconpath
+    def __init__(self, viewer, reload=0, autonumber=None):
 	self.viewer = viewer
 	self.reload = reload
 	self.context = self.viewer.context
 	self.app = self.context.app
+	self.load_dingbat = self.app.load_dingbat
 	self.style_stack = []
 	self.loaded = []
 	self.insert_stack = []
@@ -80,6 +78,10 @@ class GrailHTMLParser(HTMLParser):
     def push_formatter(self, formatter):
 	self.formatter_stack.append(formatter)
 	self.formatter = formatter	## in base class
+	if self.nofill:
+	    self.handle_data = formatter.add_literal_data
+	else:
+	    self.handle_data = formatter.add_flowing_data
 	self.viewer = self.formatter.writer
 	self.context = self.viewer.context
 
@@ -88,6 +90,10 @@ class GrailHTMLParser(HTMLParser):
 	self.formatter = self.formatter_stack[-1] ## in base class
 	self.viewer = self.formatter.writer
 	self.context = self.viewer.context
+	if self.nofill:
+	    self.handle_data = self.formatter.add_literal_data
+	else:
+	    self.handle_data = self.formatter.add_flowing_data
 
     # Override HTMLParser internal methods
 
@@ -95,26 +101,33 @@ class GrailHTMLParser(HTMLParser):
 	if self.inhead and tag not in self.head_only_tags:
 	    self.element_close_maybe('head', 'title', 'style')
 	    self.inhead = 0
-	elif not self.inhead and tag in self.head_only_tags:
+	    self.handle_starttag = self.handle_starttag_nohead
+	elif not self.inhead:
+	    if tag in self.head_only_tags:
+		self.badhtml = 1
+	    self.handle_starttag = self.handle_starttag_nohead
+	if self.insert_active and tag not in self.insert_aware_tags:
+	    return
+	method(attrs)
+
+    def handle_starttag_nohead(self, tag, method, attrs):
+	if tag in self.head_only_tags:
 	    self.badhtml = 1
-	if self.insert_active:
-	    if tag not in self.insert_aware_tags:
-		return
+	if self.insert_active and tag not in self.insert_aware_tags:
+	    return
 	method(attrs)
 
     def handle_endtag(self, tag, method):
-	if self.insert_active:
-	    if tag not in self.insert_aware_tags:
-		return
+	if self.insert_active and tag not in self.insert_aware_tags:
+	    return
 	method()
 
-    def handle_data(self, data):
+    def handle_data_nohead(self, data):
 	if not self.insert_active:
-	    HTMLParser.handle_data(self, data)
+	    HTMLParser.handle_data_nohead(self, data)
 
     def anchor_bgn(self, href, name, type, target=""):
-	self.element_close_maybe('a')	# cannot nest
-	self.formatter_stack[-1].flush_softspace()
+	self.formatter.flush_softspace()
 	self.anchor = href
 	self.target = target
 	atag = utag = htag = otag = None
@@ -126,13 +139,13 @@ class GrailHTMLParser(HTMLParser):
 	    if self.app.global_history.inhistory_p(fulluri):
 		atag = 'ahist'
 	ntag = name and '#' + name or None
-	self.formatter_stack[-1].push_style(atag, utag, ntag)
+	self.formatter.push_style(atag, utag, ntag)
 	if utag:
 	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
-	self.formatter_stack[-1].flush_softspace()
-	self.formatter_stack[-1].pop_style(3)
+	self.formatter.flush_softspace()
+	self.formatter.pop_style(3)
 	self.anchor = self.target = None
 
     def do_hr(self, attrs):
@@ -140,9 +153,11 @@ class GrailHTMLParser(HTMLParser):
 	if attrs.has_key('noshade'):
 	    try:
 		rule = self.viewer.rules[-1]
-	    except:
+	    except IndexError:
 		pass
 	    else:
+		#  This seems to be a resaonable way to get
+		#  contrasting colors.
 		rule['relief'] = FLAT
 		rule['background'] = self.viewer.text['foreground']
 
@@ -197,7 +212,7 @@ class GrailHTMLParser(HTMLParser):
 	self.add_subwindow(window, align=align)
 
     def add_subwindow(self, w, align=None):
-	if self.formatter_stack[-1].nospace:
+	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
 	    self.handle_data(MIN_IMAGE_LEADER) # Non-breaking space
@@ -210,13 +225,15 @@ class GrailHTMLParser(HTMLParser):
 
     def end_title(self):
 	HTMLParser.end_title(self)
-	self.context.set_title(self.title)
+	if self.inhead:
+	    self.context.set_title(self.title)
+	else:
+	    self.badhtml = 1
 
     # Override tag: <BODY colorspecs...>
 
     def start_body(self, attrs):
-	self.element_close_maybe('head', 'style', 'title')
-	self.inhead = 0
+	HTMLParser.start_body(self, attrs)
 	if not self.app.prefs.GetBoolean('parsing-html', 'honor-colors'):
 	    return
 	if attrs.has_key('bgcolor'):
@@ -262,10 +279,10 @@ class GrailHTMLParser(HTMLParser):
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
-	self.formatter_stack[-1].push_style('center')
+	self.formatter.push_style('center')
 
     def end_center(self):
-	self.formatter_stack[-1].pop_style()
+	self.formatter.pop_style()
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
@@ -435,25 +452,27 @@ class GrailHTMLParser(HTMLParser):
 
     def header_bgn(self, tag, level, attrs):
 	self.close_paragraph()
-        self.formatter.end_paragraph(1)
+	formatter = self.formatter
+        formatter.end_paragraph(1)
 	align = self.extract_keyword('align', attrs, conv=string.lower)
-	self.formatter.push_style(align)
-        self.formatter.push_font((tag, 0, 1, 0))
+	formatter.push_style(align)
+        formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
 	dingbat = self.extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
-	    self.formatter.send_flowing_data(' ')
-	    self.formatter.assert_line_data(0)
+	    formatter.add_flowing_data(' ')
+	    formatter.assert_line_data(0)
 	elif attrs.has_key('src'):
 	    self.do_img(attrs)
-	    self.formatter.send_flowing_data(' ')
-	    self.formatter.assert_line_data(0)
+	    formatter.add_flowing_data(' ')
+	    formatter.assert_line_data(0)
 
     def header_end(self, tag, level):
-	self.formatter.pop_style()
-        self.formatter.pop_font()
-        self.formatter.end_paragraph(1)
+	formatter = self.formatter
+	formatter.pop_style()
+        formatter.pop_font()
+        formatter.end_paragraph(1)
 
     # List attribute extensions:
 
@@ -505,28 +524,16 @@ class GrailHTMLParser(HTMLParser):
 
     # Handle proposed iconic entities (see W3C working drafts or HTML 3):
 
-    entityimages = {}
-
-    def load_dingbat(self, entname):
-	try:
-	    return self.entityimages[entname]
-	except KeyError:
-	    pass
-	gifname = grailutil.which(entname + '.gif', self.iconpath)
-	if gifname:
-	    img = PhotoImage(file=gifname)
-	    self.entityimages[entname] = img
-	    return img
-	self.entityimages[entname] = None
-	return None
-
     def unknown_entityref(self, entname, terminator):
 	img = self.load_dingbat(entname)
 	if img:
 	    bgcolor = self.viewer.text['background']
-	    self.add_subwindow(Label(self.viewer.text, image = img,
-				     background = bgcolor,
-				     borderwidth = 0))
+	    if self.formatter.nospace:
+		self.handle_data(MIN_IMAGE_LEADER)
+	    self.viewer.add_subwindow(Label(self.viewer.text, image = img,
+					    background = bgcolor,
+					    borderwidth = 0))
+	    self.inhead = 0
 	else:
 	    HTMLParser.unknown_entityref(self, entname, terminator)
 

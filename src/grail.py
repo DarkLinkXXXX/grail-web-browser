@@ -452,7 +452,9 @@ class Application:
 		      strings=('OK',),
 		      )
 
-    dingbatimages = {}
+    dingbatimages = {'circle': ('\x6d', 'dingbat'),
+		     'disc': ('\x6c', 'dingbat'),
+		     'square': ('\x6f', 'dingbat')}
     iconpath = [os.path.join(grail_root, 'icons')]
 
     def load_dingbat(self, entname):

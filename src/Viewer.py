@@ -7,6 +7,7 @@ import formatter
 import string
 from Context import Context
 from Cursors import *
+from types import StringType
 
 
 MIN_IMAGE_LEADER = "\240"		# Non-breaking space
@@ -144,6 +145,8 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('left', justify = 'left')
 	self.text.tag_config('right', justify = 'right')
 	self.text.tag_config('center', justify = 'center')
+	self.text.tag_config('dingbat',
+			     font = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats')
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level*40
@@ -363,13 +366,21 @@ class Viewer(formatter.AbstractWriter):
     def send_label_data(self, data):
 ##	print "Label data:", `data`
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
-	if type(data) is type(''):
-	    self.text.insert(END, '\t'+data+'\t', tags)
-	else:
+	if type(data) is StringType:
+	    self.text.insert(END, '\t%s\t' % data, tags)
+	elif type(data) is InstanceType:
+	    #  Some sort of image specified by DINGBAT or SRC
 	    self.text.insert(END, '\t', tags)
-	    self.add_subwindow(Label(self.text, image = data,
-				     background = self.text['background'],
-				     borderwidth = 0))
+	    window = Label(self.text, image = data,
+			   background = self.text['background'],
+			   borderwidth = 0)
+	    self.subwindows.append(window)
+	    self.text.window_create(END, window=window)
+	    self.text.insert(END, '\t', tags)
+	elif type(data) is TupleType:
+	    #  (string, fonttag) pair
+	    self.text.insert(END, '\t', tags)
+	    self.text.insert(END, data[0], tags + (data[1],))
 	    self.text.insert(END, '\t', tags)
 
     def send_flowing_data(self, data):
