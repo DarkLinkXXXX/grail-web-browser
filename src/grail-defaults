@@ -183,8 +183,8 @@ preferences--panel-order: General Style Cache Applets
 #
 # Proxy default preferences:
 #
-proxies--no_proxy_enabled: 0
-proxies--manual_proxy_enabled: 0
+proxies--no_proxy_enabled: -1
+proxies--manual_proxy_enabled: -1
 proxies--no_proxy:
 proxies--ftp_proxy:
 proxies--http_proxy:
