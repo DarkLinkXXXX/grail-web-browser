@@ -557,7 +557,6 @@ class PSStream:
 
     def push_horiz_rule(self, abswidth=None, percentwidth=None,
 			height=None, align=None):
-	self.close_line()
 	if type(height) is type(0):
 	    height = 0.5 * max(height, 1)	# each unit is 0.5pts
 	else:
@@ -631,13 +630,6 @@ class PSStream:
 
     def push_hard_newline(self, blanklines=1):
 	self.close_line()
-	if self._inliteral_p:
-	    blanklines = blanklines - 1
-	if blanklines > 0:
-	    vtab = self._font.font_size() * blanklines
-## 	    _debug('bl= %d, vtab= %f, self._vtab= %f' %
-## 		   (blanklines, vtab, self._vtab))
-	    self._vtab = self._vtab + vtab
 
     def push_underline(self, flag):
 	render = flag and 'U' or 'S'
@@ -888,7 +880,8 @@ class PSWriter(AbstractWriter):
 ##	_debug('new_margin: margin=%s, level=%s' % (margin, level))
 	self.ps.push_margin(level)
 
-    def new_spacing(self, spacing): raise RuntimeError
+    def new_spacing(self, spacing):
+	raise RuntimeError, 'not yet implemented'
 
 	# semantics of STYLES is a tuple of single char strings.
 	# Right now the only styles we support are lower case 'underline' for
@@ -899,7 +892,8 @@ class PSWriter(AbstractWriter):
 
     def send_paragraph(self, blankline):
 ##	_debug('send_paragraph: %s' % blankline)
-	self.ps.push_hard_newline(blankline)
+	if blankline:
+	    self.ps.push_hard_newline()
 
     def send_line_break(self):
 ##	_debug('send_line_break')
