@@ -332,30 +332,28 @@ class HTMLParser(SGMLParser):
 	    self.lex_endtag('lh')
 	if 'p' in self.stack:
 	    self.lex_endtag('p')
-	#self.element_close_maybe('lh', 'p')
         self.formatter.end_paragraph(0)
         if self.list_stack:
 	    [dummy, label, counter, compact] = top = self.list_stack[-1]
-	    if attrs.has_key('type') and attrs['type']:
+	    if attrs.has_key('type'):
 		s = attrs['type']
 		if type(s) is StringType:
 		    label = top[1] = self.make_format(s, label)
-		else:
+		elif s:
 		    label = s
-	    if attrs.has_key('value'):
-		try: v = string.atoi(string.strip(attrs['value']))
+	    if attrs.has_key('seqnum'):
+		try: top[2] = counter = \
+			      string.atoi(string.strip(attrs['seqnum']))
 		except: top[2] = counter = counter+1
-		else: top[2] = counter = v
-	    elif attrs.has_key('seqnum'):
-		try: v = string.atoi(string.strip(attrs['seqnum']))
+	    elif attrs.has_key('value'):
+		try: top[2] = counter = \
+			      string.atoi(string.strip(attrs['value']))
 		except: top[2] = counter = counter+1
-		else: top[2] = counter = v
 	    else:
 		top[2] = counter = counter+1
 	    if attrs.has_key('skip'):
-		try: skip = string.atoi(attrs['skip'])
+		try:  top[2] = counter = counter + string.atoi(attrs['skip'])
 		except: pass
-		else: top[2] = counter = counter + skip
 	    self.formatter.add_label_data(label, counter)
         else:
 	    #  Illegal, but let's try not to be ugly:
