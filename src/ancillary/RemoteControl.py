@@ -5,10 +5,11 @@ for details on this interface.
 
 On Unix systems with the DISPLAY environment variable set, the socket
 file name will typically be /tmp/.grail-unix/$USER-$DISPLAY, and the
-directory will be protected with mode 0700.  The actual file name used
-is available from the rendezvous_name() function.  You can also define
-what file to use by setting the environment variable GRAIL_REMOTE.
-TBD: this should also be made a preference.
+directory will be protected with mode 0700.  The DISPLAY value will be
+normalized to `socket.gethostname():<DISPNUM>.<SCREENNUM>'.
+
+You can also define what file to use by setting the environment
+variable GRAIL_REMOTE.  TBD: this should also be made a preference.
 
 This module essentially opens the socket and registers it with Tk so
 when data is readable on it, registered callbacks are executed.  This
@@ -50,9 +51,6 @@ register_loads()
 
 unregister_loads()
 	unregisters the built-in LOAD and LOADNEW callbacks.
-
-rendezvous_name()
-	returns the absolute path to the socket file.
 
 
 Exported exceptions:
@@ -139,6 +137,15 @@ if not _filename:
     TMPDIR = tempfile.gettempdir()
     USER = getenv('USER') or getenv('LOGNAME')
     XDISPLAY = getenv('DISPLAY') or ':0'
+    # normalize the display name
+    cre = regex.compile('\([^:]+\)?:\([0-9]+\)\(\.\([0-9]+\)\)?')
+    if cre.match(XDISPLAY):
+	host, display, screen = cre.group(1, 2, 4)
+	if not host:
+	    host = socket.gethostname()
+	if not screen:
+	    screen = '0'
+	XDISPLAY = '%s:%s.%s' % (host, display, screen)
     _filename = os.path.join(TMPDIR,
 			     os.path.join('.grail-unix',
 					  '%s-%s' % (USER, XDISPLAY)))
