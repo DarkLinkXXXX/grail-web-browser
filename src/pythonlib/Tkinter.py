@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.34 $"
+__version__ = "$Revision: 2.35 $"
 
 try:
 	# See if modern _tkinter is present
@@ -167,7 +167,7 @@ class Misc:
 		self.tk.call('focus', 'none')
 	def focus_get(self):
 		name = self.tk.call('focus')
-		if name == 'none': return None
+		if name == 'none' or not name: return None
 		return self._nametowidget(name)
 	def tk_focusNext(self):
 		name = self.tk.call('tk_focusNext', self._w)
@@ -827,8 +827,15 @@ class Widget(Misc, Pack, Place, Grid):
 			cnf = _cnfmerge((cnf, kw))
 		self.widgetName = widgetName
 		Widget._setup(self, master, cnf)
+		classes = []
+		for k in cnf.keys():
+			if type(k) is ClassType:
+				classes.append((k, cnf[k]))
+				del cnf[k]
 		apply(self.tk.call,
 		      (widgetName, self._w) + extra + self._options(cnf))
+		for k, v in classes:
+			k.config(self, v)
 	def config(self, cnf=None, **kw):
 		# XXX ought to generalize this so tag_config etc. can use it
 		if kw:
@@ -845,10 +852,6 @@ class Widget(Misc, Pack, Place, Grid):
 			x = self.tk.split(self.tk.call(
 				self._w, 'configure', '-'+cnf))
 			return (x[0][1:],) + x[1:]
-		for k in cnf.keys():
-			if type(k) is ClassType:
-				k.config(self, cnf[k])
-				del cnf[k]
 		apply(self.tk.call, (self._w, 'configure')
 		      + self._options(cnf))
 	configure = config
@@ -951,7 +954,7 @@ class Canvas(Widget):
 	def tag_unbind(self, tagOrId, sequence):
 		self.tk.call(self._w, 'bind', tagOrId, sequence, '')
 	def tag_bind(self, tagOrId, sequence=None, func=None, add=None):
-		return self._bind((self._w, 'tag', 'bind', tagOrId),
+		return self._bind((self._w, 'bind', tagOrId),
 				  sequence, func, add)
 	def canvasx(self, screenx, gridspacing=None):
 		return self.tk.getdouble(self.tk.call(
@@ -960,7 +963,8 @@ class Canvas(Widget):
 		return self.tk.getdouble(self.tk.call(
 			self._w, 'canvasy', screeny, gridspacing))
 	def coords(self, *args):
-		return self._do('coords', args)
+		return map(self.tk.getdouble,
+                           self.tk.splitlist(self._do('coords', args)))
 	def _create(self, itemType, args, kw): # Args: (val, val, ..., cnf={})
 		args = _flatten(args)
 		cnf = args[-1]
