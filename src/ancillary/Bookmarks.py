@@ -500,6 +500,8 @@ class BookmarksDialog:
     def __init__(self, master, controller):
 	# create the basic controls of the dialog window
 	self._frame = Toplevel(master, class_='Bookmarks')
+	self._frame.title("Grail Bookmarks")
+	self._frame.iconname("Bookmarks")
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 	self._controller = controller
 	infoframe = Frame(self._frame, relief=GROOVE, borderwidth=2)
@@ -608,8 +610,7 @@ class BookmarksDialog:
 	self._frame.bind("G", self._controller.goto)
 	self._frame.bind("<KeyPress-space>", self._controller.goto)
 	itemmenu.add_command(label="Go in New Window",
-			     command=self._controller.goto_new,
-			     underline=0)
+			     command=self._controller.goto_new)
 	itembtn.config(menu=itemmenu)
 	#
 	# arrange menu
@@ -1092,12 +1093,18 @@ class BookmarksController(OutlinerController):
 	    self.set_modflag(True, quiet=True)
 
     def add_current(self, event=None):
+	# create a new node for the page in the current browser
+	browser = self.get_browser()
+	title = browser.context.get_title()
+	url = browser.context.get_baseurl()
+	self.add_link(url, title)
+
+    def add_link(self, url, title=''):
 	# create a new node to represent this addition and then fit it
 	# into the tree, updating the listbox
 	now = int(time.time())
-	browser = self.get_browser()
-	node = BookmarkNode(browser.context.get_title(),
-			    browser.context.get_baseurl(), now, now)
+	title = title or self._app.global_history.lookup_url(url)[0] or url
+	node = BookmarkNode(title, url, now, now)
 	addlocation = self.addcurloc.get()
 	if addlocation == NEW_AT_END:
 	    # add this node to the end of root's child list.
