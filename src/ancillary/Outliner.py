@@ -120,14 +120,15 @@ class OutlinerViewer:
         self._nodes.append(node)
         # calculate the string to insert into the list box
         self._insert(node)
-        if self._follow_all_children_p or node.expanded_p():
+        if node.get_nodetype() == "Folder" and node.expanded_p():
             for child in node.children():
                 self._populate(child)
 
     ## API methods
 
-    def populate(self, showroot=False):
-        if showroot: self._populate(self._root)
+    def populate(self, showroot=0):
+        if showroot:
+            self._populate(self._root)
         else:
             for child in self._root.children():
                 OutlinerViewer._populate(self, child)
@@ -136,7 +137,7 @@ class OutlinerViewer:
         self._clear()
         self._nodes = []
 
-    def insert_nodes(self, at_index, node_list, before_p=False):
+    def insert_nodes(self, at_index, node_list, before_p=0):
         if not before_p: at_index = at_index + 1
         nodecount = len(node_list)
         for node in node_list:
@@ -145,7 +146,6 @@ class OutlinerViewer:
             at_index = at_index + 1
 
     def delete_nodes(self, start, end):
-        nodecount = end - start + 1
         self._delete(start, end)
         del self._nodes[start:end+1]
 
@@ -169,14 +169,19 @@ class OutlinerViewer:
         self._select(self.index(node))
 
     def node(self, index):
-        if 0 <= index < len(self._nodes): return self._nodes[index]
-        else: return None
+        if 0 <= index < len(self._nodes):
+            return self._nodes[index]
+        else:
+            return None
 
     def index(self, node):
-        try: return self._nodes.index(node)
-        except ValueError: return None
+        try:
+            return self._nodes.index(node)
+        except ValueError:
+            return None
 
-    def count(self): return len(self._nodes)
+    def count(self):
+        return len(self._nodes)
 
 
 class OutlinerController:
