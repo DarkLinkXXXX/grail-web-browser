@@ -137,7 +137,7 @@ class AppletLoader:
 	    if self.height: frame.config(height=self.height)
 	    self.parser.add_subwindow(frame)
 	    parent = frame
-	return frame
+	return parent			#  FLD:  made to work in either case
 
     def load_it_now(self):
 	"""Invoked by ModuleReader when it is done, to create the applet."""
