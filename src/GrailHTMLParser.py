@@ -16,6 +16,7 @@ from HTMLParser import HTMLParser, HeaderNumber
 from Viewer import MIN_IMAGE_LEADER
 import AppletLoader
 import grailutil
+from grailutil import extract_attribute, extract_keyword
 
 # Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
@@ -152,7 +153,6 @@ class GrailHTMLParser(HTMLParser):
 	    HTMLParser.handle_data_nohead(self, data)
 
     def anchor_bgn(self, href, name, type, target=""):
-	self.formatter.flush_softspace()
 	self.anchor = href
 	self.target = target
 	atag = utag = htag = otag = None
@@ -160,68 +160,34 @@ class GrailHTMLParser(HTMLParser):
 	    atag = 'a'
 	    utag = '>' + href
 	    if target: utag = utag + '>' + target
-	    fulluri = self.context.baseurl(href)
-	    if self.app.global_history.inhistory_p(fulluri):
+	    self.viewer.bind_anchors(utag)
+	    if self.app.global_history.inhistory_p(self.context.baseurl(href)):
 		atag = 'ahist'
 	ntag = name and '#' + name or None
 	self.formatter.push_style(atag, utag, ntag)
-	if utag:
-	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
-	self.formatter.flush_softspace()
 	self.formatter.pop_style(3)
 	self.anchor = self.target = None
 
     def do_hr(self, attrs):
 	HTMLParser.do_hr(self, attrs)
-	if attrs.has_key('noshade'):
-	    try:
-		rule = self.viewer.rules[-1]
-	    except IndexError:
-		pass
-	    else:
-		#  This seems to be a resaonable way to get
-		#  contrasting colors.
-		rule['relief'] = FLAT
-		rule['background'] = self.viewer.text['foreground']
+	if attrs.has_key('noshade') and self.viewer.rules:
+	    rule = self.viewer.rules[-1]
+	    #  This seems to be a resaonable way to get contrasting colors.
+	    rule.config(relief = FLAT,
+			background = self.viewer.text['foreground'])
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
-	alt = '(image)'
-	ismap = None
-	usemap = None
-	src = ''
-	width = 0
-	height = 0
-	border = 2
-
-	def conv_align(val):
-	    # This should work, but Tk doesn't actually do the right
-	    # thing so for now everything gets mapped to CENTER
-	    # alignment.
-	    return CENTER
-## 	    conv = grailutil.conv_enumeration(
-## 		grailutil.conv_normstring(val),
-## 		{'top': TOP,
-## 		 'middle': CENTER,
-## 		 'bottom': BASELINE,
-## 		 # note: no HTML 2.0 equivalent of Tk's BOTTOM alignment
-## 		 })
-## 	    if conv: return conv
-## 	    else: return CENTER
-	align = grailutil.extract_attribute('align', attrs,
-					    conv=conv_align,
-					    default=CENTER)
-
-	extract = self.extract_keyword
-	alt = extract('alt', attrs, '(image)')
-	border = extract('border', attrs, 2, conv=string.atoi)
-	if attrs.has_key('ismap'):
-	    ismap = 1
-	src = extract('src', attrs, '')
-	width = extract('width', attrs, 0, conv=string.atoi)
-	height = extract('height', attrs, 0, conv=string.atoi)
+	align, usemap = CENTER, None
+	## align = extract_keyword('align', attrs, CENTER, conv=conv_align)
+	alt = extract_keyword('alt', attrs, '(image)')
+	border = extract_keyword('border', attrs, 2, conv=string.atoi)
+	ismap = attrs.has_key('ismap')
+	src = extract_keyword('src', attrs, '')
+	width = extract_keyword('width', attrs, 0, conv=string.atoi)
+	height = extract_keyword('height', attrs, 0, conv=string.atoi)
 	if attrs.has_key('usemap'):
 	    # not sure how to assert(value[0] == '#')
 	    usemap = MapThunk (self.context, attrs['usemap'][1:])
@@ -236,23 +202,19 @@ class GrailHTMLParser(HTMLParser):
 			     border, self.target, reload)
 	self.add_subwindow(window, align=align)
 
-    def add_subwindow(self, w, align=None):
+    def add_subwindow(self, w, align=CENTER):
 	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
 	    self.handle_data(MIN_IMAGE_LEADER) # Non-breaking space
-	if align is None:
-	    self.viewer.add_subwindow(w)
-	else:
-	    self.viewer.add_subwindow(w, align=align)
+	self.viewer.add_subwindow(w, align=align)
 
     # Extend tag: </TITLE>
 
     def end_title(self):
 	HTMLParser.end_title(self)
-	if self.inhead:
-	    self.context.set_title(self.title)
-	else:
+	self.context.set_title(self.title)
+	if not self.inhead:
 	    self.badhtml = 1
 
     # Override tag: <BODY colorspecs...>
@@ -311,12 +273,11 @@ class GrailHTMLParser(HTMLParser):
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
-	extract = self.extract_keyword
-        href = extract('href', attrs, '', conv=string.strip)
-        name = extract('name', attrs, '', conv=string.strip)
-	type = extract('type', attrs, '',
-		       conv=lambda v,s=string: s.lower(s.strip(v)))
-	target = extract('target', attrs, '', conv=string.strip)
+        href = extract_keyword('href', attrs, '', conv=string.strip)
+        name = extract_keyword('name', attrs, '', conv=string.strip)
+	type = extract_keyword('type', attrs, '',
+			       conv=lambda v,s=string: s.lower(s.strip(v)))
+	target = extract_keyword('target', attrs, '', conv=string.strip)
         self.anchor_bgn(href, name, type, target)
 
     # New tag: <MAP> (for client side image maps)
@@ -325,6 +286,8 @@ class GrailHTMLParser(HTMLParser):
 	# ignore maps without names
 	if attrs.has_key('name'):
 	    self.current_map = MapInfo(attrs['name'])
+	else:
+	    self.badhtml = 1
 
     def end_map(self):
 	if self.current_map:
@@ -337,8 +300,8 @@ class GrailHTMLParser(HTMLParser):
 	"""Handle the <AREA> tag."""
 
 	if self.current_map:
-	    extract = self.extract_keyword
-	    shape = string.lower(extract('shape', attrs, 'rect'))
+	    extract = extract_keyword
+	    shape = extract('shape', attrs, 'rect', conv=string.lower)
 	    coords = extract('coords', attrs, '')
 	    alt = extract('alt', attrs, '')
 	    target = extract('target', attrs, '')
@@ -353,6 +316,8 @@ class GrailHTMLParser(HTMLParser):
 		# how should this get reported to the user?
 		print "imagemap specifies bad coordinates"
 		pass
+	else:
+	    self.badhtml = 1
 
     def parse_area_coords(self, shape, text):
 	"""Parses coordinate string into list of numbers.
@@ -386,6 +351,8 @@ class GrailHTMLParser(HTMLParser):
 	    # (x,y) tuple for center, followed by int for radius
 	    coords.append((terms[0], terms[1]))
 	    coords.append(terms[2])
+	else:
+	    self.badhtml = 1
 	return coords
 
     # New tag: <APPLET>
@@ -394,7 +361,7 @@ class GrailHTMLParser(HTMLParser):
 	if self.push_object('applet'):
 	    return
 	# See http://www.javasoft.com/people/avh/applet.html for DTD
-	extract = self.extract_keyword
+	extract = extract_keyword
 	width = extract('width', attrs, conv=string.atoi)
 	height = extract('height', attrs, conv=string.atoi)
 	menu = extract('menu', attrs)
@@ -432,9 +399,9 @@ class GrailHTMLParser(HTMLParser):
     def do_app(self, attrs):
 	mod, cls, src = self.get_mod_class_src(attrs)
 	if not (mod and cls): return
-	width = self.extract_keyword('width', attrs, conv=string.atoi)
-	height = self.extract_keyword('height', attrs, conv=string.atoi)
-	menu = self.extract_keyword('menu', attrs)
+	width = extract_attribute('width', attrs, conv=string.atoi, delete=1)
+	height = extract_attribute('height', attrs, conv=string.atoi, delete=1)
+	menu = extract_attribute('menu', attrs, delete=1)
 	mod = mod + ".py"
 	apploader = AppletLoader.AppletLoader(
 	    self, code=mod, name=cls, codebase=src,
@@ -450,9 +417,9 @@ class GrailHTMLParser(HTMLParser):
     # Subroutines for <APP> tag parsing
 
     def get_mod_class_src(self, keywords):
-	cls = self.extract_keyword('class', keywords)
-	src = self.extract_keyword('src', keywords)
-	if cls and '.' in cls:
+	cls = extract_attribute('class', keywords, '', delete=1)
+	src = extract_attribute('src', keywords, delete=1)
+	if '.' in cls:
 	    i = string.rfind(cls, '.')
 	    mod = cls[:i]
 	    cls = cls[i+1:]
@@ -460,30 +427,17 @@ class GrailHTMLParser(HTMLParser):
 	    mod = cls
 	return mod, cls, src
 
-    def extract_keyword(self, key, keywords, default=None, conv=None):
-	if keywords.has_key(key):
-	    value = keywords[key]
-	    del keywords[key]
-	    if not conv:
-		return value
-	    try:
-		return conv(value)
-	    except:
-		return default
-	else:
-	    return default
-
     # Heading support for dingbats (iconic entities):
 
     def header_bgn(self, tag, level, attrs):
 	self.close_paragraph()
 	formatter = self.formatter
         formatter.end_paragraph(1)
-	align = self.extract_keyword('align', attrs, conv=string.lower)
+	align = extract_keyword('align', attrs, conv=string.lower)
 	formatter.push_alignment(align)
         formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
-	dingbat = self.extract_keyword('dingbat', attrs)
+	dingbat = extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
 	    formatter.add_flowing_data(' ')
@@ -515,7 +469,7 @@ class GrailHTMLParser(HTMLParser):
 	    if img: attrs['type'] = img
 
     # Override make_format():
-    # This allows disc/circle/square to be mapped to images.
+    # This allows disc/circle/square to be mapped to dingbats.
 
     def make_format(self, format, default='disc'):
 	fmt = format or default
@@ -563,13 +517,30 @@ class GrailHTMLParser(HTMLParser):
 		else:
 		    self.handle_data(s)
 	    else:
-		bgcolor = self.viewer.text['background']
 		if self.formatter.nospace:
 		    self.handle_data(MIN_IMAGE_LEADER)
+		bgcolor = self.viewer.text['background']
 		self.viewer.add_subwindow(Label(self.viewer.text, image = img,
 						background = bgcolor,
 						borderwidth = 0))
 	    self.inhead = 0
 	else:
+	    #  Could not load image, allow parent class to handle:
 	    HTMLParser.unknown_entityref(self, entname, terminator)
 
+
+
+def conv_align(val):
+    # This should work, but Tk doesn't actually do the right
+    # thing so for now everything gets mapped to CENTER
+    # alignment.
+    return CENTER
+    conv = grailutil.conv_enumeration(
+	grailutil.conv_normstring(val),
+	{'top': TOP,
+	 'middle': CENTER,
+	 'bottom': BASELINE,
+	 # note: no HTML 2.0 equivalent of Tk's BOTTOM alignment
+	 })
+    if conv: return conv
+    else: return CENTER

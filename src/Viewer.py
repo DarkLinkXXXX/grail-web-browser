@@ -8,6 +8,7 @@ import string
 from Context import Context
 from Cursors import *
 from types import StringType
+from urlparse import urljoin
 
 
 DINGBAT_FONT = None
@@ -346,12 +347,10 @@ class Viewer(formatter.AbstractWriter):
 
     def send_paragraph(self, blankline):
 	self.pendingdata = self.pendingdata + ('\n' * (blankline + 1))
-	#self.text.insert(END, '\n' * (blankline + 1))
 ##	self.text.update_idletasks()
 
     def send_line_break(self):
 	self.pendingdata = self.pendingdata + '\n'
-	#self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
 
     def send_hor_rule(self, abswidth=None, percentwidth=1.0,
@@ -372,6 +371,7 @@ class Viewer(formatter.AbstractWriter):
 	    align = self.align
 	    if self.pendingdata:
 		self.text.insert(END, self.pendingdata)
+		self.pendingdata = ''
 	if align:
 	    #  not needed on the left
 	    self.text.insert(END, self.pendingdata + MIN_IMAGE_LEADER, align)
@@ -380,8 +380,7 @@ class Viewer(formatter.AbstractWriter):
 ##	self.text.update_idletasks()
 
     def rule_width(self):
-	width = self.text.winfo_width() - 16 - 2*string.atoi(self.text['padx'])
-	return width
+	return self.text.winfo_width() - 16 - 2*string.atoi(self.text['padx'])
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
@@ -405,7 +404,7 @@ class Viewer(formatter.AbstractWriter):
 		self.text.insert(END, data[0], tags + (data[1],))
 		self.pendingdata = '\t'
 	    else:
-		self.text.insert(END, self.pending_data + ('\t%s\t' % data[0]),
+		self.text.insert(END, self.pendingdata + ('\t%s\t' % data[0]),
 				 tags)
 		self.pendingdata = ''
 
@@ -424,15 +423,15 @@ class Viewer(formatter.AbstractWriter):
 
     def anchor_enter(self, event):
 	url, target = self.split_target(self.find_tag_url())
-	if url:
-	    if url[0] != '#':
-		url = self.context.get_baseurl(url)
-	else:
-	    url = "???"
+	#if url:
+	#    if url[0] != '#':
+	#	url = self.context.get_baseurl(url)
+	#else:
+	url = url or "???"
 	if not target:
 	    target = self.context.get_target()
 	if target:
-	    message =  "%s in %s" % (url, target)
+	    message = "%s in %s" % (url, target)
 	else:
 	    message = url
 	self.enter_message(message)
@@ -457,7 +456,7 @@ class Viewer(formatter.AbstractWriter):
 	url = self.find_tag_url()
 	if url:
 	    self.linkinfo = ""
-	    url, target = self.split_target(url)
+	    url, target = self.split_target(self.context.get_baseurl(url))
 	    self.add_temp_tag()
 	    self.context.follow(url, target)
 
