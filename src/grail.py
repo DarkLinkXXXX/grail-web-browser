@@ -70,6 +70,10 @@ def main():
 
 class MyURLopener(urllib.URLopener):
 
+    def __init__(self, app):
+	self.app = app
+	urllib.URLopener.__init__(self)
+
     openers = {}			# XXX Should be in Application class
     
     def open_unknown(self, fullurl):
@@ -85,27 +89,13 @@ class MyURLopener(urllib.URLopener):
 	return urllib.URLopener.open_unknown(self, fullurl)
 
     def find_extension(self, type):
-	# XXX Some of this needs to be moved into the Application class
-	home = getenv("HOME") or os.curdir
-	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
-	protodir = os.path.join(graildir, "protocols")
-	if protodir not in sys.path: sys.path.insert(0, protodir)
-	cmd = "import %s; opener = %s.open_%s" % (type, type, type)
+	mod = self.app.find_extension("protocols", type)
+	if not mod: return None
+	func = "open_" + type
 	try:
-	    exec cmd
-	    return opener
-	except ImportError:
+	    return getattr(mod, func)
+	except AttributeError:
 	    return None
-	except:
-	    print "-"*40
-	    print "Exception occurred during import of %s:" % type
-	    traceback.print_exc()
-	    print "-"*40
-	    return None
-
-def getenv(s):
-    if os.environ.has_key(s): return os.environ[s]
-    return None
 
 
 class Application:
@@ -117,12 +107,16 @@ class Application:
 	self.home = DEFAULT_HOME
 	self.image_cache = {}
 	self.rexec = AppletRExec(None, 2)
-	self.urlopener = MyURLopener()
-	e = read_mime_types("/usr/local/etc/httpd/conf/mime.types") or \
-	    read_mime_types("/usr/local/lib/netscape/mime.types") or {}
-	for key, value in self.extensions_map.items():
-	    if not e.has_key(key): e[key] = value
-	self.extensions_map = e
+	self.urlopener = MyURLopener(self)
+	self.graildir = getgraildir()
+	s = \
+	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
+	  read_mime_types("/usr/local/lib/netscape/mime.types") or \
+	  read_mime_types("/usr/local/etc/httpd/conf/mime.types") or \
+	  {}
+	for key, value in self.suffixes_map.items():
+	    if not s.has_key(key): s[key] = value
+	self.suffixes_map = s
 	self.root = Tk()
 	self.root.withdraw()
 ##	self.quit_button = Button(self.root, text='Quit', command=self.quit)
@@ -143,6 +137,40 @@ class Application:
 	# Exercise the Python interpreter regularly so keyboard
 	# interrupts get through
 	self.root.tk.createtimerhandler(KEEPALIVE_TIMER, self.keep_alive)
+
+    html_start_tags = {}
+    html_end_tags = {}
+
+    def find_html_start_extension(self, tag):
+	if self.html_start_tags.has_key(tag):
+	    return self.html_start_tags[tag]
+	mod = self.find_extension('html', tag)
+	if not mod:
+	    self.html_start_tags[tag] = None
+	    return None
+	for name in dir(mod):
+	    if name[:6] == 'start_':
+		t = name[6:]
+		if t and not self.html_start_tags.has_key(t):
+		    self.html_start_tags[t] = getattr(mod, name)
+	    elif name[:4] == 'end_':
+		t = name[4:]
+		if t and not self.html_end_tags.has_key(t):
+		    self.html_end_tags[t] = getattr(mod, name)
+	    elif name[:3] == 'do_':
+		t = name[3:]
+		if t and not self.html_start_tags.has_key(t):
+		    self.html_start_tags[t] = getattr(mod, name)
+	if not self.html_start_tags.has_key(tag):
+	    print "Hmm... module html/%s doesn't define start_%s" % (tag, tag)
+	    self.html_start_tags[tag] = None
+	return self.html_start_tags[tag]
+
+    def find_html_end_extension(self, tag):
+	if self.html_end_tags.has_key(tag):
+	    return self.html_end_tags[tag]
+	else:
+	    return None
 
     def get_image(self, url, force=0):
 	if not url or not self.load_images and not force:
@@ -265,6 +293,24 @@ class Application:
 	'x-compress': 'compress -d',
 	}
 
+    def find_extension(self, subdir, module):
+	subdir = os.path.join(self.graildir, subdir)
+	if subdir not in sys.path:
+	    sys.path.insert(0, subdir)
+	try:
+	    return __import__(module)
+	except ImportError:
+	    return None
+	except:
+	    self.exception_dialog("while importing %s" % module)
+	    return None
+
+    def exception_dialog(self, message=""):
+	print '-'*40
+	print "An exception occurred", message
+	traceback.print_exc()
+	print '-'*40
+
     def error_dialog(self, exc, msg):
 	# Display an error dialog.
 	# Return when the user clicks OK
@@ -301,10 +347,10 @@ class Application:
 	    base, ext = posixpath.splitext(base)
 	else:
 	    encoding = None
-	if self.extensions_map.has_key(ext):
-	    return self.extensions_map[ext], encoding
-	elif self.extensions_map.has_key(string.lower(ext)):
-	    return self.extensions_map[string.lower(ext)], encoding
+	if self.suffixes_map.has_key(ext):
+	    return self.suffixes_map[ext], encoding
+	elif self.suffixes_map.has_key(string.lower(ext)):
+	    return self.suffixes_map[string.lower(ext)], encoding
 	else:
 	    return 'text/plain', encoding
 
@@ -313,7 +359,7 @@ class Application:
 	'.Z': 'compress',
 	}
 
-    extensions_map = {
+    suffixes_map = {
 	'.a': 'application/octet-stream',
 	'.ai': 'application/postscript',
 	'.aif': 'audio/x-aiff',
@@ -356,6 +402,8 @@ class Application:
 	'.pgm': 'image/x-portable-graymap',
 	'.pnm': 'image/x-portable-anymap',
 	'.ppm': 'image/x-portable-pixmap',
+	'.py': 'text/x-python',
+	'.pyc': 'application/x-python-code',
 	'.ps': 'application/postscript',
 	'.qt': 'video/quicktime',
 	'.ras': 'image/x-cmu-raster',
@@ -407,11 +455,36 @@ def read_mime_types(file):
 		del words[i:]
 		break
 	if not words: continue
-	type, extensions = words[0], words[1:]
-	for e in extensions:
-	    map['.'+e] = type
+	type, suffixes = words[0], words[1:]
+	for suff in suffixes:
+	    map['.'+suff] = type
     f.close()
     return map
+
+
+# XXX Unix specific stuff
+
+def getgraildir():
+    return getenv("GRAILDIR") or os.path.join(gethome(), ".grail")
+
+def gethome():
+    try:
+	home = getenv("HOME")
+	if not home:
+	    import pwd
+	    user = getenv("USER") or getenv("LOGNAME")
+	    if not user:
+		pwent = pwd.getpwuid(os.getuid())
+	    else:
+		pwent = pwd.getpwnam(user)
+	    home = pwent[6]
+	return home
+    except (KeyError, ImportError):
+	return os.curdir
+
+def getenv(s):
+    if os.environ.has_key(s): return os.environ[s]
+    return None
 
 
 main()
