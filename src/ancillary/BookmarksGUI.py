@@ -1425,10 +1425,8 @@ class BookmarksMenuViewer(OutlinerViewer):
             leaf = BookmarksMenuLeaf(node, self._controller)
             menu.add_command(label=node.title(), command=leaf.goto)
         elif nodetype == "Folder":
-            submenu = Menu(menu, tearoff='No')
+            submenu = Menu(menu, tearoff=0)
             self._menustack.append(submenu)
-        elif nodetype == "Alias":
-            menu.add_command(label="(Folder alias)")
             menu.add_cascade(label=node.title(), menu=submenu)
 
 class BookmarksMenu:
