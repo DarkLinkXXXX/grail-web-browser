@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Browser class."""
 
 
@@ -27,7 +23,9 @@ TITLE_PREFIX = "Grail: "
 # If we have an icon file, replace tktools.make_toplevel so that it gets
 # set up as the icon, otherwise don't do anything magic.
 #
-_iconxbm_file = grailutil.which('icon.xbm')
+_mydir = os.path.dirname(os.path.abspath(__file__))
+_iconxbm_file = grailutil.which(
+    'icon.xbm', (_mydir, os.path.join(_mydir, "data")))
 if _iconxbm_file:
     _iconmask_file = os.path.join(os.path.dirname(_iconxbm_file),
                                   "iconmask.xbm")

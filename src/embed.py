@@ -22,5 +22,5 @@ def getBrowser(**kw):
 if __name__ == '__main__':
     setup()
     b = getBrowser()
-    b.load('file:about.html')
+    b.load('grail:data/about.html')
     grail.app.go()

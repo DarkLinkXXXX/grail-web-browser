@@ -61,7 +61,7 @@ Options:
     -g <geom>, --geometry <geom> : initial window geometry
     -d <display>, --display <display> : override $DISPLAY""" % sys.argv[0]
 
-def main(argv=None):
+def main(args=None):
     prefs = GrailPrefs.AllPreferences()
     # XXX Disable cache for NT
     if sys.platform == 'win32':
@@ -71,13 +71,13 @@ def main(argv=None):
     if prefs.GetBoolean('security', 'enable-ilu'):
         try: import ilu_tk
         except ImportError: pass
-    if argv is not None:
+    if args is not None:
         embedded = 1
     else:
-        argv = sys.argv[1:]
+        args = sys.argv[1:]
         embedded = 0
     try:
-        opts, args = getopt.getopt(argv, 'd:g:iq',
+        opts, args = getopt.getopt(args, 'd:g:iq',
                                    ['display=', 'geometry=', 'noimages'])
         if len(args) > 1:
             raise getopt.error, "too many arguments"
@@ -234,7 +234,7 @@ class Application(BaseApplication.BaseApplication):
     def __init__(self, prefs=None, display=None):
         self.root = Tk(className='Grail', screenName=display)
         self.root.withdraw()
-        resources = os.path.join(script_dir, "Grail.ad")
+        resources = os.path.join(script_dir, "data", "Grail.ad")
         if os.path.isfile(resources):
             self.root.option_readfile(resources, "startupFile")
         BaseApplication.BaseApplication.__init__(self, prefs)
@@ -305,7 +305,7 @@ class Application(BaseApplication.BaseApplication):
             self.iostatuspanel.reopen()
 
     def maybe_quit(self):
-        if not self.embedded and not self.browsers:
+        if not (self.embedded or self.browsers):
             self.quit()
 
     def go(self):
