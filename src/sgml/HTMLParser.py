@@ -982,7 +982,7 @@ class HTMLParser(SGMLGatherer.BaseSGMLGatherer):
 
     # --- Grail magic: processing instructions!
 
-    def lex_pi(self, stuff):
+    def handle_pi(self, stuff):
 	fields = string.split(string.lower(stuff))
 	if not fields or fields[0] != 'grail':
 	    self.unknown_pi(fields)
