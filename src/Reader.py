@@ -119,15 +119,22 @@ class Reader(BaseReader):
 	    tuple = (tuple[0], netloc) + tuple[2:]
 	realurl = urlparse.urlunparse(tuple)
 
-	if self.app:
-	    api = self.app.open_url(realurl,
-				    self.method, self.params, self.reload,
-				    data=self.data)
+	# Check first to see if the previous Context has any protocol handlers
+	api = self.last_context.get_local_api(realurl, self.method,
+					      self.params)
+	if api:
+	    # Remove any previously installed local handlers
+	    self.last_context.remove_local_api_handlers()
 	else:
-	    import protocols
-	    api = protocols.protocol_access(realurl,
-					    self.method, self.params,
-					    data=self.data)
+	    if self.app:
+		api = self.app.open_url(realurl,
+					self.method, self.params, self.reload,
+					data=self.data)
+	    else:
+		import protocols
+		api = protocols.protocol_access(realurl,
+						self.method, self.params,
+						data=self.data)
 
 	BaseReader.__init__(self, self.last_context, api)
 
