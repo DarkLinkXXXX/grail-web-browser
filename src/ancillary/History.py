@@ -142,18 +142,18 @@ class GlobalHistory:
 
 
 class History:
-    def __init__(self, app=None):
+    def __init__(self, app):
 	self._history = []
 	self._dialog = None
 	self._current = 0
+	self._app = app
 	# initialize global history the first time through
-	if app:
-	    try: self._ghistory = app.global_history
-	    except AttributeError:
-		self._ghistory = app.global_history = GlobalHistory(app)
+	try: self._ghistory = app.global_history
+	except AttributeError:
+	    self._ghistory = app.global_history = GlobalHistory(app)
 
     def clone(self):
-	newhist = History()
+	newhist = History(self._app)
 	newhist._history = self._history[:]
 	newhist._current = self._current
 	return newhist
