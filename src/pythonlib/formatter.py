@@ -67,6 +67,8 @@ class AbstractFormatter:
 	self.softspace = 0
 
     def format_counter(self, format, counter):
+	if type(format) is not type(''):
+	    return format
         label = ''
         for c in format:
             try:
