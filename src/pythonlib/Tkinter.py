@@ -20,6 +20,7 @@ except ImportError:
 TclError = tkinter.TclError
 from types import *
 from Tkconstants import *
+import string; _string = string; del string
 
 TkVersion = eval(tkinter.TK_VERSION)
 TclVersion = eval(tkinter.TCL_VERSION)
@@ -56,8 +57,7 @@ def _tkerror(err):
 	pass
 
 def _exit(code='0'):
-	import sys
-	sys.exit(getint(code))
+	raise SystemExit, code
 
 _varnum = 0
 class Variable:
@@ -346,9 +346,8 @@ class Misc:
 	def _bind(self, what, sequence, func, add):
 		add = add and '+' or ''
 		if func:
-			import string
 			name = self._register(func, self._substitute)
-			cmd = name + " " + string.join(self._subst_format)
+			cmd = name + " " + _string.join(self._subst_format)
 			cmd = "set _tkinter_break [%s]\n" % cmd
 			cmd = cmd + 'if {"$_tkinter_break" == "break"} break\n'
 			apply(self.tk.call, what + (sequence, add + cmd))
@@ -398,7 +397,7 @@ class Misc:
 		if name[0] == '.':
 			w = w._root()
 			name = name[1:]
-		from string import find
+		find = _string.find
 		while name:
 			i = find(name, '.')
 			if i >= 0:
@@ -409,13 +408,16 @@ class Misc:
 			name = tail
 		return w
 	def _register(self, func, subst=None):
-		f = self._wrap(func, subst)
+		f = CallWrapper(func, subst, self).__call__
 		name = `id(f)`
-		if hasattr(func, 'im_func'):
+		try:
 			func = func.im_func
-		if hasattr(func, '__name__') and \
-		   type(func.__name__) == type(''):
+		except AttributeError:
+			pass
+		try:
 			name = name + func.__name__
+		except AttributeError:
+			pass
 		self.tk.createcommand(name, f)
 		return name
 	register = _register
@@ -458,8 +460,6 @@ class Misc:
 		exc, val, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
 		root = self._root()
 		root.report_callback_exception(exc, val, tb)
-	def _wrap(self, func, subst=None):
-		return CallWrapper(func, subst, self).__call__
 
 class CallWrapper:
 	def __init__(self, func, subst, widget):
@@ -594,8 +594,7 @@ class Tk(Misc, Wm):
 	def __str__(self):
 		return self._w
 	def readprofile(self, baseName, className):
-		##print __import__
-		import os, pdb
+		import os
 		if os.environ.has_key('HOME'): home = os.environ['HOME']
 		else: home = os.curdir
 		class_tcl = os.path.join(home, '.%s.tcl' % className)
@@ -603,7 +602,6 @@ class Tk(Misc, Wm):
 		base_tcl = os.path.join(home, '.%s.tcl' % baseName)
 		base_py = os.path.join(home, '.%s.py' % baseName)
 		dir = {'self': self}
-		##pdb.run('from Tkinter import *', dir)
 		exec 'from Tkinter import *' in dir
 		if os.path.isfile(class_tcl):
 			print 'source', `class_tcl`
