@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.42 1996/05/06 16:03:29 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.43 1996/05/07 13:38:50 fdrake Exp $'
 
 
 import string
@@ -89,7 +89,7 @@ class TableSubParser:
 	    col = Col(attrs)
 	    if ti.colgroups:
 		last_colgroup = ti.colgroups[-1]
-		last_colgroup.append(col)
+		last_colgroup.cols.append(col)
 	    else:
 		ti.cols.append(col)
 
@@ -815,6 +815,7 @@ class ContainedText(AttrElem):
 			      scrolling=0,
 			      stylesheet=parentviewer.stylesheet,
 			      parent=parentviewer)
+	self._viewer.RULE_WIDTH_MAGIC = self._viewer.RULE_WIDTH_MAGIC - 6
 	# for callback notification
 	self._fw = self._viewer.frame
 	self._tw = self._viewer.text
