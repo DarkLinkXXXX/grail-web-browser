@@ -33,10 +33,6 @@ import filetypes
 import grailutil
 # TBD: hack!
 grailutil._grail_root = grail_root
-try:
-    import ilu_tk
-except:
-    ilu_tk = 0
 import getopt
 import string
 import urllib
@@ -73,6 +69,11 @@ Options:
 
 def main():
     prefs = GrailPrefs.AllPreferences()
+    global ilu_tk
+    ilu_tk = 0
+    if prefs.GetBoolean('security', 'enable-ilu'):
+	try: import ilu_tk
+	except ImportError: pass
     try:
 	opts, args = getopt.getopt(sys.argv[1:], 'g:i',
 				   ['geometry=', 'noimages'])
