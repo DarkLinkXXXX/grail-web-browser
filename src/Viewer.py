@@ -289,13 +289,14 @@ class Viewer(formatter.AbstractWriter):
 
     def configure_tags_fixed(self):
 	# These are used in aligning block-level elements:
-	self.text.tag_config('right', justify = 'right')
-	self.text.tag_config('center', justify = 'center')
+	self.text.tag_config('right', justify='right')
+	self.text.tag_config('center', justify='center')
 	#  Typographic controls:
-	self.text.tag_config('underline', underline = 1)
-	self.text.tag_config('overstrike', overstrike = 1)
-	self.text.tag_config('red', foreground = 'red')
-	self.text.tag_config('ins', foreground = 'darkgreen')
+	self.text.tag_config('pre', wrap='none')
+	self.text.tag_config('underline', underline=1)
+	self.text.tag_config('overstrike', overstrike=1)
+	self.text.tag_config('red', foreground='red')
+	self.text.tag_config('ins', foreground='darkgreen')
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level * INDENTATION_WIDTH
