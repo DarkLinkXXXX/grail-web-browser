@@ -755,11 +755,9 @@ class Reader(BaseReader):
 
     def find_parser_extension(self, content_type):
         app = self.context.app
-        modname, mod = app.find_type_extension('filetypes', content_type)
-        if modname:
-            pname = "parse_" + modname
-            if hasattr(mod, pname):
-                return getattr(mod, pname)
+        ext = app.find_type_extension('filetypes', content_type)
+        if ext:
+            return ext.parse
         return None
 
 

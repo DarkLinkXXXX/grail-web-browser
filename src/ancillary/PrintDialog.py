@@ -77,12 +77,11 @@ def PrintDialog(context, url, title):
         # create an alert of some sort....
         return
     ctype, ctype_params = grailutil.conv_mimetype(ctype)
-    name, mod = context.app.find_type_extension("printing.filetypes", ctype)
-    if (ctype != "application/postscript"
-        and not (mod and hasattr(mod, "parse"))):
+    mod = context.app.find_type_extension("printing.filetypes", ctype)
+    if ctype != "application/postscript" and not mod.parse:
         context.error_dialog(
             "Unprintable document",
-            "No printing module is available for the %s media type." % ctype)
+            "No printing support is available for the %s media type." % ctype)
         return
     RealPrintDialog(context, url, title, infp, ctype)
 
@@ -216,7 +215,7 @@ class RealPrintDialog:
             self.add_entry(e)
 
         self.mod = self.get_type_extension()
-        if hasattr(self.mod, "add_options"):
+        if self.mod.add_options:
             Frame(top, height=8).pack()
             self.mod.add_options(self, settings, top)
 
@@ -234,7 +233,7 @@ class RealPrintDialog:
 
     def get_type_extension(self):
         return self.context.app.find_type_extension(
-            "printing.filetypes", self.ctype)[1]
+            "printing.filetypes", self.ctype)
 
     def new_checkbox(self, parent, description, value):
         var = BooleanVar(parent)
@@ -361,7 +360,7 @@ class RealPrintDialog:
             return
         settings.set_fontsize(self.fontsize.get())
         settings.orientation = string.lower(self.orientation.get())
-        if hasattr(self.mod, "update_settings"):
+        if self.mod.update_settings:
             self.mod.update_settings(self, settings)
 
 
