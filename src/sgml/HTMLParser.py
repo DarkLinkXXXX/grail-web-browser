@@ -262,6 +262,7 @@ class HTMLParser(SGMLParser):
 	    #  Remove <P> surgically:
 	    del self.stack[-1]
 	    self.end_p(parbreak = 0)
+	self.formatter.add_line_break()
 
     start_div = start_p
     end_div = end_p
@@ -369,7 +370,7 @@ class HTMLParser(SGMLParser):
 		format = attrs['type']
 	    else:
 		format = ('disc', 'circle', 'square')[len(self.list_stack) % 3]
-	    label = self.make_format(format)
+	    label = self.make_format(format, listtype='ul')
         self.list_stack.append(['ul', label, 0,
 				#  Propogate COMPACT once set:
 				compact or attrs.has_key('compact'),
@@ -394,11 +395,11 @@ class HTMLParser(SGMLParser):
 	    self.implied_end_p()	# even though list_trim_stack() will
 	self.list_trim_stack()		# close it.
 	self.formatter.end_paragraph(0)
-	[dummy, label, counter, compact, depth] = top = self.list_stack[-1]
+	[listtype, label, counter, compact, depth] = top = self.list_stack[-1]
 	if attrs.has_key('type'):
 	    s = attrs['type']
 	    if type(s) is StringType:
-		label = top[1] = self.make_format(s, label)
+		label = top[1] = self.make_format(s, label, listtype=listtype)
 	    elif s:
 		label = s
 	if attrs.has_key('seqnum'):
@@ -421,31 +422,23 @@ class HTMLParser(SGMLParser):
 	self.badhtml = 1
 	self.element_close_maybe('p', 'lh')
 	self.formatter.end_paragraph(0)
-	format, value = '*', 1
-	if attrs.has_key('value'):
-	    try: value = string.atoi(attrs['value'])
-	    except: pass
-	    else: format = '1'
-	elif attrs.has_key('seqnum'):
-	    try: value = string.atoi(attrs['seqnum'])
-	    except: pass
-	    else: format = '1'
+	format = '*'
 	if attrs.has_key('type') and (type(attrs['type']) is StringType):
 	    format = self.make_format(attrs['type'], format)
 	else:
-	    format = self.make_format(format, '*')
+	    format = self.make_format(format, 'disc', listtype='ul')
 	if type(format) is StringType:
-	    data = self.formatter.format_counter(format, value) + ' '
+	    data = self.formatter.format_counter(format, 1) + ' '
 	    self.formatter.add_flowing_data(data)
 
-    def make_format(self, format, default='*'):
+    def make_format(self, format, default='*', listtype=None):
 	if not format:
 	    format = default
-	if format in ('1', 'a', 'A', 'i', 'I'):
+	if format in ('1', 'a', 'A', 'i', 'I') and listtype == 'ol':
 	    format = format + '.'
 	elif type(format) is not StringType:
 	    pass
-	elif string.lower(format) in ('disc', 'circle', 'square'):
+	elif listtype == 'ul':
 	    format = '*'
 	else:
 	    format = string.strip(format)
@@ -461,7 +454,7 @@ class HTMLParser(SGMLParser):
 	    compact = 0
         self.formatter.push_margin('ol')
 	if attrs.has_key('type'):
-	    label = self.make_format(attrs['type'], '1')
+	    label = self.make_format(attrs['type'], '1', listtype='ol')
 	else:
 	    label = '1.'
 	start = 0
