@@ -3,7 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 # Character width information for PostScript font `ITC Zapf Dingbats'
-# generated from the Adobe Font Metric file `zd______.afm'.  Adobe
+# generated from the Adobe Font Metric file `../../../adobe/zd______.afm'.  Adobe
 # copyright notice follows:
 #
 # Copyright (c) 1985, 1987, 1988, 1989 Adobe Systems Incorporated.  All rights reserved.ITC Zapf Dingbats is a registered trademark of International Typeface Corporation.

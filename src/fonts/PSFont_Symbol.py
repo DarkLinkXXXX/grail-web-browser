@@ -3,7 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 # Character width information for PostScript font `Symbol'
-# generated from the Adobe Font Metric file `sy______.afm'.  Adobe
+# generated from the Adobe Font Metric file `../../../adobe/sy______.afm'.  Adobe
 # copyright notice follows:
 #
 # Copyright (c) 1985, 1987, 1989, 1990 Adobe Systems Incorporated.  All rights reserved.

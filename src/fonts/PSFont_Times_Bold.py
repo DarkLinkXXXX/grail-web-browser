@@ -3,7 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 # Character width information for PostScript font `Times Bold'
-# generated from the Adobe Font Metric file `tib_____.afm'.  Adobe
+# generated from the Adobe Font Metric file `../../../adobe/tib_____.afm'.  Adobe
 # copyright notice follows:
 #
 # Copyright (c) 1985, 1987, 1989, 1990 Adobe Systems Incorporated.  All Rights Reserved.Times is a trademark of Linotype AG and/or its subsidiaries.
@@ -31,7 +31,7 @@ font = PSFont.PSFont('Times-Bold', 'Times Bold',
      0,    0,    0,    0,    0,    0,    0,    0,
      0,    0,    0,    0,    0,    0,    0,    0,
      0,  333,  500,  500,  167,  500,  500,  500,
-   500,  278,  500,  500,  333,  333,  556,  556,
+   500,  747,  500,  500,  333,  333,  556,  556,
      0,  500,  500,  500,  250,    0,  540,  350,
    333,  500,  500,  500, 1000, 1000,    0,  500,
      0,  333,  333,  333,  333,  333,  333,  333,

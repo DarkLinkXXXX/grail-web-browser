@@ -3,7 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 # Character width information for PostScript font `Courier Oblique'
-# generated from the Adobe Font Metric file `coo_____.afm'.  Adobe
+# generated from the Adobe Font Metric file `../../../adobe/coo_____.afm'.  Adobe
 # copyright notice follows:
 #
 # Copyright (c) 1989, 1990, 1991 Adobe Systems Incorporated. All rights reserved.
