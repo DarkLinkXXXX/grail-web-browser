@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.16 $"
+__version__ = "$Revision: 2.17 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -162,7 +162,7 @@ class Framework:
 	frame = Frame(parent, bd=use_bd, relief=use_relief)
 	self.PrefsWidgetLabel(frame, label, label_width=label_width)
 	if entry_height == 1:
-	    entry = Entry(frame, relief=SUNKEN, border=2, width=entry_width)
+	    entry = Entry(frame, relief=SUNKEN, border=1, width=entry_width)
 	    entry.pack(side=use_side, expand=use_expand, fill=use_fill)
 	    getter, setter = entry.get, self.widget_set_func(entry)
 	else:
@@ -287,7 +287,7 @@ class Framework:
 	self.create_disposition_bar(widget)
 
 	# Frame for the user to build within:
-	container = Frame(widget, width=(width + 10), relief=GROOVE, bd=2)
+	container = Frame(widget, width=(width + 10), relief=GROOVE, bd=1)
 	container.pack(side=TOP, fill=BOTH, expand=1,
 		       padx='4m', pady='2m') 
 	self.framework_widget = Frame(container)
