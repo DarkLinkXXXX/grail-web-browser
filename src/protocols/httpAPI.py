@@ -22,6 +22,13 @@ import mimetools
 from assert import assert
 from httplib import replyprog
 import __main__
+import select
+import regex
+import StringIO
+
+
+# Search for blank line following HTTP headers
+endofheaders = regex.compile("\n[ \t]*\r?\n")
 
 
 # Stages
@@ -30,96 +37,20 @@ DATA = 'data'
 DONE = 'done'
 
 
-class _socketfile:
-
-    """Helper class to simulate file object with access to its buffer."""
-
-    # Code copied from Lib/mac/socket.py
-
-    def __init__(self, sock, rw, bs):
-	if rw not in ('r', 'w'): raise _myerror, "mode must be 'r' or 'w'"
-	self.sock = sock
-	self.rw = rw
-	self.bs = bs
-	self.buf = ''
-
-    def read(self, length = -1):
-	if length < 0:
-	    length = 0x7fffffff
-	while len(self.buf) < length:
-	    new = self.sock.recv(64)
-	    if not new:
-		break
-	    self.buf = self.buf + new
-	rv = self.buf[:length]
-	self.buf = self.buf[length:]
-	return rv
-
-    def readline(self):
-	while not '\n' in self.buf:
-	    new = self.sock.recv(64)
-	    if not new:
-		break
-	    self.buf = self.buf + new
-	if not '\n' in self.buf:
-	    rv = self.buf
-	    self.buf = ''
-	else:
-	    i = string.index(self.buf, '\n')
-	    rv = self.buf[:i+1]
-	    self.buf = self.buf[i+1:]
-	return rv
-
-    def readlines(self):
-	list = []
-	line = self.readline()
-	while line:
-	    list.append(line)
-	    line = self.readline()
-	return list
-
-    def write(self, buf):
-	BS = self.bs
-	if len(buf) >= BS:
-	    self.flush()
-	    self.sock.send(buf)
-	elif len(buf) + len(self.buf) >= BS:
-	    self.flush()
-	    self.buf = buf
-	else:
-	    self.buf = self.buf + buf
-
-    def writelines(self, list):
-	for line in list:
-	    self.write(line)
-
-    def flush(self):
-	if self.buf and self.rw == 'w':
-	    self.sock.send(self.buf)
-	    self.buf = ''
-
-    def close(self):
-	self.flush()
-	##self.sock.close()
-	del self.sock
-
-
 class MyHTTP(httplib.HTTP):
 
     def putrequest(self, request, selector):
 	self.selector = selector
 	httplib.HTTP.putrequest(self, request, selector)
 
-    def getreply(self):
-	# Use unbuffered file so we can use the raw socket later on;
-	# don't zap the socket
-	self.file = _socketfile(self.sock, 'r', 0)
+    def getreply(self, file):
+	self.file = file
 	line = self.file.readline()
 	if self.debuglevel > 0: print 'reply:', `line`
 	if replyprog.match(line) < 0:
 	    # Not an HTTP/1.0 response.  Fall back to HTTP/0.9.
 	    # Push the data back into the file.
-	    self.file.buf = line + self.file.buf
+	    self.file.seek(-len(line), 1)
 	    self.headers = {}
 	    c_type, c_encoding = __main__.app.guess_type(self.selector)
 	    if c_encoding:
@@ -178,7 +109,9 @@ class http_access:
 	self.h.endheaders()
 	if data:
 	    self.h.send(data)
+	self.readahead = ""
 	self.stage = META
+	self.line1seen = 0
 
     def close(self):
 	if self.h:
@@ -187,20 +120,42 @@ class http_access:
 
     def pollmeta(self):
 	assert(self.stage == META)
-	return "waiting for response", 1
+	sock = self.h.sock
+	if not select.select([sock.fileno()], [], [], 0)[0]:
+	    return "waiting for metadata", 0
+	new = sock.recv(1024)
+	if not new:
+	    return "EOF in metadata", 1
+	self.readahead = self.readahead + new
+	if '\n' not in new:
+	    return "receiving metadata", 0
+	if not self.line1seen:
+	    i = string.find(self.readahead, '\n')
+	    if i < 0:
+		return "receiving metadata", 0
+	    self.line1seen = 1
+	    line = self.readahead[:i+1]
+	    if replyprog.match(line) < 0:
+		return "received non-HTTP metadata", 1
+	i = endofheaders.search(self.readahead)
+	if i >= 0:
+	    return "received metadata", 1
+	return "receiving metadata", 0
 
     def getmeta(self):
 	assert(self.stage == META)
-	errcode, errmsg, headers = self.h.getreply()
+	file = StringIO.StringIO(self.readahead)
+	errcode, errmsg, headers = self.h.getreply(file)
 	self.stage = DATA
-	self.readahead = self.h.file.buf
+	self.readahead = file.read()
 	return errcode, errmsg, headers
 
     def polldata(self):
 	assert(self.stage == DATA)
 	if self.readahead:
 	    return "reading readahead data", 1
-	return "waiting for data", 1
+	return ("waiting for data",
+		len(select.select([self.fileno()], [], [], 0)[0]))
 
     def getdata(self, maxbytes):
 	assert(self.stage == DATA)
