@@ -14,13 +14,15 @@ class Shape:
 	"""predicate: Are x,y coordinates within region?"""
 	isin = 0
 	if self.kind == 'rect':
-	    if self.coords[0][0] <= x <= self.coords[1][0] and self.coords[0][1] <= y <= self.coords[1][1]:
+	    if self.coords[0][0] <= x <= self.coords[1][0] and \
+	       self.coords[0][1] <= y <= self.coords[1][1]:
 		isin = 1
 
 	elif self.kind == 'circle':
 	    # is the distance from the point to the center of the
 	    # circle less than the radius? 
- 	    distance_squared = pow((self.coords[0][0] - x), 2) + pow((self.coords[0][1] - y), 2)  
+ 	    distance_squared = pow((self.coords[0][0] - x), 2) + \
+			       pow((self.coords[0][1] - y), 2)  
 	    if distance_squared <= pow(self.coords[1], 2):
 		isin = 1
 
@@ -52,7 +54,8 @@ class Shape:
 		if y <= max(p1[1], p2[1]):
 		    if x <= max (p1[0], p2[0]):
 			if p1[1] != p2[1]:
-			    xintersect = (y-p1[1])*(p2[0]-p1[0])/(p2[1]-p1[1])+p1[0]
+			    xintersect = \
+			      (y-p1[1])*(p2[0]-p1[0])/(p2[1]-p1[1])+p1[0]
 			    if p1[0] == p2[0] or x <= xintersect:
 				counter = counter + 1
 	    p1 = p2
