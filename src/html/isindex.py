@@ -2,11 +2,14 @@ from Tkinter import *
 import string
 import urllib
 
+ATTRIBUTES_AS_KEYWORDS = 1
+
 def do_isindex(parser, attrs):
-    prompt = "This is a searchable index. Enter search keywords:"
-    for attr, value in attrs:
-	if attr == 'prompt' and value:
-	    prompt = value
+    try:
+	prompt = attrs['prompt']
+    except KeyError:
+	prompt = "This is a searchable index. Enter search keywords:"
+
     IndexWidget(parser, prompt)
 
 class IndexWidget:
