@@ -295,14 +295,13 @@ class PSFont:
 
 
 class PSStream:
-    def __init__(self, psfont, ofp, title='', url='', greyscale=0):
+    def __init__(self, psfont, ofp, title='', url=''):
 	self._font = psfont
 	self._ofp = ofp
 	self._title = title
 	self._url = url
 	self._pageno = 1
 	self._margin = 0.0
-	self._greyscale = greyscale
 	# current line state
 	self._space_width = 0.0
 	self._linestr = []
@@ -486,12 +485,12 @@ class PSStream:
 	self._baseline = HR_TOP_MARGIN
 	self._descender = HR_BOT_MARGIN
 	if abswidth:
-	    wid = max(1.0 * abswidth, PAGE_WIDTH)
+	    width = min(1.0 * abswidth, PAGE_WIDTH)
 	elif percentwidth:
-	    wid = min(1.0, percentwidth) * PAGE_WIDTH
+	    width = min(1.0, percentwidth) * PAGE_WIDTH
 	else:
-	    wid = PAGE_WIDTH
-	self._linefp.write('%f HR\n' % wid)
+	    width = PAGE_WIDTH
+	self._linefp.write('%f HR\n' % width)
 	self.close_line()
 	self._ypos = self._ypos - HR_LINE_WIDTH
 
@@ -741,13 +740,13 @@ class PSWriter(AbstractWriter):
 
     Exported ivars:
     """
-    def __init__(self, ofile, title='', url='', greyscale=0,
+    def __init__(self, ofile, title='', url='',
 		 varifamily='Times', fixedfamily='Courier'):
 	if not title:
 	    title = url
 	font = PSFont(varifamily=varifamily, fixedfamily=fixedfamily)
 	font.set_font((10, 'FONTV', '', ''))
-	self.ps = PSStream(font, ofile, title, url, greyscale)
+	self.ps = PSStream(font, ofile, title, url)
 	self.ps.start()
 
     def close(self):
@@ -833,7 +832,10 @@ image_converters = {
 
 class PrintingHTMLParser(HTMLParser):
 
-    """Class to override HTMLParser's default methods for anchors and images.
+    """Class to override HTMLParser's default methods.
+
+    Special support is provided for anchors, BASE, images, subscripts,
+    and superscripts.
 
     Image loading is controlled by an optional parameter called
     `image_loader.'  The value of this parameter should be a function
@@ -850,22 +852,48 @@ class PrintingHTMLParser(HTMLParser):
     The underline_anchors flag controls the visual treatment of the
     anchor text in the main document.
     """
-    def __init__(self, formatter, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=1, underline_anchors=1, footnote_anchors=0):
-	HTMLParser.__init__(self, formatter, verbose)
+    def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
+		 greyscale=1, underline_anchors=1):
+	from formatter import AbstractFormatter
+	HTMLParser.__init__(self, AbstractFormatter(writer), verbose)
 	self._baseurl = baseurl
 	self._greyscale = greyscale
 	self._image_loader = image_loader
 	self._image_cache = {}
-	self._footnote_anchors = footnote_anchors
 	self._underline_anchors = underline_anchors
-	self._anchors = {}
+	self._anchors = {None: None}
 	self._anchor_sequence = []
+	self._anchor_xforms = []
+	self._inanchor = 0
 
     def close(self):
+	HTMLParser.close(self)
 	if self._anchor_sequence:
 	    self._formatAnchorList()
-	HTMLParser.close(self)
+
+    def add_anchor_transform(self, xform):
+	if xform not in self._anchor_xforms:
+	    self._anchor_xforms.append(xform)
+
+    def remove_anchor_transform(self, xform):
+	if xform in self._anchor_xforms:
+	    self._anchor_xforms.remove(xform)
+
+    def do_base(self, attrs):
+	HTMLParser.do_base(self, attrs)
+	if self.base and not self._baseurl:
+	    self.formatter.writer.ps._url = self.base
+
+    def _footnote_anchor(self, href, attrs):
+	if self._anchor_xforms:
+	    for xform in self._anchor_xforms:
+		href = xform(href, attrs)
+		if not href:
+		    return None
+		attrs['href'] = href
+	else:
+	    href = disallow_data_scheme(href, attrs)
+	return href
 
     def _formatAnchorList(self):
 	from urlparse import urlparse
@@ -882,7 +910,7 @@ class PrintingHTMLParser(HTMLParser):
 	    if title:
 		#  Set the title as a citation:
 		self.start_cite({})
-		self.formatter.add_literal_data(title)
+		self.formatter.add_flowing_data(title)
 		self.end_cite()
 		self.formatter.add_literal_data(', ')
 	    self.formatter.add_literal_data(anchor)
@@ -901,31 +929,34 @@ class PrintingHTMLParser(HTMLParser):
 	if href:
 	    if self._underline_anchors:
 		self.formatter.push_style('u')
-	    if self._footnote_anchors and not self._anchors.has_key(href) \
-	       and urlparse(href)[0] != 'data':
+		self._inanchor = 1
+	    if not self._anchors.has_key(href):
+		href = self.anchor = self._footnote_anchor(href, attrs)
+		if self._anchors.has_key(href): return
 		self._anchors[href] = len(self._anchor_sequence) + 1
 		if attrs.has_key('title'):
 		    from SGMLReplacer import replace
 		    title = string.strip(replace(attrs['title'],
 						 self.entitydefs))
-		    self._anchor_sequence.append((href, title or None))
+		    self._anchor_sequence.append((href, title))
 		else:
 		    self._anchor_sequence.append((href, None))
+	else:
+	    self._inanchor = 0
 
     def end_a(self):
-	anchor, self.anchor = self.anchor, None
-	if anchor:
-	    if self._underline_anchors:
-		self.formatter.pop_style()
-	    if self._footnote_anchors:
-		yshift = 1.0 * self.formatter.writer.ps._font.font_size()
-		self.formatter.push_font((6, 0, 0, 0))
-		yshift = yshift \
-			 - (1.17 * self.formatter.writer.ps._font.font_size())
-		self.formatter.writer.ps.push_yshift(yshift)
-		self.handle_data('[%d]' % self._anchors[anchor])
-		self.formatter.writer.ps.pop_yshift()
-		self.formatter.pop_font()
+	if self._underline_anchors and self._inanchor:
+	    self.formatter.pop_style()
+	if self.anchor:
+	    anchor, self.anchor = self.anchor, None
+	    yshift = 1.0 * self.formatter.writer.ps._font.font_size()
+	    self.formatter.push_font((6, 0, 0, 0))
+	    yshift = yshift \
+		     - (1.17 * self.formatter.writer.ps._font.font_size())
+	    self.formatter.writer.ps.push_yshift(yshift)
+	    self.handle_data('[%d]' % self._anchors[anchor])
+	    self.formatter.writer.ps.pop_yshift()
+	    self.formatter.pop_font()
 
     def start_sup(self, attrs):
 	font_size = 1.0 * self.formatter.writer.ps._font.font_size()
@@ -1042,6 +1073,15 @@ def load_bounding_box(lines):
     return bbox
 
 
+def disallow_data_scheme(href, attrs):
+    from urlparse import urlparse
+    if urlparse(href)[0] == 'data':
+	href = None
+    return href
+
+def disallow_anchor_footnotes(href, attrs):
+    return None
+
 
 
 def main():
@@ -1103,17 +1143,17 @@ def main():
 	outfp = sys.stdout
     # create the parsers
     w = PSWriter(outfp, title or None, url or infile or '')
-    f = AbstractFormatter(w)
-    p = PrintingHTMLParser(f, baseurl=url,
-			   underline_anchors=underline_anchors,
-			   footnote_anchors=footnote_anchors)
+    p = PrintingHTMLParser(w, baseurl=url,
+			   underline_anchors=underline_anchors)
+    if not footnote_anchors:
+	p.add_anchor_transform(disallow_anchor_footnotes)
     p.feed(infp.read())
     p.close()
     w.close()
 
 
 # PostScript templates
-header_template = """
+header_template = """\
 %%Creator: CNRI Grail, HTML2PS.PY by Barry Warsaw
 %%   Modified underlining to user 'UnderLineString' from pg. 140 of
 %%	POSTSCRIPT BY EXAMPLE, by Henry McGilton and Mary Campione,

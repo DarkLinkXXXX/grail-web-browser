@@ -241,13 +241,10 @@ class Viewer(formatter.AbstractWriter):
 	if self.rules:
 	    width = self.rule_width()
 	    for rule in self.rules:
-		wid, percent = rule._width, rule._percent
-		if percent:
-		    rule['width'] = int(percent * width)
-		elif wid:
-		    rule['width'] = min(wid, width)
+		if rule._width:
+		    rule['width'] = min(rule._width, width)
 		else:
-		    rule['width'] = width
+		    rule['width'] = int(rule._percent * width)
 
     def unfreeze(self):
 	self.text['state'] = NORMAL
@@ -312,14 +309,20 @@ class Viewer(formatter.AbstractWriter):
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
 
-    def send_hor_rule(self):
+    def send_hor_rule(self, abswidth=None, percentwidth=1.0):
 	self.text.insert(END, '\n')
 	width = self.rule_width()
+	if abswidth:
+	    width = min(width, abswidth)
+	elif percentwidth:
+	    width = min(width, int(percentwidth * width))
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
 			width=width, height=0,
 			background=self.text['background'],
 			highlightbackground=self.text['background'])
 	self.rules.append(window)
+	window._width = abswidth
+	window._percent = percentwidth
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
