@@ -1,7 +1,6 @@
 # A simple Dialog modeled after Tk's dialog script
 # 
 # XXX Bugs:
-# - It doesn't grab the server focus
 # - Resizing behavior is ugly
 
 from SafeTkinter import *
@@ -28,6 +27,7 @@ class Dialog(Frame):
 		b.config(relief='ridge', border=4)
 	    b.pack(side='left', fill='both', expand=1)
 	    num = num+1
+	self.root.grab_set()
 	try:
 	    self.root.mainloop()
 	except SystemExit:
