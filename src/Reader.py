@@ -75,6 +75,7 @@ class Reader(BaseReader):
 	    url = headers['location']
 	    self.restart(self.last_browser, url)
 	    return
+	BaseReader.handle_error(self, errcode, errmsg, headers)
 
     def handle_meta(self, errcode, errmsg, headers):
 	if headers.has_key('content-type'):
