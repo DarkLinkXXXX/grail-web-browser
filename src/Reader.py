@@ -184,6 +184,9 @@ class Reader(BaseReader):
 		    self.save_content_type = content_type
 		    self.save_plist = plist
 		    self.save_file = open(self.save_filename, "wb")
+		    # remember the original click location
+		    self.app.global_history.remember_url(self.url)
+		    self.viewer.remove_temp_tag(histify=1)
 		    return
 	    # No relief from mailcap either.
 	    # Ask the user whether and where to save it.
@@ -286,7 +289,11 @@ class Reader(BaseReader):
 		    data = regsub.gsub('\r', '\n', data)
 
 	self.viewer.unfreeze()
-	self.parser.feed(data)
+	try:
+	    self.parser.feed(data)
+	except IOError, (errno, errmsg):
+	    self.stop()
+	    self.handle_error(errno, errmsg, [])
 	self.viewer.freeze()
 
     if profiling:
