@@ -156,6 +156,14 @@ class FileDialog:
 	raise SystemExit, None
 
     def set_filter(self, dir, pat):
+	if not os.path.isabs(dir):
+	    try:
+		pwd = os.getcwd()
+	    except os.error:
+		pwd = None
+	    if pwd:
+		dir = os.path.join(pwd, dir)
+		dir = os.path.normpath(dir)
 	self.filter.delete(0, END)
 	self.filter.insert(END, os.path.join(dir or os.curdir, pat or "*"))
 
