@@ -1,6 +1,6 @@
 """Writer for Netscape HTML bookmarks."""
 
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 
 import bookmarks                        # parent
@@ -54,6 +54,9 @@ class Writer(bookmarks.walker.TreeWalker):
         self.__write_description(node.description())
 
     def start_Alias(self, node):
+        refnode = node.get_refnode()
+        if refnode is None or refnode.get_nodetype() == "Folder":
+            return
         idref = node.idref()
         if not self.__id_map.has_key(idref):
             self.__id_map[idref] = self.__id_next
