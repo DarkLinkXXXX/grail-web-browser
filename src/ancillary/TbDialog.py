@@ -38,5 +38,5 @@ class TracebackDialog:
         self.text.yview_pickplace(END)
         self.text["state"] = DISABLED
 
-    def close_command(self):
+    def close_command(self, event=None):
         self.root.destroy()
