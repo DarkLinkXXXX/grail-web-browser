@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.2 $"
+__version__ = "$Revision: 1.3 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the dialog:
@@ -23,31 +23,21 @@ class GeneralPanel(PrefsDialogs.Framework):
     def CreateLayout(self, name, frame):
 
 	# Home page: basic entry-based prefs can be as simple as this one:
-	e, l, f = tktools.make_labeled_form_entry(frame, 'Home page:',
-						  40, 1, 25)
-	# Couple the widgets with the preferences:
-	self.RegisterUI('landmarks', 'home-page', 'string',
-			e.get, self.widget_set_func(e))
+	self.PrefsEntry(frame, 'Home page:', 'landmarks', 'home-page')
 
-	# Geometry: more customized widgets (like this composite entry)
-	# 	    may involve more UI:
+	# Geometry: more elaborate:
 	f = Frame(frame)
-	l = Label(f, text="Browser geometry:", width=25, anchor=E)
-	l.pack(side=LEFT)
+	self.PrefsWidgetLabel(f, "Browser geometry:")
+	# Pack some preferences entries together in a frame - we use the
+	# PrefsEntry 'composite' feature here, to put them together on the
+	# right-hand side of the label:
 	entries_frame = Frame(f, relief='ridge', bd=1)
-	wl = Label(entries_frame, text="Width:"); wl.pack(side=LEFT)
-	we = Entry(entries_frame, width=3); we.pack(side=LEFT)
-	hl = Label(entries_frame, text="Height:"); hl.pack(side=LEFT)
-	he = Entry(entries_frame, width=3); he.pack(side=LEFT)
-	entries_frame.pack(side=LEFT)
+	self.PrefsEntry(entries_frame, "Width:", 'browser', 'default-width',
+			label_width=6, entry_width=2, composite=1)
+	self.PrefsEntry(entries_frame, "Height:", 'browser', 'default-height',
+			label_width=7, entry_width=3, composite=1)
 	f.pack(fill=X, side=TOP, pady='1m')
-	self.RegisterUI('browser', 'default-width', 'int',
-			we.get, self.widget_set_func(we))
-	self.RegisterUI('browser', 'default-height', 'int',
-			he.get, self.widget_set_func(he))
 
-	# Preferences needing just a CheckButton can use a tailored
-	# routine, like these three:
 	self.PrefsCheckButton(frame, "Initial page:", "Load on Grail startup",
 			      'browser', 'load-initial-page')
 
