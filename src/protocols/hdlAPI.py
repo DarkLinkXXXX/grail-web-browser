@@ -44,6 +44,7 @@ XXX Problems:
 
 """
 
+import sys
 import hdllib
 import nullAPI
 
@@ -83,7 +84,7 @@ HTML_TRAILER = """
 class hdl_access(nullAPI.null_access):
     def __init__(self, uri, method, params):
 	nullAPI.null_access.__init__(self, uri, method, params)
-	# can ignore methods and params... they should be 'GET' and {}
+	# Can ignore methods and params... they should be 'GET' and {}
 	# respectively
 	self._uri = uri
 	self._types = HANDLE_TYPES
@@ -94,11 +95,13 @@ class hdl_access(nullAPI.null_access):
 	    hashtable = hdllib.HashTable()
 	    replyflags, self._items = \
 			hashtable.get_data(self._uri, self._types)
-	except:
-	    # catch all errors and raise an IOError.  The Grail
+	except hdllib.Error, inst:
+	    # Catch all errors and raise an IOError.  The Grail
 	    # protocol extension defines this as the only error we're
 	    # allowed to raise.
-	    raise IOError, "hash table failure"
+	    # Because the hdllib.Error instance is passed, no
+	    # information is lost.
+	    raise IOError, inst, sys.exc_traceback
 	return 'Ready', 1
 
     def getmeta(self):
