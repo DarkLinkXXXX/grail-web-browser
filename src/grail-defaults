@@ -42,6 +42,7 @@ C:
 C: Parsing preferences:
 C:
 parsing-html--strict:		0
+parsing-html--honor-colors:	1
 C:
 C: Printing preferences:
 C:

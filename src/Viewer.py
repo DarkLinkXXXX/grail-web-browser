@@ -9,6 +9,9 @@ from Context import Context
 from Cursors import *
 
 
+MIN_IMAGE_LEADER = "\240"		# Non-breaking space
+
+
 class Viewer(formatter.AbstractWriter):
 
     """A viewer is mostly a fancy text widget with scroll bars.
@@ -346,9 +349,9 @@ class Viewer(formatter.AbstractWriter):
 	window._percent = percentwidth
 	if align:
 	    align = string.lower(align)
-	    self.text.insert(END, "\240", align)
+	    self.text.insert(END, MIN_IMAGE_LEADER, align)
 	else:
-	    self.text.insert(END, "\240") # Non-breaking space
+	    self.text.insert(END, MIN_IMAGE_LEADER)
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
@@ -396,7 +399,7 @@ class Viewer(formatter.AbstractWriter):
 
     def enter_message(self, message):
 	self.linkinfo = message
-	self.status.set(self.linkinfo)
+	self.status.set(message)
 	self.context.browser.messagevariable(self.status)
 	self.set_cursor(CURSOR_LINK)
 

@@ -13,6 +13,7 @@ import tktools
 import formatter
 from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser
+from Viewer import MIN_IMAGE_LEADER
 import AppletLoader
 
 # Get rid of some methods so we can implement as extensions:
@@ -167,7 +168,7 @@ class GrailHTMLParser(HTMLParser):
 	if self.formatter_stack[-1].nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
-	    self.handle_data("\240") # Non-breaking space
+	    self.handle_data(MIN_IMAGE_LEADER) # Non-breaking space
 	self.viewer.add_subwindow(w)
 
     # Extend tag: </TITLE>
@@ -181,6 +182,8 @@ class GrailHTMLParser(HTMLParser):
     def start_body(self, attrs):
 	self.element_close_maybe('head', 'style', 'title')
 	self.inhead = 0
+	if not self.app.prefs.GetBoolean('parsing-html', 'honor-colors'):
+	    return
 	if attrs.has_key('bgcolor'):
 	    clr = attrs['bgcolor']
 	    if clr and clr[0] != '#':
