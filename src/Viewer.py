@@ -292,8 +292,8 @@ class Viewer(formatter.AbstractWriter):
             for tag, cnf in stylesheet.history.items():
                 self.text.tag_configure(tag, cnf)
             self.text.tag_raise('ahist', 'a')
-            self.text.tag_raise('atemp', 'ahist')
-            self.text.tag_raise('hover', 'atemp')
+            self.text.tag_raise('hover', 'ahist')
+            self.text.tag_raise('atemp', 'hover')
 
             if not self.parent:
                 self.resize_event()
