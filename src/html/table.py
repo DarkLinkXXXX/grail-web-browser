@@ -2,7 +2,9 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.47 1996/08/02 16:30:52 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.48 1996/09/17 20:46:45 fdrake Exp $'
+
+ATTRIBUTES_AS_KEYWORDS = 1
 
 import string
 import regex
@@ -51,7 +53,7 @@ class TableSubParser:
 	self._lasttable = Table(parser.viewer, attrs, self._lasttable)
 
     def end_table(self, parser):
-	ti = self._lasttable 
+	ti = self._lasttable
 	if ti:
 	    self._finish_cell(parser)
 	    ti.finish()
@@ -96,12 +98,17 @@ class TableSubParser:
     def do_col(self, parser, attrs):
 	ti = self._lasttable 
 	if ti:
-	    col = Col(attrs)
-	    if ti.colgroups:
-		last_colgroup = ti.colgroups[-1]
-		last_colgroup.cols.append(col)
-	    else:
-		ti.cols.append(col)
+	    span = grailutil.extract_keyword('span', attrs, default=1,
+					     conv=grailutil.conv_integer)
+	    if span < 1: span = 1	# if = 0, ignore.  Not quite right...
+	    while span:
+		span = span - 1
+		if ti.colgroups:
+		    last_colgroup = ti.colgroups[-1]
+		    col = Col(attrs, last_colgroup)
+		else:
+		    col = Col(attrs)
+		    ti.cols.append(col)
 
     def _do_body(self, parser, attrs):
 	ti = self._lasttable
@@ -126,27 +133,36 @@ class TableSubParser:
 	self._finish_cell(parser)
 	ti = self._lasttable 
 	if ti:
-	    tr = TR(attrs)
 	    if not ti.lastbody:
 		# this row goes into an implied tbody
 		ti.lastbody = HeadFootBody()
 		ti.tbodies.append(ti.lastbody)
+	    if ti.lastbody.trows:
+		ti.lastbody.trows[-1].close()
+	    prefs = parser.context.app.prefs
+	    tr = TR(attrs, bgcolor=ti.Abgcolor,
+		    valign=ti.Avalign,
+		    honor_colors=prefs.GetBoolean('parsing-html',
+						  'honor-colors'))
 	    ti.lastbody.trows.append(tr)
 	    ti.lastbody.lastrow = tr
 
     def end_tr(self, parser):
+	self._finish_cell(parser)
 	ti = self._lasttable
-	if ti and ti.lastbody:
+	if ti and ti.lastbody.trows:
+	    ti.lastbody.trows[-1].close()
 	    ti.lastbody.lastrow = None
 
     def _do_cell(self, parser, attrs, header=None):
-	ti = self._lasttable 
+	ti = self._lasttable
 	if ti:
 	    # finish any previously opened cell
 	    self._finish_cell(parser)
 	    # create a new object to hold the attributes
-	    if not ti.lastbody or not ti.lastbody.lastrow:
-		self.start_tr(parser, {})
+	    if not ti.lastbody or not ti.lastbody.trows \
+	       or not ti.lastbody.trows[-1].is_accepting():
+		parser.lex_starttag('tr', {})
 	    # create a new formatter for the cell, made from a new subviewer
 	    if header:
 		cell = THCell(ti, parser, attrs)
@@ -181,15 +197,18 @@ class TableSubParser:
 def conv_stdunits(val):
     """Convert from string representation to Standard Units for Widths.
 
-    pt -- points
-    pi -- picas
-    in -- inches
-    cm -- centimeters
-    mm -- millimeters
-    em -- em units
-    px -- screen pixels (the default)
-    %  -- percentage
-    *  -- CALS rel. widths
+    Units:
+    ------
+
+      pt -- points
+      pi -- picas
+      in -- inches
+      cm -- centimeters
+      mm -- millimeters
+      em -- em units
+      px -- screen pixels (the default)
+      %  -- percentage
+      *  -- CALS rel. widths
 
     Units representing, or pre-converted to screen pixels are
     converted to a floating point number.  All other units are
@@ -213,6 +232,20 @@ def conv_stdunits(val):
     return grailutil.conv_float(val)
 
 
+def conv_color(color):
+    return grailutil.conv_normstring(color)
+
+
+def conv_valign(val):
+    return grailutil.conv_enumeration(grailutil.conv_normstring(val),
+				      ['top', 'middle', 'bottom', 'baseline'])
+
+
+def conv_halign(val):
+    return grailutil.conv_enumeration(grailutil.conv_normstring(val),
+			      ['left', 'center', 'right', 'justify', 'char'])
+
+
 class AttrElem:
     """Base attributed table element.
 
@@ -222,13 +255,7 @@ class AttrElem:
     """
 
     def __init__(self, attrs):
-	self.attrs = {}
-	if type(attrs) == DictType:
-	    attrs = attrs.items()
-	# if its a dictionary, make a shallow copy, otherwise,
-	# dictionary-ize the tuple passed in.
-	for k, v in attrs:
-	    self.attrs[string.lower(string.strip(k))] = v
+	self.attrs = attrs
 
     def attribute(self, attr, conv=None, default=None):
 	if conv is None:
@@ -355,12 +382,23 @@ class Table(AttrElem):
 	self.Acellpadding = self.attribute('cellpadding',
 					   conv=conv_stdunits,
 					   default=0)
+	# vertical alignment of cell content
+	self.Avalign = self.attribute('valign', default='top',
+				      conv=conv_valign)
+	# background
+	parbgcolor = parentviewer.text['background']
+	if parentviewer.context.app.prefs.GetBoolean('parsing-html',
+						     'honor-colors'):
+	    self.Abgcolor = self.attribute('bgcolor', conv=conv_color,
+					   default=parbgcolor)
+	else:
+	    self.Abgcolor = parbgcolor
 	# geometry
  	self.container = Container(master=parentviewer.text,
 				   relief=relief,
 				   borderwidth=borderwidth,
 				   highlightthickness=0,
-				   background=parentviewer.text['background'])
+				   background=parbgcolor)
 	self.container.set_table(self)
 
 	self.caption = None
@@ -374,6 +412,22 @@ class Table(AttrElem):
 	self._mapped = None
 	# register with the parent viewer
 	self.parentviewer.register_reset_interest(self._reset)
+	abswidth = None
+	percentwidth = None
+	if type(self.Awidth) is type(()):
+	    if self.Awidth[1] == '%':
+		percentwidth = float(self.Awidth[0]) / 100.0
+	elif type(self.Awidth) is type(0.0):
+	    abswidth = int(self.Awidth)
+	else:
+	    percentwidth = 1.0
+	self.__magic = self.parentviewer.width_magic(abswidth, percentwidth)
+
+    def __del__(self):
+	self.__magic.close()
+
+    def get_available_width(self):
+	return self.__magic.get_available_width()
 
     def minwidth(self): return self._minwidth
     def maxwidth(self): return self._maxwidth
@@ -508,11 +562,11 @@ class Table(AttrElem):
 
 ## 	print '==========', id(self)
 ## 	for row in range(rowcount):
-## 	    print '[', 
+## 	    print '[',
 ## 	    for col in range(colcount):
 ## 		element = table[(row, col)]
 ## 		if element == EMPTY:
-## 		    print 'EMPTY', 
+## 		    print 'EMPTY',
 ## 		elif element == OCCUPIED:
 ## 		    print 'OCCUPIED',
 ## 		else:
@@ -575,11 +629,11 @@ class Table(AttrElem):
 	# debugging
 ## 	print '==========', id(self)
 ## 	for row in range(rowcount):
-## 	    print '[', 
+## 	    print '[',
 ## 	    for col in range(colcount):
 ## 		element = table[(row, col)]
 ## 		if element == EMPTY:
-## 		    print 'EMPTY', 
+## 		    print 'EMPTY',
 ## 		elif element == OCCUPIED:
 ## 		    print 'OCCUPIED',
 ## 		else:
@@ -587,14 +641,14 @@ class Table(AttrElem):
 ## 	    print ']'
 ## 	print '==========', id(self)
 
-	availablewidth = self.parentviewer.rule_width()
+	availablewidth = self.get_available_width()
 	if self.Awidth is None:
 	    suggestedwidth = availablewidth
 	# units in screen pixels
-	elif type(self.Awidth) in [IntType, FloatType]:
+	elif type(self.Awidth) in (IntType, FloatType):
 	    suggestedwidth = self.Awidth
 	# other standard units
-	elif type(self.Awidth) == TupleType:
+	elif type(self.Awidth) is TupleType:
 	    if self.Awidth[1] == '%':
 		suggestedwidth = availablewidth * self.Awidth[0] / 100.0
 	    # other standard units are not currently supported
@@ -604,7 +658,7 @@ class Table(AttrElem):
 	    print 'Tables internal inconsistency.  Awidth=', \
 		  self.Awidth, type(self.Awidth)
 	    suggestedwidth = availablewidth
-	
+
 	# now we need to adjust for the available space (i.e. parent
 	# viewer's width).  The Table spec outlines three cases...
 	#
@@ -636,7 +690,7 @@ class Table(AttrElem):
 	for row in range(rowcount):
 	    for col in range(colcount):
 		cell = table[(row, col)]
-		if cell in [EMPTY, OCCUPIED]:
+		if cell in (EMPTY, OCCUPIED):
 		    continue
 		cellwidth = self.Acellspacing * (cell.colspan - 1)
 		for w in cellwidths[col:col + cell.colspan]:
@@ -656,7 +710,7 @@ class Table(AttrElem):
 	# to be moved, just resized
 	if self.caption and self.caption.align <> 'bottom':
 	    if canvaswidth < 0:
-		canvaswidth = self.parentviewer.rule_width()
+		canvaswidth = self.get_available_width()
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
@@ -669,7 +723,7 @@ class Table(AttrElem):
 	    tallest = 0
 	    for col in range(colcount):
 		cell = table[(row, col)]
-		if cell in [EMPTY, OCCUPIED]:
+		if cell in (EMPTY, OCCUPIED):
 		    xpos = xpos + cellwidths[col] + self.Acellspacing
 		    continue
 		rowspan = min(rowcount, row + cell.rowspan)
@@ -684,7 +738,7 @@ class Table(AttrElem):
 	# be resized and moved to the proper location.
 	if self.caption and self.caption.align == 'bottom':
 	    if canvaswidth < 0:
-		canvaswidth = self.parentviewer.rule_width()
+		canvaswidth = self.get_available_width()
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
@@ -728,16 +782,28 @@ class Table(AttrElem):
 	    self._autolayout_3()
 	if not self._mapped:
 	    self._map()
-	    
+
 
-class Colgroup(AttrElem):
-    """A column group."""
+class ColumnarElem(AttrElem):
     def __init__(self, attrs):
 	AttrElem.__init__(self, attrs)
+	self.Ahalign = self.attribute('align', conv=conv_halign, default=None)
+	self.Avalign = self.attribute('valign', conv=conv_valign, default=None)
+
+class Colgroup(ColumnarElem):
+    """A column group."""
+    def __init__(self, attrs):
+	ColumnarElem.__init__(self, attrs)
 	self.cols = []
 
-class Col(AttrElem):
+class Col(ColumnarElem):
     """A column."""
+    def __init__(self, attrs, group = None):
+	ColumnarElem.__init__(self, attrs)
+	if group:
+	    group.cols.append(self)
+	    self.Ahalign = self.Ahalign or group.Ahalign
+	    self.Avalign = self.Avalign or group.Avalign
 
 class HeadFootBody(AttrElem):
     """A generic THEAD, TFOOT, or TBODY."""
@@ -750,9 +816,26 @@ class HeadFootBody(AttrElem):
 class TR(AttrElem):
     """A TR table row element."""
 
-    def __init__(self, attrs):
+    _accepting = 1
+
+    def __init__(self, attrs, bgcolor=None, honor_colors=None,
+		 valign=''):
 	AttrElem.__init__(self, attrs)
+	self.Ahalign = self.attribute('align', conv=conv_halign)
+	self.Avalign = self.attribute('valign', conv=conv_valign,
+				      default=valign)
+	if honor_colors:
+	    self.Abgcolor = self.attribute('bgcolor', conv=conv_color,
+					   default=bgcolor)
+	else:
+	    self.Abgcolor = bgcolor
 	self.cells = []
+
+    def close(self):
+	self._accepting = 0
+
+    def is_accepting(self):
+	return self._accepting
 
 
 def _get_linecount(tw):
@@ -760,7 +843,6 @@ def _get_linecount(tw):
 
 def _get_widths(tw):
     width_max = 0
-    border_x = None
     # get maximum width of cell: the longest line with no line wrapping
     tw['wrap'] = NONE
     border_x, y, w, h, b = tw.dlineinfo(1.0)
@@ -780,7 +862,7 @@ def _get_widths(tw):
     longest_word = reduce(max, map(len, string.split(contents)), 0)
     tw['width'] = longest_word + 1
     width_min = tw.winfo_reqwidth() + (2 * border_x)
-    return float(width_min), float(width_max)
+    return float(width_min)+2, float(width_max)+2
 
 def _get_height(tw):
     linecount = _get_linecount(tw)
@@ -831,14 +913,14 @@ class ContainedText(AttrElem):
 ## 	p.runctx('self._viewer = Viewer(master=table.container, context=parentviewer.context, scrolling=0, stylesheet=parentviewer.stylesheet, parent=parentviewer)',
 ## 		 globals(), locals())
 ## 	Stats(p).strip_dirs().sort_stats('time').print_stats(5)
-	
+
 	self._viewer = Viewer(master=table.container,
 			      context=parentviewer.context,
 			      scrolling=0,
 			      stylesheet=parentviewer.stylesheet,
 			      parent=parentviewer)
-
-	self._viewer.RULE_WIDTH_MAGIC = self._viewer.RULE_WIDTH_MAGIC - 6
+	if not parentviewer.find_parentviewer():
+	    self._viewer.RULE_WIDTH_MAGIC = self._viewer.RULE_WIDTH_MAGIC - 6
 	# for callback notification
 	self._fw = self._viewer.frame
 	self._tw = self._viewer.text
@@ -904,7 +986,7 @@ class ContainedText(AttrElem):
 		# divide by 200 since padding is a percentage and we
 		# want to put equal amounts of pad on both sides of
 		# the picture.
-		padding = int(self._table.parentviewer.rule_width() *
+		padding = int(self._table.get_available_width() *
 			      string.atoi(padding[:-1]) / 200)
 	    except ValueError:
 		padding = 0
@@ -977,7 +1059,55 @@ class Cell(ContainedText):
 		relief = FLAT
 	    else:
 		relief = SUNKEN
-	self._tw.config(relief=relief, borderwidth=1)
+	self._tw.config(relief=FLAT, borderwidth=0)
+	self._fw.config(relief=relief, borderwidth=1)
+	# horizontal alignment
+	halign = self.attribute('align', conv=grailutil.conv_normstring)
+	if halign:
+	    halign = grailutil.conv_enumeration(halign,
+			['left', 'center', 'right'])
+	else:
+	    halign = table.lastbody.trows[-1].Ahalign
+	self.Ahalign = halign
+	if halign:
+	    self._viewer.new_alignment(halign)
+	# vertical alignment
+	valign = self.attribute('valign', conv=conv_valign,
+				default=table.lastbody.trows[-1].Avalign)
+	self.Avalign = valign
+	if valign == 'middle':
+	    self._tw.pack(fill = X)
+	elif valign == 'bottom':
+	    self._tw.pack(fill = X, anchor = S)
+	# background color
+	rowcolor = table.lastbody.trows[-1].Abgcolor
+	if parser.context.app.prefs.GetBoolean('parsing-html', 'honor-colors'):
+	    self.Abgcolor = self.attribute('bgcolor', conv=conv_color,
+					   default=rowcolor)
+	else:
+	    self.Abgcolor = rowcolor
+	# protect against illegal color spec.:
+	try:
+	    self._tw.config(background=self.Abgcolor)
+	except TclError:
+	    #  most likely, it was an invalid color name
+	    if self.Abgcolor and self.Abgcolor[0] != '#':
+		# might have been an RGB disguised as a color name
+		bgcolor = '#' + self.Abgcolor
+		try:
+		    self._tw.config(background=bgcolor)
+		except TclError:
+		    # color name failure
+		    if self.Abgcolor != rowcolor and rowcolor:
+			bgcolor = rowcolor
+		    else:
+			bgcolor = None
+		self.Abgcolor = bgcolor
+	    else:
+		self.Abgcolor = None
+	if self.Abgcolor:
+	    try: self._fw.config(background=self.Abgcolor)
+	    except TclError: self.Abgcolor = None	# color name error
 	self.layout = table.layout
 	# dig out useful attributes
 	self.cellpadding = table.attribute('cellpadding', 0)
