@@ -24,7 +24,7 @@ class ImageTempFileReader(TempFileReader):
 		ctype = headers['content-type']
 	    except KeyError:
 		return # Hope for the best
-	    if self.image_filters.has_key(ctype) and not use_pil:
+	    if self.image_filters.has_key(ctype) and not isPILAllowed():
 		self.set_pipeline(self.image_filters[ctype])
 
     # List of image type filters
@@ -345,14 +345,24 @@ def pil_installed():
     return 1
 
 
+_pil_allowed = None
+
+def isPILAllowed():
+    """Return true iff PIL should be used by the caller."""
+    global _pil_allowed
+    if _pil_allowed is None:
+	app = grailutil.get_grailapp()
+	_pil_allowed = (app.prefs.GetBoolean("browser", "enable-pil")
+			and pil_installed())
+    return _pil_allowed
+
+
 def AsyncImage(context, url, reload=0, **kw):
     # Check the enable-pil preference and replace this function
-    # with the appropriate implementation:
+    # with the appropriate implementation in the module namespace:
     #
-    global AsyncImage, use_pil
-    use_pil = context.app.prefs.GetBoolean("browser", "enable-pil") \
-	      and pil_installed()
-    if use_pil:
+    global AsyncImage
+    if isPILAllowed():
 	import ImageTk
 	class PILAsyncImage(PILAsyncImageSupport, ImageTk.PhotoImage):
 	    pass
