@@ -13,9 +13,10 @@ class ImageLoopItem:
 	self.browser = master.grail_browser
 	self.images = []
 	i = 0
+	if img and img[-1] != '/': img.append('/')
 	while 1:
 	    i = i+1
-	    url = "%s/T%s.gif" % (img, i)
+	    url = "%sT%s.gif" % (img, i)
 	    image = self.browser.get_image(url)
 	    if not image: break
 	    self.images.append(image)
