@@ -129,8 +129,191 @@ class QuotedPrintableWrapper:
         self.__parser.feed(self.__buffer)
         self.__parser.close()
 
+
+class Base64Wrapper:
+    """Decode base64-encoded data on the fly, and pass it on to the real
+    type-specific parser."""
+
+    def __init__(self, parser):
+        self.__parser = parser
+        self.__buffer = ''
+        self.__app = parser.viewer.context.app
+
+    def feed(self, data):
+        data = self.__buffer + data
+        lines = string.split(data, '\n')
+        if len(lines) > 1:
+            import binascii
+            data = lines[-1]
+            del lines[-1]
+            stuff = ''
+            # do it this way to handle as much of the data as possible
+            # before barfing on it
+            while lines:
+                try:
+                    bin = binascii.a2b_base64(lines[0])
+                except (binascii.Error, binascii.Incomplete):
+                    self.__app.exception_dialog("while decoding base64 data")
+                else:
+                    stuff = stuff + bin
+                del lines[0]
+            lines.append(data)
+            data = string.join(lines, '\n')
+            if stuff:
+                self.__parser.feed(stuff)
+        self.__buffer = data
+
+    def close(self):
+        if self.__buffer:
+            import binascii
+            try:
+                bin = binascii.a2b_base64(self.__buffer)
+            except (binascii.Error, binascii.Incomplete):
+                # can't do anything with it.... toss a warning?
+                pass
+            else:
+                self.__parser.feed(bin)
+        self.__parser.close()
 
 
+class GzipWrapper:
+    """Decompress gzipped data incrementally and pass it on to the real
+    type-specific handler."""
+
+    BASE_HEADER_LENGTH = 10
+
+    def __init__(self, parser):
+        self.__parser = parser
+        self.__header = 0
+        self.__fextra = 0
+        self.__fname = 0
+        self.__fcomment = 0
+        self.__fhcrc = 0
+        self.__in_data = 0
+        self.__buffer = ''
+
+    def feed(self, data):
+        if not self.__in_data:
+            data = self.__feed_header(data)
+        if self.__in_data and data:
+            data = self.__decompressor.decompress(data)
+            if data:
+                self.__parser.feed(data)
+
+    def __feed_header(self, data):
+        data = self.__buffer + data
+        if not self.__header:
+            if len(data) >= self.BASE_HEADER_LENGTH:
+                if data[:3] != '\037\213\010':
+                    raise RuntimeError, "invalid gzip header"
+                self.__flag = ord(data[3])
+                self.__header = 1
+                data = data[10:]
+        if self.__header:
+            ok = 1
+            if not self.__fextra:
+                data, ok = self.__read_fextra(data)
+            if ok and not self.__fname:
+                data, ok = self.__read_fname(data)
+            if ok and not self.__fcomment:
+                data, ok = self.__read_fcomment(data)
+            if ok and not self.__fhcrc:
+                data, ok = self.__read_fhcrc(data)
+            if ok:
+                self.__buffer = ''
+                self.__in_data = 1
+                # Call the constructor exactly this way to get gzip-style
+                # compression.  Omitting the optional arg doesn't lead to
+                # gzip-compatible decompression.
+                decompressor = zlib.decompressobj(-zlib.MAX_WBITS)
+                self.__decompressor = decompressor
+            else:
+                self.__buffer = data
+        return data
+
+    def __read_fextra(self, data):
+        if not self.__flag & gzip.FEXTRA:
+            self.__fextra = 1
+            return data, 1
+        if len(data) < 2:
+            return data, 0
+        length = ord(data[0]) + (256 * ord(data[1]))
+        if len(data) < (length + 2):
+            return data, 0
+        self.__fextra = 1
+        self.extra = data[2:length]
+        return data[length + 2:], 1
+
+    def __read_fname(self, data):
+        if self.__flag & gzip.FNAME:
+            data, ok, stuff = self.__read_zstring(data)
+        else:
+            ok, stuff = 1, None
+        if ok:
+            self.__fname = 1
+            self.name = stuff
+        return data, ok
+
+    def __read_fcomment(self, data):
+        if self.__flag & gzip.FCOMMENT:
+            data, ok, stuff = self.__read_zstring(data)
+        else:
+            ok, stuff = 1, None
+        if ok:
+            self.__fcomment = 1
+            self.comment = stuff
+        return data, ok
+
+    def __read_fhcrc(self, data):
+        if self.__flag & gzip.FHCRC:
+            if len(data) >= 2:
+                self.__fhcrc = 1
+                data = data[2:]
+        else:
+            self.__fhcrc = 1
+        return data, self.__fhcrc
+
+    def __read_zstring(self, data):
+        """Attempt to read a null-terminated string."""
+        if '\0' in data:
+            stuff = data[:string.index(data, '\0')]
+            return data[len(stuff) + 1:], 1, stuff
+        return data, 0, None
+
+    def close(self):
+        if self.__in_data:
+            data = self.__decompressor.flush()
+            if data:
+                self.__parser.feed(data)
+        self.__parser.close()
+
+
+# This table maps content-transfer-encoding values to the appropriate
+# decoding wrappers.  It should not be needed with HTTP (1.1 explicitly
+# forbids it), but it's never a good idea to ignore the possibility.
+#
+transfer_decoding_wrappers = {
+    "base64": Base64Wrapper,
+    "quoted-printable": QuotedPrintableWrapper,
+    }
+
+
+# This table maps content-encoding values to the appropriate decoding
+# wrappers.  This can (and should if you care about bandwidth) be used
+# whenever possible.  We needed to send an accept-encoding header when
+# push comes to shove, but we'll ignore that for the moment.
+#
+content_decoding_wrappers = {}
+try:
+    import zlib
+    import gzip
+except ImportError, error:
+    pass
+else:
+    content_decoding_wrappers["gzip"] = GzipWrapper
+    content_decoding_wrappers["x-gzip"] = GzipWrapper
+
+
 class Reader(BaseReader):
 
     """Helper class to read documents asynchronously.
@@ -271,16 +454,25 @@ class Reader(BaseReader):
 	    content_type, content_encoding = self.app.guess_type(self.url)
 	if headers.has_key('content-encoding'):
 	    content_encoding = headers['content-encoding']
+	if headers.has_key('content-transfer-encoding'):
+	    transfer_encoding = headers['content-transfer-encoding']
+        else:
+            transfer_encoding = None
 	real_content_type = content_type or "unknown"
 	real_content_encoding = content_encoding
-	if content_encoding and (content_encoding != 'quoted-printable'):
+        if (transfer_encoding
+            and not transfer_decoding_wrappers.has_key(transfer_encoding)) \
+            or (content_encoding
+                and not content_decoding_wrappers.has_key(content_encoding)):
 	    # XXX provisional hack -- change content type to octet stream
 	    content_type = "application/octet-stream"
-	    content_encoding = None
+	    transfer_encoding = None
+            content_encoding = None
 	if not content_type:
 	    content_type = "text/plain"	# Last resort guess only
 
-	istext = content_type and content_type[:5] == 'text/'
+	istext = content_type and content_type[:5] == 'text/' \
+                 and not (content_encoding or transfer_encoding)
 	if self.show_source and istext:
 	    content_type = 'text/plain'
 	parserclass = self.find_parser_extension(content_type)
@@ -368,8 +560,12 @@ class Reader(BaseReader):
 	self.context.set_headers(headers)
 	self.context.set_url(self.url)
 	parser = parserclass(self.viewer, reload=self.reload)
-        if content_encoding == 'quoted-printable':
-            parser = QuotedPrintableWrapper(parser)
+        # decode the content
+        if content_encoding:
+            parser = content_decoding_wrappers[content_encoding](parser)
+        if transfer_encoding:
+            parser = transfer_decoding_wrappers[transfer_encoding](parser)
+        # protect from re-entrance
         self.parser = ParserWrapper(parser, self.viewer)
 	self.istext = istext
 	self.last_was_cr = 0
