@@ -417,8 +417,8 @@ class Viewer(formatter.AbstractWriter):
 	window._percent = percentwidth
 	self.rules.append(window)
 	self.prepare_for_insertion(align)
-	self.text.insert(END, self.pendingdata, self.flowingtags)
-	self.text.window_create(END, window=window)
+	self.add_subwindow(window)
+	del self.subwindows[-1]
 	self.pendingdata = '\n'
 ##	self.text.update_idletasks()
 
