@@ -118,7 +118,8 @@ class BaseReader:
 	self.content_type = content_type
 	self.content_encoding = content_encoding
 	self.handle_meta(errcode, errmsg, headers)
-	self.callback()			# XXX Handle httpAPI readahead
+	if self.callback:
+	    self.callback()		# XXX Handle httpAPI readahead
 
     def getapidata(self):
 	data = self.api.getdata(self.bufsize)
