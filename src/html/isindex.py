@@ -8,7 +8,7 @@ def do_isindex(parser, attrs):
     try:
 	prompt = attrs['prompt']
     except KeyError:
-	prompt = "This is a searchable index. Enter search keywords:"
+	prompt = "This is a searchable index. Enter search keywords:  "
 
     IndexWidget(parser, prompt,
 		(attrs.has_key('href') and attrs['href']) or None)
@@ -24,7 +24,7 @@ class IndexWidget:
 	self.w.bind('<Return>', self.submit)
 	viewer.send_hor_rule()
 	viewer.send_flowing_data(prompt)
-	parser.add_subwindow(self.w)
+	viewer.add_subwindow(self.w)
 	viewer.send_line_break()
 	viewer.send_hor_rule()
 
