@@ -12,6 +12,8 @@ import md5
 import struct
 import audiodev
 
+import ImageLoopItem
+
 # Platform specific modules
 import sunaudiodev			# SunOS, Solaris
 import al				# SGI
