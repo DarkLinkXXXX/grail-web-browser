@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.11 $"
+__version__ = "$Revision: 2.12 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -272,11 +272,12 @@ class Framework:
 
     def done_cmd(self, event=None):
 	"""Conclude dialog: commit and withdraw it."""
-	if self.apply_cmd():
-	    self.hide()
+	self.apply_cmd(close=1)
 
-    def apply_cmd(self):
+    def apply_cmd(self, event=None, close=0):
 	"""Apply settings from dialog to preferences."""
+	self.widget.update_idletasks()
+
 	prefsset = self.app.prefs.Set
 	# Snarf the settings from the widgets:
 	try:
@@ -290,6 +291,8 @@ class Framework:
 	    e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
 	    self.app.root.report_callback_exception(e, v, tb)
 	    return 0
+	if close:
+	    self.hide()
 	self.app.prefs.Save()
 	self.set_widgets()
 	return 1
