@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.12 $"
+__version__ = "$Revision: 1.13 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -169,32 +169,26 @@ class SGMLParser(SGMLLexer):
 	    self.unknown_starttag(tag, attrs)
 
     def lex_endtag(self, tag):
+	stack = self.stack
 	if not tag:
-	    found = len(self.stack) - 1
+	    found = len(stack) - 1
 	    if found < 0:
-		self.unknown_endtag(tag)
+		self.report_unbalanced(tag)
 		return
 	else:
-	    if tag not in self.stack:
-		if self._tag_methods.has_key(tag):
-		    if not self._tag_methods[tag][1]:
-			self.unknown_endtag(tag)
-		else:
-		    if not hasattr(self, 'end_' + tag):
-			self.unknown_endtag(tag)
+	    if tag not in stack:
 		self.report_unbalanced(tag)
-		return			# should raise SGMLError ???
-	    found = len(self.stack)
-	    for i in range(found):
-		if self.stack[i] == tag: found = i
-	while len(self.stack) > found:
-	    tag = self.stack[-1]
+		return
+	    for i in range(len(stack)):
+		if stack[i] == tag: found = i
+	while len(stack) > found:
+	    tag = stack[-1]
 	    start, end, do = self._tag_methods[tag]
 	    if end:
 		self.handle_endtag(tag, end)
 	    else:
 		self.unknown_endtag(tag)
-	    del self.stack[-1]
+	    del stack[-1]
 
 
     named_characters = {'re' : '\r',
