@@ -66,22 +66,16 @@ class Viewer(formatter.AbstractWriter):
     def add_styles_callbacks(self):
 	"""Add prefs callbacks so text widget's reconfigured on major changes.
 	"""
-	self.prefs.AddGroupCallback('styles-common',
-				    self.configure_styles)
-	self.prefs.AddGroupCallback('styles-fonts',
-				    self.configure_styles)
-	self.prefs.AddGroupCallback('styles',
-				    self.configure_styles)
+	self.prefs.AddGroupCallback('styles-common', self.init_styles)
+	self.prefs.AddGroupCallback('styles-fonts', self.init_styles)
+	self.prefs.AddGroupCallback('styles', self.init_styles)
 
     def remove_styles_callbacks(self):
 	"""Add prefs callbacks so text widget's reconfigured on major changes.
 	"""
-	self.prefs.RemoveGroupCallback('styles-common',
-				       self.configure_styles)
-	self.prefs.RemoveGroupCallback('styles-fonts',
-				       self.configure_styles)
-	self.prefs.RemoveGroupCallback('styles',
-				       self.configure_styles)
+	self.prefs.RemoveGroupCallback('styles-common', self.init_styles)
+	self.prefs.RemoveGroupCallback('styles-fonts', self.init_styles)
+	self.prefs.RemoveGroupCallback('styles', self.init_styles)
 
     def message(self, message):
 	if not self.context or self.linkinfo:
@@ -171,14 +165,18 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind("<Button-2>", self.button_2_event)
 	self.text.bind("<Button-3>", self.button_3_event)
 
-    def configure_styles(self):
+    def init_styles(self):
+	self.configure_styles(new_styles=1)
+
+    def configure_styles(self, new_styles=0):
 	"""Used on widget creation, clear, and as a callback when style
 	preferences change."""
 	size_name = self.prefs.Get('styles', 'size')
 	family = self.prefs.Get('styles', 'family')
 	try:
-	    self.stylesheet = DefaultStylesheet(self.prefs,
-						size_name, family)
+	    if new_styles or not self.stylesheet:
+		self.stylesheet = DefaultStylesheet(self.prefs,
+						    size_name, family)
 	    self.configure_tags(self.stylesheet)
 	except UndefinedStyle:
 	    pass
@@ -193,7 +191,11 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.config(stylesheet.default)
 
 	    for tag, cnf in stylesheet.styles.items():
-		self.text.tag_config(tag, cnf)
+		try:
+		    self.text.tag_config(tag, cnf)
+		except TclError:
+		    # We should get here when display lacks dingbat font.
+		    pass
 	    for tag, cnf in stylesheet.history.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, abovetag in stylesheet.priorities.items():
