@@ -427,7 +427,16 @@ class GrailHTMLParser(HTMLParser):
     # New tag: <APPLET>
 
     def start_applet(self, attrs):
-	self.start_object(attrs, 'applet')
+	# re-write the attributes to use the <OBJECT> support:
+	import copy
+	nattrs = copy.copy(attrs)
+	if attrs.has_key('name'):
+	    nattrs['classid'] = attrs['name']
+	    del nattrs['name']
+	if attrs.has_key('code') and not attrs.has_key('codebase'):
+	    nattrs['codebase'] = attrs['code']
+	    del nattrs['code']
+	self.start_object(nattrs, 'applet')
 
     def end_applet(self):
 	self.end_object()
