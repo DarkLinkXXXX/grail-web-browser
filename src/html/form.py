@@ -149,7 +149,7 @@ class FormInfo:
 	self.inputs = []
 	self.radios = {}
 	self.select = None
-	self.parser.start_p([])
+	self.parser.start_p({})
 	# gather cached form data if we've been to this page before
 	formdata_list = self.context.get_formdata()
 	if formdata_list:
@@ -169,7 +169,7 @@ class FormInfo:
 
     def done(self):			# Called for </FORM>
 	if self.parser:
-	    self.parser.start_p([])
+	    self.parser.start_p({})
 	self.parser = None
 
     def do_input(self, type, options):
