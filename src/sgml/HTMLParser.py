@@ -20,8 +20,9 @@ class HTMLParser(SGMLParser):
     doctype = 'html'
     head_only_tags = ('link', 'meta', 'title', 'isindex', 'range',
 		      'base', 'nextid', 'style', 'head')
+    autonumber = None
 
-    def __init__(self, formatter, verbose=0):
+    def __init__(self, formatter, verbose=0, autonumber=None):
         SGMLParser.__init__(self, verbose)
 	self.restrict(1)
         self.formatter = formatter
@@ -36,6 +37,9 @@ class HTMLParser(SGMLParser):
 	self.inhead = 1
 	self.badhtml = 0
 	self.nextid = None
+	if autonumber is not None:
+	    self.autonumber = autonumber
+	self.headernumber = HeaderNumber()
 
     # ------ Methods used internally; some may be overridden
 
@@ -144,59 +148,58 @@ class HTMLParser(SGMLParser):
     # --- Headings
 
     def start_h1(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.push_font(('h1', 0, 1, 0))
+	self.header_bgn('h1', 0, attrs)
 
     def end_h1(self):
-        self.formatter.end_paragraph(1)
-        self.formatter.pop_font()
+	self.header_end('h1', 0)
 
     def start_h2(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.push_font(('h2', 0, 1, 0))
+	self.header_bgn('h2', 1, attrs)
 
     def end_h2(self):
-        self.formatter.end_paragraph(1)
-        self.formatter.pop_font()
+	self.header_end('h2', 1)
 
     def start_h3(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.push_font(('h3', 0, 1, 0))
+	self.header_bgn('h3', 2, attrs)
 
     def end_h3(self):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.pop_font()
+	self.header_end('h3', 2)
 
     def start_h4(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.push_font(('h4', 0, 1, 0))
+	self.header_bgn('h4', 3, attrs)
 
     def end_h4(self):
-        self.formatter.end_paragraph(1)
-        self.formatter.pop_font()
+	self.header_end('h4', 3)
 
     def start_h5(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.push_font(('h5', 0, 1, 0))
+	self.header_bgn('h5', 4, attrs)
 
     def end_h5(self):
-        self.formatter.end_paragraph(1)
-        self.formatter.pop_font()
+	self.header_end('h5', 4)
 
     def start_h6(self, attrs):
-	self.close_paragraph()
-        self.formatter.end_paragraph(1)
-        self.formatter.push_font(('h6', 0, 1, 0))
+	self.header_bgn('h6', 5, attrs)
 
     def end_h6(self):
+	self.header_end('h6', 5)
+
+    def header_bgn(self, tag, level, attrs):
+	self.close_paragraph()
+        self.formatter.end_paragraph(1)
+        self.formatter.push_font((tag, 0, 1, 0))
+	self.header_number(tag, level, attrs)
+
+    def header_end(self, tag, level):
         self.formatter.end_paragraph(1)
         self.formatter.pop_font()
+
+    def header_number(self, tag, level, attrs):
+	if self.autonumber is None:
+	    if attrs.has_key('seqnum') or attrs.has_key('skip'):
+		self.autonumber = 1
+	self.headernumber.incr(level, attrs)
+	if self.autonumber:
+	    self.formatter.add_flowing_data(self.headernumber.string(level))
 
     # --- Block Structuring Elements
 
@@ -577,6 +580,61 @@ class HTMLParser(SGMLParser):
     def close_paragraph(self):
 	if 'p' in self.stack:
 	    self.lex_endtag('p')
+
+
+
+class HeaderNumber:
+    formats = ('',
+	       '%(h2)d. ',
+	       '%(h2)d.%(h3)d. ',
+	       '%(h2)d.%(h3)d.%(h4)d. ',
+	       '%(h2)d.%(h3)d.%(h4)d.%(h5)d. ',
+	       '%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d. ')
+
+    def __init__(self, formats=None):
+	self.numbers = [0, 0, 0, 0, 0, 0]
+	if formats and len(formats) >= 6:
+	    self.formats = map(None, formats)
+	else:
+	    self.formats = map(None, self.formats)
+
+    def incr(self, level, attrs):
+	numbers = self.numbers
+	i = level
+	while i < 5:
+	    i = i + 1
+	    numbers[i] = 0
+	if attrs.has_key('skip'):
+	    try: skip = string.atoi(attrs['skip'])
+	    except: skip = 0
+	else:
+	    skip = 0
+	if attrs.has_key('seqnum'):
+	    try: numbers[level] = string.atoi(attrs['seqnum'])
+	    except: pass
+	    else: return
+	numbers[level] = numbers[level] + 1 + skip
+
+    def string(self, level, format = None):
+	if format is None:
+	    format = self.formats[level]
+	numbers = self.numbers
+	numdict = {'h1': numbers[0],
+		   'h2': numbers[1],
+		   'h3': numbers[2],
+		   'h4': numbers[3],
+		   'h5': numbers[4],
+		   'h6': numbers[5]}
+	return format % numdict
+
+    def get_format(self, level):
+	return self.formats[level]
+
+    def get_all_formats(self):
+	return tuple(self.formats)
+
+    def set_format(self, level, s):
+	self.formats[level] = s
 
 
 def test():

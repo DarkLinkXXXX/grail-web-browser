@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.9 $"
+__version__ = "$Revision: 1.10 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -146,12 +146,9 @@ class SGMLParser(SGMLLexer):
 	    except AttributeError:
 		self.unknown_starttag(tag, attrs)
 		return -1
-	    else:
-		setattr(self, 'do_' + tag, method)
 	    self.handle_starttag(tag, method, attrs)
 	    return 0
 	else:
-	    setattr(self, 'start_' + tag, method)
 	    self.lasttag = tag
 	    self.handle_starttag(tag, method, attrs)
 	    self.stack.append(tag)
@@ -180,7 +177,6 @@ class SGMLParser(SGMLLexer):
 	    except AttributeError:
 		self.unknown_endtag(tag)
 	    else:
-		setattr(self, 'end_' + tag, method)
 		self.handle_endtag(tag, method)
 	    del self.stack[-1]
 
