@@ -57,7 +57,7 @@ styles-basic--default-font:
 	-*-helvetica-medium-r-normal-*-*-120-*-*-*-*-*-*
 styles-basic--styles-h1_b-font:
 	-*-helvetica-bold-r-normal-*-*-180-*-*-*-*-*-*
-styles-basic--styles-h1_b-underline: 1
+styles-basic--styles-h1_b-underline: 0
 styles-basic--styles-h2_b-font:
 	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
 styles-basic--styles-h3_b-font:
@@ -91,7 +91,7 @@ styles-small--default-font:
 	-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*
 styles-small--styles-h1_b-font:
 	-*-helvetica-bold-r-normal-*-*-160-*-*-*-*-*-*
-styles-small--styles-h1_b-underline: 1
+styles-small--styles-h1_b-underline: 0
 styles-small--styles-h2_b-font:
 	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
 styles-small--styles-h3_b-font:
@@ -125,7 +125,7 @@ styles-big--default-font:
 	-*-helvetica-medium-r-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-h1_b-font:
 	-*-helvetica-bold-r-normal-*-*-200-*-*-*-*-*-*
-styles-big--styles-h1_b-underline: 1
+styles-big--styles-h1_b-underline: 0
 styles-big--styles-h2_b-font:
 	-*-helvetica-bold-r-normal-*-*-160-*-*-*-*-*-*
 styles-big--styles-h3_b-font:
