@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.4 1995/09/12 22:31:26 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.5 1995/09/12 23:15:18 bwarsaw Exp $"
 
 import sys
 import string
@@ -22,7 +22,6 @@ def _debug(text):
     if DEBUG:
 	sys.stderr.write(text)
 	sys.stderr.flush()
-
 
 
 # Font Dictionary.  Key is the short name describing the font, value
@@ -120,6 +119,7 @@ font_metrics['Helvetica-Bold'] = helv_bold_charmap
 
 
 font_sizes = {
+    None: 12,
     'h1': 36,
     'h2': 24,
     'h3': 18,
@@ -230,7 +230,7 @@ class PSFont:
 	PostScript layer name of the font, and the font size in
 	points.
 	"""
-	if font_tuple is None: font_tuple = self.font
+	if font_tuple is None: font_tuple = (None, None, None, None)
 	# get the current font and break up the arg
 	cur_sz, cur_family, cur_italic, cur_bold = self.font
 	set_sz, set_italic, set_bold, set_tt = font_tuple
@@ -240,8 +240,7 @@ class PSFont:
 	    else: new_sz = set_sz
 	except KeyError: new_sz = 12
 	# calculate variable vs. fixed
-	if set_tt is AS_IS: new_family = cur_family
-	elif set_tt:
+	if set_tt:
 	    new_family = 'FONTF'
 	    self.metric = self.metrics[1]
 	else:
@@ -251,11 +250,9 @@ class PSFont:
 	# add modifiers.  Because of the way fonts are named, always
 	# add bold modifier before italics modifier, in case both are
 	# present
-	if set_bold is AS_IS: new_bold = cur_bold
-	elif set_bold: new_bold = 'B'
+	if set_bold: new_bold = 'B'
 	else: new_bold = ''
-	if set_italic is AS_IS: new_italic = cur_italic
-	elif set_italic: new_italic = 'I'
+	if set_italic: new_italic = 'I'
 	else: new_italic = ''
 
 	# save the current font specification
@@ -396,7 +393,7 @@ class PSBuffer:
 	# restore the font
 	self.set_font( (None, None, None, None) )
 
-    def _raw_write(self, word, draw_cmd='S'):
+    def _raw_write(self, word, insert_space_p, draw_cmd='S'):
 	"""Writes WORD to output buffer sys.stdout.  Handles PostScript
 	quoting and ISO encodings.  Also handles line breaking when current
 	buffered line exceeds page width.
@@ -408,11 +405,12 @@ class PSBuffer:
 	# TBD: handle ISO encodings
 	pass
 	# break the line if necessary
-	if self.x() + wwidth + self.lwidth > PAGE_WIDTH:
+	if self.x() + wwidth + self.lwidth > PAGE_WIDTH and insert_space_p:
 	    self._line_break()
 	# now write out the word and trailing space, then re-adjust
 	# the buffered line length
-	print '(%s ) %s' % (word, draw_cmd)
+	space = insert_space_p and ' ' or ''
+	print '(%s%s) %s' % (word, space, draw_cmd)
 	self.lwidth = self.lwidth + wwidth + self.font.space_width
 
     def write_text(self, text, underline_p=None):
@@ -432,12 +430,16 @@ class PSBuffer:
 	# newlines.
 	oldstdout = sys.stdout
 	try:
-	    linecnt = string.count(text, '\n')
 	    sys.stdout = self.lbuffer
-	    for line in string.splitfields(text, '\n'):
+	    lines = string.splitfields(text, '\n')
+	    linecnt = len(lines) - 1
+	    for line in lines:
 		# buffer each line of output
-		for word in string.splitfields(line, ' '):
-		    self._raw_write(word)
+		words = string.splitfields(line, ' ')
+		spaces = len(words) - 1
+		for word in words:
+		    self._raw_write(word, spaces)
+		    spaces = spaces - 1
 		# add hard newlines
 		if linecnt > 0: self._line_break()
 		linecnt = linecnt - 1
@@ -513,6 +515,7 @@ class PSWriter(AbstractWriter):
 	self.ps.trailer()
 
     def new_font(self, font):
+	_debug('new_font: %s\n' % repr(font))
 	self.ps.set_font(font)
 
     def new_margin(self, margin, level):
@@ -541,6 +544,7 @@ class PSWriter(AbstractWriter):
 	raise RuntimeError
 
     def send_flowing_data(self, data):
+	_debug('inserting: %s\n' % data)
 	self.ps.write_text(data)
 
     def send_literal_data(self, data):
