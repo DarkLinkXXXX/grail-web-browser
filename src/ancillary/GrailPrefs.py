@@ -20,7 +20,7 @@ contain non-whitespace.  These lines continue the value for the most recent
 line with a header-field name.
 
 Preference key names are derived by dividing header-field names into two
-parts, a group name and a preference name.  The two parts are represented
+parts, a group name and a component name.  The two parts are represented
 in the header-field name delimited by '--' a pair of dashes.  Preference
 key names are case insensitive.
 
@@ -46,7 +46,7 @@ browser--default-height:	40
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.9 $"
+__version__ = "$Revision: 2.10 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -97,9 +97,9 @@ class Preferences:
 	    self._db = {}
 	self._modified = 0
 
-    def Get(self, group, prefnm):
-	"""Get preference in GROUP with NAME, or raise KeyError if none."""
-	key = make_key(group, prefnm)
+    def Get(self, group, component):
+	"""Get preference GROUP, COMPONENT, or raise KeyError if none."""
+	key = make_key(group, component)
 	if self._new.has_key(key):
 	    return self._new[key]
 	elif self._established.has_key(key):
@@ -111,12 +111,13 @@ class Preferences:
 		else:
 		    return self._db[key]
 	    except KeyError:
-		raise KeyError, "Preference %s not found" % ((group, prefnm),)
+		raise KeyError, "Preference %s not found" % ((group,
+							      component),)
 
-    def Set(self, group, prefnm, val):
-	"""Set GROUP PREFERENCE to VALUE."""
+    def Set(self, group, component, val):
+	"""Set preference GROUP, COMPONENT to VALUE."""
 	self._modified = 1
-	k = make_key(group, prefnm)
+	k = make_key(group, component)
 	self._new[k] = str(val)
 	if self._established.has_key(k):
 	    # Override established val, ensure save doesn't save both:
@@ -126,13 +127,13 @@ class Preferences:
 	    del self._deleted[k]
 
     def __delitem__(self, item):
-	"""Register GROUP/PREFNAME so it won't be seen or saved."""
+	"""Inhibit preference (GROUP, COMPONENT) from being seen or saved."""
 	self.Get(item[0], item[1])	# Validate existence of the item.
 	self._deleted[make_key(item[0], item[1])] = 1
 
 
     def items(self):
-	"""Return a list of ("group--prefnm", value) tuples."""
+	"""Return a list of ("group--component", value) tuples."""
 	got = []
 	did = {}
 	# Process portion of db read from file:
@@ -208,53 +209,53 @@ class AllPreferences:
 
     # Getting:
 
-    def Get(self, group, prefnm, use_default=0):
-	"""Get pref in GROUP with NAME, trying the user than the sys prefs.
+    def Get(self, group, component, use_default=0):
+	"""Get pref GROUP, COMPONENT, trying the user than the sys prefs.
 
 	Optional SYS true means get system default value.
 
 	Raise KeyError if not found."""
 	if use_default:
-	    return self._sys.Get(group, prefnm)
+	    return self._sys.Get(group, component)
 	else:
 	    try:
-		return self._user.Get(group, prefnm)
+		return self._user.Get(group, component)
 	    except KeyError:
-		return self._sys.Get(group, prefnm)
+		return self._sys.Get(group, component)
 
-    def _GetTyped(self, group, prefnm, cvrtr, type_name, use_default=0):
+    def _GetTyped(self, group, component, cvrtr, type_name, use_default=0):
 	"""Get preference, using CONVERTER to convert to type NAME.
 
 	Optional SYS true means get system default value.
 
 	Raise KeyError if not found, TypeError if value is wrong type."""
-	val = self.Get(group, prefnm, use_default)
+	val = self.Get(group, component, use_default)
 	try:
 	    return cvrtr(val)
 	except ValueError:
 	    raise TypeError, ('%s not %s: %s'
-			       % (str((group, prefnm)), type_name, `val`))
+			       % (str((group, component)), type_name, `val`))
 
-    def GetInt(self, group, prefnm, use_default=0):
-	return self._GetTyped(group, prefnm, string.atoi, "integer",
+    def GetInt(self, group, component, use_default=0):
+	return self._GetTyped(group, component, string.atoi, "integer",
 			      use_default)
-    def GetFloat(self, group, prefnm, use_default=0):
-	return self._GetTyped(group, prefnm, string.atof, "float",
+    def GetFloat(self, group, component, use_default=0):
+	return self._GetTyped(group, component, string.atof, "float",
 			      use_default)
-    def GetBoolean(self, group, prefnm, use_default=0):
-	got = self._GetTyped(group, prefnm, string.atoi, "Boolean",
+    def GetBoolean(self, group, component, use_default=0):
+	got = self._GetTyped(group, component, string.atoi, "Boolean",
 			     use_default)
 	if got not in (0, 1):
 	    raise TypeError, ('%s not %s: %s'
-			      % ((group, prefnm), "Boolean", `got`))
+			      % ((group, component), "Boolean", `got`))
 	return got
 
     # Editing:
 
-    def Set(self, group, prefnm, val):
+    def Set(self, group, component, val):
 	"""Assign GROUP PREFERENCE with VALUE."""
-	if self.Get(group, prefnm) != val:
-	    self._user.Set(group, prefnm, val)
+	if self.Get(group, component) != val:
+	    self._user.Set(group, component, val)
 
     def Editable(self):
 	"""Identify or establish user's prefs file, or IO error."""
@@ -271,7 +272,7 @@ class AllPreferences:
 	# Process the callbacks:
 	did_groups = {}
 	for prefkey, val in self._user._new.items():
-	    [group, prefnm] = split_key(prefkey)
+	    [group, component] = split_key(prefkey)
 	    if not did_groups.has_key(group):
 		did_groups[group] = 1
 		if self._callbacks.has_key(group):
@@ -282,7 +283,7 @@ class AllPreferences:
 	    k = split_key(prefkey)
 	    if len(k) == 1:
 		# Probably a comment - we don't retain users' comments unless
-		# they make them look like distinct group--prefnm values.
+		# they make them look like distinct group--component values.
 		continue
 	    else:
 		# Discard items that duplicate settings in sys defaults:
@@ -295,11 +296,11 @@ class AllPreferences:
 	self._user.Save()
 
 
-def make_key(group, prefnm):
-    """Produce a key from preference GROUP and NAME strings."""
-    return string.lower(group + '--' + prefnm)
+def make_key(group, component):
+    """Produce a key from preference GROUP, COMPONENT strings."""
+    return string.lower(group + '--' + component)
 def split_key(key):
-    """Produce a key from preference GROUP and NAME strings."""
+    """Produce a key from preference GROUP, COMPONENT strings."""
     return string.split(key, '--')
 		    
 def test():
@@ -314,15 +315,15 @@ def test():
 
     # Getting values:
     exercise("origin = prefs.Get('landmarks', 'grail-home-page')", env,
-	     "Get an existing plain prefnm.")
+	     "Get an existing plain component.")
     exercise("origheight = prefs.GetInt('browser', 'default-height')", env,
-	     "Get an existing int prefnm.")
+	     "Get an existing int component.")
     exercise("if prefs.GetBoolean('browser', 'load-images') != 1:"
 	     + "raise SystemError, 'browser:load-images Boolean should be 1'",
-	     env, "Get an existing Boolean prefnm.")
+	     env, "Get an existing Boolean component.")
     # A few value errors:
     exercise("x = prefs.Get('grail', 'Never:no:way:no:how!')", env,
-	     "Ref to a non-existent prefnm.", KeyError)
+	     "Ref to a non-existent component.", KeyError)
     exercise("x = prefs.GetInt('landmarks', 'grail-home-page')", env,
 	     "Typed ref to incorrect type.", TypeError)
     exercise("x = prefs.GetBoolean('browser', 'default-height')", env,
