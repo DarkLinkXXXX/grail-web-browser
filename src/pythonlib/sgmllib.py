@@ -14,7 +14,7 @@ import string
 
 # Regular expressions used for parsing
 
-incomplete = regex.compile('[&<]')
+incomplete = regex.compile('[&<].')
 entityref = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\);?')
 charref = regex.compile('&#\([0-9]+\);?')
 starttagopen = regex.compile('<[>a-zA-Z]')
@@ -131,15 +131,19 @@ class SGMLParser:
 	    elif rawdata[i] == '&':
 		k = charref.match(rawdata, i)
 		if k >= 0:
+		    k = i+k
+		    if k == n and rawdata[n-1] != ';' and not end: break
 		    name = charref.group(1)
 		    self.handle_charref(name)
-		    i = i+k
+		    i = k
 		    continue
 		k = entityref.match(rawdata, i)
 		if k >= 0:
+		    k = i+k
+		    if k == n and rawdata[n-1] != ';' and not end: break
 		    name = entityref.group(1)
 		    self.handle_entityref(name)
-		    i = i+k
+		    i = k
 		    continue
 	    else:
 		raise RuntimeError, 'neither < nor & ??'
