@@ -470,7 +470,7 @@ class PSStream:
 
     def push_font_string(self, s, font):
 	if not font:
-	    self.push_string(char)
+	    self.push_string(s)
 	    return
 	if self._linestr:
 	    self.close_string()
@@ -1218,7 +1218,8 @@ class PrintingHTMLParser(HTMLParser):
 		     'circle': ('\x6d', 'ZapfDingbats'),
 		     'square': ('\x6f', 'ZapfDingbats'),
 		     'sp': (' ', None),
-		     'thinsp': ('\240', None)
+		     'thinsp': ('\240', None),
+		     'endash': ('-', None)
 		    }
 
     def load_dingbat(self, entname):
@@ -1559,9 +1560,6 @@ iso_template = """
 [FONTV FONTVB FONTVI FONTVBI FONTF FONTFB FONTFI FONTFBI] {
   reencodeISO D
 } forall
-"""
-
-xbm_to_eps_prolog = """
 """
 
 
