@@ -527,7 +527,7 @@ class Context:
 	    if self.on_top():
 		self.browser.clearstop()
 	    if self.source:
-		self.source.remove_temp_tag()
+		self.source.remove_temp_tag(histify=1)
 		self.source = None
 	    self.notify()
 	self.new_reader_status()
