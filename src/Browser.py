@@ -106,6 +106,12 @@ class Browser:
 			  command=self.view_source_command,
 			  underline=0, accelerator="Alt-V")
 	self.root.bind("<Alt-v>", self.view_source_command)
+	self.filemenu.add_command(label='Open...',
+				  command=self.open_uri_command,
+				  underline=0, accelerator='Alt-O')
+	self.root.bind('<Alt-o>', self.open_uri_command)
+	self.filemenu.add_command(label='Open file...',
+				  command=self.open_file_command)
 	self.filemenu.add_separator()
 	self.filemenu.add_command(label="Save As...",
 			  command=self.save_as_command,
@@ -398,6 +404,24 @@ class Browser:
 	if self.url:
 	    b.load(self.url)
 	return b
+
+    def open_uri_command(self, event=None):
+	if self.busycheck(): return
+	import OpenURIDialog
+	dialog = OpenURIDialog.OpenURIDialog(self.master)
+	uri = dialog.go()
+	if uri:
+	    b = Browser(self.master, self.app)
+	    b.load(uri)
+
+    def open_file_command(self, event=None):
+	if self.busycheck(): return
+	import FileDialog
+	dialog = FileDialog.LoadFileDialog(self.master)
+	filename = dialog.go()
+	if filename:
+	    b = Browser(self.master, self.app)
+	    b.load('file:/' + filename)
 
     def view_source_command(self, event=None):
 	# File/View Source
