@@ -4,7 +4,7 @@
 
 
 """Client-side session management support."""
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 
 import socket
 import string
@@ -17,14 +17,14 @@ class Session:
         self.__windows = []
         #
         if command is None:
-            command = [sys.executable]
-            if __debug__:
-                command.append("-O")
-            command = command + sys.argv
-            command = string.join(command)
+            command = string.join(sys.argv)
         if client is None:
-            hostname = socket.gethostname()
-            client = socket.gethostbyaddr(socket.gethostbyname(hostname))[0]
+            try:
+                hostname = socket.gethostname()
+                client = socket.gethostbyaddr(
+                    socket.gethostbyname(hostname))[0]
+            except socket.error:
+                client = None
         #
         self.set_command(command)
         self.set_client(client)
@@ -61,4 +61,4 @@ class Session:
         self.__master.command(self.__command)
         self.__master.client(self.__client)
         for window in self.__windows:
-            self.__master.group(window)
+            window.group(self.__master)
