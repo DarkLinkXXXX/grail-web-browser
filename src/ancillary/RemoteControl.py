@@ -286,17 +286,26 @@ class Controller:
     # convenience methods
 
     def _do_load(self, uri, in_new_window=None):
-	# get a reference to one of the browsers in the application
-	browsers = self._app.browsers
-	if len(browsers) > 0:
-	    b = browsers[-1]
-	else:
+	def _new_browser(b):
+	    from Browser import Browser
+	    return Browser(b.master)
+
+	browsers = self._app.browsers[:]
+	if not len(browsers):
 	    return
-	# create a new browser toplevel?
-	if in_new_window:
-	    import Browser
-	    b = Browser.Browser(b.master, self._app)
-	# tell it to load the URL
+
+	b = None
+	if not in_new_window:
+	    browsers.reverse()
+	    # find the last browser who's context is not showing
+	    # source
+	    for b in browsers:
+		if not b.context.show_source:
+		    break
+	    else:
+		b = None
+	if not b:
+	    b = _new_browsers(browsers[-1])
 	b.context.load(uri)
 
     def load_cmd(self, cmdstr, argstr):
