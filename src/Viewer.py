@@ -361,7 +361,9 @@ class Viewer(formatter.AbstractWriter):
 	window._percent = percentwidth
 	if not align:
 	    align = self.align
-	self.text.insert(END, MIN_IMAGE_LEADER, align)
+	if align:
+	    #  not needed on the left
+	    self.text.insert(END, MIN_IMAGE_LEADER, align)
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
