@@ -100,6 +100,16 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	except TclError, msg:
 	    pass			# Ignore the error
 
+    # Override tag: <BASE HREF=...>
+
+    def do_base(self, attrs):
+	base = None
+        for a, v in attrs:
+            if a == 'href':
+                base = v
+	if base:
+	    self.browser.url = urlparse.urljoin(self.browser.url, base)
+
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
