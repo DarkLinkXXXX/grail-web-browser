@@ -52,8 +52,8 @@ def protocol_access(url, mode, params, data=None):
 	    resturl = (proxy_host, url)
 	    scheme = string.lower(proxy_scheme)
 	    sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
-	    print "Sending", url
-	    print "     to", scheme, "proxy", proxy_host
+##	    print "Sending", url
+##	    print "     to", scheme, "proxy", proxy_host
     modname = sanitized + "API"
     from __main__ import app
     m = app.find_extension('protocols', modname)
