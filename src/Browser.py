@@ -20,6 +20,7 @@ import History
 # URLs of various sorts
 GRAIL_HOME = "http://monty.cnri.reston.va.us/grail/"
 PYTHON_HOME = "http://www.python.org/"
+CNRI_HOME = "http://www.cnri.reston.va.us/"
 ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail/about/"
 DEFAULT_HOME = GRAIL_HOME
 LOGO_IMAGES = "logo:"
@@ -222,6 +223,8 @@ class Browser:
 			  command=self.grail_home_command)
 	self.helpmenu.add_command(label="Python Home Page",
 			  command=self.python_home_command)
+	self.helpmenu.add_command(label="CNRI Home Page",
+			  command=self.cnri_home_command)
 
     def create_urlbar(self):
 	self.entry, self.entryframe = \
@@ -531,6 +534,9 @@ class Browser:
 
     def python_home_command(self, event=None):
 	self.load(PYTHON_HOME)
+
+    def cnri_home_command(self, event=None):
+	self.load(CNRI_HOME)
 
     # End of commmands
 
