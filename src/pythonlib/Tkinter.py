@@ -1188,6 +1188,8 @@ class Text(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		Widget.__init__(self, master, 'text', cnf, kw)
 		self.bind('<Delete>', self.bspace)
+	def bbox(self, *args):
+		return self._getints(self._do('bbox', args)) or None
 	def bspace(self, *args):
 		self.delete('insert')
 	def tk_textSelectTo(self, index):
