@@ -1,6 +1,6 @@
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.6 $'
+__version__ = '$Revision: 1.7 $'
 
 
 import bookmarks
@@ -284,7 +284,7 @@ class Parser(CaptureMixin, XMLParser):
 
     def save_end(self):
         s, self.__buffer = self.__buffer, ""
-        return s
+        return string.join(string.split(s))
 
     def handle_data(self, data):
         if self.capturing():
