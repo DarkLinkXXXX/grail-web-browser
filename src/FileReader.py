@@ -29,15 +29,15 @@ class FileReader(BaseReader):
 	BaseReader.__init__(self, context, api)
 
     def handle_data(self, data):
-	if self.fp is None:
-	    try:
+ 	try:
+	    if self.fp is None:
 		self.fp = self.open_file()
-	    except IOError, msg:
-		self.stop()
-		self.handle_error(-1, "IOError", {'detail': msg})
-		return
-	self.fp.write(data)
-
+	    self.fp.write(data)
+	except IOError, msg:
+	    self.stop()
+	    self.handle_error(-1, "IOError", {'detail': msg})
+	    return
+ 
     def open_file(self):
 	return open(self.filename, "wb")
 
