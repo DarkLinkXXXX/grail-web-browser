@@ -40,7 +40,6 @@ class Viewer(formatter.AbstractWriter):
 	self.text['insertwidth'] = 0
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
-	self.bind_anchors()
 
     def configure_tags(self, stylesheet):
 	self.text.config(stylesheet.default)
@@ -55,11 +54,11 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.tag_config('label_%d' % level,
 				 lmargin1=pix-40, tabs=tabs)
 
-    def bind_anchors(self):
-	self.text.tag_bind('a', '<Enter>', self.anchor_enter)
-	self.text.tag_bind('a', '<Motion>', self.anchor_enter)
-	self.text.tag_bind('a', '<Leave>', self.anchor_leave)
-	self.text.tag_bind('a', '<ButtonRelease-1>', self.anchor_click)
+    def bind_anchors(self, tag):
+	self.text.tag_bind(tag, '<Enter>', self.anchor_enter)
+	self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
+	self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
+	# XXX Don't tag bindings need to be garbage-collected?
 
     def clear_reset(self):
 	subwindows = self.subwindows + self.rules
