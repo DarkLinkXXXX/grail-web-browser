@@ -331,7 +331,7 @@ class HTMLParser(SGMLParser):
     #
     #	    [element, label, entry_count, compact_p, stack_depth]
     #
-    #	Where element can be 'dd', 'dl', 'ol', 'ul' (no 'dt');
+    #	Where element can be 'dd', 'dl', 'dir', 'menu', 'ol', 'ul' (no 'dt');
     #	      label is the item label (for 'ol', 'ul' only) for
     #		subsequent list items.  If this is a string, it is
     #		handled as a format string, otherwise it must be
@@ -371,7 +371,7 @@ class HTMLParser(SGMLParser):
 	else:
 	    self.formatter.end_paragraph(1)
 
-    def start_ul(self, attrs):
+    def start_ul(self, attrs, tag='ul'):
 	self.element_close_maybe('p', 'lh')
 	if self.list_stack:
 	    self.formatter.end_paragraph(0)
@@ -388,7 +388,7 @@ class HTMLParser(SGMLParser):
 	    else:
 		format = ('disc', 'circle', 'square')[len(self.list_stack) % 3]
 	    label = self.make_format(format, listtype='ul')
-        self.list_stack.append(['ul', label, 0,
+        self.list_stack.append([tag, label, 0,
 				#  Propogate COMPACT once set:
 				compact or attrs.has_key('compact'),
 				len(self.stack) + 1])
@@ -494,7 +494,7 @@ class HTMLParser(SGMLParser):
 
     def start_menu(self, attrs):
 	attrs['plain'] = None
-        self.start_ul(attrs)
+        self.start_ul(attrs, tag='menu')
 
     def end_menu(self):
         self.end_ul()
@@ -502,7 +502,7 @@ class HTMLParser(SGMLParser):
     def start_dir(self, attrs):
 	attrs['plain'] = None
 	attrs['wrap'] = 'horiz'
-        self.start_ul(attrs)
+        self.start_ul(attrs, tag='dir')
 
     def end_dir(self):
         self.end_ul()
