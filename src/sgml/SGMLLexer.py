@@ -8,7 +8,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.36 $"
+__version__ = "$Revision: 1.37 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -299,6 +299,9 @@ class SGMLLexer(SGMLLexerBase):
 	def line(self):
 	    return self._l and self._l.line() or None
 
+	def setliteral(self, tag):
+	    pass
+
 	def setnomoretags(self):
 	    self.nomoretags = 1
 	    self._l.normalize(0)
@@ -394,6 +397,15 @@ class SGMLLexer(SGMLLexerBase):
 	    self._strict = not ((constrain and 1) or 0)
 	    return prev
 
+	def setliteral(self, tag):
+	    import regex
+	    self.literal = 1
+	    re = "%s%s[%s]*%s" % (ETAGO, tag, string.whitespace, TAGC)
+	    if self._normfunc is string.lower:
+		self._lit_etag_re = regex.compile(re, regex.casefold)
+	    else:
+		self._lit_etag_re = regex.compile(re)
+
 	def setnomoretags(self):
 	    self.nomoretags = 1
 
@@ -409,6 +421,20 @@ class SGMLLexer(SGMLLexerBase):
 		if self.nomoretags:
 		    self.lex_data(rawdata[i:n])
 		    i = n
+		    break
+		if self.literal:
+		    pos = self._lit_etag_re.search(rawdata, i)
+		    if pos >= 0:
+			# found end
+			self.lex_data(rawdata[i:pos])
+			i = pos + len(self._lit_etag_re.group(0))
+			self.literal = 0
+			continue
+		    else:
+			pos = string.rfind(rawdata, "<", i)
+			if pos >= 0:
+			    self.lex_data(rawdata[i:pos])
+			    i = pos
 		    break
 		# pick up self._finish_parse as soon as possible:
 		end = end or self._finish_parse
@@ -513,6 +539,7 @@ class SGMLLexer(SGMLLexerBase):
 		k = incomplete.match(rawdata, i)
 		if k < 0:
 		    self.lex_data(rawdata[i])
+## 		    print "lexing single char: '%c'" % rawdata[i]
 		    i = i+1
 		    continue
 		j = i+k
@@ -529,6 +556,7 @@ class SGMLLexer(SGMLLexerBase):
 	# Internal -- parse comment, return length or -1 if not terminated
 	def parse_comment(self, i, end):
 	    rawdata = self.rawdata
+## 	    if __debug__:
 	    if rawdata[i:i+4] <> (MDO + COM):
 		raise RuntimeError, 'unexpected call to parse_comment'
 	    if self._strict:
@@ -571,12 +599,12 @@ class SGMLLexer(SGMLLexerBase):
 	# Internal -- handle starttag, return length or -1 if not terminated
 	def parse_starttag(self, i):
 	    rawdata = self.rawdata
-	    if shorttagopen.match(rawdata, i) >= 0:
+	    if self._strict and shorttagopen.match(rawdata, i) >= 0:
 		# SGML shorthand: <tag/data/ == <tag>data</tag>
 		# XXX Can data contain &... (entity or char refs)? ... yes
 		# XXX Can data contain < or > (tag characters)? ... > yes,
 		#				< not as delimiter-in-context
-		# XXX Can there be whitespace before the first /?
+		# XXX Can there be whitespace before the first /? ... no
 		j = shorttag.match(rawdata, i)
 		if j < 0:
 		    self.lex_data(rawdata[i])
@@ -592,7 +620,6 @@ class SGMLLexer(SGMLLexerBase):
 	    if j < 0:
 		return -1
 	    # Now parse the data between i+1 and j into a tag and attrs
-	    attrs = {}
 	    if rawdata[i:i+2] == '<>':
 		#  Semantics of the empty tag are handled by lex_starttag():
 		if self._strict:
@@ -602,13 +629,18 @@ class SGMLLexer(SGMLLexerBase):
 		return i + 2
 
 	    k = tagfind.match(rawdata, i+1)	# matches just the GI
+## 	    if __debug__:
 	    if k < 0:
 		raise RuntimeError, 'unexpected call to parse_starttag'
 	    k = i+1+k
 	    tag = self._normfunc(rawdata[i+1:k])
+	    # pull recognizable attributes
+	    attrs = {}
 	    while k < j:
 		l = attrfind.match(rawdata, k)
 		if l < 0: break
+		k = k + l
+		# Break out the name[/value] pair:
 		attrname, rest, attrvalue = attrfind.group(1, 2, 3)
 		if not rest:
 		    attrvalue = None	# was:  = attrname
@@ -619,17 +651,18 @@ class SGMLLexer(SGMLLexerBase):
 			from SGMLReplacer import replace
 			attrvalue = replace(attrvalue, self.entitydefs)
 		attrs[self._normfunc(attrname)] = attrvalue
-		k = k + l
+	    # close the start-tag
 	    xx = tagend.match(rawdata, k)
 	    if xx < 0:
 		#  something vile
+		endchars = self._strict and "<>/" or "<>"
 		while 1:
 		    try:
 			while rawdata[k] in string.whitespace:
 			    k = k + 1
 		    except IndexError:
 			return -1
-		    if rawdata[k] not in '<>/':
+		    if rawdata[k] not in endchars:
 			self.lex_error("bad character in tag")
 			k = k + 1
 		    else:
