@@ -257,24 +257,29 @@ class Context:
 	return image
 
     def get_async_image(self, src, reload=0):
+	# check out the request
 	if not src: return None
 	url = self.get_baseurl(src)
 	if not url: return None
-	app = self.app
+	if not self.app.load_images: return None
+
+	# try loading from the cache
 	if not reload:
-	    image = app.get_cached_image(url)
+	    image = self.app.get_cached_image(url)
 	    if image:
-		if app.load_images and not image.loaded:
+		if not image.loaded:
 		    image.start_loading(self)
-		    return image
+		return image
+
+        # it's not in the cache.
 	from AsyncImage import AsyncImage
 	try:
 	    image = AsyncImage(self, url, reload)
 	except IOError, msg:
 	    image = None
 	if image:
-	    app.set_cached_image(url, image)
-	    if app.load_images:
+	    self.app.set_cached_image(url, image, self)
+	    if self.app.load_images:
 		image.start_loading(self)
 	return image
 

@@ -39,6 +39,7 @@ import tktools
 from Browser import Browser
 import SafeTkinter
 from CacheMgr import CacheManager
+from ImageCache import ImageCache
 import TbDialog
 if 0:
     import dummies
@@ -202,13 +203,13 @@ class Application:
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
 	self.global_history = GlobalHistory.GlobalHistory(self)
-	self.image_cache = {}
 	self.login_cache = {}
 	self.rexec_cache = {}
 	self.graildir = grailutil.getgraildir()
 	grailutil.establish_dir(self.graildir)
 	self.iconpath.insert(0, os.path.join(self.graildir, 'icons'))
 	self.url_cache = CacheManager(self)
+	self.image_cache = ImageCache(self.url_cache)
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
 	  read_mime_types("/usr/local/lib/netscape/mime.types") or \
@@ -327,17 +328,10 @@ class Application:
 	    return None
 
     def get_cached_image(self, url):
-	if url and self.image_cache.has_key(url):
-	    self.url_cache.touch(url)
-	    return self.image_cache[url]
-	else:
-	    return None
+	return self.image_cache.get_image(url)
 
-    def set_cached_image(self, url, image):
-	if self.image_cache.has_key(url):
-	    # is explicit delete necessary?
-	    del self.image_cache[url]
-	self.image_cache[url] = image
+    def set_cached_image(self, url, image, owner=None):
+	self.image_cache.set_image(url, image, owner)
 
     def open_url(self, url, method, params, reload=0, data=None):
 	api = self.url_cache.open(url, method, params, reload, data=data)
