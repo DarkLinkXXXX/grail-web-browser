@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -125,7 +125,7 @@ class SGMLParser(SGMLLexer):
 		if not tag:
 		    raise SGMLError, \
 			  'Cannot start the document with an empty tag.'
-	attrs = attrs.items()	# map to list of tuples for now
+	#attrs = attrs.items()	# map to list of tuples for now
 	try:
 	    method = getattr(self, 'start_' + tag)
 	except AttributeError:
