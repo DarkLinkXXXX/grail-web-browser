@@ -10,6 +10,9 @@ import math
 
 VALID_TARGET_STARTS = string.letters + '_'
 
+# TBD: horrible hack.  search down for reason. -bwarsaw
+LAST_CONTEXT = None
+
 
 class Context:
 
@@ -351,6 +354,11 @@ class Context:
 
     def read_page(self, url, method, params, show_source=0, reload=0,
 		  scrollpos=None, data=None):
+	# TBD: this is a horrid hack used so that
+	# mailtoAPI.mailto_access can get at the URL of the page that
+	# the user has clicked off of. -baw
+	global LAST_CONTEXT
+	LAST_CONTEXT = self
 	from Reader import Reader
 	Reader(self, url, method, params, show_source, reload, data, scrollpos)
 
