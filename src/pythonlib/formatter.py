@@ -37,26 +37,33 @@ class AbstractFormatter:
 	self.style_stack = []		# Other state, e.g. color
 	self.nospace = 1		# Should leading space be suppressed
 	self.softspace = 0		# Should a space be inserted
+	self.para_end = 1		# Just ended a paragraph
+	self.hard_break = 1
 
     def end_paragraph(self, blankline):
-	if not self.nospace:
-	    self.writer.send_paragraph(blankline)
-	self.nospace = 1
+	if not self.para_end:
+	    if self.hard_break:
+		self.writer.send_paragraph(0)
+	    else:
+		self.writer.send_paragraph((blankline and 1) or 0)
+	self.hard_break = self.nospace = self.para_end = 1
 	self.softspace = 0
 
     def add_line_break(self):
-	self.writer.send_line_break()
-	self.nospace = 1
+	if not self.hard_break and not self.para_end:
+	    self.writer.send_line_break()
+	self.hard_break = self.nospace = 1
 	self.softspace = 0
 
     def add_hor_rule(self):
 	self.writer.send_hor_rule()
-	self.nospace = 1
-	self.softspace = 0
+	self.hard_break = self.nospace = 1
+	self.para_end = self.softspace = 0
 
     def add_label_data(self, format, counter):
 	data = self.format_counter(format, counter)
 	self.writer.send_label_data(data)
+	self.para_end = self.hard_break = 0
 
     def format_counter(self, format, counter):
 	if counter <= 0:
@@ -119,7 +126,7 @@ class AbstractFormatter:
 	    prespace = 0
 	elif self.softspace:
 	    prespace = 1
-	self.nospace = self.softspace = 0
+	self.hard_break = self.nospace = self.para_end = self.softspace = 0
 	if postspace:
 	    self.softspace = 1
 	if prespace: data = ' ' + data
@@ -128,12 +135,12 @@ class AbstractFormatter:
     def add_literal_data(self, data):
 	if self.softspace and data[:1] != '\n':
 	    data = ' ' + data
-	self.nospace = self.softspace = 0
+	self.hard_break = self.nospace = self.para_end = self.softspace = 0
 	self.writer.send_literal_data(data)
 
     def flush_softspace(self):
 	if self.softspace:
-	    self.nospace = self.softspace = 0
+	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
 	    self.writer.send_flowing_data(' ')
 
     def push_font(self, (size, i, b, tt)):
@@ -184,6 +191,7 @@ class AbstractFormatter:
 
     def assert_line_data(self, flag=1):
 	self.nospace = not flag
+	self.hard_break = self.para_end = 0
 
 
 class AbstractWriter:
