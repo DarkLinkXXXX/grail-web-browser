@@ -9,7 +9,6 @@ import grailutil
 from Tkinter import *
 import tktools
 
-from DefaultStylesheet import DefaultStylesheet
 from Viewer import Viewer
 from AsyncImage import AsyncImage
 from Cursors import *
@@ -74,7 +73,6 @@ class Browser:
 	self.create_urlbar()
 	self.create_statusbar()
 	self.viewer = Viewer(self.root, browser=self,
-			     stylesheet=DefaultStylesheet,
 			     width=width, height=height)
 	self.context = self.viewer.context
 	if self.app.prefs.GetBoolean('browser', 'show-logo'):
