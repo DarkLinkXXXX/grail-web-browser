@@ -10,17 +10,15 @@ AbstractWriter, called PSWriter, that supports this high level
 interface as appropriate for PostScript generation.
 """
 
+# must import ni first!  no harm if it's imported twice
+import ni
 import sys
 import os
 import string
 import StringIO
 import regsub
 from formatter import *
-
-import ni
-ni.install()
 import fonts
-#ni.uninstall()
 
 
 
@@ -311,7 +309,6 @@ class PSStream:
 	self.push_font_change(None)
 
     def push_end(self):
-#	print 'push_end'
 	self.close_line()
 	self.print_page_postamble(1)
 	oldstdout = sys.stdout
@@ -324,7 +321,6 @@ class PSStream:
 	    sys.stdout = oldstdout
 
     def push_font_change(self, font):
-#	print 'push_font_change:', font
 	if self._linestr:
 	    self.close_string()
 	self._tallest = max(self._tallest, self._font.font_size())
@@ -333,7 +329,6 @@ class PSStream:
 	self._linedata.write('%s %d SF\n' % (psfontname, size))
 
     def push_space(self, spaces=1):
-#	print 'push_space:', spaces
 	# spaces at the beginning of a line are thrown away, unless we
 	# are in literal text.
 	if self._inliteral_p or self._xpos > 0.0:
@@ -341,7 +336,6 @@ class PSStream:
 	    self._xpos = self._xpos + self._space_width * spaces
 
     def push_horiz_rule(self):
-#	print 'push_horiz_rule'
 	self.close_line()
 	oldstdout = sys.stdout
 	try:
@@ -354,7 +348,6 @@ class PSStream:
 	    sys.stdout = oldstdout
 
     def push_margin(self, level):
-#	print 'push_margin:', level
 	self.close_line()
 	distance = level * TAB_STOP
 	self._margin = distance
@@ -362,7 +355,6 @@ class PSStream:
 	self._ofp.write('NL\n')
 
     def push_label(self, bullet):
-#	print 'push_label:', bullet
 	if bullet is not None:
 	    distance = self._font.text_width(bullet) + LABEL_TAB
 	    self._ofp.write('gsave NL -%f 0 R\n' % distance)
@@ -373,7 +365,6 @@ class PSStream:
 	    self._ofp.write('grestore\n')
 
     def push_hard_newline(self, blanklines=1):
-#	print 'push_hard_newline:', blanklines
 	self.close_line()
 	self._ofp.write('NL\n')
 	if self._inliteral_p:
@@ -386,25 +377,21 @@ class PSStream:
 	    self._ypos = self._ypos - vtab
 
     def push_vtab(self, distance):
-#	print 'push_vtab:', self._vtab, '+', distance
 	self.close_line()
 	self._vtab = self._vtab + distance
 
     def push_underline(self, flag):
-#	print 'push_underline:', flag
 	render = flag and 'U' or 'S'
 	if self._render <> render:
 	    self.close_string()
 	self._render = render
 
     def push_literal(self, flag):
-#	print 'push_literal:', flag
         if self._linestr:
 	    self.close_string()
 	self._inliteral_p = flag
 
     def push_string(self, data):
-#	print 'push_string:', string
 	lines = string.splitfields(data, '\n')
 	linecnt = len(lines)-1
 	# local variable cache
@@ -434,11 +421,11 @@ class PSStream:
 		    # first output the current line data
 		    #
 		    self.close_line(linestr=linestr)
+		    self._ofp.write('NL\n')
 		    # close_line() touches these, but we're using a
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
 		    linestr = []
-		    self._ofp.write('NL\n')
 		    linestr.append(word)
 		    xpos = xpos + width
 		# Try an alternative line break strategy.  If we're
@@ -448,6 +435,7 @@ class PSStream:
 		# single line.
 		else:
 		    self.close_line(linestr=linestr)
+		    self._ofp.write('NL\n')
 		    # close_line() touches these, but we're using a
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
@@ -520,18 +508,23 @@ class PSStream:
 	finally:
 	    sys.stdout = stdout
 
+    def print_page_break(self, ypos=None):
+	if ypos is None:
+	    ypos = self._ypos
+	# check to see if we're at the end of the page
+	if self._ypos <= -PAGE_HEIGHT:
+	    self.print_page_postamble()
+	    self._pageno = self._pageno + 1
+	    self.print_page_preamble()
+	    ypos = 0.0
+	return ypos
+	
     def close_line(self, linestr=None):
 	if linestr is None: linestr = self._linestr
 	if linestr:
 	    self.close_string(linestr)
 	if self._linedata.tell() > 0:
-	    self._ypos = self._ypos - self._vtab
-	    # check to see if we're at the end of the page
-	    if self._ypos <= -PAGE_HEIGHT:
-		self.print_page_postamble()
-		self._pageno = self._pageno + 1
-		self.print_page_preamble()
-		self._ypos = 0.0
+	    self._ypos = self.print_page_break(self._ypos - self._vtab)
 	    self._ofp.write('0 -%f R\n' % self._vtab)
 	    self._ofp.write(self._linedata.getvalue())
 	    self._linedata = StringIO.StringIO()
@@ -579,57 +572,30 @@ class PSWriter(AbstractWriter):
         self.ps = PSStream(font, ofile, title, url)
 	self.ps.start()
 
-    def close(self):
-#	print 'close'
-	self.ps.push_end()
+    def close(self): self.ps.push_end()
+    def new_font(self, font): self.ps.push_font_change(font)
+    def new_margin(self, margin, level): self.ps.push_margin(level)
+    def new_spacing(self, spacing): raise RuntimeError
 
-    def new_font(self, font):
-#	print 'new_font:', font
-	self.ps.push_font_change(font)
-
-    def new_margin(self, margin, level):
-#	print 'new_margin:', margin, level
-	self.ps.push_margin(level)
-
-    def new_spacing(self, spacing):
-#	print "new_spacing(%s)" % `spacing`
-	raise RuntimeError
-
-    def new_styles(self, styles):
-#	print 'new_styles:', styles
 	# semantics of STYLES is a tuple of single char strings.
 	# Right now the only styles we support are lower case 'u' for
 	# underline.
-	if 'u' in styles:
-	    self.ps.push_underline(1)
-	else:
-	    self.ps.push_underline(0)
+    def new_styles(self, styles): self.ps.push_underline('u' in styles)
 
-    def send_paragraph(self, blankline):
-#	print 'send_paragraph:', blankline
-	self.ps.push_hard_newline(blankline)
-
-    def send_line_break(self):
-#	print 'send_line_break'
-	self.ps.push_hard_newline()
-
-    def send_hor_rule(self):
-#	print 'send_hor_rule'
-	self.ps.push_horiz_rule()
+    def send_paragraph(self, blankline): self.ps.push_hard_newline(blankline)
+    def send_line_break(self): self.ps.push_hard_newline()
+    def send_hor_rule(self): self.ps.push_horiz_rule()
 
     def send_label_data(self, data):
-#	print 'send_label_data:', data
 	self.ps.push_label(data)
 	self.ps.push_string(data)
 	self.ps.push_label(None)
 
     def send_flowing_data(self, data):
-#	print 'send_flowing_data:', data
 	self.ps.push_literal(0)
 	self.ps.push_string(data)
 
     def send_literal_data(self, data):
-#	print 'send_literal_data:', data
 	self.ps.push_literal(1)
 	self.ps.push_string(data)
 
