@@ -68,9 +68,6 @@ styles--huge-sizes:
 	25      34   20   25   20   20   20
 	25  25  25   25  25    25    25
 #
-# Anchors:
-styles-common--styles-a-foreground: #0000EE
-styles-common--styles-a-underline: 1
 # Preformatted text:
 styles-common--styles-pre-wrap: none
 # Centered text:
@@ -86,10 +83,9 @@ styles-common--history-atemp-underline: 1
 styles-common--priorities-ahist: a
 styles-common--priorities-atemp: ahist
 #
-# Basic helvetica viewer styles:
-#
-# Every style should have a 'valid' component, particularly if it has nothing
-# else - empty styles are invalid.
+# Font templates - these are combined with the respective family and
+# size components to dictate the actual font spec.  These should not
+# be changed unless you are adding a new tag entity to Grail.
 styles-fonts--default-font:
 	-*-%(family)s-medium-r-normal-*-%(default)d-*-*-*-*-*-*
 styles-fonts--styles-h1_b-font:
