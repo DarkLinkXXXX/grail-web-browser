@@ -495,7 +495,7 @@ class BookmarksDialog:
 	self._frame.bind("<Alt-S>", self._controller.save)
 	filemenu.add_command(label="Save As...",
 			     command=self._controller.saveas)
-	filemenu.add_command(label="View in Grail",
+	filemenu.add_command(label="View Bookmarks in Grail",
 			     command=self._controller.bookmark_goto,
 			     underline=0, accelerator="Alt-V")
 	self._frame.bind("<Alt-v>", self._controller.bookmark_goto)
@@ -520,9 +520,9 @@ class BookmarksDialog:
 	navmenu.add_separator()
 	navmenu.add_command(label="Go To Bookmark",
 			    command=self._controller.goto,
-			    underline=0, accelerator="Alt-G")
-	self._frame.bind("<Alt-g>", self._controller.goto)
-	self._frame.bind("<Alt-G>", self._controller.goto)
+			    underline=0, accelerator="G")
+	self._frame.bind("g", self._controller.goto)
+	self._frame.bind("G", self._controller.goto)
 	self._frame.bind("<KeyPress-space>", self._controller.goto)
 	navbtn.config(menu=navmenu)
 	# Properties menu (details)
@@ -546,23 +546,24 @@ class BookmarksDialog:
 	editbtn = Menubutton(self._menubar, text="Edit")
 	editbtn.pack(side=LEFT)
 	editmenu = Menu(editbtn)
-	editmenu.add_command(label="Bookmark Details...",
-			     command=self._controller.details,
-			     underline=0, accelerator="Alt-D")
-	self._frame.bind("<Return>", self._controller.details)
-	self._frame.bind("<Alt-d>", self._controller.details)
-	self._frame.bind("<Alt-D>", self._controller.details)
 	editmenu.add_command(label="Add Current",
 			     command=self._controller.add_current,
-			     underline=0, accelerator='Alt-A')
+			     underline=0, accelerator='A')
+	self._frame.bind("a", self._controller.add_current)
+	self._frame.bind("A", self._controller.add_current)
 	self._frame.bind("<Alt-a>", self._controller.add_current)
 	self._frame.bind("<Alt-A>", self._controller.add_current)
+	editmenu.add_command(label="Bookmark Details...",
+			     command=self._controller.details,
+			     underline=0, accelerator="D")
+	self._frame.bind("d", self._controller.details)
+	self._frame.bind("D", self._controller.details)
 	editmenu.add_separator()
 	editmenu.add_command(label="Expand",
 			    command=self._controller.expand_cmd,
-			    accelerator="Alt-E")
-	self._frame.bind("<Alt-e>", self._controller.expand_cmd)
-	self._frame.bind("<Alt-E>", self._controller.expand_cmd)
+			    underline=0, accelerator="E")
+	self._frame.bind("e", self._controller.expand_cmd)
+	self._frame.bind("E", self._controller.expand_cmd)
 	editmenu.add_command(label='Expand All Children',
 			     command=self._controller.expand_children)
 	editmenu.add_command(label="Expand Top Level",
@@ -572,9 +573,9 @@ class BookmarksDialog:
 	editmenu.add_separator()
 	editmenu.add_command(label="Collapse",
 			    command=self._controller.collapse_cmd,
-			    accelerator="Alt-C")
-	self._frame.bind("<Alt-c>", self._controller.collapse_cmd)
-	self._frame.bind("<Alt-C>", self._controller.collapse_cmd)
+			    underline=0, accelerator="C")
+	self._frame.bind("c", self._controller.collapse_cmd)
+	self._frame.bind("C", self._controller.collapse_cmd)
 	editmenu.add_command(label='Collapse All Children',
 			     command=self._controller.collapse_children)
 	editmenu.add_command(label="Collapse Top Level",
@@ -641,12 +642,15 @@ class BookmarksDialog:
 	topframe = Frame(self._frame)
 	topframe.pack(side=BOTTOM, fill=BOTH)
 	# bottom buttonbar buttons
-	okbtn = Button(btmframe, text='Ok', command=self.okay_cmd)
+	okbtn = Button(btmframe, text='OK', command=self.okay_cmd)
 	okbtn.pack(side=LEFT)
+	savebtn = Button(btmframe, text='Save', command=self.save_cmd)
+	savebtn.pack(side=LEFT)
+	self._frame.bind("<Return>", self.okay_cmd)
 	status = Label(btmframe, text='', foreground='Red', anchor='w',
 		       textvariable=self._controller.statusmsg)
 	status.pack(side=LEFT, expand=1, fill=BOTH)
-	cancelbtn = Button(btmframe, text='Close', command=self.cancel_cmd)
+	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
 	cancelbtn.pack(side=RIGHT)
 	# top buttonbar buttons
 	prevbtn = Button(topframe, text='Previous',
@@ -666,7 +670,7 @@ class BookmarksDialog:
 	expbtn.pack(side=LEFT, expand=1, fill=BOTH)
 
     def set_modflag(self, flag):
-	if flag: text = '<========== Changes are unsaved!'
+	if flag: text = '<===== Changes are unsaved!'
 	else: text = ''
 	self._controller.statusmsg.set(text)
 
@@ -681,10 +685,14 @@ class BookmarksDialog:
 	self._frame.tkraise()
 	self._listbox.focus_set()
 
+    def save_cmd(self, event=None):
+	self._controller.save()
     def okay_cmd(self, event=None):
 	self._controller.save()
 	self._controller.hide()
-    def cancel_cmd(self, event=None): self._controller.hide()
+    def cancel_cmd(self, event=None):
+	self._controller.revert()
+	self._controller.hide()
     def hide(self): self._frame.withdraw()
 
     def set_labels(self, filename, title):
@@ -811,14 +819,14 @@ class BookmarksController(OutlinerController):
     ## coordinate with Application instance
 
     def on_app_exit(self):
-##	self.save()
+	self.save(exiting=True)
 	self._app.unregister_on_exit(self.on_app_exit)
 
     ## Modifications updating
-    def set_modflag(self, flag):
-	if flag <> self._modflag:
-	    if self._dialog: self._dialog.set_modflag(flag)
-	    self._modflag = flag
+    def set_modflag(self, flag, quiet=False):
+	if self._dialog and not quiet:
+	    self._dialog.set_modflag(flag)
+	self._modflag = flag
 
     ## I/O
 
@@ -842,8 +850,8 @@ class BookmarksController(OutlinerController):
 	self.set_root(root)
 	self._initialized_p = True
 
-    def load(self):
-	root, reader, self._writer = self._iomgr.load()
+    def load(self, usedefault=False):
+	root, reader, self._writer = self._iomgr.load(usedefault=usedefault)
 	if not root and not reader and not self._writer:
 	    # load dialog was cancelled
 	    return
@@ -858,13 +866,19 @@ class BookmarksController(OutlinerController):
 	self.set_modflag(False)
 	if node: self.viewer().select_node(node)
 
+    def revert(self):
+	# In the long term it might be better/faster not to simply
+	# reload the file, but to actually make a backup of the tree
+	# at load time.
+	self.load(usedefault=True)
+
 ##    def merge(self, event=None): pass
-    def save(self, event=None):
+    def save(self, event=None, exiting=False):
 	# if it hasn't been modified, it doesn't need saving
 	if not self.set_modflag: return
 	self._iomgr.save(self._writer, self._root)
 	self.set_modflag(False)
-	if self._dialog:
+	if self._dialog and not exiting:
 	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
     def saveas(self, event=None):
@@ -899,7 +913,7 @@ class BookmarksController(OutlinerController):
 	    if node.expanded_p(): self.collapse_node(node)
 	    else: self.expand_node(node)
 	    self.viewer().select_node(node)
-	    self.set_modflag(True)
+	    self.set_modflag(True, quiet=True)
 
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
@@ -911,7 +925,7 @@ class BookmarksController(OutlinerController):
 		self._details[id(node)].revert()
 	    self._browser.load(node.uri())
 	    self.viewer().select_node(node)
-	    self.set_modflag(True)
+	    self.set_modflag(True, quiet=True)
 
     def add_current(self, event=None):
 	# create a new node to represent this addition and then fit it
@@ -1032,20 +1046,22 @@ class BookmarksController(OutlinerController):
 
     ## Commands
 
-    def _cmd(self, method):
+    def _cmd(self, method, quiet=False):
 	node, selection = self._get_selected_node()
 	if node:
 	    selected_node = method(node)
 	    if not selected_node: selected_node = node
 	    self.viewer().select_node(selected_node)
-	    self.set_modflag(True)
+	    self.set_modflag(True, quiet=quiet)
 
     def shift_left_cmd(self, event=None):  self._cmd(self.shift_left)
     def shift_right_cmd(self, event=None): self._cmd(self.shift_right)
     def shift_up_cmd(self, event=None):    self._cmd(self.shift_up)
     def shift_down_cmd(self, event=None):  self._cmd(self.shift_down)
-    def collapse_cmd(self, event=None):    self._cmd(self.collapse_node)
-    def expand_cmd(self, event=None):      self._cmd(self.expand_node)
+    def collapse_cmd(self, event=None):
+	self._cmd(self.collapse_node, quiet=True)
+    def expand_cmd(self, event=None):
+	self._cmd(self.expand_node, quiet=True)
 
     def _prevnext(self, delta):
 	node, selection = self._get_selected_node()
@@ -1061,7 +1077,7 @@ class BookmarksController(OutlinerController):
 		child.collapse()
 	self.root_redisplay()
 	self.viewer().select_node(node)
-	self.set_modflag(True)
+	self.set_modflag(True, quiet=True)
     def collapse_children(self, event=None):
 	node, selection = self._get_selected_node()
 	if node: self._collapse_children(node)
@@ -1073,7 +1089,7 @@ class BookmarksController(OutlinerController):
 		child.expand()
 	self.root_redisplay()
 	self.viewer().select_node(node)
-	self.set_modflag(True)
+	self.set_modflag(True, quiet=True)
     def expand_children(self, event=None):
 	node, selection = self._get_selected_node()
 	if node: self._expand_children(node)
