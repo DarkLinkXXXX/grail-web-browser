@@ -192,30 +192,31 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def do_area(self, attrs):
 	"""Handle the <AREA> tag."""
 
-	# use try because we may not have seen a map yet, which means
-	# the <MAP> instance variables haven't been added to the parser
-	try:
-	    if self.current_map:
-		coords = []
-		shape = 'rect'
-		url = ''
-		alt = ''
+	if self.current_map:
+	    coords = []
+	    shape = 'rect'
+	    url = ''
+	    alt = ''
 
-		for name, val in attrs:
-		    if name == 'shape':
-			shape = val
-		    if name == 'coords':
-			coords = val
-		    if name == 'alt':
-			alt = val
-		    if name == 'href':
-			url = val
-		    if name == 'nohref':  # not sure what the point is
-			url = None
+	    for name, val in attrs:
+		if name == 'shape':
+		    shape = val
+		if name == 'coords':
+		    coords = val
+		if name == 'alt':
+		    alt = val
+		if name == 'href':
+		    url = val
+		if name == 'nohref':  # not sure what the point is
+		    url = None
 
+	    try:
 		self.current_map.add_shape(shape, self.parse_area_coords(shape, coords), url)
-	except AttributeError:
-	    pass # ignore, because we're not in a map
+	    except IndexError:
+		# wrong number of coordinates
+		# how should this get reported to the user?
+		print "imagemap specifies bad coordinates"
+		pass
 
     def parse_area_coords(self, shape, text):
 	"""Parses coordinate string into list of numbers.
@@ -234,7 +235,11 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    # list of (x,y) tuples
 	    while len(terms) > 0:
 		coords.append((terms[0], terms[1]))
-		del terms[0:1]
+		del terms[0] 
+		del terms[0] # del terms[0:1] didn't work
+	    if coords[0] != coords[-1:]:
+		# make sure the polygon is closed
+		coords.append(coords[0])
 	elif shape == 'rect':
 	    # (x,y) tuples for upper left, lower right
 	    coords.append((terms[0], terms[1]))

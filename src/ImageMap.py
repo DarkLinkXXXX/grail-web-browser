@@ -25,7 +25,7 @@ class Shape:
 		isin = 1
 
 	elif self.kind == 'poly':
-	    isin = poly_pointin(self, x, y)
+	    isin = self.poly_pointin(x, y)
 
 	elif self.kind == 'default':
 	    isin = 1
@@ -33,7 +33,31 @@ class Shape:
 	return isin
 
     def poly_pointin(self, x, y):
-	return 0
+	"""Is point (x,y) inside polygon with vertices coords?
+
+	From C code by Paul Bourke at
+	<http://www.auckland.ac.nz/arch/pdbourke/geometry/insidepoly.html>
+	Determining whether or not a point lies on the interior of a polygon.
+
+	The algorithm is a little pesky because a point on an edge of the
+	polygon doesn't appear to be treated as *in* the polygon. Not doing
+	anything about this at the moment.
+	"""
+
+	counter = 0
+	p1 = self.coords[0]
+	for i in range(1,len(self.coords)):
+	    p2 = self.coords[i]
+	    if y > min(p1[1], p2[1]):
+		if y <= max(p1[1], p2[1]):
+		    if x <= max (p1[0], p2[0]):
+			if p1[1] != p2[1]:
+			    xintersect = (y-p1[1])*(p2[0]-p1[0])/(p2[1]-p1[1])+p1[0]
+			    if p1[0] == p2[0] or x <= xintersect:
+				counter = counter + 1
+	    p1 = p2
+    
+	return counter % 2
 
 class MapInfo:
     """Holds shapes during parsing.
@@ -92,6 +116,8 @@ class MapThunk:
 	    self.force()
 	    if self.waiting == 1:
 		return None
+
+	print "get url at (%s,%s)" % (x,y)
 
 	# get the shape and return url
 	shape = self.get_shape(x, y)
