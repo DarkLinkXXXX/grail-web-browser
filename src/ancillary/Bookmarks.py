@@ -9,7 +9,7 @@ import os
 import string
 import sys
 import time
-import posix
+import os
 
 
 InGrail_p = __name__ != '__main__'
@@ -50,8 +50,11 @@ PoppedRootError = 'PoppedRootError'
 def username():
     try: name = os.environ['NAME']
     except KeyError:
-	import pwd
-	name = pwd.getpwuid(posix.getuid())[4]
+	try:
+	    import pwd
+	    name = pwd.getpwuid(os.getuid())[4]
+	except (ImportError, AttributeError):
+	    name = sys.platform
     return name
 
 
@@ -421,8 +424,8 @@ class BookmarksIO:
 	return (root, reader, writer)
 
     def _save_to_file_with_writer(self, writer, root, filename=None):
-	try: posix.rename(filename, filename+'.bak')
-	except posix.error: pass # no file to backup 
+	try: os.rename(filename, filename+'.bak')
+	except os.error: pass # no file to backup 
 	fp = open(filename, 'w')
 	writer.write_tree(root, fp)
 
