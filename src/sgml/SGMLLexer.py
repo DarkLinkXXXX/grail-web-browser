@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.26 $"
+__version__ = "$Revision: 1.27 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -377,7 +377,8 @@ class SGMLLexer(SGMLLexerBase):
 	# true, force handling all data as if followed by EOF marker.
 	def goahead(self, end):
 	    i = 0
-	    while i < len(self.rawdata):
+	    n = len(self.rawdata)
+	    while i < n:
 		rawdata = self.rawdata	# pick up any appended data
 		n = len(rawdata)
 		if self.nomoretags:
