@@ -1064,16 +1064,19 @@ class HTMLParser(SGMLGatherer.BaseSGMLGatherer):
     # a few interesting UNICODE values:
     __charrefs = {
 	# these first four are really supposed to be ligatures
-	140: "OE",			# invalid, but compatible w/ Win32
-	156: "oe",
-	338: "OE",			# valid versions of the same
-	339: "oe",
+	0x008C: "OE",			# invalid, but compatible w/ Win32
+	0x009C: "oe",
+	0x0152: "OE",			# valid versions of the same
+	0x0153: "oe",
 	#
-	8204: "",			# zero-width non-joiner
-	8205: "",			# zero-width joiner
-	8482: "\xe4",			# 
+	0x200C: "",			# zero-width non-joiner
+	0x200D: "",			# zero-width joiner
 	}
     def unknown_charref(self, ordinal, terminator):
+        if ordinal == 0x2028:           # line separator
+            return self.do_br({})
+        if ordinal == 0x2029:           # paragraph separator
+            return self.start_p({})
 	if self.__charrefs.has_key(ordinal):
 	    data = self.__charrefs[ordinal]
 	else:
