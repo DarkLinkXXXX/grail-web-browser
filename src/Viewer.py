@@ -40,6 +40,7 @@ class Viewer(formatter.AbstractWriter):
 	self.freeze()
 	self.text.bind('<Configure>', self.resize_event)
 	self._atemp = []
+	self.current_index = None
 	self.status = StringVar()
 	self.linkinfo = ""
 	self.frame.bind('<Enter>', self.enter_frame)
@@ -104,6 +105,11 @@ class Viewer(formatter.AbstractWriter):
 	self.text.config(selectbackground='yellow')
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
+	if self.context.viewer is self:
+	    self.text.config(takefocus=1)
+	self.text.bind("<Tab>", self.tab_event)
+	self.text.bind("<Shift-Tab>", self.shift_tab_event)
+	self.text.bind("<Button-1>", self.button_1_event)
 
     def configure_tags(self, stylesheet):
 	self.text.config(stylesheet.default)
@@ -180,6 +186,22 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.delete('1.0', END)
 	    self.reset_state()
 	    self.freeze()
+
+    def tab_event(self, event):
+	w = self.text.tk_focusNext()
+	if w:
+	    w.focus_set()
+	return 'break'
+
+    def shift_tab_event(self, event):
+	w = self.text.tk_focusPrev()
+	if w:
+	    w.focus_set()
+	return 'break'
+
+    def button_1_event(self, event):
+	self.context.viewer.text.focus_set()
+	self.current_index = self.text.index(CURRENT) # For anchor_click*
 
     def resize_event(self, event):
 	for func in self.resize_interests:
@@ -307,6 +329,9 @@ class Viewer(formatter.AbstractWriter):
 	self.context.message_clear()
 
     def anchor_click(self, event):
+	here = self.text.index("@%d,%d" % (event.x, event.y))
+	if self.current_index != here:
+	    return
 	url = self.find_tag_url()
 	if url:
 	    self.linkinfo = ""
