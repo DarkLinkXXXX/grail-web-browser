@@ -804,7 +804,8 @@ class PSStream:
 	    self.push_page_break()
 
     def push_page_break(self):
-	linesz = self._baseline + self._descender + self._vtab
+	# self._baseline could be None
+	linesz = (self._baseline or 0.0) + self._descender + self._vtab
 	self._ypos = self._ypos - linesz
 	self.print_page_postamble()
 	self._pageno = self._pageno + 1
