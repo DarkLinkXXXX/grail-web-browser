@@ -685,6 +685,7 @@ class PSStream:
 	# do we need to break the page?
 	self.print_page_break()
 	distance = -self._baseline - self._vtab + self._lineshift
+	distance = distance - self._yshift[-1][0]
 	self._ofp.write('CR 0 %f R\n' % distance)
 	if self._yshift[-1][0]:
 	    self._ofp.write('0 %f R\n' % self._yshift[-1][0])
@@ -877,7 +878,7 @@ class PrintingHTMLParser(HTMLParser):
 	acnt = len(self._anchor_sequence)
 	count = 1
 	for anchor, title in self._anchor_sequence:
-	    self.formatter.add_label_data(('[%d]' % count), -1)
+	    self.formatter.add_label_data('[1]', count)
 	    if title:
 		#  Set the title as a citation:
 		self.start_cite({})
@@ -1053,10 +1054,11 @@ def main():
     footnote_anchors = 1
     underline_anchors = 0
     try:
-	options, argv = getopt.getopt(sys.argv[1:], 'hdlaU:u:t:')
+	options, argv = getopt.getopt(sys.argv[1:], 'hdlaUu:t:')
     except getopt.error:
 	error = 1
 	help = 1
+	options = ()
     for opt, arg in options:
 	if opt == '-h': help = 1
 	elif opt == '-a': footnote_anchors = 0
