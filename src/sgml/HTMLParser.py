@@ -43,12 +43,17 @@ class HTMLParser(SGMLParser):
     def handle_data(self, data):
         if self.savedata is not None:
 	    self.savedata = self.savedata + data
-        elif 'head' not in self.stack:
-	    self.inhead = 0
-	    if self.nofill:
-		self.formatter.add_literal_data(data)
+	    return
+	if self.inhead:
+	    if string.strip(data) != '':
+		self.element_close_maybe('head', 'style', 'title')
+		self.inhead = 0
 	    else:
-		self.formatter.add_flowing_data(data)
+		return
+	if self.nofill:
+	    self.formatter.add_literal_data(data)
+	else:
+	    self.formatter.add_flowing_data(data)
 
     # --- Hooks to save data; shouldn't need to be overridden
 
