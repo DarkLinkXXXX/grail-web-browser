@@ -1,4 +1,4 @@
-"""HTML parser class with applet support."""
+"""HTML parser class with support for applets and other Grail features."""
 
 
 from Tkinter import *
@@ -22,6 +22,16 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.browser = self.viewer.browser
 	self.style_stack = []
 	self.loaded = []
+	self.applets = []
+
+    def close(self):
+	for frame, keywords in self.applets:
+	    C = self.get_class(keywords)
+	    if frame == 'menu':
+		self.menu_applet(C, keywords)
+	    else:
+		self.subwindow_applet(frame, C, keywords)
+	htmllib.HTMLParser.close(self)
 
     # Override HTMLParser internal methods
 
@@ -55,7 +65,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
-	    self.formatter.add_literal_data("\240")
+	    self.formatter.add_literal_data("\240") # Non-breaking space
 	self.viewer.add_subwindow(w)
 
     # New tag: <CENTER> (for Amy)
@@ -69,26 +79,35 @@ class AppletHTMLParser(htmllib.HTMLParser):
     # New tag: <APP>
 
     def do_app(self, attrs):
-	C, keywords = self.get_class(attrs)
-	if not C: return
+	keywords = self.get_keywords(attrs)
 	if keywords.has_key('menu'):
-	    menuname = keywords['menu']
-	    del keywords['menu']
-	    return self.applet_menu(C, keywords, menuname)
-	self.formatter.add_literal_data('')
-	frame = AppletFrame(self.viewer.text, self)
-	try:
-	    w = apply(C, (frame,), keywords)
-	except:
-	    self.show_tb()
-	    frame.destroy()
-	    return
-	self.add_subwindow(frame)
+	    entry = ('menu', keywords)
+	else:
+	    frame = AppletFrame(self.viewer.text, self)
+	    self.add_subwindow(frame)
+	    entry = (frame, keywords)
+	self.applets.append(entry)
 
-    def applet_menu(self, C, keywords, menuname):
+    def get_keywords(self, attrs):
+	keywords = {}
+	for a, v in attrs:
+	    try: v = string.atoi(v, 0)
+	    except string.atoi_error:
+		try: v = string.atol(v, 0)
+		except string.atol_error:
+		    try: v = string.atof(v)
+		    except string.atof_error: pass
+	    keywords[a] = v
+	return keywords
+
+    # Stuff for applet creation -- now called from close()
+
+    def menu_applet(self, C, keywords):
+	menuname = keywords['menu']
+	del keywords['menu']
 	browser = self.browser
 	menubutton = Menubutton(browser.mbar, text=menuname)
-	menubutton.pack(side='left')
+	menubutton.pack(side=LEFT)
 	menu = AppletMenu(menubutton, self)
 	menubutton['menu'] = menu
 	try:
@@ -99,24 +118,26 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    return
 	browser.user_menus.append(menubutton)
 
-    def get_class(self, attrs):
+    def subwindow_applet(self, frame, C, keywords):
+	try:
+	    w = apply(C, (frame,), keywords)
+	except:
+	    self.show_tb()
+	    frame.destroy()
+	    return
+
+    def get_class(self, keywords):
 	cls = None
 	src = ''
-	keywords = {}
-	for a, v in attrs:
-	    if a == 'class': cls = v
-	    elif a == 'src': src = v
-	    else:
-		try: v = string.atoi(v, 0)
-		except string.atoi_error:
-		    try: v = string.atol(v, 0)
-		    except string.atol_error:
-			try: v = string.atof(v)
-			except string.atof_error: pass
-		keywords[a] = v
+	if keywords.has_key('class'):
+	    cls = keywords['class']
+	    del keywords['class']
+	if keywords.has_key('src'):
+	    src = keywords['src']
+	    del keywords['src']
 	if not cls:
 	    print "*** APP tag has no CLASS attribute"
-	    return
+	    return None
 	if '.' in cls:
 	    i = string.rfind(cls, '.')
 	    mod = cls[:i]
@@ -124,10 +145,10 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	else:
 	    mod = cls
 	try:
-	    return self.get_class_proper(mod, cls, src), keywords
+	    return self.get_class_proper(mod, cls, src)
 	except:
 	    self.show_tb()
-	    return None, keywords
+	    return None
 
     def get_class_proper(self, mod, cls, src):
 	rexec = self.browser.app.rexec
