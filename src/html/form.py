@@ -1,3 +1,14 @@
+"""HTML <FORM> tag support (and <INPUT>, etc.).
+
+XXX TO DO:
+
+- METHOD=POST
+- submit or move between fields on Return in Entry
+- <SELECT>, <OPTION>
+- <TEXTAREA>
+
+"""
+
 import string
 from Tkinter import *
 import urllib
@@ -160,13 +171,13 @@ class FormInfo:
 	    i.reset()
 
     def start_select(self, name, size, multiple):
-	pass
+	pass				# XXX
 
     def end_select(self):
-	pass
+	pass				# XXX
 
     def do_option(self, value, selected):
-	pass
+	pass				# XXX
 
     def start_textarea(self, name, rows, cols):
 	self.parser.start_pre([])	# XXX
