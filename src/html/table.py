@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.35 1996/04/15 21:07:13 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.36 1996/04/17 21:39:13 bwarsaw Exp $'
 
 
 import string
@@ -110,6 +110,7 @@ class TableSubParser:
 	if ti: ti.bodies.append(self._do_body(parser))
 
     def do_tr(self, parser, attrs):
+	self._finish_cell(parser)
 	ti = self._lasttable 
 	if ti:
 	    tr = TR(attrs)
@@ -392,68 +393,136 @@ class Table(AttrElem):
 
     def _autolayout_1(self):
 	# internal representation of the table as a sparse array
-	self._table = table = {}
+	self._table = table = rawtable = {}
 	bodies = (self.thead or []) + self.tbodies + (self.tfoot or [])
 	bw = self._borderwidth = grailutil.conv_integer(
 	    self.container['borderwidth'])
 
-	# calculate row and column counts
-	colcount = 0
-	rowcount = 0
-	pending_rowspans = 0
-	for tb in bodies:
-	    for trow in tb.trows:
-		pending_rowspans = max(0, pending_rowspans - 1)
-		rowcolumns = len(trow.cells)
-		rowspans = 0
-		for cell in trow.cells:
-		    if cell.colspan > 1:
-			rowcolumns = rowcolumns + cell.colspan - 1
-		    rowspans = max(rowspans, cell.rowspan)
-		if rowspans > 1:
-		    pending_rowspans = pending_rowspans + rowspans - 1
-		rowcount = rowcount + 1
-		colcount = max(colcount, rowcolumns)
-
-## 	print '# of rows=', rowcount, '# of cols=', colcount
-
-	# populate an empty table
-	for row in range(rowcount):
-	    for col in range(colcount):
-		table[(row, col)] = EMPTY
-
-	# now populate the sparse array, watching out for multiple row
-	# and column spanning cells, and for empty cells, which won't
-	# get rendered.
+	# pre-populate the table
 	for tb in bodies:
 	    row = 0
 	    for trow in tb.trows:
 		col = 0
 		for cell in trow.cells:
-		    if table[(row, col)] == OCCUPIED:
+		    while 1:
+			index = (row, col)
+			# if the table has an entry for this row and
+			# column, then it could only be an OCCUPIED
+			# entry.  Keep looking rightward until we find
+			# an unoccupied cell.
+			if not rawtable.has_key(index):
+			    break
 			col = col + 1
-		    # the cell could be empty
-		    if cell.is_empty():
-			table[(row, col)] = EMPTY
-			cell.close()
-		    else:
-			table[(row, col)] = cell
-			# adjust the cell's colspan and rowspan
-			# attributes so they aren't larger than the
-			# table itself.
-			cell.rowspan = min(cell.rowspan, rowcount-row)
-			cell.colspan = min(cell.colspan, colcount-col)
-		    # the cell could span multiple columns. TBD: yick!
+		    # we've found an unoccupied cell for this one to
+		    # reside in.  place it, then occupy any rowspan
+		    # and colspan
+		    rawtable[index] = cell
+		    # the cell could span multiple columns.  TBD:
+		    # there must be a better algorithm for this!
 		    for cs in range(col+1, col + cell.colspan):
-			table[(row, cs)] = OCCUPIED
+			rawtable[(row, cs)] = OCCUPIED
 			for rs in range(row+1, row + cell.rowspan):
-			    table[(rs, cs)] = OCCUPIED
+			    rawtable[(rs, cs)] = OCCUPIED
 		    for rs in range(row+1, row + cell.rowspan):
-			table[(rs, col)] = OCCUPIED
+			rawtable[(rs, col)] = OCCUPIED
 			for cs in range(col+1, col + cell.colspan):
-			    table[(rs, cs)] = OCCUPIED
+			    rawtable[(rs, cs)] = OCCUPIED
 		    col = col + 1
 		row = row + 1
+
+	# calculate the max number of rows and cols (may not be the
+	# pruned number)
+	colcount = 0
+	rowcount = 0
+	for row, col in rawtable.keys():
+	    rowcount = max(rowcount, row)
+	    colcount = max(colcount, col)
+	rowcount = rowcount + 1
+	colcount = colcount + 1
+
+## 	print '==========', id(self)
+## 	for row in range(rowcount):
+## 	    print '[', 
+## 	    for col in range(colcount):
+## 		if not rawtable.has_key((row, col)):
+## 		    print '<EMPTY>',
+## 		    continue
+## 		element = table[(row, col)]
+## 		if element == EMPTY:
+## 		    print 'EMPTY', 
+## 		elif element == OCCUPIED:
+## 		    print 'OCCUPIED',
+## 		else:
+## 		    print element,
+## 	    print ']'
+## 	print '==========', id(self)
+
+	# calculate pruning mask
+	rowprune = [0] * rowcount
+	colprune = [0] * colcount
+	for row in range(rowcount):
+	    for col in range(colcount):
+		index = (row, col)
+		if rawtable.has_key(index) and rawtable[index] <> OCCUPIED:
+		    rowprune[row] = 1
+		    colprune[col] = 1
+
+	# adjust column and row spans based on pruning
+	for row, col in rawtable.keys():
+	    index = (row, col)
+	    if rawtable[index] == OCCUPIED:
+		continue
+	    cell = rawtable[index]
+	    for prune in rowprune[row:row+cell.rowspan]:
+		cell.rowspan = cell.rowspan - 1 + prune
+	    for prune in colprune[col:col+cell.colspan]:
+		cell.colspan = cell.colspan - 1 + prune
+
+	# prune and fill empty cells
+	row = 0
+	lastcol = 0
+	for rawrow in range(rowcount):
+	    rowflag = 0
+	    col = 0
+	    for rawcol in range(colcount):
+		if not rowprune[rawrow] or not colprune[rawcol]:
+		    continue
+		rowflag = 1
+		rawindex = (rawrow, rawcol)
+		index = (row, col)
+		if not rawtable.has_key(rawindex):
+		    table[index] = EMPTY
+		else:
+		    cell = rawtable[rawindex]
+		    if cell == OCCUPIED or not cell.is_empty():
+			table[index] = cell
+		    else:
+			cell.close()
+			table[index] = EMPTY
+		col = col + 1
+		lastcol = max(lastcol, col)
+	    if rowflag:
+		row = row + 1
+	rowcount = row
+	colcount = lastcol
+
+	# debugging
+## 	print '# of rows=', rowcount, '# of cols=', colcount
+
+## 	print '==========', id(self)
+## 	for row in range(rowcount):
+## 	    print '[', 
+## 	    for col in range(colcount):
+## 		element = table[(row, col)]
+## 		if element == EMPTY:
+## 		    print 'EMPTY', 
+## 		elif element == OCCUPIED:
+## 		    print 'OCCUPIED',
+## 		else:
+## 		    print element,
+## 	    print ']'
+## 	print '==========', id(self)
+
 	# save these for the next phase of autolayout
 	self._colcount = colcount
 	self._rowcount = rowcount
