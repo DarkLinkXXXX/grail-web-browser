@@ -396,7 +396,7 @@ class Viewer(formatter.AbstractWriter):
     def unfreeze(self):
 	self.text['state'] = NORMAL
 
-    def freeze(self):
+    def freeze(self, update=0):
 	if self.pendingdata and strip(self.pendingdata):
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
@@ -404,7 +404,8 @@ class Viewer(formatter.AbstractWriter):
 	    from supertextbox import resize_super_text_box
 	    resize_super_text_box(frame=self.frame)
 	self.text['state'] = DISABLED
-	self.text.update_idletasks()
+	if update:
+	    self.text.update_idletasks()
 
     def flush(self):
 	if self.pendingdata:
