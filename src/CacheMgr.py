@@ -15,6 +15,8 @@ import protocols
 import time
 import ht_time
 import grailutil
+import regsub
+import pickle
 
 CacheMiss = 'Cache Miss'
 CacheEmpty = 'Cache Empty'
@@ -38,12 +40,15 @@ class CacheManager:
 	self.app = app
 	self.caches = []
 	self.items = {}
-	disk = DiskCache(self, 1048576, self.app.graildir + '/cache')
+	self.active = {}
+	disk = DiskCache(self, self.app.prefs.GetInt('disk-cache',
+						     'size') * 1024,
+			 self.app.prefs.Get('disk-cache', 'directory'))
 
 	# read preferences to determine when pages should be checked
 	# for freshness -- once per session, every n secs, or never
-	fresh_type = 'periodic'
-	fresh_rate = 14400
+	fresh_type = self.app.prefs.Get('disk-cache', 'freshness-test-type')
+	fresh_rate = self.app.prefs.Get('disk-cache', 'freshness-test-period')
 	if fresh_type == 'per session':
 	    self.fresh_p = lambda key, self=self: \
 			   self.fresh_every_session(self.items[key])
@@ -53,11 +58,22 @@ class CacheManager:
 	elif fresh_type == 'never':
 	    self.fresh_p = lambda x: 1
 
+    def activate(self,item):
+	self.active[item.key] = item
+	return CacheAPI(self.active[item.key])
+
+    def deactivate(self,key):
+	if self.active.has_key(key):
+	    del self.active[key]
+
     def open(self, url, mode, params, reload=0, data=None):
+	key = self.url2key(url, mode, params)
+	if self.active.has_key(key):
+	    return CacheAPI(self.active[key])
 	if mode == 'GET':
-	    return self.open_get(url, mode, params, reload, data)
+	    return self.open_get(key, url, mode, params, reload, data)
 	elif mode == 'POST':
-	    return self.open_post(url, mode, params, reload, data)
+	    return self.open_post(key, url, mode, params, reload, data)
 
     def add_cache(self, cache):
 	"""Called by cache to notify manager this it is ready."""
@@ -69,12 +85,18 @@ class CacheManager:
 	else:
 	    return None
 
+    def check_cache_image(self,url):
+	key = self.url2key(url, 'GET', {})
+	if self.items.has_key(key):
+	    return self.caches[0].get_file_path(key)
+	else:
+	    return None
+
     def touch(self,key):
 	if self.items.has_key(key):
 	    self.items[key].touch()
 
-    def open_get(self, url, mode, params, reload, data):
-	key = self.url2key(url, mode, params)
+    def open_get(self, key, url, mode, params, reload, data):
 	try:
 	    api = self.cache_read(key)
 	except CacheItemExpired, cache:
@@ -94,15 +116,12 @@ class CacheManager:
 	else:
 	    # cause item to be loaded (and perhaps cached)
 	    item = CacheItem(url, mode, params, self, key, data)
-#	return item
-	return CacheAPI(item)
+	return self.activate(item)
 
-
-    def open_post(self, url, mode, params, reload, data):
+    def open_post(self, key, url, mode, params, reload, data):
 	# for now, never cache a POST
 	key = self.url2key(url, mode, params)
-#	return CacheItem(url, mode, params, None, key, data)
-	return CacheAPI(CacheItem(url, mode, params, None, key, data))
+	return self.activate(CacheItem(url, mode, params, None, key, data))
 
     def expire(self,key):
 	if self.items.has_key(key):
@@ -110,6 +129,7 @@ class CacheManager:
 
     def delete(self, object):
 	print "delete called on %s" % object
+	# should delete cache entry too?
 
     def add(self,item,reload=0):
 	if len(self.caches): # need to guarantee that this can't happen
@@ -186,6 +206,9 @@ class CacheManager:
 	cache. OpenMarket, however, sends the session id in the
 	headers, so that we could strip it out of the URL. :-)
 
+	OpenMarket sends two headers:
+        Set-Cookie: OpenMarketSI=/@@THWJ@sL5SwMAQJOt; path=/;
+        Location: http://pathfinder.com/@@THWJ@sL5SwMAQJOt/welcome/
 	"""
 	scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
 	i = string.find(netloc, '@')
@@ -219,7 +242,7 @@ class DiskCacheEntry:
 
     """
 
-    def __init__(self, cache):
+    def __init__(self, cache=None):
 	self.cache = cache
 
     def fill(self,key,url,size,date,lastmod,expires,ctype):
@@ -240,47 +263,14 @@ class DiskCacheEntry:
 	    self.expires = None
 	self.type = ctype
 
-    def parse(self,line):
-	"""Reads transaction log entry.
-
-	Determines if log entry is for evicition or addition. Fills
-	the object's instance variables  and returns a key.
-	"""
-
-	evicted_p, vars = eval(line[:-1])
-	self.key = vars[0]
-	self.url = vars[1]
-	self.size = vars[2]
-	if type(vars[3]) == type(''):
-	    self.date = HTTime(str=vars[3])
-	else:
-	    self.date = HTTime(secs=vars[3])
-	if type(vars[4]) == type(''):
-	    self.lastmod = HTTime(str=vars[4])
-	else:
-	    self.lastmod = HTTime(secs=vars[4])
-	if type(vars[5]) == type(''):
-	    if vars[5] == '':
-		self.expires = None
-	    else:
-		self.expires = HTTime(str=vars[5])
-	elif type(vars[5]) == type(1):
-	    self.expires = HTTime(secs=vars[5])
-	else:
-	    self.expires = None
-	self.type = vars[6]
-	
-	return evicted_p
-
-    def unparse(self,delete_p=0):
-	"""Return entry for transaction log.
-
-	Entry includes indication of whether this item is being
-	deleted.
-	"""
-	string = repr((delete_p,[self.key,self.url,self.size,self.date,self.lastmod,self.expires,self.type]))
-	string = string + '\n'
-	return string
+    def __getstate__(self):
+	return { 'key'    : self.key,
+		 'url'    : self.url,
+		 'size'   : self.size,
+		 'date'   : self.date,
+		 'lastmod': self.lastmod,
+		 'expires': self.expires,
+		 'type'   : self.type }
 
     def get(self):
 	if self.expires:
@@ -297,6 +287,16 @@ class DiskCacheEntry:
 
     def delete(self):
 	pass
+
+def compare_expire_items(item1,item2):
+    e1 = item1.expires.get_secs() 
+    e2 = item2.expires.get_secs()
+    if e1 > e2:
+	return 1
+    elif e2 > e1:
+	return -1
+    else:
+	return 0
     
 class DiskCache:
     """Persistent object cache.
@@ -306,6 +306,8 @@ class DiskCache:
     def __init__(self,manager,size,directory):
 	self.max_size = size
 	self.size = 0
+	if '~' in directory:
+	    directory = regsub.sub('~', grailutil.gethome(), directory)
 	self.directory = directory
 	self.manager = manager
 	self.manager.add_cache(self)
@@ -313,10 +315,13 @@ class DiskCache:
 	self.use_order = []
 	self.log = None
 	self.checkpoint = 0
+	self.expires = []
 
 	grailutil.establish_dir(self.directory)
 	self._read_metadata()
 	self._reinit_log()
+
+    log_version = "1.0"
 
     def _read_metadata(self):
 	###
@@ -332,22 +337,33 @@ class DiskCache:
 	    log = open(logpath, 'w')
 	    log.close()
 	    return
-	for line in log.readlines():
-	    entry = DiskCacheEntry(self)
-	    evicted_p = entry.parse(line)
-	    if evicted_p:
-		if self.items.has_key(entry.key):
-		    del self.items[entry.key]
-		    del self.manager.items[entry.key]
-		    self.use_order.remove(entry.key)
-		    self.size = self.size - entry.size
-		    assert(not entry.key in self.use_order)
-	    else:
-		if not self.items.has_key(entry.key):
-		    self.use_order.append(entry.key)
-		self.items[entry.key] = entry
-		self.manager.items[entry.key] = entry
-		self.size = self.size + entry.size
+
+	try:
+	    while 1:
+		(kind, entry) = pickle.load(log)
+		if kind == 1: # delete
+		    if self.items.has_key(entry.key):
+			del self.items[entry.key]
+			del self.manager.items[entry.key]
+			self.use_order.remove(entry.key)
+			self.size = self.size - entry.size
+			assert(not entry.key in self.use_order)
+		elif kind == 0:
+		    if not self.items.has_key(entry.key):
+			self.use_order.append(entry.key)
+		    entry.cache = self
+		    self.items[entry.key] = entry
+		    self.manager.items[entry.key] = entry
+		    self.size = self.size + entry.size
+		elif kind == 2:
+		    # how expensive is this?
+		    self.use_order.remove(entry)
+		    self.use_order.append(entry)
+		elif kind == 3:
+		    assert(entry == self.log_version)
+	except EOFError:
+	    # all done
+	    pass
 	self._checkpoint_metadata()
 
     def _checkpoint_metadata(self):
@@ -355,8 +371,9 @@ class DiskCache:
 	    self.log.close()
 	newpath = os.path.join(self.directory, 'CHECKPOINT')
 	newlog = open(newpath, 'w')
-	for entry in self.items.keys():
-	    newlog.write(self.items[entry].unparse())
+	pickle.dump((3,self.log_version), newlog)
+	for key in self.use_order:
+	    pickle.dump((0,self.items[key]), newlog)
 	newlog.close()
 	logpath = os.path.join(self.directory, 'LOG')
 	os.rename(newpath, logpath)
@@ -367,13 +384,20 @@ class DiskCache:
 	self.log = open(logpath, 'a')
 
     def log_entry(self,entry,delete=0):
-	self.log.write(entry.unparse(delete))
+	pickle.dump((delete,entry), self.log)
 	self.log.flush()
+
+    def log_use_order(self,key):
+	if self.items.has_key(key):
+	    pickle.dump((2,key), self.log)
+	    # should we flush() here? probably...
+	    self.log.flush()
 
     def get(self,key):
 	if self.items.has_key(key):
 	    self.use_order.remove(key)
 	    self.use_order.append(key)
+	    self.log_use_order(key)
 	    # should probably do more here...
 	    #  check for freshness
 	    #  promote to memory cache for example?
@@ -404,13 +428,16 @@ class DiskCache:
 	    lastmod = date
 
 	if headers.has_key('expires'):
+	    # need to interpret "Expires: 0" style headers
 	    expires = headers['expires']
+	    self.add_expireable(newitem)
 	else:
 	    expires = None
 
 	if headers.has_key('content-type'):
 	    ctype = headers['content-type']
 	else:
+	    # what is the proper default content type?
 	    ctype = 'text/html'
 
 	newitem.fill(object.key, object.url, size, date, lastmod,
@@ -423,6 +450,9 @@ class DiskCache:
 	self.use_order.append(object.key)
 
 	return newitem
+
+    def add_expireable(self,item):
+	self.expires.append(item)
 
     def get_file_path(self,key):
 	filename = regsub.gsub(os.sep,'_',key)
@@ -439,6 +469,9 @@ class DiskCache:
 	# perhaps expire would be a good thing to call here
 	# definitely don't want to evict live things when we
 	# could evict stale things
+	if self.size + amount > self.max_size:
+	    self.evict_expired_pages()
+
 	try:
 	    while self.size + amount > self.max_size:
 		self.evict_any_page()
@@ -461,12 +494,27 @@ class DiskCache:
 	else:
 	    raise CacheEmpty
 
+    def evict_expired_pages(self):
+	self.expires.sort(compare_expire_items)
+	size = len(self.expires)
+	if size > 0 \
+	   and self.expires[0].expires.get_secs() < time.time():
+	    index = 0
+	    t = time.time()
+	    while index < size and self.expires[index].expires.get_secs() < t:
+		index = index + 1
+	    for item in self.expires[0:index]:
+		self.evict(item.key)
+	    del self.expires[0:index]
+
     def evict(self,key):
 ##	print "evict(%s)" % (key)
 	self.use_order.remove(key)
 	evictee = self.items[key]
 	del self.manager.items[key]
 	del self.items[key]
+	if key in self.expires:
+	    self.expires.remove(key)
 	os.unlink(self.get_file_path(key))
 	self.log_entry(evictee,1) # 1 indicates delete entry
 	evictee.delete()
@@ -479,7 +527,11 @@ class disk_cache_access:
 	self.headers = { 'content-type' : content_type,
 			 'date' : date }
 	self.filename = filename
-	self.fp = open(filename)
+	### what about IO errors
+	try:
+	    self.fp = open(filename)
+	except IOError, err:
+	    print "io error opening %s: %s" % (filename, err)
 	self.stage = DATA
 
     def pollmeta(self):
@@ -509,6 +561,9 @@ class disk_cache_access:
 	self.fp = None
 	if fp:
 	    fp.close()
+
+    def tk_img_access(self):
+	return self.filename, self.headers['content-type']
 
 class HTTime:
     """Stores time as HTTP string or seconds since epoch or both.

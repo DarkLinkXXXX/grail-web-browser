@@ -55,3 +55,12 @@ C: Table HTML preferences
 C: these are here for now because tables are still pretty buggy
 C:
 tables--enabled: 0
+C:
+C: Disk Cache preferences:
+C:
+C:
+disk-cache--size: 1024
+disk-cache--directory: ~/.grail/cache
+disk-cache--freshness-test-type: periodic
+disk-cache--freshness-test-period: 14400
+

@@ -28,132 +28,6 @@ import protocols
 import time
 import copy
 
-class OldCache:
-
-    """A cache of URL data.
-
-    The open() method returns a cached version of whatever
-    protocols.protocol_access() would return.
-
-    """
-
-    def __init__(self,app):
-	self.cachedir = {}
-	self.app = app
-
-	###
-	###  hard-coded values follow
-	###  they are for development only
-	###  I need to figure out the preferences interface
-	###
-	self.cache_manager = CacheManager()
-	disk = DiskCache( self.cache_manager, 1000000, 
-			  self.app.graildir + '/cache' )
-
-
-#
-# potentially different cases for open
-#    should we handle POSTs differently than gets
-#
-#
-#
-
-    def open(self, url, mode, params, reload=0, data=None):
-	if mode == 'GET':
-	    return self.get(url, mode, params, reload, data)
-	elif mode == 'POST':
-	    return self.post(url, mode, params, reload, data)
-
-    def OLDopen(self, url, mode, params, reload=0, data=None):
-	### do we decide here to avoid the cache for POST?
-	### the non-idempotent nature of POST may mean yes
-	if data:
-	    return CacheAPI(CacheItem(url, mode, params, self, key, data))
-
-	key = self.url2key(url, mode, params)
-	api = self.cache_manager.get(key)
-	if api:
-	    item = CacheItem(url, mode, params,
-			     self, key, data, api)
-	    if reload:
-		item.reset(reload) # force a reload
-	    else:
-		item.check() # check for freshness
-	else:
-	    item = CacheItem(url, mode, params,
-			     self, key, data)
-	return CacheAPI(item)
-
-    def post(self, url, mode, params, reload, data):
-	# for now, never cache a POST
-	key = self.url2key(url, mode, params)
-	return CacheAPI(CacheItem(url, mode, params, None, key, data))
-
-    def get(self, url, mode, params, reload, data):
-	key = self.url2key(url, mode, params)
-	api = self.cache_manager.get(key)
-	if api:
-	    # creating reference to cached item
-	    try:
-		item = CacheItem(url, mode, params, self, key, data, api)
-	    except CacheItemExpired:
-		self.cache_manager.evict(key)
-	    if reload:
-		item.reset(reload)
-	    else:
-		item.check() # check for freshness
-	else:
-	    # cause item to be loaded (and perhaps cached)
-	    item = CacheItem(url, mode, params, self, key, data)
-	return CacheAPI(item)
-
-    def delete(self, object):
-	key = object.key
-	object.cache = None
-#	assert(self.cachedir.has_key(key) and self.cachedir[key] is object)
-#	del self.cachedir[key]
-
-    def url2key(self, url, mode, params):
-	"""Normalize a URL for use as a caching key.
-
-	- change the hostname to all lowercase
-	- remove the port if it is the scheme's default port
-	- reformat the port using %d
-	- get rid of the fragment identifier
-
-	XXX Questions
-
-	- how do we know the scheme's default port?
-	- do we need mode, params?
-	- should we default the scheme to http?
-	- should we default the netloc to localhost?
-	- should we equivalence file and ftp schemes?
-	- should we lowercase the scheme?
-	- should we change the hostname to numeric form to catch DNS aliases?
-	  (but what about round-robin DNS?)
-
-	"""
-	scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
-	i = string.find(netloc, '@')
-	if i > 0:
-	    userpass = netloc[:i]
-	    netloc = netloc[i:]
-	else:
-	    userpass = ""
-	i = string.find(netloc, ':')
-	if i >= 0:
-	    try:
-		port = string.atoi(netloc[i+1:])
-	    except string.atoi_error:
-		port = None
-	else:
-	    port = None
-	if scheme == 'http' and port == 80:
-	    netloc = netloc[:i]
-	elif type(port) == type(0):
-	    netloc = netloc[:i] + ":%d" % port
-	return urlparse.urlunparse((scheme, netloc, path, params, query, ""))
-
 
 class CacheItem:
 
@@ -205,7 +79,7 @@ class CacheItem:
 	return "CacheItem(%s)<%d>" % (`self.url`, self.refcnt)
 
     def iscached(self):
-	return self.incache
+	return self.incache and not self.reloading
 
     def incref(self):
 	self.refcnt = self.refcnt + 1
@@ -215,6 +89,7 @@ class CacheItem:
 	assert(self.refcnt > 0)
 	self.refcnt = self.refcnt - 1
 ##	print self, "decref() ->", self.refcnt
+	self.cache_update()
 	if self.refcnt == 0:
 	    if self.stage == DONE:
 ##		print "    finish()"
@@ -222,6 +97,13 @@ class CacheItem:
 	    else:
 ##		print "    abort()"
 		self.abort()
+
+    def cache_update(self):
+	if (self.incache == 0 or self.reloading == 1) \
+	   and not self.postdata and self.meta[0] == 200 \
+	   and self.complete == 1:
+	    self.cache.add(self,self.reloading)
+	    self.incache = 1
 
     def check(self):
 	if not self.fresh():
@@ -260,15 +142,14 @@ class CacheItem:
 	    ### which errcode should I try to handle
 	    if errcode == 304:
 		# we win! it hasn't been modified
-##		print "if-mod-since reports no change"
 		pass
 	    elif errcode == 200:
-##		print "if-mod-since returned new page"
 		self.api = api
 		self.init_new_load()
 		self.reloading = 1
 	    else:
 		print "an if-mod-since returned %s, %s" % (errcode, errmsg)
+		# don't know what to do here
 
     def pollmeta(self):
 	if self.stage == META:
@@ -326,12 +207,9 @@ class CacheItem:
 
     def finish(self):
 	if self.cache:
+	    self.cache.deactivate(self.key)
 	    if not (self.meta and self.meta[0] == 200):
 		self.cache.delete(self)
-	    elif (self.incache == 0 or self.reloading == 1) \
-		 and not self.postdata and self.refcnt == 0:
-#		 and not self.postdata and self.complete == 0:
-		self.cache.add(self,self.reloading)
 	self.stage = DONE
 	api = self.api
 	self.api = None
@@ -398,6 +276,12 @@ class CacheAPI:
 	    if self.fno >= 0:
 		self.fno = os.dup(self.fno)
 	return self.fno
+
+    def tk_img_access(self):
+	if hasattr(self.item.api, 'tk_img_access'):
+	    return self.item.api.tk_img_access()
+	else:
+	    return None, None
 
     def close(self):
 #	print self, "close()"

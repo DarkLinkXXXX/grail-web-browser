@@ -31,7 +31,7 @@ class ImageTempFileReader(TempFileReader):
 	}
 
     def handle_done(self):
-	self.image.set_file(self.getfilename())
+        self.image.set_file(self.getfilename())
 	self.cleanup()
 
     def handle_error(self, errcode, errmsg, headers):
@@ -61,6 +61,8 @@ class AsyncImage(PhotoImage):
 	self.reader = None
 	self.loaded = 0
 
+    direct_load = ['image/gif']
+
     def load_synchronously(self, context=None):
 	if not self.loaded:
 	    self.start_loading(context)
@@ -82,7 +84,14 @@ class AsyncImage(PhotoImage):
 	except IOError, msg:
 	    self.blank()
 	    return
-	ImageTempFileReader(self.context, api, self)
+	cached_file, content_type = api.tk_img_access()
+	if cached_file and content_type in self.direct_load:
+	    api.close()
+	    self.set_file(cached_file)
+	else:
+	    # even if the item is in the cache, use the ImageTempFile
+	    # to handle the proper type coercion
+	    ImageTempFileReader(self.context, api, self)
 
     def stop_loading(self):
 	if not self.reader:
