@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.21 1996/04/08 23:49:26 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.22 1996/04/09 16:02:20 bwarsaw Exp $'
 
 
 import string
@@ -310,19 +310,31 @@ class Table(AttrElem):
 	self.tbodies = []
 	self.lastbody = None
 	self.lastcell = None
+	self._mapped = None
+	self._mappos = END
 	# register with the parent viewer
 	self.parentviewer.register_reset_interest(self._reset)
 	self.parentviewer.register_resize_interest(self._resize)
 
+    def _map(self):
+	if not self._mapped:
+	    self.container.pack()
+	    self.parentviewer.add_subwindow(self.container,
+					    index=self._mappos)
+	    self._mapped = 1
+	
     def finish(self):
 	if self.layout == AUTOLAYOUT:
-	    self.parentviewer.text.insert(END, '\n')
+	    self._mappos = self.parentviewer.text.index(END)
+	    self.parentviewer.text.insert(END, '\n\n')
 	    self._autolayout_1()
 	    self._autolayout_2()
 	    self._autolayout_3()
-	    self.container.pack()
-	    self.parentviewer.add_subwindow(self.container)
-	    self.parentviewer.text.insert(END, '\n')
+	    if len(self.parentviewer.context.readers) <= 1:
+		# if there are more readers than the one currently
+		# loading the page with the table, defer mapping the
+		# table
+		self._map()
 	    self.parentviewer.context.register_notification(self._notify)
 	else:
 	    print 'fixed layout for tables not yet supported!'
@@ -587,6 +599,8 @@ class Table(AttrElem):
 	if recalc_needed:
 	    self._autolayout_2()
 	    self._autolayout_3()
+	if not self._mapped:
+	    self._map()
 	    
 
 class Colgroup(AttrElem):
