@@ -467,8 +467,8 @@ class BookmarksDialog:
 	self._file = Label(infoframe, text=controller.filename())
 	self._file.pack(fill=BOTH)
 	self._create_menubar()
-	self._create_listbox()
 	self._create_buttonbar()
+	self._create_listbox()
 
     def _create_menubar(self):
 	self._menubar = Frame(self._frame, relief=RAISED, borderwidth=2)
