@@ -30,11 +30,37 @@ presentation--message-font:
 #
 # Viewer stylesheets:
 #
-# System will revert to this style if a bad one is selected, and no 
-styles--default-group: basic
-# Identify current one
-styles--group: basic
-styles--allgroups: basic small big
+# System will revert to this style if a bad one is selected:
+styles--default-size: basic
+styles--default-type: helvetica
+# Identify current one:
+styles--size: basic
+styles--type: helvetica
+# Size ranges:
+styles--all-sizes: basic small big
+# Font types:
+# (To include another font, add an entry to the types and include a
+#  'styles--<font>-italic' entry designating the char for the italic stroke,
+#  eg "i" for times and "o" for helvetica and courier.)
+styles--all-types: helvetica times courier
+# Font style oblique designator, according to font type:
+styles--times-italic: i
+styles--helvetica-italic: o
+styles--courier-italic: o
+# Font size names which will be associated with tags in the text widget:
+styles--size-names:
+	default h1_b h2_b h3_b h4_b h5_b h6_b
+	_b  _i  _b_i _tt _tt_i _tt_b _tt_b_i
+# Font size values, corresponding to the tag names:
+styles--basic-sizes:
+	12      18   14   12   10   10   10
+	12  12  12   12  12    12    12
+styles--small-sizes:
+	10      17   12   10   8    8    8    10  10    10    10
+	10  10  10   10  10    10    10
+styles--big-sizes:
+	14      20   17   14   12   12   12   14  14    14    14 
+	14  14  14   14  14    14    14
 #
 # Styles shared among sheets:
 # Style Anchors:
@@ -53,112 +79,41 @@ styles-common--history-atemp-underline: 1
 styles-common--priorities-ahist: a
 styles-common--priorities-atemp: ahist
 #
-# Basic viewer styles:
+# Basic helvetica viewer styles:
 #
 # Every style should have a 'valid' component, particularly if it has nothing
 # else - empty styles are invalid.
-styles-basic--valid: 1
-styles-basic--default-font:
-	-*-helvetica-medium-r-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-h1_b-font:
-	-*-helvetica-bold-r-normal-*-*-180-*-*-*-*-*-*
-styles-basic--styles-h1_b-underline: 0
-styles-basic--styles-h2_b-font:
-	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
-styles-basic--styles-h3_b-font:
-	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-h4_b-font:
-	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
-styles-basic--styles-h5_b-font:
-	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
-styles-basic--styles-h6_b-font:
-	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
+styles-fonts--default-font:
+	-*-%(type)s-medium-r-normal-*-%(default)d-*-*-*-*-*-*
+styles-fonts--styles-h1_b-font:
+	-*-%(type)s-bold-r-normal-*-%(h1_b)d-*-*-*-*-*-*
+styles-fonts--styles-h1_b-underline: 0
+styles-fonts--styles-h2_b-font:
+	-*-%(type)s-bold-r-normal-*-%(h2_b)d-*-*-*-*-*-*
+styles-fonts--styles-h3_b-font:
+	-*-%(type)s-bold-r-normal-*-%(h3_b)d-*-*-*-*-*-*
+styles-fonts--styles-h4_b-font:
+	-*-%(type)s-bold-r-normal-*-%(h4_b)d-*-*-*-*-*-*
+styles-fonts--styles-h5_b-font:
+	-*-%(type)s-bold-r-normal-*-%(h5_b)d-*-*-*-*-*-*
+styles-fonts--styles-h6_b-font:
+	-*-%(type)s-bold-r-normal-*-%(h6_b)d-*-*-*-*-*-*
 # Normal fonts
-styles-basic--styles-_i-font:
-	-*-helvetica-medium-o-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-_b-font:
-	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-_b_i-font:
-	-*-helvetica-bold-o-normal-*-*-120-*-*-*-*-*-*
+styles-fonts--styles-_i-font:
+	-*-%(type)s-medium-%(italic)s-normal-*-%(_i)d-*-*-*-*-*-*
+styles-fonts--styles-_b-font:
+	-*-%(type)s-bold-r-normal-*-%(_b)d-*-*-*-*-*-*
+styles-fonts--styles-_b_i-font:
+	-*-%(type)s-bold-%(italic)s-normal-*-%(_b_i)d-*-*-*-*-*-*
 # Typewriter fonts
-styles-basic--styles-_tt-font:
-	-*-courier-medium-r-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-_tt_i-font:
-	-*-courier-medium-o-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-_tt_b-font:
-	-*-courier-bold-r-normal-*-*-120-*-*-*-*-*-*
-styles-basic--styles-_tt_b_i-font:
-	-*-courier-bold-o-normal-*-*-120-*-*-*-*-*-*
-#
-# Smallish viewer styles:
-#
-styles-small--valid: 1
-styles-small--default-font:
-	-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-h1_b-font:
-	-*-helvetica-bold-r-normal-*-*-160-*-*-*-*-*-*
-styles-small--styles-h1_b-underline: 0
-styles-small--styles-h2_b-font:
-	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-styles-small--styles-h3_b-font:
-	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-h4_b-font:
-	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
-styles-small--styles-h5_b-font:
-	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
-styles-small--styles-h6_b-font:
-	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
-# Normal fonts
-styles-small--styles-_i-font:
-	-*-helvetica-medium-o-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-_b-font:
-	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-_b_i-font:
-	-*-helvetica-bold-o-normal-*-*-100-*-*-*-*-*-*
-# Typewriter fonts
-styles-small--styles-_tt-font:
-	-*-courier-medium-r-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-_tt_i-font:
-	-*-courier-medium-o-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-_tt_b-font:
-	-*-courier-bold-r-normal-*-*-100-*-*-*-*-*-*
-styles-small--styles-_tt_b_i-font:
-	-*-courier-bold-o-normal-*-*-100-*-*-*-*-*-*
-#
-# Bigish viewer styles:
-#
-styles-big--valid: 1
-styles-big--default-font:
-	-*-helvetica-medium-r-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-h1_b-font:
-	-*-helvetica-bold-r-normal-*-*-200-*-*-*-*-*-*
-styles-big--styles-h1_b-underline: 0
-styles-big--styles-h2_b-font:
-	-*-helvetica-bold-r-normal-*-*-160-*-*-*-*-*-*
-styles-big--styles-h3_b-font:
-	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-h4_b-font:
-	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-styles-big--styles-h5_b-font:
-	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-styles-big--styles-h6_b-font:
-	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-# Normal fonts
-styles-big--styles-_i-font:
-	-*-helvetica-medium-o-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-_b-font:
-	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-_b_i-font:
-	-*-helvetica-bold-o-normal-*-*-140-*-*-*-*-*-*
-# Typewriter fonts
-styles-big--styles-_tt-font:
-	-*-courier-medium-r-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-_tt_i-font:
-	-*-courier-medium-o-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-_tt_b-font:
-	-*-courier-bold-r-normal-*-*-140-*-*-*-*-*-*
-styles-big--styles-_tt_b_i-font:
-	-*-courier-bold-o-normal-*-*-140-*-*-*-*-*-*
+styles-fonts--styles-_tt-font:
+	-*-courier-medium-r-normal-*-%(_tt)d-*-*-*-*-*-*
+styles-fonts--styles-_tt_i-font:
+	-*-courier-medium-o-normal-*-%(_tt_i)d-*-*-*-*-*-*
+styles-fonts--styles-_tt_b-font:
+	-*-courier-bold-r-normal-*-%(_tt_b)d-*-*-*-*-*-*
+styles-fonts--styles-_tt_b_i-font:
+	-*-courier-bold-o-normal-*-%(_tt_b_i)d-*-*-*-*-*-*
 # 
 #
 # Bookmarks defaults
