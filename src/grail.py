@@ -205,14 +205,17 @@ class SocketQueue:
 	self.callbacks = {}
 	self.open = 0
 
-	self.debug = {}
-
-    def show_state(self,op,arg):
-	print "%s(%s)" % (op, arg)
-	print "%d of %d sockets in use" % (self.open, self.max)
-	print "%d blocked requests" % len(self.blocked)
-	if len(self.blocked) > 0:
-	    print "\t", self.blocked
+    def change_max(self, new_max):
+	old_max = self.max
+	self.max = new_max
+	if old_max < new_max and len(self.blocked) > 0:
+	    for i in range(0,min(new_max-old_max, len(self.blocked))):
+		# run wild free sockets
+		self.open = self.open + 1
+		self.callbacks[self.blocked[0]]()
+		del self.callbacks[self.blocked[0]]
+		del self.blocked[0]
+	    
 
     def request_socket(self, requestor, callback):
 	if self.open >= self.max:
@@ -221,7 +224,6 @@ class SocketQueue:
 	else:
 	    self.open = self.open + 1
 	    callback()
-	# self.show_state("request_socket", requestor)
 
     def return_socket(self, owner):
 	if owner in self.blocked:
@@ -230,10 +232,10 @@ class SocketQueue:
 	    del self.callbacks[owner]
 	elif len(self.blocked) > 0:
 	    self.callbacks[self.blocked[0]]()  # apply callback
+	    del self.callbacks[self.blocked[0]]
 	    del self.blocked[0]
 	else:
 	    self.open = self.open - 1
-	# self.show_state("return_socket", owner)
 
 class Application:
 
@@ -250,7 +252,13 @@ class Application:
 	self.load_images = 1		# Overridden by cmd line or pref.
 
 	# socket management
-	self.sq = SocketQueue(5)
+	sockets = self.prefs.GetInt('sockets', 'number')
+	self.sq = SocketQueue(sockets)
+	self.prefs.AddGroupCallback('sockets',
+				    lambda self=self: \
+				    self.sq.change_max(
+					self.prefs.GetInt('sockets',
+							  'number')))
 
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
