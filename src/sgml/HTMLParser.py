@@ -17,7 +17,7 @@ import grailutil
 import regsub
 import string
 from types import DictType, StringType
-import SGMLGatherer
+import SGMLHandler
 import SGMLLexer
 import SGMLParser
 from formatter import AS_IS
@@ -26,7 +26,7 @@ from formatter import AS_IS
 URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase', 'data']
 
 
-class HTMLParser(SGMLGatherer.BaseSGMLGatherer):
+class HTMLParser(SGMLHandler.BaseSGMLHandler):
 
     from htmlentitydefs import entitydefs
     new_entities = {
@@ -1051,7 +1051,7 @@ class HTMLParser(SGMLGatherer.BaseSGMLGatherer):
                 if taginfo:
                     break
         if not taginfo:
-            taginfo = SGMLGatherer.BaseSGMLGatherer.get_taginfo(self, tag)
+            taginfo = SGMLHandler.BaseSGMLHandler.get_taginfo(self, tag)
         if not (taginfo or override):
             for dev in self.get_devicetypes():
                 taginfo = self.context.app.find_html_extension(tag, dev)

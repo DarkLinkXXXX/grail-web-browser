@@ -1,21 +1,12 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """A parser for SGML, using the derived class as static DTD."""
-__version__ = "$Revision: 1.25 $"
-# $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
-# XXX There should be a way to distinguish between PCDATA (parsed
-# character data -- the normal case), RCDATA (replaceable character
-# data -- only char and entity references and end tags are special)
-# and CDATA (character data -- only end tags are special).
-
+__version__ = "$Revision: 1.26 $"
 
 import SGMLLexer
-SGMLError = SGMLLexer.SGMLError
-import SGMLGatherer
+import SGMLHandler
 import string
+
+SGMLError = SGMLLexer.SGMLError
 
 
 # SGML parser class -- find tags and call handler functions.
@@ -25,8 +16,6 @@ import string
 # <foo> and </foo>, respectively, or do_foo to handle <foo> by itself.
 
 
-# The SGMLGatherer.BaseSGMLGatherer base class will disappear once the
-# preferred document handler support is used throughout.
 class SGMLParser(SGMLLexer.SGMLLexer):
 
     doctype = ''                        # 'html', 'sdl', '...'
@@ -34,7 +23,7 @@ class SGMLParser(SGMLLexer.SGMLLexer):
     def __init__(self, gatherer=None, verbose=0):
         self.verbose = verbose
         if gatherer is None:
-            gatherer = SGMLGatherer.BaseSGMLGatherer()
+            gatherer = SGMLHandler.BaseSGMLHandler()
         self.push_handler(gatherer)
         SGMLLexer.SGMLLexer.__init__(self)
 
@@ -252,6 +241,3 @@ def _nullfunc(*args, **kw):
     # Dummy end tag handler for situations where no handler is provided
     # or allowed.
     pass
-
-
-#  The test code is located in test_parser.py.
