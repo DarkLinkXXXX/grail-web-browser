@@ -5,7 +5,7 @@ from Tkinter import *
 class ImageLoopItem:
 
     def __init__(self, master, img='doc:/demo/images/duke/',
-		 pause=3900, delay=100, align=None, **kw):
+		 pause=3900, delay=100, align=None, text="?", **kw):
 	self.master = master
 	self.pause = pause
 	self.delay = delay
@@ -15,7 +15,7 @@ class ImageLoopItem:
 	self.images = []
 	self.index = 0
 	self.done = 0
-	self.label = Label(master, text="?")
+	self.label = Label(master, text=text)
 	self.label.pack()
 	self.loadnext()
 	self.schedule()
