@@ -166,18 +166,6 @@ class HTMLBookmarkReader:
 	self._parser.feed(fp.read())
 	return self._parser._root
 
-class DummyWriter(formatter.AbstractWriter):
-    def new_font(self, font): pass
-    def new_margin(self, margin, level): pass
-    def new_spacing(self, spacing): pass
-    def new_styles(self, styles): pass
-    def send_paragraph(self, blankline): pass
-    def send_line_break(self): pass
-    def send_hor_rule(self): pass
-    def send_label_data(self, data): pass
-    def send_flowing_data(self, data): pass
-    def send_literal_data(self, data): pass
-
 
 
 class NetscapeBookmarkHTMLParser(HTMLParser):
@@ -187,7 +175,7 @@ class NetscapeBookmarkHTMLParser(HTMLParser):
 	self._prevleaf = None
 	self._buffer = ''
 	self._state = []
-	w = DummyWriter()
+	w = formatter.NullWriter()
 	f = formatter.AbstractFormatter(w)
 	HTMLParser.__init__(self, f)
 
@@ -357,7 +345,7 @@ class FileDialogExtras:
 
     def set_for_grail(self): self._set_to_file(DEFAULT_GRAIL_BM_FILE)
     def set_for_netscape(self): self._set_to_file(DEFAULT_NETSCAPE_BM_FILE)
-	
+
 class BMLoadDialog(FileDialog.LoadFileDialog, FileDialogExtras):
     def __init__(self, master, controller):
 	self._controller = controller
@@ -369,7 +357,7 @@ class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
 	self._controller = controller
 	FileDialog.SaveFileDialog.__init__(self, master, 'Save Bookmarks File')
 	FileDialogExtras.__init__(self, self.top)
-    
+
 class BookmarksIO:
     def __init__(self, frame, controller):
 	self._controller = controller
@@ -426,7 +414,7 @@ class BookmarksIO:
 
     def _save_to_file_with_writer(self, writer, root, filename=None):
 	try: os.rename(filename, filename+'.bak')
-	except os.error: pass # no file to backup 
+	except os.error: pass # no file to backup
 	fp = open(filename, 'w')
 	writer.write_tree(root, fp)
 
