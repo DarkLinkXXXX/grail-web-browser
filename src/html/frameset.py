@@ -27,7 +27,7 @@ def end_frameset(parser):
 	parser.frameset = parser.frameset.parent
 
 def do_frame(parser, attrs):
-    if parser.suppress_output or not hasattr(parser, "frameset"):
+    if not (hasattr(parser, "frameset") and parser.frameset):
 	return
     src = ""
     fname = ""
