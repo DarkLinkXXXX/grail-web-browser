@@ -1,4 +1,4 @@
-# $Id: SGMLLexer.py,v 1.1 1996/03/14 22:57:17 fdrake Exp $
+# $Id: SGMLLexer.py,v 1.2 1996/03/15 19:34:37 fdrake Exp $
 """A lexer, parser for SGML, using the derived class as static DTD.
 
 This only supports those SGML features used by HTML.
@@ -54,6 +54,31 @@ class SGMLLexerBase:
 	If any data remains unparsed or any events have not been
 	dispatched, they must be forced to do so by this method before
 	returning.
+	"""
+	pass
+
+    def normalize(self, norm):
+	"""Control normalization of name tokens.
+
+	If `norm' is true, names tokens will be converted to lower
+	case before being based to the lex_*() interfaces described
+	below.  Otherwise, names will be reported in the case in which
+	they are found in the input stream.  Tokens which are affected
+	include tag names, attribute names, and named character
+	references.  Note that general entity references are not
+	affected.
+
+	A boolean indicating the previous value is returned.
+	"""
+	pass
+
+    def reset(self):
+	"""Attempt to reset the lexical analyzer.
+	"""
+	pass
+
+    def restrict(self, strict):
+	"""Control recognition of particular constructs.
 	"""
 	pass
 
@@ -129,19 +154,26 @@ class SGMLLexerBase:
 class SGMLLexer(SGMLLexerBase):
     if _sgmllex:
 	def __init__(self):
+	    self.reset()
+
+	def feed(self, data):
+	    self._l.scan(data)
+
+	def normalize(self, norm):
+	    return self._l.normalize(norm)
+
+	def reset(self):
 	    self._l = sgmllex.scanner(self.lex_data,
-				      self._lex_got_stag,
-				      self._lex_got_etag,
+				      self._lex_got_starttag,
+				      self._lex_got_endtag,
 				      self.lex_charref,
 				      self._lex_got_namedcharref,
 				      self._lex_got_geref,
 				      self._lex_aux,
 				      self._lex_err)
-	    self._l.normalize(1)
 
-	# Interface -- f
-	def feed(self, data):
-	    self._l.scan(data)
+	def restrict(self, strict):
+	    return self._l.restrict(strict)
 
 	#def line(self):
 	#    """Retrieves the current line number of the lexer object.
@@ -159,16 +191,16 @@ class SGMLLexer(SGMLLexerBase):
 	def _lex_got_namedcharref(self, name):
 	    self.lex_namedcharref(name[2:])
 
-	def _lex_got_etag(self, tagname):
+	def _lex_got_endtag(self, tagname):
 	    self.lex_endtag(tagname[2:])
 
-	def _lex_got_stag(self, name, attributes):
+	def _lex_got_startttag(self, name, attributes):
 	    self.lex_starttag(name[1:], attributes)
 
 	def _lex_aux(self, types, strings):
 	    if types[0] is sgmllex.comment:
 		# strip of leading/trailing --
-		map(lambda s,f=self.lex_comment: f(s[2:-2]), strings)
+		map(lambda s,f=self.lex_comment: f(s[2:-2]), strings[1:-1])
 
 	    elif types[0] is sgmllex.processingInstruction:
 		# strip <? and >
@@ -184,7 +216,227 @@ class SGMLLexer(SGMLLexerBase):
     else:				# sgmllex not available
 
 	def __init__(self):
-	    pass
+	    self.rawdata = ''
+	    self.stack = []
+	    self.lasttag = '???'
+	    self.nomoretags = 0
+	    self.literal = 0
+	    self._normfunc = lambda s: s
+	    self._strict = 0
+
+	def close(self):
+	    self.goahead(1)
+
+	def feed(self, data):
+	    self.rawdata = self.rawdata + data
+	    self.goahead(0)
+
+	def normalize(self, norm):
+	    prev = ((self._normfunc is string.lower) and 1) or 0
+	    self._normfunc = (norm and string.lower) or (lambda s: s)
+	    return prev
+
+	def restrict(self, strict):
+	    prev = self._strict
+	    self._strict = (strict and 1) or 0
+	    return prev
+
+	# Internal -- handle data as far as reasonable.  May leave state
+	# and data to be processed by a subsequent call.  If 'end' is
+	# true, force handling all data as if followed by EOF marker.
+	def goahead(self, end):
+	    rawdata = self.rawdata
+	    i = 0
+	    n = len(rawdata)
+	    while i < n:
+		if self.nomoretags:
+		    self.lex_data(rawdata[i:n])
+		    i = n
+		    break
+		j = interesting.search(rawdata, i)
+		if j < 0: j = n
+		if i < j: self.lex_data(rawdata[i:j])
+		i = j
+		if i == n: break
+		if rawdata[i] == '<':
+		    if starttagopen.match(rawdata, i) >= 0:
+			if self.literal:
+			    self.lex_data(rawdata[i])
+			    i = i+1
+			    continue
+			k = self.parse_starttag(i)
+			if k < 0: break
+			i = k
+			continue
+		    if endtagopen.match(rawdata, i) >= 0:
+			k = self.parse_endtag(i)
+			if k < 0: break
+			i =  k
+			self.literal = 0
+			continue
+		    if commentopen.match(rawdata, i) >= 0:
+			if self.literal:
+			    self.lex_data(rawdata[i])
+			    i = i+1
+			    continue
+			k = self.parse_comment(i)
+			if k < 0: break
+			i = i+k
+			continue
+		    k = processinginstruction.match(rawdata, i)
+		    if k >= 0:
+			#  Processing instruction:
+			if self._strict:
+			    self.lex_pi(processinginstruction.group(1))
+			    i = i + k
+			else:
+			    self.lex_data(rawdata[i])
+			    i = i + 1
+			continue
+		    k = special.match(rawdata, i)
+		    if k >= 0:
+			#  Markup declaration:
+			if self.literal:
+			    self.lex_data(rawdata[i])
+			    i = i+1
+			    continue
+			i = i+k
+			continue
+		elif rawdata[i] == '&':
+		    charref = (self._strict and legalcharref) or simplecharref
+		    k = charref.match(rawdata, i)
+		    if k >= 0:
+			k = i+k
+			if rawdata[k-1] not in ';\n': k = k-1
+			name = charref.group(1)[:-1]
+			if name[0] in '0123456789':
+			    #  Character reference:
+			    self.lex_charref(string.atoi(name))
+			else:
+			    #  Named character reference:
+			    self.lex_namedcharref(self._normfunc(name))
+			i = k
+			continue
+		    k = entityref.match(rawdata, i)
+		    if k >= 0:
+			#  General entity reference:
+			k = i+k
+			if rawdata[k-1] != ';': k = k-1
+			name = entityref.group(1)
+			self.lex_entityref(name)
+			i = k
+			continue
+		else:
+		    raise RuntimeError, 'neither < nor & ??'
+		# We get here only if incomplete matches but
+		# nothing else
+		k = incomplete.match(rawdata, i)
+		if k < 0:
+		    self.lex_data(rawdata[i])
+		    i = i+1
+		    continue
+		j = i+k
+		if j == n:
+		    break # Really incomplete
+		self.lex_data(rawdata[i:j])
+		i = j
+	    # end while
+	    if end and i < n:
+		self.lex_data(rawdata[i:n])
+		i = n
+	    self.rawdata = rawdata[i:]
+	    # XXX if end: check for empty stack
+
+	# Internal -- parse comment, return length or -1 if not terminated
+	def parse_comment(self, i):
+	    rawdata = self.rawdata
+	    if rawdata[i:i+4] <> '<!--':
+		raise RuntimeError, 'unexpected call to parse_comment'
+	    if not self._strict:
+		j = commentclose.search(rawdata, i+4)
+		if j < 0:
+		    return -1
+		self.lex_comment(rawdata[i+4: j])
+		j = j+commentclose.match(rawdata, j)
+		q = j - i
+	    else:
+		# stricter parsing; this requires legal SGML:
+		q = legalcomment.match(rawdata, i)
+		if q < 0:
+		    return -1
+		cmtdata = legalcomment.group(1)
+		print 'commentdata =', `cmtdata`
+		while 1:
+		    len = comment.match(cmtdata)
+		    if len >= 0:
+			self.lex_comment(comment.group(1))
+			cmtdata = cmtdata[len:]
+		    else:
+			break
+	    return q
+
+	# Internal -- handle starttag, return length or -1 if not terminated
+	def parse_starttag(self, i):
+	    rawdata = self.rawdata
+	    if shorttagopen.match(rawdata, i) >= 0:
+		# SGML shorthand: <tag/data/ == <tag>data</tag>
+		# XXX Can data contain &... (entity or char refs)?
+		# XXX Can data contain < or > (tag characters)?
+		# XXX Can there be whitespace before the first /?
+		j = shorttag.match(rawdata, i)
+		if j < 0:
+		    return -1
+		tag, data = shorttag.group(1, 2)
+		tag = self._normfunc(tag)
+		self.finish_shorttag(tag, data)
+		k = i+j
+		if rawdata[k-1] == '<':
+		    k = k-1
+		return k
+	    # XXX The following should skip matching quotes (' or ")
+	    j = endbracket.search(rawdata, i+1)
+	    if j < 0:
+		return -1
+	    # Now parse the data between i+1 and j into a tag and attrs
+	    attrs = []
+	    if rawdata[i:i+2] == '<>':
+		# SGML shorthand: <> == <last open tag seen>
+		k = j
+		tag = self.lasttag
+	    else:
+		k = tagfind.match(rawdata, i+1)
+		if k < 0:
+		    raise RuntimeError, 'unexpected call to parse_starttag'
+		k = i+1+k
+		tag = self._normfunc(rawdata[i+1:k])
+		self.lasttag = tag
+	    while k < j:
+		l = attrfind.match(rawdata, k)
+		if l < 0: break
+		attrname, rest, attrvalue = attrfind.group(1, 2, 3)
+		if not rest:
+		    attrvalue = attrname
+		elif attrvalue[:1] == '\'' == attrvalue[-1:] or \
+		     attrvalue[:1] == '"' == attrvalue[-1:]:
+		    attrvalue = attrvalue[1:-1]
+		attrs.append((self._normfunc(attrname), attrvalue))
+		k = k + l
+	    if rawdata[j] == '>':
+		j = j+1
+	    self.lex_starttag(tag, attrs)
+	    return j
+
+	# Internal -- parse endtag
+	def parse_endtag(self, i):
+	    rawdata = self.rawdata
+	    j = endbracket.search(rawdata, i+1)
+	    if j < 0:
+		return -1
+	    tag = self._normfunc(string.strip(rawdata[i+2:j]))
+	    if rawdata[j] == '>':
+		j = j+1
+	    self.lex_endtag(tag)
+	    return j
 
 
 if not _sgmllex:
@@ -196,114 +448,25 @@ if not _sgmllex:
 			       '![^<>]*\)?')
 
     entityref = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\)[^a-zA-Z0-9]')
-    charref = regex.compile('&#\([0-9]+\)[^0-9]')
+    simplecharref = regex.compile('&#\([0-9]+[^0-9]\)')
+    legalcharref = regex.compile('&#\([0-9]+[^0-9]\|[a-zA-Z.-]+[^a-zA-Z.-]\)')
+    processinginstruction = regex.compile('<\?\([^>]*\)>')
 
     starttagopen = regex.compile('<[>a-zA-Z]')
     shorttagopen = regex.compile('<[a-zA-Z][a-zA-Z0-9]*/')
     shorttag = regex.compile('<\([a-zA-Z][a-zA-Z0-9]*\)/\([^/]*\)/')
     endtagopen = regex.compile('</[<>a-zA-Z]')
     endbracket = regex.compile('[<>]')
-    special = regex.compile('<![^<>]*>')
+    special = regex.compile('<![^>]*>')
     commentopen = regex.compile('<!--')
+    legalcomment = regex.compile('<!\(\(--\([^-]\|-[^-]\)*--[ \t\n]*\)*\)>')
+    comment = regex.compile('--\(\([^-]\|-[^-]\)*\)--[ \t\n]*')
     commentclose = regex.compile('--[ \t\n]*>')
     tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9]*')
     attrfind = regex.compile( \
 	'[ \t\n]+\([a-zA-Z_][a-zA-Z_0-9]*\)'
 	'\([ \t\n]*=[ \t\n]*'
 	'\(\'[^\']*\'\|"[^"]*"\|[-a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
-
-
-# SGML parser class -- find tags and call handler functions.
-# Usage: p = SGMLParser(); p.feed(data); ...; p.close().
-# The dtd is defined by deriving a class which defines methods
-# with special names to handle tags: start_foo and end_foo to handle
-# <foo> and </foo>, respectively, or do_foo to handle <foo> by itself.
-# (Tags are converted to lower case for this purpose.)
-# XXX what about periods, hyphens in tag names?
-
-class SGMLParser(SGMLLexer):
-
-	# Interface -- initialize and reset this instance
-	def __init__(self, verbose = 0):
-	    self.verbose = verbose
-	    SGMLLexer.__init__(self)
-	    self.reset()
-
-	# Interface -- reset this instance.  Loses all unprocessed data
-	def reset(self):
-	    self.stack = []
-	    self.cdata = 0
-
-	# For derived classes only -- enter literal mode (CDATA)
-	def setliteral(self, *args):
-	    self.cdata = 1 #@@ finish implementing this...
-
-	def startTag(self, tag, attrs):
-	    try:
-		method = getattr(self, 'start_' + tag)
-	    except AttributeError:
-		try:
-		    method = getattr(self, 'do_' + tag)
-		except AttributeError:
-		    self.unknown_starttag(tag, attrs)
-		    return
-		method(attrs)
-	    else:
-		self.stack.append(tag)
-		method(attrs)
-
-	def lex_endtag(self, tag):
-	    try:
-		method = getattr(self, 'end_' + tag)
-	    except AttributeError:
-		self.unknown_endtag(tag)
-		return
-	    if self.stack and self.stack[-1] == tag:
-		del self.stack[-1]
-	    else:
-		self.report_unbalanced(tag)
-		# Now repair it
-		found = None
-		for i in range(len(self.stack)):
-		    if self.stack[i] == tag: found = i
-		if found <> None:
-		    del self.stack[found:]
-	    method()
-
-	# Example -- report an unbalanced </...> tag.
-	def report_unbalanced(self, tag):
-	    if self.verbose:
-		print '*** Unbalanced </' + tag + '>'
-		print '*** Stack:', self.stack
-
-	# Definition of entities -- derived classes may override
-	entitydefs = \
-		   {'lt': '<', 'gt': '>', 'amp': '&', 'quot': '"'}
-
-	# Example -- handle entity reference, no need to override
-	def handle_entityref(self, name):
-	    table = self.entitydefs
-	    if table.has_key(name):
-		self.handle_data(table[name])
-	    else:
-		self.unknown_entityref(name)
-
-	# Example -- handle data, should be overridden
-	def handle_data(self, data): pass
-
-	# Example -- handle comment, could be overridden
-	def handle_comment(self, data): pass
-
-	# Example -- handle processing instruction, could be overridden
-	def handle_pi(self, data): pass
-
-	# To be overridden -- handlers for unknown objects
-	def unknown_starttag(self, tag, attrs): pass
-	def unknown_endtag(self, tag): pass
-	def unknown_entityref(self, ref): pass
-	def unknown_namedcharref(self, ref): pass
-	def report_unbalanced(self, tag): pass
-
 
 
 def test():

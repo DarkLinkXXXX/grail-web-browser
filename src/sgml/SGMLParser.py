@@ -1,5 +1,5 @@
-# $Id: SGMLParser.py,v 1.1 1996/03/14 22:57:18 fdrake Exp $
-"""A lexer, parser for SGML, using the derived class as static DTD.
+# $Id: SGMLParser.py,v 1.2 1996/03/15 19:34:38 fdrake Exp $
+"""A parser for SGML, using the derived class as static DTD.
 
 This only supports those SGML features used by HTML.
 See W3C tech report: 'A lexical analyzer for HTML and Basic SGML'
@@ -22,16 +22,18 @@ from SGMLLexer import SGMLLexer, SGMLError
 # (Tags are converted to lower case for this purpose.)
 # XXX what about periods, hyphens in tag names?
 
-class SGMLParser(SGMLParserBase):
+class SGMLParser(SGMLLexer):
 
 	# Interface -- initialize and reset this instance
 	def __init__(self, verbose = 0):
 	    self.verbose = verbose
 	    SGMLLexer.__init__(self)
-	    self.reset()
 
 	# Interface -- reset this instance.  Loses all unprocessed data
 	def reset(self):
+	    SGMLLexer.reset(self)
+	    self.normalize(1)		# normalize NAME token to lowercase
+	    self.restrict(1)		# impose user-agent compatibility
 	    self.stack = []
 	    self.cdata = 0
 
@@ -40,6 +42,7 @@ class SGMLParser(SGMLParserBase):
 	    self.cdata = 1 #@@ finish implementing this...
 
 	def lex_starttag(self, tag, attrs):
+	    tag = tag or self.lasttag
 	    attrs = attrs.items()	# map to list of tuples for now
 	    try:
 		method = getattr(self, 'start_' + tag)
@@ -48,11 +51,13 @@ class SGMLParser(SGMLParserBase):
 		    method = getattr(self, 'do_' + tag)
 		except AttributeError:
 		    self.unknown_starttag(tag, attrs)
-		    return
-		method(attrs)
+		    return -1
+		self.handle_starttag(tag, method, attrs)
+		return 0
 	    else:
+		self.lasttag = tag
 		self.stack.append(tag)
-		method(attrs)
+		self.handle_starttag(tag, method, attrs)
 
 	def lex_endtag(self, tag):
 	    if not tag:
@@ -89,7 +94,7 @@ class SGMLParser(SGMLParserBase):
 
 	def lex_namedcharref(self, name):
 	    if self.named_characters.has_key(name):
-		handle_data(self._named_characters[name])
+		self.handle_data(self.named_characters[name])
 	    else:
 		self.unknown_namedcharref(name)
 
@@ -108,7 +113,7 @@ class SGMLParser(SGMLParserBase):
 		   {'lt': '<', 'gt': '>', 'amp': '&', 'quot': '"'}
 
 	# Example -- handle entity reference, no need to override
-	def handle_entityref(self, name):
+	def lex_entityref(self, name):
 	    table = self.entitydefs
 	    if table.has_key(name):
 		self.handle_data(table[name])
@@ -117,12 +122,6 @@ class SGMLParser(SGMLParserBase):
 
 	# Example -- handle data, should be overridden
 	def handle_data(self, data): pass
-
-	# Example -- handle comment, could be overridden
-	def handle_comment(self, data): pass
-
-	# Example -- handle processing instruction, could be overridden
-	def handle_pi(self, data): pass
 
 	# To be overridden -- handlers for unknown objects
 	def unknown_starttag(self, tag, attrs): pass
