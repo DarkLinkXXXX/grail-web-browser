@@ -1,7 +1,6 @@
 from types import *
 # NB Don't import Tk!
-from Tkinter import TkVersion, TclVersion, TclError, \
-     _cnfmerge
+from Tkinter import TkVersion, TclVersion, TclError
 
 TEMPLATE = """
 def %(name)s(*args, **kw):
