@@ -231,15 +231,16 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
     if label[-1] != ':': label = label + ':'
 
     frame = Frame(parent)
-    frame.pack(fill='x')
 
     label = Label(frame, text=label, width=labelwidth, anchor=E)
     label.pack(side=LEFT)
     if entryheight == 1:
 	entry = Entry(frame, relief=SUNKEN, border=2, width=entrywidth)
 	entry.pack(side=RIGHT, expand=1, fill=X)
+	frame.pack(fill=X)
     else:
 	entry = make_text_box(frame, entrywidth, entryheight, 1, 1)
+	frame.pack(fill=BOTH, expand=1)
 
     return entry, frame, label
 
