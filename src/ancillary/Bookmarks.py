@@ -17,6 +17,22 @@ InGrail_p = __name__ != '__main__'
 DEFAULT_NETSCAPE_BM_FILE = os.path.join(gethome(), '.netscape-bookmarks.html')
 DEFAULT_GRAIL_BM_FILE = os.path.join(getgraildir(), 'grail-bookmarks.html')
 
+BOOKMARKS_FILES = [
+    DEFAULT_GRAIL_BM_FILE,
+    DEFAULT_NETSCAPE_BM_FILE,
+    ]
+
+# allow for a separate environment variable GRAIL_BOOKMARKS_FILE, and
+# search it first
+try:
+    file = os.environ['GRAIL_BOOKMARKS_FILE']
+    file = os.path.expanduser(file)
+    if file:
+	DEFAULT_GRAIL_BM_FILE = file
+	BOOKMARKS_FILES.insert(0, file)
+except KeyError:
+    pass
+
 
 True = 1
 False = None
@@ -853,21 +869,21 @@ class BookmarksController(OutlinerController):
     def initialize(self, active_browser=None):
 	if active_browser: self._active = active_browser
 	if self._initialized_p: return
-	try:
-	    # this will attempt to load the Grail default bookmarks
-	    # file.  If this fails, it will do so with a
-	    # BookmarkFormatError.  In that case, try to load the
-	    # Netscape bookmarks file.  If *that* fails, use an empty
-	    # default.
-	    root, reader, self._writer = self._iomgr.load(True)
-	except BookmarkFormatError:
-	    self._iomgr.set_filename(DEFAULT_NETSCAPE_BM_FILE)
+	# attempt to read each bookmarks file in the BOOKMARKS_FILES
+	# list.  Search order is 1) $GRAIL_BOOKMARKS_FILE; 2)
+	# $GRAIL_DIR/grail-bookmarks.html; 3) ~/.netscape-bookmarks.html
+	root = None
+	for file in BOOKMARKS_FILES[:]:
+	    self._iomgr.set_filename(file)
 	    try:
 		root, reader, self._writer = self._iomgr.load(True)
+		break
 	    except BookmarkFormatError:
-		root = BookmarkNode(username()+"'s Bookmarks")
-		self._writer = GrailBookmarkWriter()
-		self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
+		pass
+	if not root:
+	    root = BookmarkNode(username()+"'s Bookmarks")
+	    self._writer = GrailBookmarkWriter()
+	    self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
 	self.set_root(root)
 	self._initialized_p = True
 
