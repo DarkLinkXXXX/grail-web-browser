@@ -4,9 +4,12 @@
 
 """Modeless dialog displaying exception and traceback."""
 
-from Tkinter import *
+import string
 import tktools
 import traceback
+
+from Tkinter import *
+
 
 class TracebackDialog:
 
@@ -17,17 +20,25 @@ class TracebackDialog:
         self.tb = tb
         self.root = tktools.make_toplevel(self.master,
                                           title="Traceback Dialog")
-        self.close_button = Button(self.root,
-                                   text="Close",
-                                   command=self.close_command)
-        self.close_button.pack(side=BOTTOM, pady='1m')
+        close = self.close_command
+        self.close_button = Button(self.root, text="Close",
+                                   command=close, default="active")
+        self.root.protocol("WM_DELETE_WINDOW", close)
+        self.root.bind("<Alt-W>", close)
+        self.root.bind("<Alt-w>", close)
+        anchor = None
+        if tktools._inTkStep(self.root):
+            anchor = E
+        self.close_button.pack(side=BOTTOM, pady='1m', padx='1m',
+                               anchor=anchor)
+        self.close_button.focus_set()
         self.label = Label(self.root, text="%s: %s" % (exc, str(val)))
         self.label.pack(fill=X)
-        self.text, self.text_frame = tktools.make_text_box(self.root,
-                                                           width=90)
+        self.text, self.text_frame = tktools.make_text_box(self.root, width=90)
         lines = traceback.format_exception(exc, val, tb)
-        for line in lines:
-            self.text.insert(END, line + '\n')
+        lines.append('')
+        tb = string.join(map(string.rstrip, lines), '\n')
+        self.text.insert(END, tb)
         self.text.yview_pickplace(END)
         self.text["state"] = DISABLED
 
