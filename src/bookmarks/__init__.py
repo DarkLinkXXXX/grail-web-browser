@@ -8,13 +8,24 @@ class Error:
     def __init__(self, filename):
         self.filename = filename
     def __repr__(self):
-        return "<%s for file %s>" % (self.__class__.__name__, self.filename)
+        C = self.__class__
+        return "<%s.%s for file %s>" \
+               % (C.__module__, C.__name__, self.filename)
 
 
 class BookmarkFormatError(Error):
-    def __init__(self, filename, problem):
+    def __init__(self, filename, problem, what="file"):
         Error.__init__(self, filename)
         self.problem = problem
+        self.what = what
+
+    def __repr__(self):
+        C = self.__class__
+        return "<%s.%s for %s %s>" \
+               % (C.__module__, C.__name__, self.what, self.filename)
+
+    def __str__(self):
+        return "%s for %s %s" % (self.problem, self.what, self.filename)
 
 
 class PoppedRootError(Error):
