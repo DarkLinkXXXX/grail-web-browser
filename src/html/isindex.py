@@ -10,11 +10,14 @@ def do_isindex(parser, attrs):
     except KeyError:
 	prompt = "This is a searchable index. Enter search keywords:"
 
-    IndexWidget(parser, prompt)
+    IndexWidget(parser, prompt,
+		(attrs.has_key('href') and attrs['href']) or None)
+
 
 class IndexWidget:
 
-    def __init__(self, parser, prompt):
+    def __init__(self, parser, prompt, url):
+	self.query_url = url
 	self.parser = parser
 	self.viewer = self.parser.viewer
 	self.context = self.viewer.context
@@ -27,7 +30,7 @@ class IndexWidget:
 
     def submit(self, event):
 	data = self.w.get()
-	url = self.context.baseurl()
+	url = self.query_url or self.context.baseurl()
 	i = string.find(url, '?')
 	if i >= 0:
 	    url = url[:i]
