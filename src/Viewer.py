@@ -32,7 +32,6 @@ font_dingbats = {
 
 class WidthMagic:
     def __init__(self, viewer, abswidth, percentwidth):
-	# initialize mixin stuff:
 	self.__abswidth = abswidth
 	self.__percentwidth = percentwidth
 	self.__text = viewer.text
