@@ -17,9 +17,11 @@ import sys
 import time
 import string
 import cgi
+import grailutil
+import rfc822
 from urlparse import urlparse, urlunparse
 
-from __main__ import app, GRAILVERSION
+from __main__ import GRAILVERSION
 from nullAPI import null_access
 from Context import LAST_CONTEXT
 
@@ -50,7 +52,7 @@ class mailto_access(null_access):
 	# when a form's action is a mail URL, the data field will be
 	# non-None.  In that case, initialize the dialog with the data
 	# contents
-	toplevel = MailDialog(app.root, url, data)
+	toplevel = MailDialog(grailutil.get_grailapp().root, url, data)
 
 if os.sys.platform[:3] == 'sco': 
     # Use MMDF instead of sendmail
@@ -127,7 +129,7 @@ Content-Transfer-Encoding: 7bit""",
 		    variables[header] = vlist[0] # throw away duplicates
 		del headers[header]
 	self.text.insert(END, self.template % variables)
-	# insert extra headers
+	# insert URL-based extra headers
 	for header, vlist in headers.items():
 	    header = string.lower(header)
 	    if header != 'body' and header not in DISALLOWED_HEADERS:
@@ -137,6 +139,10 @@ Content-Transfer-Encoding: 7bit""",
 		    self.text.insert(END, s)
 		else:
 		    self.text.insert(END, s, "SUSPICIOUS_HEADER")
+	# insert user-specified extra headers
+	for header, value in self.get_user_headers().items():
+	    s = '%s: %s\n' % (capwords(header, '-'), value)
+	    self.text.insert(END, s)
 	# insert newline
 	self.text.insert(END, '\n', ())
 	# insert data
@@ -144,6 +150,16 @@ Content-Transfer-Encoding: 7bit""",
 	    self.text.insert(END, data)
 	elif headers.has_key('body'):
 	    self.text.insert(END, headers['body'][0] + '\n')
+	self.text.focus_set()
+
+    def get_user_headers(self):
+	fn = os.path.join(grailutil.getgraildir(), "mail-headers")
+	d = {}
+	if os.path.isfile(fn):
+	    msg = rfc822.Message(open(fn))
+	    for k, v in msg.items():
+		d[k] = v
+	return d
 
     def send_command(self):
 	message = self.text.get("1.0", END)
