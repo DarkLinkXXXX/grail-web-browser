@@ -51,6 +51,12 @@ class Cache:
 		item.check()
 	return CacheAPI(item)
 
+    def delete(self, object):
+	key = object.key
+	object.cache = None
+	assert(self.cachedir.has_key(key) and self.cachedir[key] is object)
+	del self.cachedir[key]
+
     def url2key(self, url, mode, params):
 	"""Normalize a URL for use as a caching key.
 
@@ -206,15 +212,14 @@ class CacheItem:
     def abort(self):
 ##	print " Abort", self.url
 	if self.cache:
-	    cachedir = self.cache.cachedir
-	    key = self.key
-	    assert(cachedir.has_key(key) and self is cachedir[key])
-	    del cachedir[key]
+	    self.cache.delete(self)
 	self.finish()
 
     def finish(self):
+	if self.cache:
+	    if not (self.meta and self.meta[0] == 200):
+		self.cache.delete(self)
 	self.stage = DONE
-	self.cache = None
 	api = self.api
 	self.api = None
 	if api:
