@@ -199,7 +199,6 @@ class Viewer(formatter.AbstractWriter):
 			self.context.app.clear_dingbat('disc')
 			self.context.app.clear_dingbat('circle')
 			self.context.app.clear_dingbat('square')
-			del stylesheet.styles['_ding']
 		else:
 		    if tag == '_ding' \
 		       and type(sym) in (InstanceType, NoneType):
@@ -207,7 +206,6 @@ class Viewer(formatter.AbstractWriter):
 			set_dingbat('disc', ('\x6c', '_ding'))
 			set_dingbat('circle', ('\x6d', '_ding'))
 			set_dingbat('square', ('\x6f', '_ding'))
-			del stylesheet.styles['_ding']
 	    for tag, cnf in stylesheet.history.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, abovetag in stylesheet.priorities.items():
