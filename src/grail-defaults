@@ -220,6 +220,7 @@ printing--to-file:		0
 printing--command:		lpr
 printing--underline-anchors:	1
 printing--footnote-anchors:	1
+printing--leading:		0.7
 #
 # Applet preferences
 #
