@@ -527,12 +527,21 @@ class GrailHTMLParser(HTMLParser):
     def unknown_entityref(self, entname, terminator):
 	img = self.load_dingbat(entname)
 	if img:
-	    bgcolor = self.viewer.text['background']
-	    if self.formatter.nospace:
-		self.handle_data(MIN_IMAGE_LEADER)
-	    self.viewer.add_subwindow(Label(self.viewer.text, image = img,
-					    background = bgcolor,
-					    borderwidth = 0))
+	    if type(img) is TupleType:
+		s, tag = img
+		if tag:
+		    self.formatter.push_style(tag)
+		    self.handle_data(s)
+		    self.formatter.pop_style()
+		else:
+		    self.handle_data(s)
+	    else:
+		bgcolor = self.viewer.text['background']
+		if self.formatter.nospace:
+		    self.handle_data(MIN_IMAGE_LEADER)
+		self.viewer.add_subwindow(Label(self.viewer.text, image = img,
+						background = bgcolor,
+						borderwidth = 0))
 	    self.inhead = 0
 	else:
 	    HTMLParser.unknown_entityref(self, entname, terminator)

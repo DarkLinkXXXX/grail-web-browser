@@ -229,6 +229,14 @@ class Application:
 	else:
 	    dummy.destroy()
 	    Application.dingbatimages = Application.fontdingbats
+	try:
+	    dummy = Label(text = 'dummy', font = Viewer.SYMBOL_FONT)
+	except TclError:
+	    Viewer.SYMBOL_FONT = None
+	else:
+	    dummy.destroy()
+	    for k, v in Application.fontsymbols.items():
+		Application.dingbatimages[k] = v
 
     def register_on_exit(self, method):
 	self.on_exit_methods.append(method)
@@ -460,9 +468,32 @@ class Application:
 		      )
 
     dingbatimages = {}
+    # Faster than widgets:
     fontdingbats = {'circle': ('\x6d', 'dingbat'),
 		    'disc': ('\x6c', 'dingbat'),
-		    'square': ('\x6f', 'dingbat')}
+		    'square': ('\x6f', 'dingbat')
+		    }
+    # Math stuff, ignored if using widgets:
+    fontsymbols = {'alpha': ('\x61', 'symbol'),
+		   'beta': ('\x62', 'symbol'),
+		   'gamma': ('\x63', 'symbol'),
+		   'delta': ('\x64', 'symbol'),
+		   'epsilon': ('\x65', 'symbol'),
+		   'vepsilon': ('\xce', 'symbol'),
+		   'kappa': ('\x6b', 'symbol'),
+		   'phi': ('\x66', 'symbol'),
+		   'lambda': ('\x6c', 'symbol'),
+		   'mu': ('\6d', 'symbol'),
+		   'omicron': ('\x6f', 'symbol'),
+		   'pi': ('\x70', 'symbol'),
+		   'rho': ('\x72', 'symbol'),
+		   'sigma': ('\x73', 'symbol'),
+		   'tau': ('\x74', 'symbol'),
+		   'omega': ('\x77', 'symbol'),
+		   'theta': ('\x71', 'symbol'),
+		   'ldots': ('...', None),
+		   }
+
     iconpath = [os.path.join(grail_root, 'icons')]
 
     def load_dingbat(self, entname):

@@ -11,6 +11,7 @@ from types import StringType
 
 
 DINGBAT_FONT = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats'
+SYMBOL_FONT =  '-*-*-*-*-*-*-*-*-*-*-*-*-*-symbol'
 MIN_IMAGE_LEADER = "\240"		# Non-breaking space
 
 
@@ -148,6 +149,8 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('center', justify = 'center')
 	if DINGBAT_FONT:
 	    self.text.tag_config('dingbat', font = DINGBAT_FONT)
+	if SYMBOL_FONT:
+	    self.text.tag_config('symbol', font = SYMBOL_FONT)
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level*40
@@ -380,9 +383,12 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.insert(END, '\t', tags)
 	elif type(data) is TupleType:
 	    #  (string, fonttag) pair
-	    self.text.insert(END, '\t', tags)
-	    self.text.insert(END, data[0], tags + (data[1],))
-	    self.text.insert(END, '\t', tags)
+	    if data[1]:
+		self.text.insert(END, '\t', tags)
+		self.text.insert(END, data[0], tags + (data[1],))
+		self.text.insert(END, '\t', tags)
+	    else:
+		self.text.insert(END, '\t%s\t' % data[0], tags)
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags
