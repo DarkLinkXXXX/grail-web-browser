@@ -7,7 +7,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.27 $"
+__version__ = "$Revision: 2.28 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -306,7 +306,8 @@ class Framework:
 	self.poll_modified()
 
     def create_widget(self):
-	widget = self.widget = Toplevel(self.frame, class_='Preferences')
+	widget = self.widget = tktools.make_toplevel(
+	    self.frame, class_='Preferences')
 	widget.title(self.title)
 	tktools.install_keybindings(widget)
 	widget.bind('<Return>', self.done_cmd)
