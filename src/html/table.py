@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.39 1996/04/23 20:06:41 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.40 1996/05/01 16:46:09 bwarsaw Exp $'
 
 
 import string
@@ -358,7 +358,6 @@ class Table(AttrElem):
 	self._mapped = None
 	# register with the parent viewer
 	self.parentviewer.register_reset_interest(self._reset)
-	self.parentviewer.register_resize_interest(self._resize)
 
     def minwidth(self): return self._minwidth
     def maxwidth(self): return self._maxwidth
@@ -384,6 +383,7 @@ class Table(AttrElem):
 		# table
 		self._map()
 	    pv.context.register_notification(self._notify)
+	    self.parentviewer.register_resize_interest(self._resize)
 	else:
 	    # FIXEDLAYOUT not yet supported
 	    pass
