@@ -126,7 +126,8 @@ class BookmarksIO:
 	    fp.seek(0)
 	# sanity checking
 	if not parser or not writer:
-	    raise BookmarkFormatError('unknown or missing bookmarks file')
+	    raise BookmarkFormatError(self._filename,
+				      'unknown or missing bookmarks file')
 	# create the reader
 	reader = HTMLBookmarkReader(parser)
 	return (reader, writer)
@@ -137,7 +138,7 @@ class BookmarksIO:
 	    fp = open(filename, 'r')
 	    reader, writer = self._choose_reader_writer(fp)
 	except IOError, error:
-	    raise BookmarkFormatError(error)
+	    raise BookmarkFormatError(self._filename, error)
 	return (fp, reader, writer)
 
     def load(self, usedefault=False):
@@ -224,7 +225,7 @@ class TkListboxViewer(OutlinerViewer):
 class BookmarksDialog:
     def __init__(self, master, controller):
 	# create the basic controls of the dialog window
-	self._frame = Toplevel(master, class_='Bookmarks')
+	self._frame = tktools.make_toplevel(master, class_='Bookmarks')
 	self._frame.title("Grail Bookmarks")
 	self._frame.iconname("Bookmarks")
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
@@ -504,10 +505,9 @@ class BookmarksDialog:
 
 class DetailsDialog:
     def __init__(self, master, node, controller):
-	self._frame = Toplevel(master, class_='BookmarkDetail')
+	self._frame = tktools.make_toplevel(master, class_='BookmarkDetail',
+					    title="Bookmark Details")
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
-	self._frame.title("Bookmark Details")
-	self._frame.iconname("Bookmark Details")
 	self._node = node
 	self._controller = controller
 	fr, top, bottom = tktools.make_double_frame(self._frame)
