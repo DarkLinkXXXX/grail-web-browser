@@ -8,7 +8,7 @@ information.
 
 This class is also used to generate new ID values for nodes.
 """
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 
 import copy
 import nodes                            # sibling
@@ -45,10 +45,10 @@ class Collection:
 
     def set_root(self, root):
         self.__root = root
-        if root is not None:
-            maps = self.build_info(root)
-        else:
+        if root is None:
             maps = {}, {}, {}
+        else:
+            maps = self.build_info(root)
         self.__node_map, self.__id_map, self.__ref_map = maps
 
     def get_type_counts(self):
@@ -93,10 +93,9 @@ class Collection:
         need_ids = []
         queue = [node]
         while queue:
-            node = queue[0]
-            del queue[0]
+            node = queue.pop()
             nodetype = node.get_nodetype()
-            if nodetype in ("Bookmark", "Folder"):
+            if hasattr(node, "id"):
                 id = node.id()
                 if self.__id_map.has_key(id):
                     # this node must be relabeled:
@@ -109,6 +108,8 @@ class Collection:
                     if ref_map.has_key(id):
                         ref_map[new_id] = ref_map[id]
                         del ref_map[id]
+            if hasattr(node, "children"):
+                queue[len(queue):] = node.children()
         return id_map, ref_map
 
     __next_id = 1
@@ -183,7 +184,6 @@ class Collection:
             raise NodeIDError("node ID already in ID map")
         if id is not None:
             self.__id_map[id] = node
-        
 
     def del_node(self, node):
         try:
