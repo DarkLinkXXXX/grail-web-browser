@@ -24,10 +24,7 @@ class WidthMagic:
 	self.__abswidth = abswidth
 	self.__percentwidth = percentwidth
 	self.__text = viewer.text
-	if 'blockquote' in viewer.addtags:
-	    dents = viewer.marginlevel + 1
-	else:
-	    dents = viewer.marginlevel
+	dents = viewer.marginlevel + viewer.rightmarginlevel
 	self.__removable = (dents * INDENTATION_WIDTH) \
 			   + viewer.RULE_WIDTH_MAGIC
 
@@ -155,8 +152,10 @@ class Viewer(formatter.AbstractWriter):
 
     def reset_state(self):
 	self.fonttag = None		# Tag specifying font
-	self.margintag = None		# Tag specifying margin
-	self.marginlevel = 0		# Numeric margin level
+	self.margintag = None		# Tag specifying margin (left)
+	self.marginlevel = 0		# Numeric margin level (left)
+	self.rightmargintag = None	# Tag specifying margin (right)
+	self.rightmarginlevel = 0	# Numeric margin level (right)
 	self.spacingtag = None		# Tag specifying spacing
 	self.addtags = ()		# Additional tags (e.g. anchors)
 	self.align = None		# Alignment setting
@@ -287,10 +286,10 @@ class Viewer(formatter.AbstractWriter):
 	    pix = level * INDENTATION_WIDTH
 	    self.text.tag_config('margin_%d' % level,
 				 lmargin1=pix, lmargin2=pix)
+	    self.text.tag_config('rightmargin_%d' % level, rmargin=pix)
 	    tabs = "%d right %d left" % (pix-5, pix)
 	    self.text.tag_config('label_%d' % level,
 				 lmargin1=pix-INDENTATION_WIDTH, tabs=tabs)
-	self.text.tag_config('blockquote', rmargin = INDENTATION_WIDTH)
 	# Configure anchor tags
 	for tag in 'a', 'ahist':
 	    self.text.tag_bind(tag, '<ButtonPress-1>', self.anchor_press)
@@ -430,8 +429,8 @@ class Viewer(formatter.AbstractWriter):
 	    self.pendingdata = ''
 	self.flowingtags = filter(
 	    None,
-	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
-	    + self.addtags)
+	    (self.align, self.fonttag, self.margintag, self.rightmargintag,
+	     self.spacingtag) + self.addtags)
 
     # AbstractWriter methods
 
@@ -469,10 +468,12 @@ class Viewer(formatter.AbstractWriter):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
+	self.rightmarginlevel = rl = map(None, styles).count('blockquote')
+	self.rightmargintag = rl and ('rightmargin_%d' % rl) or None
 	self.flowingtags = filter(
 	    None,
-	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
-	    + styles)
+	    (self.align, self.fonttag, self.margintag, self.rightmargintag,
+	     self.spacingtag) + styles)
 
     def send_paragraph(self, blankline):
 	self.pendingdata = self.pendingdata + ('\n' * blankline)
