@@ -716,9 +716,8 @@ class Widget(Misc, Pack, Place):
 			cnf = _cnfmerge((cnf, kw))
 		self.widgetName = widgetName
 		Widget._setup(self, master, cnf)
-		apply(self.tk.call, (widgetName, self._w)+extra)
-		if cnf:
-			Widget.config(self, cnf)
+		apply(self.tk.call,
+		      (widgetName, self._w) + extra + self._options(cnf))
 	def config(self, cnf=None, **kw):
 		# XXX ought to generalize this so tag_config etc. can use it
 		if kw:
