@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.26 $"
+__version__ = "$Revision: 2.27 $"
 
 import os
 import string
@@ -15,6 +15,11 @@ _grail_root = None
 _grail_app = None
 
 
+# Utility functions for handling attribute values used to be defined here;
+# now get them from sgml.utils since Grail expects them to be here.  One is
+# in the printing package.
+
+from sgml.utils import *
 from printing.utils import conv_fontsize
 
 
@@ -122,52 +127,6 @@ def nicebytes(n):
 
 
 
-# Utility functions for handling attribute values used to be defined here;
-# now get them from sgml.utils since Grail expects them to be here.
-
-from sgml.utils import *
-
-
-# Other conversion functions:
-
-def conv_mimetype(type):
-    """Convert MIME media type specifications to tuples of
-    ('type/subtype', {'option': 'value'}).
-    """
-    if not type:
-        return None, {}
-    if ';' in type:
-        i = string.index(type, ';')
-        opts = _parse_mimetypeoptions(type[i + 1:])
-        type = type[:i]
-    else:
-        opts = {}
-    fields = string.splitfields(string.lower(type), '/')
-    if len(fields) != 2:
-        raise ValueError, "Illegal media type specification."
-    type = string.joinfields(fields, '/')
-    return type, opts
-
-
-def _parse_mimetypeoptions(options):
-    opts = {}
-    options = string.strip(options)
-    while options:
-        if '=' in options:
-            pos = string.find(options, '=')
-            name = string.lower(string.strip(options[:pos]))
-            value = string.strip(options[pos + 1:])
-            options = ''
-            if ';' in value:
-                pos = string.find(value, ';')
-                options = string.strip(value[pos + 1:])
-                value = string.strip(value[:pos])
-            if name:
-                opts[name] = value
-        else:
-            options = None
-    return opts
-
 
 def pref_or_getenv(name, group='proxies', type_name='string',
                    check_ok=None, user=0, factory=0):
