@@ -111,7 +111,7 @@ def form_end(parser):
 
 def handle_input(parser, type, options):
     fi = get_forminfo(parser)
-    if fi: fi.do_input(type, options)
+    if fi: fi.do_input(type, options, parser.viewer.text['background'])
 
 def select_bgn(parser, name, size, multiple):
     fi = get_forminfo(parser)
@@ -199,12 +199,12 @@ class FormInfo:
 	if reset:
 	    self.reset_command()
 
-    def do_input(self, type, options):
+    def do_input(self, type, options, bgcolor):
 	type = string.lower(type) or 'text'
 	classname = 'Input' + string.upper(type[0]) + type[1:]
 	if hasattr(self, classname):
 	    klass = getattr(self, classname)
-	    instance = klass(self, options)
+	    instance = klass(self, options, bgcolor)
 	else:
 	    print "*** Form with <INPUT TYPE=%s> not supported ***" % type
 
@@ -346,10 +346,10 @@ class FormInfo:
 	name = ''
 	value = ''
 
-	def __init__(self, fi, options):
+	def __init__(self, fi, options, bgcolor):
 	    self.fi = fi
 	    self.viewer = fi.viewer
-	    self.bgcolor = fi.viewer.text["background"]
+	    self.bgcolor = bgcolor
 	    self.options = options
 	    self.getopt('name')
 	    self.getopt('value')
@@ -488,7 +488,8 @@ class FormInfo:
 	    if strict and self.first:
 		self.var.set(self.value)
 	    self.w = Radiobutton(self.viewer.text, variable=self.var,
-				 value=self.value,
+				 value=self.value, background=self.bgcolor,
+				 activebackground=self.bgcolor,
 				 highlightbackground=self.bgcolor)
 
 	def reset(self):
