@@ -12,7 +12,12 @@ import os
 import sys
 
 # Path munging
-script_dir = os.path.dirname(sys.argv[0])
+script_name = sys.argv[0]
+while 1:
+    script_dir = os.path.dirname(script_name)
+    if not os.path.islink(script_name):
+	break
+    script_name = os.path.join(script_dir, os.readlink(script_name))
 script_dir = os.path.join(os.getcwd(), script_dir)
 script_dir = os.path.normpath(script_dir)
 grail_root = script_dir
