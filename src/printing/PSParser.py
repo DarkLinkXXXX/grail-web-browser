@@ -1,6 +1,6 @@
 """HTML parser for printing.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/printing/PSParser.py,v $
 
 import grailutil			# top level
@@ -43,9 +43,9 @@ class PrintingHTMLParser(HTMLParser):
     anchor text in the main document.
     """
     _inited = 0
+    _image_loader = None
 
-    def __init__(self, writer, settings, context,
-		 baseurl=None, image_loader=None):
+    def __init__(self, writer, settings, context):
 	if not self._inited:
 	    for k, v in self.fontdingbats.items():
 		self.dingbats[(k, 'grey')] = v
@@ -59,10 +59,11 @@ class PrintingHTMLParser(HTMLParser):
 	HTMLParser.__init__(self, AbstractFormatter(writer))
 	if settings.strict_parsing:
 	    self.restrict(0)
-	self._baseurl = baseurl
+	self._baseurl = context.get_baseurl()
 	self.context = context
 	self.settings = settings
-	self._image_loader = image_loader
+	if settings.imageflag:
+	    self._image_loader = utils.image_loader
 	self._image_cache = {}
 	self._anchors = {None: None}
 	self._anchor_sequence = []
@@ -75,9 +76,9 @@ class PrintingHTMLParser(HTMLParser):
 	self.__fontsize = [3]
 
     def close(self):
-	HTMLParser.close(self)
 	if self._anchor_sequence:
 	    self.write_footnotes()
+	HTMLParser.close(self)
 
     def get_devicetypes(self):
 	"""Return sequence of device type names."""
@@ -194,10 +195,12 @@ class PrintingHTMLParser(HTMLParser):
 	    self.end_small()
 
     def start_p(self, attrs):
-	if self.settings.paragraph_indent \
+	if (self.settings.paragraph_indent or self.settings.paragraph_skip) \
 	   and grailutil.extract_keyword(
 	       'indent', attrs, conv=grailutil.conv_normstring) != "no":
-	    self.para_bgn(attrs, parbreak=0)
+## 	    parbreak = self.settings.paragraph_skip and 1 or 0
+## 	    self.para_bgn(attrs, parbreak=parbreak)
+	    self.para_bgn(attrs, parbreak=1)
 	    if not self.formatter.have_label:
 		self.formatter.writer.ps.push_horiz_space(
 		    self.settings.paragraph_indent)
@@ -210,6 +213,10 @@ class PrintingHTMLParser(HTMLParser):
 	    self.para_end(parbreak=0)
 	else:
 	    self.para_end(parbreak=1)
+
+    def do_basefont(self, attrs):
+	if attrs.has_key("size"):
+	    self.start_font({"size": attrs["size"]})
 
     def start_font(self, attrs):
 	# very simple: only supports SIZE="...."

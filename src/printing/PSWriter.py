@@ -1,10 +1,11 @@
 """Wrapper for the PSStream to support the standard AbstractWriter interface.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/printing/PSWriter.py,v $
 
 import formatter
 import string
+import utils
 
 
 class PSWriter(formatter.AbstractWriter):
@@ -34,15 +35,17 @@ class PSWriter(formatter.AbstractWriter):
 
     def __init__(self, ofile, title='', url='',
 		 varifamily='Times', fixedfamily='Courier', paper=None,
-		 fontsize=None, leading=None):
+		 settings=None):
 	if not title:
 	    title = url
 	import PSFont
 	import PSStream
+	fontsize, leading = settings.get_fontsize()
 	font = PSFont.PSFont(varifamily=varifamily,
 			     fixedfamily=fixedfamily,
 			     size=fontsize)
 	self.ps = PSStream.PSStream(font, ofile, title, url, paper=paper)
+	self.settings = settings
 	if leading:
 	    self.ps.set_leading(leading)
 	self.ps.start()
@@ -79,7 +82,7 @@ class PSWriter(formatter.AbstractWriter):
 
     def send_paragraph(self, blankline):
 ##	utils.debug('send_paragraph: %s' % blankline)
-	self.ps.push_paragraph(blankline)
+	self.ps.push_paragraph(blankline, self.settings.paragraph_skip)
 	self.__detab_pos = 0
 
     def send_line_break(self):

@@ -107,6 +107,7 @@ def run(app):
 				       'output=',
 				       'papersize=',
 				       'paragraph-indent=',
+				       'paragraph-skip=',
 				       'printer=',
 				       'strict-parsing',
 				       'tab-width=',
@@ -167,7 +168,9 @@ def run(app):
 	elif opt == '--paragraph-indent':
 	    # negative indents should indicate hanging indents, but we don't
 	    # do those yet, so force to normal interpretation
-	    settings.paragraph_indent = max(string.atof(arg), 0) or 0
+	    settings.paragraph_indent = max(string.atof(arg), 0.0)
+	elif opt == '--paragraph-skip':
+	    settings.paragraph_skip = max(string.atof(arg), 0.0)
     if help:
 	usage(settings)
 	sys.exit(error)
@@ -189,20 +192,25 @@ def run(app):
 	    multi = 1
 	infp, outfn = open_source(infile)
 	if not outfile:
-	    outfile = os.path.splitext(outfn)[0] + '.ps'
+	    outfile = (os.path.splitext(outfn)[0] or 'index') + '.ps'
     else:
 	infile = None
 	infp = sys.stdin
-    if outfile:
-	if outfile[0] == '|':
-	    cmd = string.strip(outfile[1:])
-	    outfile = '|' + cmd
-	    outfp = os.popen(cmd, 'w')
-	else:
-	    outfp = open(outfile, 'w')
-	print 'Outputting PostScript to', outfile
+	outfile = '-'
+    #
+    # open the output file
+    #
+    if outfile[0] == '|':
+	cmd = string.strip(outfile[1:])
+	outfile = '|' + cmd
+	outfp = os.popen(cmd, 'w')
+    elif outfile == '-':
+	outfp = sys.stdout
     else:
-	outfp = outfp or sys.stdout
+	outfp = open(outfile, 'w')
+    if outfile != '-':
+	print 'Outputting PostScript to', outfile
+
     if url:
 	context = SimpleContext(app, url)
     elif infile:
@@ -222,10 +230,10 @@ def run(app):
     fontsize, leading = settings.get_fontsize()
     w = PSWriter.PSWriter(outfp, title or None, url or '',
 			  #varifamily='Palatino',
-			  fontsize=fontsize, leading=leading, paper=paper)
-    p = PSParser.PrintingHTMLParser(
-	w, settings, context, baseurl=url,
-	image_loader=(settings.imageflag and utils.image_loader or None))
+			  paper=paper, settings=settings)
+    ctype = "text/html"
+    typename, mod = app.find_type_extension("printing.filetypes", ctype)
+    p = mod.parse(w, settings, context)
     if multi:
 	if args[1:]:
 	    xform = explicit_multi_transform(args[1:])
@@ -241,8 +249,8 @@ def run(app):
 	#
 	for url in xform.get_subdocs():
 	    xform.set_basedoc(url)
-	    while p.get_stack():
-		p.lex_endtag(p.get_stack()[0])
+	    while p.sgml_parser.get_depth():
+		p.lex_endtag(p.sgml_parser.get_stack()[0])
 	    try:
 		infp, fn = open_source(url)
 	    except IOError, err:
@@ -250,18 +258,19 @@ def run(app):
 		    print "Error opening subdocument", url
 		    print "   ", err
 	    else:
-		if get_ctype(app, url, infp) != "text/html":
+		if get_ctype(app, url, infp) != ctype:
 		    continue
 		if verbose and outfp is not sys.stdout:
 		    print "Subdocument", url
 		w.ps.close_line()
-		pageend = w.ps.push_page_end()
-		context.set_url(url)
-		if MULTI_DO_PAGE_BREAK:	# must be true for now
+		if MULTI_DO_PAGE_BREAK:	# must be true for now, not sure why
+		    pageend = w.ps.push_page_end()
+		    context.set_url(url)
 		    w.ps.set_pageno(w.ps.get_pageno() + 1)
 		    w.ps.set_url(url)
 		    w.ps.push_page_start(pageend)
 		else:
+		    context.set_url(url)
 		    w.ps.set_url(url)
 		pageno = w.ps.get_pageno()
 		p.feed(infp.read())
@@ -290,7 +299,8 @@ def load_tag_handler(app, arg):
 	basename, ext = os.path.splitext(narg)
 	if ext != ".py":
 	    sys.stdout = sys.stderr
-	    print "Extra tags not defined in Python source file."
+	    print ("Extra tags must be defined in a"
+		   " Python source file with '.py' extension.")
 	    print
 	    return 0
 	dirname, modname = os.path.split(basename)

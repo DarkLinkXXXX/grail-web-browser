@@ -1,6 +1,6 @@
 """
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/printing/PSStream.py,v $
 
 import fonts				# a package
@@ -421,10 +421,9 @@ class PSStream:
 	    self.close_string()
 	self._rmargin = level * self._paper.TabStop
 
-    def push_paragraph(self, blankline):
+    def push_paragraph(self, blankline, parskip):
 	if blankline and self._ypos:
-	    self._vtab = self._vtab \
-			 + (self._base_font_size * PARAGRAPH_SEPARATION)
+	    self._vtab = max(self._vtab, (self._base_font_size * parskip))
 
     def push_label(self, bullet):
 	if self._linestr:
@@ -527,13 +526,15 @@ class PSStream:
 	    # possibly splitting the word if it is longer than a
 	    # single line.
 	    else:
-		self._xpos = xpos
-		self.close_line(linestr=linestr)
-		# close_line() touches these, but we're using a
-		# local variable cache, which must be updated.
-		xpos = 0.0
-		linestr = []
-		append = linestr.append
+		# only force a break immediately if it buys us something:
+		if width < allowed_width:
+		    self._xpos = xpos
+		    self.close_line(linestr=linestr)
+		    # close_line() touches these, but we're using a
+		    # local variable cache, which must be updated.
+		    xpos = 0.0
+		    linestr = []
+		    append = linestr.append
 		while width > allowed_width:
 		    # make our best guess as to the longest bit of
 		    # the word we can write on a line.
