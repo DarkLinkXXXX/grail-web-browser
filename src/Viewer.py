@@ -196,9 +196,9 @@ class Viewer(formatter.AbstractWriter):
 		    self.text.tag_config(tag, cnf)
 		except TclError:
 		    if tag == '_ding' and type(sym) is TupleType:
-			sym.context.app.clear_dingbat('disc')
-			sym.context.app.clear_dingbat('circle')
-			sym.context.app.clear_dingbat('square')
+			self.context.app.clear_dingbat('disc')
+			self.context.app.clear_dingbat('circle')
+			self.context.app.clear_dingbat('square')
 			del stylesheet.styles['_ding']
 		else:
 		    if tag == '_ding' \
