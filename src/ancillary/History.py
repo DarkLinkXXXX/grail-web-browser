@@ -55,7 +55,7 @@ class PageInfo:
 
     def clone(self):
 	return self.__class__(self._url, self._title,
-			      self._scrollpos, self._formdata)
+			      self._scrollpos, self._formdata[:])
 
 
 
@@ -100,6 +100,15 @@ class History:
 	    self._dialog.select(self._current)
 	    return self._history[self._current]
 	else: return None
+
+    def peek(self, offset=0, pos=None):
+	if pos is None:
+	    pos = self._current
+	i = pos + offset
+	if 0 <= i < len(self._history):
+	    return i, self._history[i]
+	else:
+	    return -1, None
 
     def current(self): return self._current
     def forward(self): return self.page(self._current+1)
@@ -189,8 +198,8 @@ class HistoryDialog:
 	if len(list) > 0:
 	    selection = string.atoi(list[0])
 	    last = self._listbox.index(END)
-	    page = self._history.page(last - selection - 1)
-	    if page: self._context.load(page.url(), new=0)
+	    pos = last - selection - 1
+	    self._context.load_from_history(self._history.peek(pos=pos))
 
     def _close(self, event=None):
 	self._frame.withdraw()
