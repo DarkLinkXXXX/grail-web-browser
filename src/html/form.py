@@ -138,46 +138,50 @@ class FormInfo:
 	if formdata_list:
 	    self.formdata = formdata_list[len(parser.forms)]
 	else:
-	    self.formdata = {}
+	    self.formdata = []
 
     def __del__(self):
 	pass				# XXX
 
     def get(self):
-	state = {}
+	state = []
+	radios = {}
 	for i in self.inputs:
-	    if i.name:
-		if state.has_key(i.name):
-		    if type(state[i.name]) == type([]):
-			state[i.name] = state[i.name] + [i.get()]
-		    else:
-			state[i.name] = [state[i.name], i.get()]
-		else:
-		    state[i.name] = i.get()
+	    # TBD: cheezy hack, necessary because when using
+	    # InputRadio::get to get the value for form submission, it
+	    # returns the value only for the first radio button, but
+	    # for state caching, we need one value value per input
+	    # object.
+	    value = i.get()
+	    if i.__class__ == FormInfo.InputRadio:
+		if value is None: value = radios[i.name]
+		else: radios[i.name] = value
+	    state.append(value)
 	return state
 
     def done(self):			# Called for </FORM>
 	if self.parser:
 	    self.parser.do_p([])
 	self.parser = None
-	# if there's cached state, make sure field reflects this state
-	if self.formdata:
-	    for i in self.inputs:
-		if i.name:
-		    i.set(self.formdata[i.name])
 
     def do_input(self, type, options):
 	type = string.lower(type) or 'text'
 	classname = 'Input' + string.upper(type[0]) + type[1:]
 	if hasattr(self, classname):
 	    klass = getattr(self, classname)
-	    klass(self, options)
+	    instance = klass(self, options)
+	    # update any cached form status
+	    if self.formdata:
+		instance.set(self.formdata[0])
+		del self.formdata[0]
 	else:
 	    print "*** Form with <INPUT TYPE=%s> not supported ***" % type
 
     def submit_command(self):
 	query = ''
 	for i in self.inputs:
+	    # unnamed inputs shouldn't get submitted
+	    if not i.name: continue
 	    v = i.get()
 	    if v:
 		if type(v) != type([]):
@@ -206,6 +210,10 @@ class FormInfo:
     def end_select(self):
 	if self.select:
 	    self.select.done()
+	    # update any cached form status
+	    if self.formdata:
+		self.select.set(self.formdata[0])
+		del self.formdata[0]
 	    self.select = None
 
     def do_option(self, value, selected):
@@ -218,6 +226,10 @@ class FormInfo:
     def end_textarea(self):
 	if self.textarea:
 	    self.textarea.done()
+	    # update any cached form status
+	    if self.formdata:
+		self.textarea.set(self.formdata[0])
+		del self.formdata[0]
 	    self.textarea = None
 
     # The following classes are nested so we can use getattr(self, 'Input...')
@@ -285,8 +297,14 @@ class FormInfo:
 	    return self.w.get()
 
 	def set(self, value):
+	    text = ''
+	    if type(value) == type(''):
+		text = value
+	    elif type(value) == type([]) and len(value) > 0:
+		text = value[0]
+		del value[0]
 	    self.w.delete(0, END)
-	    self.w.insert(0, value)
+	    self.w.insert(0, text)
 
 	def return_event(self, event):
 	    self.fi.submit_command()
@@ -312,8 +330,7 @@ class FormInfo:
 	    self.var.set(self.checked and self.value or '')
 
 	def set(self, value):
-	    if (type(value) == type([]) and self.value in value) or \
-	       (type(value) == type('') and self.value == value):
+	    if self.value == value:
 		self.var.set(self.value)
 
 	def get(self):
@@ -334,8 +351,6 @@ class FormInfo:
 				 value=self.value)
 
 	def reset(self):
-#	    if self.first:
-#		self.var.set('')
 	    if self.checked:
 		self.var.set(self.value)
 
@@ -535,6 +550,9 @@ class Textarea:
 	return self.w.get("1.0", END)
 
     def set(self, value):
+	# TBD: Tk text widget `feature' can cause an extra newline to
+	# be inserted each time the text is set.
+	if value[-1] == '\n': value = value[:-1]
 	self.w.delete("1.0", END)
 	self.w.insert(END, value)
 
