@@ -38,6 +38,7 @@ class GrailHTMLParser(HTMLParser):
     object_aware_tags = ['param', 'alias', 'applet', 'script', 'object']
 
     def __init__(self, viewer, reload=0, autonumber=None):
+	#urlparse.clear_cache()
 	self.viewer = viewer
 	self.reload = reload
 	self.context = self.viewer.context
@@ -287,9 +288,9 @@ class GrailHTMLParser(HTMLParser):
 	self.formatter.push_alignment('center')
 
     def end_center(self):
+	self.implied_end_p()
 	self.formatter.pop_alignment()
 	self.formatter.add_line_break()
-	self.implied_end_p()
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
@@ -297,7 +298,7 @@ class GrailHTMLParser(HTMLParser):
 	has_key = attrs.has_key
 	if has_key('href'): href = attrs['href']
 	if has_key('name'): name = attrs['name']
-	if has_key('type'): type = string.lower(attrs['type'])
+	if has_key('type'): type = string.lower(attrs['type'] or '')
 	if has_key('target'): target = attrs['target']
         self.anchor_bgn(href, name, type, target)
 
@@ -490,13 +491,7 @@ class GrailHTMLParser(HTMLParser):
     # Heading support for dingbats (iconic entities):
 
     def header_bgn(self, tag, level, attrs):
-	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
-	formatter = self.formatter
-        formatter.end_paragraph(1)
-	align = extract_keyword('align', attrs, conv=string.lower)
-	formatter.push_alignment(align)
-        formatter.push_font((tag, 0, 1, 0))
-	self.header_number(tag, level, attrs)
+	HTMLParser.header_bgn(self, tag, level, attrs)
 	dingbat = extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
@@ -504,12 +499,6 @@ class GrailHTMLParser(HTMLParser):
 	elif attrs.has_key('src'):
 	    self.do_img(attrs)
 	    formatter.add_flowing_data(' ')
-
-    def header_end(self, tag, level):
-	formatter = self.formatter
-	formatter.pop_alignment()
-        formatter.pop_font()
-        formatter.end_paragraph(1)
 
     # List attribute extensions:
 
