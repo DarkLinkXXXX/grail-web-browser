@@ -62,7 +62,7 @@ def main():
     browser = Browser(app.root, app)
     if geometry:
 	browser.root.geometry(geometry)
-	self.root.update_idletasks()	# Get geometry implemented
+	app.root.update_idletasks()	# Get geometry implemented
     if url:
 	app.home = url
     browser.load(app.home)
@@ -233,9 +233,10 @@ class Application:
 	    except os.error:
 		pass
 
-    def open_url(self, url, method, params):
-	return self.url_cache.open(url, 'GET', params)
+    def open_url(self, url, method, params, reload=0):
+	return self.url_cache.open(url, 'GET', params, reload)
 
+    # XXX Get rid of this eventually
     def open_url_old(self, url, error=1):
 	# Open a URL:
 	# - return (fp, url, content_type) if successful
