@@ -170,10 +170,6 @@ class hdl_access(nullAPI.null_access):
 	    replyflags, self._items = self._hashtable.get_data(
 		self._hdl, self._types)
 	except hdllib.Error, inst:
-	    try:
-		hdl_errors = self.app.find_extension('protocols', 'hdl_errors')
-	    except (ImportError, AttributeError), msg:
-		hdl_errors = None
 	    if inst.err == hdllib.HP_HANDLE_NOT_FOUND:
 		#print "Retry using a local handle server"
 		try:
@@ -183,11 +179,7 @@ class hdl_access(nullAPI.null_access):
 			self._hdl, self._types)
 		except hdllib.Error, inst:
 		    # (Same comment as below)
-		    if hdl_errors:
-			replyflags, self._items = hdl_errors.exception_handler(self._hdl,
-						  self._types, inst, sys.exc_traceback)
-		    else:
-			raise IOError, inst, sys.exc_traceback
+		    raise IOError, inst, sys.exc_traceback
 		else:
 		    return 'Ready', 1
 	    # Catch all errors and raise an IOError.  The Grail
@@ -195,11 +187,7 @@ class hdl_access(nullAPI.null_access):
 	    # allowed to raise.
 	    # Because the hdllib.Error instance is passed, no
 	    # information is lost.
-	    if hdl_errors:
-		replyflags, self._items = hdl_errors.exception_handler(self._hdl,
-					  self._types, inst, sys.exc_traceback)
-	    else:
-		raise IOError, inst, sys.exc_traceback
+	    raise IOError, inst, sys.exc_traceback
 	else:
 	    return 'Ready', 1
 
