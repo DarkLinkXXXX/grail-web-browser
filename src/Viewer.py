@@ -549,12 +549,12 @@ class Viewer(formatter.AbstractWriter):
 	else:
 	    return None
 
-    def add_subwindow(self, window, align=CENTER):
+    def add_subwindow(self, window, align=CENTER, index=END):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 	self.subwindows.append(window)
-	self.text.window_create(END, window=window, align=align)
+	self.text.window_create(index, window=window, align=align)
 
     def add_subviewer(self, subviewer):
 	if self.pendingdata:
