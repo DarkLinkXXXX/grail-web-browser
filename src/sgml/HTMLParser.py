@@ -217,7 +217,12 @@ class HTMLParser(SGMLParser):
 	while self.list_stack:
 	    self.lex_endtag(self.list_stack[0][0])
         self.formatter.end_paragraph(1)
-	align = extract_keyword('align', attrs, conv=string.lower)
+	if attrs.has_key('align'):
+	    align = attrs['align']
+	    if align: align = string.lower(align)
+	else:
+	    align = None
+	#align = extract_keyword('align', attrs, conv=string.lower)
 	self.formatter.push_alignment(align)
         self.formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
