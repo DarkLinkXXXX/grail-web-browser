@@ -109,7 +109,7 @@ class Application:
 	self.home = DEFAULT_HOME
 	self.url_cache = Cache()
 	self.image_cache = {}
-	self.rexec = AppletRExec(None, 2)
+	self.rexec = AppletRExec(None, 2, self)
 	self.urlopener = MyURLopener(self)
 	self.graildir = getgraildir()
 	s = \
