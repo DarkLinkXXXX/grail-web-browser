@@ -4,6 +4,9 @@ from urlparse import urljoin, urlparse
 from Cursors import *
 import History
 import string
+import grailutil
+import time
+import math
 
 VALID_TARGET_STARTS = string.letters + '_'
 
@@ -43,6 +46,8 @@ class Context:
 	self.source = None
 	self._url = self._baseurl = ""
 	self._target = None
+	self.last_status_update = 0.0	# Time when last status update was done
+	self.next_status_update = None	# ID of next scheduled status update
 
     def clear_reset(self):
 	self.viewer.clear_reset()
@@ -151,10 +156,46 @@ class Context:
     leave = message_clear		# XXX ImageMap backward compatibility
 
     def new_reader_status(self):
+	now = time.time()
+	seconds = math.floor(now)
+	if self.last_status_update == seconds:
+	    if self.next_status_update:
+		return
+	    self.next_status_update = self.browser.root.after(
+		1000 - int(1000*(now%1.0)),
+		self.new_reader_status)
+	    return
+	self.last_status_update = seconds
+	self.next_status_update = None
 	if self.readers:
-	    message = string.join(map(str, self.readers))
+	    nr = len(self.readers)
+	    if nr == 1:
+		message = str(self.readers[0])
+	    else:
+		nbytes = 0
+		maxbytes = 0
+		cached = 0
+		for reader in self.readers:
+		    nbytes = nbytes + reader.nbytes
+		    if reader.maxbytes > 0 and maxbytes >= 0:
+			maxbytes = maxbytes + reader.maxbytes
+		    else:
+			maxbytes = -1
+		    if reader.api.iscached():
+			cached = cached + 1
+		if maxbytes > 0:
+		    percent = nbytes*100/maxbytes
+		    message = "%d%% of %s read" % (
+			percent, grailutil.nicebytes(maxbytes))
+		else:
+		    message = "%s read" % grailutil.nicebytes(nbytes)
+		if cached == nr:
+		    message = message + " (all cached)"
+		elif cached:
+		    message = message + " (%d cached)" % cached
+		message = "%d streams: %s" % (nr, message)
 	elif self.on_top():
-	    message = "idle"
+	    message = ""
 	elif self._url:
 	    message = "URL: %s" % self._url
 	else:
