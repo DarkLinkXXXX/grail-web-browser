@@ -1,6 +1,6 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.10 $'
+__version__ = '$Revision: 1.11 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -8,17 +8,18 @@ import bookmarks.walker
 import string
 import sys
 
-from bookmarks import XBEL_PUBLIC_ID, XBEL_SYSTEM_ID
-
 
 class Writer(bookmarks.walker.TreeWalker):
-    __depth = 0
+    _depth = 0
     __header = '''\
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <!DOCTYPE %s
   PUBLIC "%s"
          "%s">
 '''
+
+    PUBLIC_ID = bookmarks.XBEL_1_0_PUBLIC_ID
+    SYSTEM_ID = bookmarks.XBEL_1_0_SYSTEM_ID
 
     def __init__(self, root=None):
         bookmarks.walker.TreeWalker.__init__(self, root)
@@ -29,8 +30,9 @@ class Writer(bookmarks.walker.TreeWalker):
         root_type = string.lower(root.get_nodetype())
         if root_type == "folder":
             root_type = "xbel"
-        fp.write(self.__header % (root_type, XBEL_PUBLIC_ID, XBEL_SYSTEM_ID))
+        fp.write(self.__header % (root_type, self.PUBLIC_ID, self.SYSTEM_ID))
         self.__fp = fp
+        self.write = fp.write
         self.walk()
 
     def get_filetype(self):
@@ -40,7 +42,7 @@ class Writer(bookmarks.walker.TreeWalker):
         info = node.info()
         title = node.title()
         desc = node.description()
-        tab = "  " * self.__depth
+        tab = "  " * self._depth
         attrs = ''
         added = node.add_date()
         if added:
@@ -50,17 +52,16 @@ class Writer(bookmarks.walker.TreeWalker):
                 attrs = "\n     "
             attrs = '%s id="%s"' % (attrs, node.id())
         #
-        if not self.__depth:
-            self.__fp.write('<xbel xmlns="%s"%s>\n'
-                            % (XBEL_SYSTEM_ID, attrs))
+        if not self._depth:
+            self.write('<xbel xmlns="%s"%s>\n' % (self.SYSTEM_ID, attrs))
             if title:
-                self.__fp.write("%s  <title>%s</title>\n"
-                                % (tab, bookmarks._prepstring(title)))
+                self.write("%s  <title>%s</title>\n"
+                           % (tab, bookmarks._prepstring(title)))
             if info:
                 self.__write_info(info)
             if desc:
                 self.__write_description(desc, tab)
-            self.__depth = 1
+            self._depth = 1
             self.__close_folders.append(0)
             return
         #
@@ -69,46 +70,46 @@ class Writer(bookmarks.walker.TreeWalker):
         else:
             attrs = attrs + ' folded="yes"'
         if title or info or desc or node.children():
-            self.__fp.write(tab + '<folder%s>\n' % attrs)
+            self.write(tab + '<folder%s>\n' % attrs)
             if title:
-                self.__fp.write("%s  <title>%s</title>\n"
-                                % (tab, bookmarks._prepstring(title)))
+                self.write("%s  <title>%s</title>\n"
+                           % (tab, bookmarks._prepstring(title)))
             if info:
                 self.__write_info(info)
             if desc:
                 self.__write_description(desc, tab)
-            self.__depth = self.__depth + 1
+            self._depth = self._depth + 1
             self.__close_folders.append(1)
             # children are handled through the walker
         else:
-            self.__fp.write(tab + '<folder%s/>\n' % attrs)
+            self.write(tab + '<folder%s/>\n' % attrs)
             self.__close_folders.append(0)
 
     def end_Folder(self, node):
-        depth = self.__depth = self.__depth - 1
+        depth = self._depth = self._depth - 1
         if self.__close_folders.pop():
-            self.__fp.write("  " * depth + "</folder>\n")
+            self.write("  " * depth + "</folder>\n")
         else:
-            self.__fp.write("</xbel>\n")
+            self.write("</xbel>\n")
 
     def start_Separator(self, node):
-        tab = "  " * self.__depth
-        if self.__depth:
+        tab = "  " * self._depth
+        if self._depth:
             s = "<separator/>\n"
         else:
-            s = '<separator xmlns="%s"/>\n' % XBEL_SYSTEM_ID
-        self.__fp.write(tab + s)
+            s = '<separator xmlns="%s"/>\n' % self.SYSTEM_ID
+        self.write(tab + s)
 
     def start_Alias(self, node):
         idref = node.idref()
         if idref is None:
             sys.stderr.write("Alias node has no referent; dropping.\n")
-        elif self.__depth:
-            self.__fp.write('%s<alias ref="%s"/>\n'
-                            % ("  " * self.__depth, idref))
+        elif self._depth:
+            self.write('%s<alias ref="%s"/>\n'
+                       % ("  " * self._depth, idref))
         else:
-            self.__fp.write('%s<alias xmlns="%s"\n       ref="%s"/>\n'
-                            % ("  " * self.__depth, XBEL_SYSTEM_ID, idref))
+            self.write('%s<alias xmlns="%s"\n       ref="%s"/>\n'
+                       % ("  " * self._depth, self.SYSTEM_ID, idref))
 
     def start_Bookmark(self, node):
         date_attr = _fmt_date_attr
@@ -122,26 +123,25 @@ class Writer(bookmarks.walker.TreeWalker):
         title = bookmarks._prepstring(node.title() or '')
         uri = bookmarks._prepstring(node.uri() or '')
         xmlns = ''
-        if not self.__depth:
-            xmlns = 'xmlns="%s"' % XBEL_SYSTEM_ID
+        if not self._depth:
+            xmlns = 'xmlns="%s"' % self.SYSTEM_ID
         attrs = filter(None, (xmlns, idref, added, modified, visited))
         #
-        tab = "  " * self.__depth
+        tab = "  " * self._depth
         if attrs:
             sep = "\n%s          " % tab
             attrs = " " + string.join(attrs, sep)
         else:
             sep = " "
             attrs = ""
-        self.__fp.write('%s<bookmark%s%shref="%s">\n'
-                        % (tab, attrs, sep, uri))
+        self.write('%s<bookmark%s%shref="%s">\n' % (tab, attrs, sep, uri))
         if title:
-            self.__fp.write("%s  <title>%s</title>\n" % (tab, title))
+            self.write("%s  <title>%s</title>\n" % (tab, title))
         if node.info():
             self.__write_info(node.info())
         if desc:
             self.__write_description(desc, tab)
-        self.__fp.write(tab + "  </bookmark>\n")
+        self.write(tab + "  </bookmark>\n")
 
     # support methods
 
@@ -151,10 +151,10 @@ class Writer(bookmarks.walker.TreeWalker):
         if len(desc) > w:
             desc = _wrap_lines(desc, 70 - len(tab), indentation=len(tab) + 4)
             desc = "%s\n%s    " % (desc, tab)
-        self.__fp.write("%s  <desc>%s</desc>\n" % (tab, desc))
+        self.write("%s  <desc>%s</desc>\n" % (tab, desc))
 
     def __write_info(self, info):
-        tab = "  " * (self.__depth + 1)
+        tab = "  " * (self._depth + 1)
         L = [tab, "<info>\n"]
         append = L.append
         for tag, attrs, content in info:
@@ -164,7 +164,7 @@ class Writer(bookmarks.walker.TreeWalker):
             append("\n")
         append(tab)
         append("  </info>\n")
-        self.__fp.write(string.join(L, ""))
+        self.write(string.join(L, ""))
 
     def __dump_xml(self, stuff, L, tab):
         tag, attrs, content = stuff
