@@ -15,7 +15,6 @@ TkPhotoImage = PhotoImage
 # the image loading capability.  Image can be imported without _imaging
 # and still supports identification of file types.
 #
-ATTEMPT_TRANSPARENCY = 0
 class PILPhotoImage:
     pass
 
@@ -246,24 +245,29 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	format = im.format
 	real_mode = im.mode
 	real_size = im.size
-	# Setting this helps with getting table geometry and such right
-	# when the image is loaded from the cache, or if a page resize
-	# occurs.
-	self.__width = self.__width or im.size[0]
-	self.__height = self.__height or im.size[1]
-	# this transparency stuff should be greatly simplified on the next
-	# release of PIL....
-	# handle transparent GIFs:
-	if im.format == "GIF" \
-	   and im.info["version"] != "GIF87a" \
-	   and im.info.has_key("background") \
-	   and ATTEMPT_TRANSPARENCY:
+	# determine desired size:
+	if self.__width and not self.__height and self.__width != im.size[0]:
+	    # scale horizontally
+	    self.__height = int(1.0 * im.size[1] * self.__width / im.size[0])
+	elif self.__height and not self.__width \
+	     and self.__height != im.size[1]:
+	    # scale vertically
+	    self.__width = int(1.0 * im.size[0] * self.__height / im.size[1])
+	else:
+	    self.__width = self.__width or im.size[0]
+	    self.__height = self.__height or im.size[1]
+	# transparency stuff
+	if im.mode == "RGBA" \
+	   or (im.mode == "P" and im.info.has_key("transparency")):
 	    r, g, b = self.context.viewer.text.winfo_rgb(
 		self.context.viewer.text["background"])
-	    r = r / 255			# convert these to 8-bit versions
-	    g = g / 255
-	    b = b / 255
-	    im = transp_gif_to_rgb(im, (r, g, b))
+	    r = r / 256			# convert these to 8-bit versions
+	    g = g / 256
+	    b = b / 256
+	    if im.mode == "P":
+		im = p_to_rgb(im, (r, g, b))
+	    else:
+		im = rgba_to_rgb(im, (r, g, b))
 	#
 	if real_size != (self.__width, self.__height):
 	    w, h = real_size
@@ -292,42 +296,29 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	self.image[key] = value
 
 
-def transp_gif_to_rgb(im, (r, g, b)):
-    """Translate a P-mode GIF with transparency to an RGB image. 
+def p_to_rgb(im, rgb):
+    """Translate a P-mode image with transparency to an RGB image. 
 
     im
-	The GIF image.
+	The transparent image.
 
     (r, g, b)
 	The RGB-value to use for the transparent areas.  These should be
 	8 bits for each band.
     """
-    # This is really quite slow.
-    bg = im.info["background"]
-    # Maybe we can use a palette manipulation?
-##     print "========"
-##     print im.palette
-##     xxx, pal = im.palette
-##     newcol = chr(r) + chr(g) + chr(b)
-##     pal = pal[: bg*3] + newcol + pal[bg*3 + 3 :]
-##     print (xxx, pal)
-##     im.palatte = (xxx, pal)
-##     print im.palette
-##     return im.convert("RGB")
-    #
-    rgbimg = Image.new("RGB", im.size, (r<<24 | g <<16 | b<<8))
-    mask = Image.new("1", im.size)
-    drawing = ImageDraw.ImageDraw(mask)
-    getpixel = im.getpixel
-    point = drawing.point
-    yrange = range(im.size[1])
-    ylength = im.size[1]
-    for x in range(im.size[0]):
-	for pos in map(None, [x]*ylength, yrange):
-	    if getpixel(pos) != bg:
-		point(pos)
-    rgbimg.paste(im, None, mask)
-    return rgbimg
+##     print "p_to_rgb, rgb =", rgb
+    new_im = Image.new("RGB", im.size, rgb)
+    point_mask = [0xff] * 256
+    point_mask[im.info['transparency']] = 0
+    new_im.paste(im, None, im.point(point_mask, '1'))
+    return new_im
+
+
+def rgba_to_rgb(im, rgb):
+##     print "rgba_to_rgb, rgb =", rgb
+    new_im = Image.new("RGB", im.size, rgb)
+    new_im.paste(im, None, im)
+    return new_im
 
 
 AsyncImage = TkAsyncImage
