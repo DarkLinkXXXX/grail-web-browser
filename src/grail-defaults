@@ -43,6 +43,7 @@ C: Parsing preferences:
 C:
 parsing-html--strict:		0
 parsing-html--honor-colors:	1
+parsing-html--autonumber-headers: 0
 C:
 C: Printing preferences:
 C:
