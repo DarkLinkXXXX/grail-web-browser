@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Parse a Grail preferences file.
 
 The syntax is essentially a bunch of RFC822 message headers, but blank
@@ -76,7 +72,7 @@ def test():
     """Test program for parseprefs().
 
     This takes a filename as command line argument;
-    if no filename is given, it parses ../grail-defaults.
+    if no filename is given, it parses ../data/grail-defaults.
     It also times how long it takes.
 
     """
@@ -87,7 +83,7 @@ def test():
     if sys.argv[1:]:
         fn = sys.argv[1]
     else:
-        fn = "../grail-defaults"
+        fn = "../data/grail-defaults"
     fp = open(fn)
     t0 = time.time()
     groups = parseprefs(fp)

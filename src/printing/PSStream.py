@@ -1,8 +1,4 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 import fonts                            # a package
 import utils                            # || module
@@ -29,7 +25,8 @@ RECT_DEBUG = 0
 # Load the PostScript prologue:
 def get_systemheader():
     fn = grailutil.which(
-        "header.ps", (grailutil.get_grailroot(), grailutil.getgraildir()))
+        "header.ps", (os.path.join(grailutil.get_grailroot(), "data"),
+                      os.path.join(grailutil.getgraildir(), "data"))
     if fn and os.path.exists(fn):
         return open(fn).read()
     return "%%\%%  System header %s not found!\n%%" % fn
@@ -44,10 +41,10 @@ USERHEADER_INFO = """\
 
 # Allow the user to provide supplemental prologue material:
 def get_userheader():
-    graildir = grailutil.getgraildir()
+    datadir = os.path.join(grailutil.getgraildir(), "data")
     templates = []
     for fn in settings.get_settings().user_headers:
-        filename = os.path.join(graildir, fn)
+        filename = os.path.join(datadir, fn)
         if os.path.isfile(filename):
             templates.append((USERHEADER_INFO % fn) + open(filename).read())
     return string.joinfields(templates, '\n')
