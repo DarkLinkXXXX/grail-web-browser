@@ -1,111 +1,51 @@
 """Simple parser that handles only what's allowed in attribute values.
 """
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 #  $Source: /home/john/Code/grail/src/sgml/SGMLReplacer.py,v $
 
-
+import regex
 import string
 from SGMLLexer import *
 
 
+_entref_exp = regex.compile("&\(\(#\|\)[a-zA-Z0-9][-.a-zA-Z0-9]*\)\(;\|\)")
 
-class SGMLReplacer(SGMLLexer):
-    """Simple lexer for interpreting entity references in attribute values.
+_named_chars = {'#re' : '\r',
+		'#rs' : '\n',
+		'#space' : ' '}
 
-    Given an attribute from a start tag, passing it through a descendent
-    of this class allows replacement of general entity references found in
-    the string:
+for i in range(256):
+    _named_chars["#" + `i`] = chr(i)
 
-	replacer = SGMLReplacer(entity_dict)
-	replacer.feed(attribute_value)
-	attribute_value = replacer.getvalue()
-    """
-    entitydefs = {}
-
-    def __init__(self, entities = None, whitespace = string.whitespace):
-	SGMLLexer.__init__(self)
-	self._data = ''
-	self._white = whitespace
-	if entities:
-	    self.entitydefs = entities
-
-    def getvalue(self):
-	self.close()
-	return _normalize_whitespace(self._data, self._white)
-
-    def lex_starttag(self, name, attributes):
-	raise SGMLError, 'tags in attribute values are illegal'
-
-    def lex_endtag(self, name):
-	raise SGMLError, 'tags in attribute values are illegal'
-
-    def lex_charref(self, ordinal, terminator):
-	if 0 < ordinal < 256:
-	    self._data = self._data + chr(ordinal)
-	else:
-	    self.unknown_charref(ordinal, terminator)
-
-    def lex_data(self, str):
-	self._data = self._data + str
-
-    def lex_entityref(self, name, terminator):
-	if self.entitydefs.has_key(name):
-	    self._data = self._data + self.entitydefs[name]
-	else:
-	    self.unknown_entityref(name, terminator)
-
-    named_characters = {'re' : '\r',
-			'rs' : '\n',
-			'space' : ' '}
-
-    def lex_namedcharref(self, name):
-	if self.named_characters.has_key(name):
-	    self._data = self._data + self.named_characters[name]
-	else:
-	    self.unknown_namedcharref(name)
-
-    def lex_pi(self, pi):
-	# Should never be called, but let's make sure we're ok:
-	self._data = '%s%s%s%s' % (self._data, PIO, pi, PIC)
-
-    def unknown_entityref(self, name, terminator):
-	self._data = '%s%s%s%s' % (self._data, ERO, name, terminator)
-
-    def unknown_namedcharref(self, name, terminator):
-	self._data = '%s%s%s%s' % (self._data, CRO, name, terminator)
-
-    def unknown_charref(self, ordinal, terminator):
-	self._data = '%s%s%s%s' % (self._data, CRO, `ordinal`, terminator)
+#  build a table suitable for string.translate()
+_chartable = map(chr, range(256))
+for i in range(256):
+    if chr(i) in string.whitespace:
+	_chartable[i] = " "
+_chartable = string.joinfields(_chartable, '')
 
 
 def replace(data, entities = None):
     """Perform general entity replacement on a string.
     """
-    if '&' in data:
-	replacer = SGMLReplacer(entities)
-	replacer.feed(data)
-	return replacer.getvalue()
-    else:
-	return _normalize_whitespace(data)
-
-
-def _normalize_whitespace(data, whitespace = string.whitespace):
-    """Replaces sequences of whitespace with a single space.
-    """
-    if data:
-	if data[0] in whitespace:
-	    data = data[1:]
-	    s = ' '
-	else:
-	    s = ''
-	for c in data:
-	    if c in whitespace:
-		if s[-1] != ' ':
-		    s = s + ' '
+    data = string.translate(data, _chartable)
+    if '&' in data and entities:
+	value = None
+	pos = _entref_exp.search(data)
+	while pos >= 0 and pos + 1 < len(data):
+	    ref, term = _entref_exp.group(1, 3)
+	    if entities.has_key(ref):
+		value = entities[ref]
+	    elif _named_chars.has_key(string.lower(ref)):
+		value = _named_chars[string.lower(ref)]
+	    if value is not None:
+		data = data[:pos] + value + data[pos+len(ref)+len(term)+1:]
+		pos = pos + len(value)
+		value = None
 	    else:
-		s = s + c
-	return s
-    return ''
+		pos = pos + len(ref) + len(term) + 1
+	    pos = _entref_exp.search(data, pos)
+    return data
 
 
 #
