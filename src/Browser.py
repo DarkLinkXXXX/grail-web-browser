@@ -244,6 +244,8 @@ class Browser:
 
 	self.helpmenu.add_command(label="About Grail",
 			  command=self.about_command)
+	self.helpmenu.add_command(label="Grail License",
+			  command=self.license_command)
 	self.helpmenu.add_separator()
 	self.helpmenu.add_command(label="Grail Home Page",
 			  command=self.grail_home_command)
@@ -423,7 +425,7 @@ class Browser:
     def home_command(self, event=None):
 	home = self.app.prefs.Get('landmarks', 'home-page')
 	if not home:
-	    home = self.app.prefs.Get('landmarks', 'grail-home-page')
+	    home = self.app.prefs.Get('landmarks', 'about-grail-page')
 	self.context.load(home)
 
     def reload_command(self, event=None):
@@ -442,6 +444,9 @@ class Browser:
 
     def about_command(self, event=None):
 	self.context.load(self.app.prefs.Get('landmarks', 'about-grail-page'))
+    def license_command(self, event=None):
+	self.context.load(self.app.prefs.Get('landmarks',
+					     'grail-license-page'))
     def grail_home_command(self, event=None):
 	self.context.load(self.app.prefs.Get('landmarks', 'grail-home-page'))
     def python_home_command(self, event=None):
