@@ -15,7 +15,7 @@ from DefaultStylesheet import DefaultStylesheet
 DINGBAT_FONT = None
 SYMBOL_FONT = None
 MIN_IMAGE_LEADER = "\240"		# Non-breaking space
-
+INDENTATION_WIDTH = 40			# Pixels / indent level
 
 class Viewer(formatter.AbstractWriter):
 
@@ -193,13 +193,13 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.tag_config('symbol', font = SYMBOL_FONT)
 	# Configure margin tags
 	for level in range(1, 20):
-	    pix = level*40
+	    pix = level * INDENTATION_WIDTH
 	    self.text.tag_config('margin_%d' % level,
 				 lmargin1=pix, lmargin2=pix)
 	    tabs = "%d right %d left" % (pix-5, pix)
 	    self.text.tag_config('label_%d' % level,
-				 lmargin1=pix-40, tabs=tabs)
-	self.text.tag_config('blockquote', rmargin = 40)
+				 lmargin1=pix-INDENTATION_WIDTH, tabs=tabs)
+	self.text.tag_config('blockquote', rmargin = INDENTATION_WIDTH)
 	# Configure anchor tags
 	for tag in 'a', 'ahist':
 	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
@@ -409,49 +409,42 @@ class Viewer(formatter.AbstractWriter):
 			width=width, height=max((height or 0) - 2, 0),
 			background=self.text['background'],
 			highlightbackground=self.text['background'])
-	self.rules.append(window)
-	window._width = abswidth
+	window._width = abswidth	# store for resizing
 	window._percent = percentwidth
-	if not align:
-	    align = self.align
-	    if self.pendingdata:
-		self.text.insert(END, self.pendingdata)
-		self.pendingdata = ''
-	if align:
-	    #  not needed on the left
-	    self.text.insert(END, self.pendingdata + MIN_IMAGE_LEADER, align)
-	self.text.window_create(END, window=window)
+	self.prepare_for_insertion(align)
+	self.add_subwindow(window=window)
 	self.pendingdata = '\n'
 ##	self.text.update_idletasks()
 
     def rule_width(self):
-	return self.text.winfo_width() - 16 - 2*string.atoi(self.text['padx'])
+	return (self.text.winfo_width()
+		- 16 - 2*string.atoi(self.text['padx'])
+		- self.marginlevel*INDENTATION_WIDTH)
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
 	if type(data) is StringType:
-	    self.text.insert(END, self.pendingdata + ('\t%s\t' % data), tags)
-	    self.pendingdata = ''
+	    self.text.insert(END, '\t%s\t' % data, tags)
 	elif type(data) is InstanceType:
 	    #  Some sort of image specified by DINGBAT or SRC
-	    self.text.insert(END, self.pendingdata + '\t', tags)
+	    self.text.insert(END, '\t', tags)
 	    window = Label(self.text, image = data,
 			   background = self.text['background'],
 			   borderwidth = 0)
-	    self.subwindows.append(window)
-	    self.text.window_create(END, window=window)
+	    self.add_subwindow(window)
 	    self.pendingdata = '\t'
 	elif type(data) is TupleType:
 	    #  (string, fonttag) pair
 	    if data[1]:
-		self.text.insert(END, self.pendingdata + '\t', tags)
+		self.text.insert(END, '\t', tags)
 		self.text.insert(END, data[0], tags + (data[1],))
 		self.pendingdata = '\t'
 	    else:
-		self.text.insert(END, self.pendingdata + ('\t%s\t' % data[0]),
-				 tags)
-		self.pendingdata = ''
+		self.text.insert(END, '\t%s\t' % data[0], tags)
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags
@@ -622,6 +615,18 @@ class Viewer(formatter.AbstractWriter):
 	    return p.group(1, 2)
 	else:
 	    return None
+
+    def prepare_for_insertion(self, align=None):
+	if align:
+	    if align == 'left':
+		align = None
+	else:
+	    align = self.align
+	prev_align, self.align = self.align, align
+	self.new_tags()
+	self.pendingdata = MIN_IMAGE_LEADER
+	self.align = prev_align
+	self.new_tags()
 
     def add_subwindow(self, window, align=CENTER, index=END):
 	if self.pendingdata:
