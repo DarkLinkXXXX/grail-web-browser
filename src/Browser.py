@@ -23,14 +23,14 @@ import regsub
 
 
 # URLs of various sorts
-GRAIL_HOME = 'http://monty.cnri.reston.va.us/grail/'
-PYTHON_HOME = 'http://www.python.org/'
-ABOUT_GRAIL = 'http://monty.cnri.reston.va.us/grail/about/'
+GRAIL_HOME = "http://monty.cnri.reston.va.us/grail/"
+PYTHON_HOME = "http://www.python.org/"
+ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail/about/"
 DEFAULT_HOME = GRAIL_HOME
 
 
 # Window title prefix
-TITLE_PREFIX = 'Grail: '
+TITLE_PREFIX = "Grail: "
 
 
 # Various cursor shapes (argument to message())
@@ -40,7 +40,7 @@ CURSOR_WAIT = 'watch'
 
 
 # Font used in message area (default is too heavy)
-FONT_MESSAGE = '-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*'
+FONT_MESSAGE = "-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*"
 
 
 class Browser:
@@ -56,7 +56,7 @@ class Browser:
     def __init__(self, master, app=None, height=40):
 	self.master = master
 	self.app = app
-	self.url = ''
+	self.url = ""
 	self.history = []
 	self.current = -1
 	self.reload_applets = 0
@@ -75,46 +75,46 @@ class Browser:
 
 	# Create menu bar
 	self.mbar = Frame(self.root,
-			  relief='raised',
+			  relief=RAISED,
 			  borderwidth=2)
-	self.mbar.pack(fill='x')
+	self.mbar.pack(fill=X)
 
 	# Create File menu
 	self.filebutton = Menubutton(self.mbar, text='File')
-	self.filebutton.pack(side='left')
+	self.filebutton.pack(side=LEFT)
 
 	self.filemenu = Menu(self.filebutton)
 	self.filebutton['menu'] = self.filemenu
 
-	self.filemenu.add('command', label='New',
+	self.filemenu.add(COMMAND, label='New',
 			  command=self.new_command)
-	self.filemenu.add('command', label='View source',
+	self.filemenu.add(COMMAND, label='View source',
 			  command=self.view_source_command)
-	self.filemenu.add('separator')
-	self.filemenu.add('command', label='Save As...',
+	self.filemenu.add(SEPARATOR)
+	self.filemenu.add(COMMAND, label='Save As...',
 			  command=self.save_as_command)
-	self.filemenu.add('command', label='Print...',
+	self.filemenu.add(COMMAND, label='Print...',
 			  command=self.print_command)
-	self.filemenu.add('separator')
-	self.filemenu.add('command', label='Close',
+	self.filemenu.add(SEPARATOR)
+	self.filemenu.add(COMMAND, label='Close',
 			  command=self.close_command)
-	self.filemenu.add('command', label='Quit',
+	self.filemenu.add(COMMAND, label='Quit',
 			  command=self.quit_command)
 
 	self.histbutton = Menubutton(self.mbar, text='Go')
-	self.histbutton.pack(side='left')
+	self.histbutton.pack(side=LEFT)
 
 	self.histmenu = Menu(self.histbutton)
 	self.histbutton['menu'] = self.histmenu
 
-	self.histmenu.add('command', label='Back',
+	self.histmenu.add(COMMAND, label='Back',
 			  command=self.back_command)
-	self.histmenu.add('command', label='Reload',
+	self.histmenu.add(COMMAND, label='Reload',
 			  command=self.reload_command)
-	self.histmenu.add('command', label='Forward',
+	self.histmenu.add(COMMAND, label='Forward',
 			  command=self.forward_command)
-	self.histmenu.add('separator')
-	self.histmenu.add('command', label='Home',
+	self.histmenu.add(SEPARATOR)
+	self.histmenu.add(COMMAND, label='Home',
 			  command=self.home_command)
 
 	# List of user menus (reset on page load)
@@ -122,29 +122,29 @@ class Browser:
 
 	# Create Help menu (on far right)
 	self.helpbutton = Menubutton(self.mbar, text='Help')
-	self.helpbutton.pack(side='right')
+	self.helpbutton.pack(side=RIGHT)
 
 	self.helpmenu = Menu(self.helpbutton)
 	self.helpbutton['menu'] = self.helpmenu
 
-	self.helpmenu.add('command', label='About Grail',
+	self.helpmenu.add(COMMAND, label='About Grail',
 			  command=self.about_command)
-	self.helpmenu.add('separator')
-	self.helpmenu.add('command', label='Grail Home Page',
+	self.helpmenu.add(SEPARATOR)
+	self.helpmenu.add(COMMAND, label='Grail Home Page',
 			  command=self.grail_home_command)
-	self.helpmenu.add('command', label='Python Home Page',
+	self.helpmenu.add(COMMAND, label='Python Home Page',
 			  command=self.python_home_command)
 
     def create_urlbar(self):
-	self.entry, self.topframe = tktools.make_form_entry(self.root, 'URL:')
+	self.entry, self.topframe = tktools.make_form_entry(self.root, "URL:")
 	self.entry.bind('<Return>', self.load_from_entry)
 
     def create_statusbar(self):
 	self.msg_frame = Frame(self.root, height=20)
 	self.msg_frame.pack(fill=X)
 	self.msg_frame.propagate(OFF)
-	self.msg = Label(self.msg_frame, anchor='w', font=FONT_MESSAGE)
-	self.msg.pack(fill='x', in_=self.msg_frame)
+	self.msg = Label(self.msg_frame, anchor=W, font=FONT_MESSAGE)
+	self.msg.pack(fill=X, in_=self.msg_frame)
 
     def enter(self, url):
 	if url[:1] != '#':
@@ -158,8 +158,8 @@ class Browser:
 	self.follow(self.entry.get())
 
     def set_entry(self, url):
-	self.entry.delete('0', 'end')
-	self.entry.insert('end', url)
+	self.entry.delete('0', END)
+	self.entry.insert(END, url)
 
     def follow(self, url):
 	if url[:1] == '#':
@@ -172,9 +172,9 @@ class Browser:
 	# Load a new URL into the window
 	tuple = urlparse.urlparse(url)
 	fragment = tuple[-1]
-	tuple = tuple[:-1] + ('',)
+	tuple = tuple[:-1] + ("",)
 	url = urlparse.urlunparse(tuple)
-	self.message('Following %s' % url, CURSOR_WAIT)
+	self.message("Following %s" % url, CURSOR_WAIT)
 	params = {}
 	if self.reload_applets:
 	    params['.reload'] = 1
@@ -188,7 +188,7 @@ class Browser:
 	    self.message_clear()
 	    return
 	self.url = self.title = url
-	self.message('Loading %s' % url, CURSOR_WAIT)
+	self.message("Loading %s" % url, CURSOR_WAIT)
 	self.root.update_idletasks()
 	errcode, errmsg, headers = api.getmeta()
 	if errcode != 200:
@@ -293,9 +293,9 @@ class Browser:
 	    [type, subtype] = string.splitfields(content_type, '/')
 	except:
 	    return None
-	type = regsub.gsub('[^a-zA-Z0-9_]', '_', type)
-	subtype = regsub.gsub('[^a-zA-Z0-9_]', '_', subtype)
-	modname = type + '_' + subtype
+	type = regsub.gsub("[^a-zA-Z0-9_]", "_", type)
+	subtype = regsub.gsub("[^a-zA-Z0-9_]", "_", subtype)
+	modname = type + "_" + subtype
 	# XXX Some of this needs to be moved into the Application class
 	home = getenv("HOME") or os.curdir
 	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
@@ -341,7 +341,7 @@ class Browser:
 	return prev
 
     def message_clear(self):
-	self.message('', CURSOR_NORMAL)
+	self.message("", CURSOR_NORMAL)
 
     def error_dialog(self, exception, msg):
 	if self.app:
@@ -385,7 +385,7 @@ class Browser:
 	    api.close()
 	    self.error_dialog(IOError, msg)
 	    return
-	self.message('Saving...', CURSOR_WAIT)
+	self.message("Saving...", CURSOR_WAIT)
 	BUFSIZE = 8*1024
 	while 1:
 	    buf = api.getdata(BUFSIZE)
@@ -459,7 +459,7 @@ from formatter import AS_IS
 
 class TextParser:
 
-    title = ''
+    title = ""
 
     def __init__(self, viewer):
 	self.viewer = viewer
