@@ -229,7 +229,7 @@ class Browser:
 	self.bookmarksbutton['menu'] = self.bookmarksmenu
 	self.bookmarksmenu.grail_browser = self # Applet compatibility
 	import Bookmarks
-	Bookmarks.BookmarksMenu(self.bookmarksmenu)
+	self.bookmarksmenu_menu = Bookmarks.BookmarksMenu(self.bookmarksmenu)
 
 	# Create the Preferences menu
 
@@ -346,6 +346,7 @@ class Browser:
 	self.context.stop()
 	self.viewer.close()
 	self.root.destroy()
+	self.bookmarksmenu_menu.close()
 	if self.app:
 	    self.app.del_browser(self)
 	    self.app.maybe_quit()
