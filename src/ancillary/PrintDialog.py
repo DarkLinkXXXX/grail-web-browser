@@ -1,6 +1,8 @@
 """Print Dialog for Grail Browser.
 
-This displays a really basic modal dialog, containing:
+This displays a dialog allowing the user to control printing of the current
+document.  The following printing characteristics can be controlled from the
+dialog:
 
 	- the print command (which should take PostScript from stdin
 	  or a %s can be placed on the command line where the filename
@@ -12,13 +14,10 @@ This displays a really basic modal dialog, containing:
 	- a Cancel button
 
 The last state (print command, check box, filename, options) is saved in
-globals  variables.
+a global settings variable.
 
-The dialog is modal by virtue of grabbing the focus and running
-the Tk mainloop recursively.
-
-When OK is activated, the HTML file is read using urllib.urlopen() and
-the html2ps.PSWriter class is used to generate the PostScript.
+When OK is activated, the HTML or text file is read using urllib.urlopen()
+and the html2ps.PSWriter class is used to generate the PostScript.
 
 When Cancel is actiavted, the dialog state is still saved.
 
@@ -32,69 +31,82 @@ be assumed, giving the option to cancel.
 
 from Cursors import CURSOR_WAIT
 from Tkinter import *
+import html2ps
 import os
 import Reader
 import string
+import sys
 import tktools
 
-PRINT_PREFGROUP = 'printing'
-PRINTCMD = "lpr"			# Default print command
+
+class PrintSettings:
+    """Store the current preference settings."""
 
-# Global variables tracking the last contents of the dialog box.
-# If printcmd is None, these need to be inited from preferences.
-printcmd = None
-printfile = ""
-fileflag = 0
-imageflag = 0
-greyscaleflag = 0
-underflag = 1
-footnoteflag = 1
-fontsize = 10.0
-leading = 10.7
-papersize = ""
-orientation = ""
-margins = None
+    GROUP = 'printing'
+    PRINTCMD = "lpr"			# Default print command
 
-global_prefs = None
+    printcmd = None
+    printfile = ""
+    fileflag = 0
+    imageflag = 0
+    greyscaleflag = 0
+    underflag = 1
+    footnoteflag = 1
+    fontsize = 10.0
+    leading = 10.7
+    papersize = "letter"
+    orientation = ""
+    margins = None
+    strip_blanks = 1
 
+    def __init__(self, prefs):
+	"""Load settings and register an interest in updates."""
+	self.__prefs = prefs
+	if prefs:
+	    self.update()
+	    prefs.AddGroupCallback(self.GROUP, self.update)
 
-def update_options(prefs=None):
-    """Load/reload preferences.
-    """
-    global printcmd, printfile, fileflag, imageflag, greyscaleflag
-    global underflag, footnoteflag, global_prefs, leading, fontsize
-    global papersize, orientation, margins
-    from html2ps import parse_fontsize
-    #
-    prefs = prefs or global_prefs
-    if prefs:
-	global_prefs = prefs
-    else:
-	return
-    imageflag = prefs.GetBoolean(PRINT_PREFGROUP, 'images')
-    fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
-    greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
-    printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
-    footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP, 'footnote-anchors')
-    underflag = prefs.GetBoolean(PRINT_PREFGROUP, 'underline-anchors')
-    fontsize, leading = parse_fontsize(
-	prefs.Get(PRINT_PREFGROUP, 'font-size'))
-    papersize = prefs.Get(PRINT_PREFGROUP, 'paper-size')
-    orientation = prefs.Get(PRINT_PREFGROUP, 'orientation')
-    margins = prefs.Get(PRINT_PREFGROUP, 'margins')
-    if margins:
-	margins = tuple(map(string.atoi, string.split(margins)))
-    if not printcmd:
-	printcmd = PRINTCMD
+    def update(self):
+	"""Load / reload settings from preferences subsystem."""
+	print "PrintSettings.update()"
+	prefs = self.__prefs
+	#
+	self.imageflag = prefs.GetBoolean(self.GROUP, 'images')
+	self.fileflag = prefs.GetBoolean(self.GROUP, 'to-file')
+	self.greyscaleflag = prefs.GetBoolean(self.GROUP, 'greyscale')
+	self.footnoteflag = prefs.GetBoolean(self.GROUP, 'footnote-anchors')
+	self.underflag = prefs.GetBoolean(self.GROUP, 'underline-anchors')
+	self.set_fontsize(prefs.Get(self.GROUP, 'font-size'))
+	self.papersize = prefs.Get(self.GROUP, 'paper-size')
+	self.orientation = prefs.Get(self.GROUP, 'orientation')
+	self.strip_blanks = prefs.GetBoolean(
+	    self.GROUP, 'skip-leading-blank-lines')
+	#
+	margins = prefs.Get(self.GROUP, 'margins')
+	if margins:
+	    margins = tuple(map(string.atoi, string.split(margins)))
+	    self.margins = margins
+	printcmd = prefs.Get(self.GROUP, 'command')
+	if not printcmd:
+	    printcmd = self.PRINTCMD
+	self.printcmd = printcmd
 
+    def set_fontsize(self, spec):
+	"""Set font size and leading based on specification string."""
+	self.fontsize, self.leading = html2ps.parse_fontsize(spec)
 
+    def get_fontspec(self):
+	if self.fontsize == self.leading:
+	    return `self.fontsize`
+	return "%s / %s" % (self.fontsize, self.leading)
+
+
 def PrintDialog(context, url, title):
     try:
 	infp = context.app.open_url_simple(url)
     except IOError, msg:
 	context.error_dialog(IOError, msg)
 	return
-    import html2ps
     if not html2ps.standard_header_template:
 	context.app.error_dialog("Missing file",
 				 "header.ps missing from the source directory")
@@ -119,9 +131,8 @@ def PrintDialog(context, url, title):
 	return
     RealPrintDialog(context, url, title, infp, ctype)
 
-
+
 class MaybePrintDialog:
-
 
     UNKNOWN_TYPE_MESSAGE = \
 """No MIME type is known for this
@@ -172,24 +183,20 @@ plain text if you elect to continue."""
 	self.__infp.close()
 	self.__infp = None
 
-
+
 class RealPrintDialog:
 
     def __init__(self, context, url, title, infp, ctype):
 	self.infp = infp
 	self.ctype = ctype
-
-	global printcmd
 	self.context = context
 	self.baseurl = context.get_baseurl()
-	prefs = context.app.prefs
-	if not prefs:
-	    printcmd = PRINTCMD
-	elif printcmd is None:
-	    # first time only
-	    update_options(prefs)
-	    prefs.AddGroupCallback(PRINT_PREFGROUP, update_options)
-	self.url = url
+
+	global settings
+	try:
+	    x = settings		# NameError first time
+	except NameError:
+	    settings = PrintSettings(context.app.prefs)
 	self.title = title
 	self.master = self.context.root
 	import tktools
@@ -201,6 +208,7 @@ class RealPrintDialog:
 	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
 	self.root.bind("<Alt-w>", self.cancel_event)
 	self.root.bind("<Alt-W>", self.cancel_event)
+	self.cursor_widgets = [self.root]
 
 	fr, top, botframe = tktools.make_double_frame(self.root)
 
@@ -210,9 +218,10 @@ class RealPrintDialog:
 
 	self.cmd_entry, dummyframe = tktools.make_form_entry(
 	    generalfr, "Print command:")
-	self.cmd_entry.insert(END, printcmd)
+	self.cmd_entry.insert(END, settings.printcmd)
+	self.add_entry(self.cmd_entry)
 	self.printtofile = IntVar(self.root)
-	self.printtofile.set(fileflag)
+	self.printtofile.set(settings.fileflag)
 	fr = Frame(generalfr)
 	fr.pack(fill=X)
 	self.file_check = Checkbutton(fr, text = "Print to file:",
@@ -221,15 +230,15 @@ class RealPrintDialog:
 	self.file_check.pack(side=LEFT)
 	self.file_entry = Entry(fr)
 	self.file_entry.pack(side=RIGHT, fill=X)
-	self.file_entry.insert(END, printfile)
+	self.file_entry.insert(END, settings.printfile)
+	self.add_entry(self.file_entry)
 
 	# page orientation
 	Frame(generalfr, height=2).pack()
 	fr = Frame(generalfr)
 	fr.pack(fill=X)
 	self.orientation = StringVar(top)
-	self.orientation.set(string.capitalize(orientation))
-	import html2ps
+	self.orientation.set(string.capitalize(settings.orientation))
 	opts = html2ps.paper_rotations.keys()
 	opts.sort()
 	opts = tuple(map(string.capitalize, opts))
@@ -243,36 +252,38 @@ class RealPrintDialog:
 	# font size
 	fr = Frame(generalfr)
 	fr.pack(fill=X)
-	self.fontsize = StringVar(top)
-	if fontsize == leading:
-	    self.fontsize.set(`fontsize`)
-	else:
-	    self.fontsize.set("%s / %s" % (fontsize, leading))
 	Label(fr, text="Font size: ", width=13, anchor=E).pack(side=LEFT)
 	Frame(fr, width=3).pack(side=LEFT)
-	e = Entry(fr, textvariable=self.fontsize, width=12)
+	e = self.fontsize = Entry(fr, width=12)
+	e.insert(END, settings.get_fontspec())
 	e.pack(side=LEFT)
-	e.bind('<Return>', self.return_event)
+	self.add_entry(e)
 
+	Frame(top, height=8).pack()
 	if self.ctype == "text/html":
-	    Frame(top, height=8).pack()
-	htmlfr = tktools.make_group_frame(
-	    top, "html", "HTML options:", fill=X)
-
-	#  Image printing controls:
-	self.imgchecked = self.add_html_checkbox(
-	    htmlfr, "Print images", imageflag)
-	self.greychecked = self.add_html_checkbox(
-	    htmlfr, "Reduce images to greyscale", greyscaleflag)
-
-	#  Anchor-handling selections:
-	self.footnotechecked = self.add_html_checkbox(
-	    htmlfr, "Footnotes for anchors", footnoteflag)
-	self.underchecked = self.add_html_checkbox(
-	    htmlfr, "Underline anchors", underflag)
-
-	if self.ctype != "text/html":
-	    htmlfr.forget()
+	    htmlfr = tktools.make_group_frame(
+		top, "html", "HTML options:", fill=X)
+	    #  Image printing controls:
+	    self.imgchecked = self.new_checkbox(
+		htmlfr, "Print images", settings.imageflag)
+	    self.greychecked = self.new_checkbox(
+		htmlfr, "Reduce images to greyscale", settings.greyscaleflag)
+	    #  Anchor-handling selections:
+	    self.footnotechecked = self.new_checkbox(
+		htmlfr, "Footnotes for anchors", settings.footnoteflag)
+	    self.underchecked = self.new_checkbox(
+		htmlfr, "Underline anchors", settings.underflag)
+	else:
+	    textfr = tktools.make_group_frame(
+		top, "textoptions", "Text options:", fill=X)
+	    #  The titleentry widget is used to set the title for text/plain
+	    #  documents; the title is printed in the page headers.
+	    self.titleentry, dummyframe = tktools.make_form_entry(
+		textfr, "Title:")
+	    self.add_entry(self.titleentry)
+	    Frame(textfr, height=4).pack()
+	    self.strip_blanks = self.new_checkbox(
+		textfr, "Strip leading blank lines", settings.strip_blanks)
 
 	#  Command buttons:
 	ok_button = Button(botframe, text="OK",
@@ -283,19 +294,19 @@ class RealPrintDialog:
 	cancel_button.pack(side=RIGHT)
 	tktools.unify_button_widths(ok_button, cancel_button)
 
-	self.cmd_entry.bind('<Return>', self.return_event)
-	self.file_entry.bind('<Return>', self.return_event)
-
 	tktools.set_transient(self.root, self.master)
 	self.check_command()
 
-    def add_html_checkbox(self, root, description, value):
-	var = BooleanVar(root)
+    def new_checkbox(self, parent, description, value):
+	var = BooleanVar(parent)
 	var.set(value)
-	if self.ctype == "text/html":
-	    Checkbutton(root, text=description, variable=var, anchor=W
-			).pack(anchor=W, fill=X)
+	Checkbutton(parent, text=description, variable=var, anchor=W
+		    ).pack(anchor=W, fill=X)
 	return var
+
+    def add_entry(self, entry):
+	self.cursor_widgets.append(entry)
+	entry.bind("<Return>", self.return_event)
 
     def return_event(self, event):
 	self.ok_command()
@@ -338,11 +349,16 @@ class RealPrintDialog:
 	    except IOError, msg:
 		self.context.error_dialog(IOError, str(msg))
 		return
-	self.root['cursor'] = CURSOR_WAIT
-	self.cmd_entry['cursor'] = CURSOR_WAIT
-	self.file_entry['cursor'] = CURSOR_WAIT
+	for e in self.cursor_widgets:
+	    e['cursor'] = CURSOR_WAIT
 	self.root.update_idletasks()
-	self.print_to_fp(fp)
+	try:
+	    self.print_to_fp(fp)
+	except:
+	    # don't want a try/finally since we don't need this to
+	    # execute unless we received an error
+	    for e in self.cursor_widgets: e['cursor'] = ''
+	    raise sys.exc_type, sys.exc_value, sys.exc_traceback
 	sts = fp.close()
 	if not sts:
 	    try:
@@ -355,72 +371,103 @@ class RealPrintDialog:
 	if sts:
 	    self.context.error_dialog("Exit",
 				      "Print command exit status %s" % `sts`)
-	self.goaway()
+	self.root.destroy()
 
     def cancel_event(self, event):
 	self.cancel_command()
 
     def cancel_command(self):
-	self.goaway()
+	self.update_settings()
+	self.root.destroy()
 
     def print_to_fp(self, fp):
 	# do the printing
-	global fontsize, leading, orientation
-	from html2ps import PSWriter, PrintingHTMLParser, PaperInfo
-	from html2ps import disallow_anchor_footnotes, disallow_self_reference
-	from html2ps import parse_fontsize, image_loader
-
-	paper = None
-	orientation = string.lower(self.orientation.get())
-	paper = PaperInfo(papersize or "letter")
-	if orientation:
-	    paper.rotate(orientation)
-	if margins:
-	    paper.set_margins(margins)
-	fontsize, leading = parse_fontsize(self.fontsize.get())
-	w = PSWriter(fp, self.title, self.url,
-		     fontsize=fontsize, leading=leading, paper=paper)
+	self.update_settings()
+	paper = html2ps.PaperInfo(settings.papersize)
+	paper.rotate(settings.orientation)
+	if settings.margins:
+	    paper.set_margins(settings.margins)
+	w = html2ps.PSWriter(fp, self.title, self.baseurl, paper=paper,
+			     fontsize=settings.fontsize,
+			     leading=settings.leading)
 	if self.ctype == 'text/html':
-	    imgloader = (self.imgchecked.get() and image_loader) or None
-	    grey = self.greychecked.get()
-	    p = PrintingHTMLParser(w, baseurl=self.baseurl,
-				   image_loader=imgloader, greyscale=grey,
-				   underline_anchors=self.underchecked.get())
-	    if not self.footnotechecked.get():
-		p.add_anchor_transform(disallow_anchor_footnotes)
+	    imgloader = (settings.imageflag and html2ps.image_loader) or None
+	    p = html2ps.PrintingHTMLParser(
+		w, baseurl=self.baseurl, image_loader=imgloader,
+		greyscale=settings.greyscaleflag,
+		underline_anchors=settings.underflag)
+	    if not settings.footnoteflag:
+		p.add_anchor_transform(html2ps.disallow_anchor_footnotes)
 	    else:
-		p.add_anchor_transform(disallow_self_reference(self.baseurl))
+		p.add_anchor_transform(
+		    html2ps.disallow_self_reference(self.baseurl))
 	    p.iconpath = self.context.app.iconpath
 	else:
-	    p = PrintingTextParser(w)
+	    p = PrintingTextParser(w, title=self.titleentry.get(),
+				   strip_blanks=settings.strip_blanks)
 	p.feed(self.infp.read())
 	self.infp.close()
 	p.close()
 	w.close()
 
-    def goaway(self):
-	global printcmd, printfile, fileflag, imageflag, greyscaleflag
-	global underflag, footnoteflag, leading, fontsize, papersize
-	global orientation
-	from html2ps import parse_fontsize
-	#
-	printcmd = self.cmd_entry.get()
-	printfile = self.file_entry.get()
-	fileflag = self.printtofile.get()
-	footnoteflag = self.footnotechecked.get()
-	greyscaleflag = self.greychecked.get()
-	imageflag = self.imgchecked.get()
-	underflag = self.underchecked.get()
-	fontsize, leading = parse_fontsize(self.fontsize.get())
-	orientation = self.orientation.get()
-	self.root.destroy()
+    def update_settings(self):
+	settings.printcmd = self.cmd_entry.get()
+	settings.printfile = self.file_entry.get()
+	settings.fileflag = self.printtofile.get()
+	settings.set_fontsize(self.fontsize.get())
+	settings.orientation = string.lower(self.orientation.get())
+	if self.ctype == "text/html":
+	    settings.footnoteflag = self.footnotechecked.get()
+	    settings.greyscaleflag = self.greychecked.get()
+	    settings.imageflag = self.imgchecked.get()
+	    settings.underflag = self.underchecked.get()
+	else:
+	    settings.strip_blanks = self.strip_blanks.get()
 
-
+
 class PrintingTextParser(Reader.TextParser):
+    __buffer = ''
+
+    def __init__(self, writer, strip_blanks=0, title=''):
+	self.__strip_blanks = strip_blanks
+	writer.ps.set_title(title)
+	writer.ps.prune_titles()
+	Reader.TextParser.__init__(self, writer)
+
+    def close(self):
+	self.write_page(self.__buffer)
+	self.__buffer = ''
+	Reader.TextParser.close(self)
+
     def feed(self, data):
+	data = self.__buffer + data
+	self.__buffer = ''
 	strings = string.splitfields(data, "\f")
 	if strings:
-	    self.viewer.send_literal_data(strings[0])
-	    for s in strings[1:]:
-		self.viewer.ps.push_page_break()
-		self.viewer.send_literal_data(s)
+	    for s in strings[:-1]:
+		self.write_page(s)
+	    self.__buffer = strings[-1]
+
+    __first = 1
+    def write_page(self, data):
+	data = string.rstrip(data)
+	if self.__strip_blanks:
+	    data = self.strip_blank_lines(data)
+	    # discard blank pages:
+	    if not data:
+		return
+	if self.__first:
+	    self.__first = 0
+	else:
+	    self.viewer.ps.close_line()
+	    self.viewer.ps.push_page_break()
+	self.viewer.send_literal_data(data)
+
+    def strip_blank_lines(self, data):
+	lines = map(string.rstrip, string.splitfields(data, "\n"))
+	while lines:
+	    if string.strip(lines[0]) == "":
+		del lines[0]
+	    else:
+		break
+	return string.joinfields(lines, "\n")
