@@ -22,6 +22,7 @@ non-proxy usage, the url parameter is a string.)
 
 import regsub
 import string
+import socket
 from urllib import splittype, splithost, splitport
 
 
@@ -59,16 +60,18 @@ def protocol_access(url, mode, params, data=None):
     except ImportError:
 	m = None
     if not m:
-	raise IOError, ("protocol error", "no support for %s" % scheme)
+	raise IOError, ("protocol error", "no module for %s" % scheme)
     classname = sanitized + "_access"
     if not hasattr(m, classname):
-	raise IOError, ("protocol error", "incomplete support for %s" % scheme)
+	raise IOError, ("protocol error", "no class for %s" % scheme)
     klass = getattr(m, classname)
-    if data:
-	return klass(resturl, mode, params, data)
-    else:
-	return klass(resturl, mode, params)
-
+    try:
+	if data:
+	    return klass(resturl, mode, params, data)
+	else:
+	    return klass(resturl, mode, params)
+    except socket.error, msg:
+	raise IOError, ("socket error", msg)
 
 def test(url = "http://www.python.org/"):
     import sys
