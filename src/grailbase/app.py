@@ -1,5 +1,5 @@
 """Application base class."""
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 
 import os
 import mimetypes
@@ -11,7 +11,11 @@ import utils
 class Application:
     def __init__(self, prefs=None):
         utils._grail_app = self
-        self.prefs = prefs or GrailPrefs.AllPreferences()
+        if prefs is None:
+            import GrailPrefs
+            self.prefs = GrailPrefs.AllPreferences()
+        else:
+            self.prefs = prefs
         self.graildir = utils.getgraildir()
         user_icons = os.path.join(self.graildir, 'icons')
         utils.establish_dir(self.graildir)
