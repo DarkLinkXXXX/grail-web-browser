@@ -92,7 +92,6 @@ def form_bgn(parser, action, method, enctype, target):
     if not hasattr(parser, 'form_stack'):
 	parser.form_stack = []
 	parser.forms = []
-	parser.context.forms = []
     fi = FormInfo(parser, action, method, enctype, target)
     parser.form_stack.append(fi)
 
@@ -101,6 +100,8 @@ def form_end(parser):
     if fi:
 	del parser.form_stack[-1]
 	parser.forms.append(fi)
+	if not hasattr(parser.context, 'forms'):
+	    parser.context.forms = []
 	parser.context.forms.append(fi)
 	fi.done()
 
