@@ -54,12 +54,16 @@ class ImageTempFileReader(TempFileReader):
 
 class AsyncImage(PhotoImage):
 
-    def __init__(self, context, url, **kw):
+    def __init__(self, context, url, reload=0, **kw):
 	apply(PhotoImage.__init__, (self,), kw)
 	self.context = context
 	self.url = url
 	self.reader = None
 	self.loaded = 0
+	if reload:
+	    self.reload = 1
+	else:
+	    self.reload = 0
 
     direct_load = ['image/gif']
 
@@ -70,7 +74,7 @@ class AsyncImage(PhotoImage):
 		self.reader.geteverything()
 	return self.loaded
 
-    def start_loading(self, context=None, reload=0):
+    def start_loading(self, context=None):
 	if context: self.context = context
 	if self.reader:
 	    return
@@ -80,7 +84,7 @@ class AsyncImage(PhotoImage):
 	    pass
 	try:
 	    api = self.context.app.open_url(self.url, 'GET', {},
-					    reload) # Through cache
+					    self.reload) # Through cache
 	except IOError, msg:
 	    self.blank()
 	    return

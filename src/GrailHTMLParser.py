@@ -186,14 +186,14 @@ class GrailHTMLParser(HTMLParser):
 	    # not sure how to assert(value[0] == '#')
 	    usemap = MapThunk (self, attrs['usemap'][1:])
         self.handle_image(src, alt, usemap, ismap,
-			  align, width, height, border)
+			  align, width, height, border, self.reload1)
 
     def handle_image(self, src, alt, usemap, ismap, align, width,
-		     height, border=2):
+		     height, border=2, reload):
 	from ImageWindow import ImageWindow
 	window = ImageWindow(self.viewer, self.anchor, src, alt,
 			     usemap, ismap, align, width, height,
-			     border, self.target)
+			     border, self.target, reload)
 	self.add_subwindow(window, align=align)
 
     def add_subwindow(self, w, align=None):

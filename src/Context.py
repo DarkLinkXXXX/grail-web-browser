@@ -230,19 +230,20 @@ class Context:
 		image = None
 	return image
 
-    def get_async_image(self, src):
+    def get_async_image(self, src, reload=0):
 	if not src: return None
 	url = self.get_baseurl(src)
 	if not url: return None
 	app = self.app
-	image = app.get_cached_image(url)
-	if image:
-	    if app.load_images and not image.loaded:
-		image.start_loading(self)
-	    return image
+	if not reload:
+	    image = app.get_cached_image(url)
+	    if image:
+		if app.load_images and not image.loaded:
+		    image.start_loading(self)
+		    return image
 	from AsyncImage import AsyncImage
 	try:
-	    image = AsyncImage(self, url)
+	    image = AsyncImage(self, url, reload)
 	except IOError, msg:
 	    image = None
 	if image:

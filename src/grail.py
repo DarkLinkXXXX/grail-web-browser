@@ -310,6 +310,9 @@ class Application:
 	    return None
 
     def set_cached_image(self, url, image):
+	if self.image_cache.has_key(url):
+	    # is explicit delete necessary?
+	    del self.image_cache[url]
 	self.image_cache[url] = image
 
     def open_url(self, url, method, params, reload=0, data=None):

@@ -3,7 +3,7 @@ from Tkinter import *
 class ImageWindow(Frame):
 
     def __init__(self, viewer, url, src, alt, usemap, ismap, align,
-		 width, height, borderwidth, target=""):
+		 width, height, borderwidth, target="", reload):
 	self.viewer = viewer
 	self.context = self.viewer.context
 	self.src, self.alt, self.align = src, alt, align
@@ -48,7 +48,7 @@ class ImageWindow(Frame):
 ##		self['background'] = 'black' # XXX for debug
 		self.label.bind('<ButtonRelease-1>', self.toggle_loading_image)
 	self.label.bind('<ButtonRelease-3>', self.toggle_loading_image)
-	self.image = self.context.get_async_image(self.src)
+	self.image = self.context.get_async_image(self.src, reload)
 	if self.image:
 	    self.label['image'] = self.image
 

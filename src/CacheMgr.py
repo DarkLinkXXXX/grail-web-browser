@@ -189,7 +189,6 @@ class CacheManager:
 	    if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
 		self.caches[0].add(item)
 	    elif reload == 1:
-		print "calling cachemgr.add with reload==1,", item
 		self.caches[0].add(item)
 	except CacheFileError, err_tuple:
 	    (file, err) = err_tuple
@@ -609,6 +608,8 @@ class DiskCache:
 	Examines the object and its headers for size, date, type,
 	etc. The DiskCacheEntry is placed in the DiskCache and the
 	CacheManager and the entry is logged.
+
+	XXX Need to handle replacement better?
 	"""
 	respcode, msg, headers = object.meta
 	size = len(object.data)
@@ -745,7 +746,7 @@ class DiskCache:
 	if key in self.expires:
 	    self.expires.remove(key)
 	try:
-	    os.unlink(evictee.path)
+	    os.unlink(self.get_file_path(evictee.file))
 	except (os.error, IOError), err:
 	    print "error deleteing %s from cache: %s" % (key, err)
 	self.log_entry(evictee,1) # 1 indicates delete entry
