@@ -409,10 +409,10 @@ def support_encodings(content_encoding, transfer_encoding):
     """Return true iff both content and content-transfer encodings are
     supported."""
     if content_encoding \
-       and not content_decoding_wrapper.has_key(content_encoding):
+       and not content_decoding_wrappers.has_key(content_encoding):
         return 0
     if transfer_encoding \
-       and not transfer_decoding_wrapper.has_key(transfer_encoding):
+       and not transfer_decoding_wrappers.has_key(transfer_encoding):
         return 0
     return 1
 
