@@ -6,7 +6,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.56 1997/02/19 23:37:24 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.57 1997/02/20 16:06:11 fdrake Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -457,6 +457,8 @@ class Table(AttrElem):
 		self._map()
 	    pv.context.register_notification(self._notify)
 	    self.parentviewer.register_resize_interest(self._resize)
+	    self.parentviewer.prefs.AddGroupCallback(
+		'styles', self._force_resize)
 	else:
 	    # FIXEDLAYOUT not yet supported
 	    pass
@@ -771,6 +773,8 @@ class Table(AttrElem):
 	self.parentviewer.context.unregister_notification(self._notify)
 	self.parentviewer.unregister_reset_interest(self._reset)
 	self.parentviewer.unregister_resize_interest(self._resize)
+	self.parentviewer.prefs.RemoveGroupCallback(
+	    'styles', self._force_resize)
 	delattr(self.container, '_table')
 	# TBD: garbage collect internal structures, but not windows!
 
@@ -778,6 +782,11 @@ class Table(AttrElem):
 	# called when the outer browser is resized (typically by the user)
 ## 	print '_resize:', viewer
 	self._autolayout_3()
+
+    def _force_resize(self):
+	# called when the stylesheet changes:
+	self._autolayout_2()
+	self._autolayout_3(force=1)
 
     def _notify(self, context):
 	# receives notification when all readers for the shared
