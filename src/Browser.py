@@ -366,7 +366,7 @@ class Browser:
 	filename = dialog.go()
 	if filename:
 	    import urllib
-	    self.context.load('file:' + urllib.quote(filename))
+	    self.context.load('file:' + urllib.pathname2url(filename))
 
     def view_source_command(self, event=None):
 	self.context.view_source()
