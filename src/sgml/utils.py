@@ -3,7 +3,7 @@
 This module is safe for 'from sgml.utils import *'.
 
 """
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 
 
 import string
@@ -89,23 +89,3 @@ def conv_normwhitespace(val):
 
 def conv_exists(val):
     return 1
-
-
-def _parse_mimetypeoptions(options):
-    opts = {}
-    options = _string.strip(options)
-    while options:
-        if '=' in options:
-            pos = _string.find(options, '=')
-            name = _string.lower(_string.strip(options[:pos]))
-            value = _string.strip(options[pos + 1:])
-            options = ''
-            if ';' in value:
-                pos = _string.find(value, ';')
-                options = _string.strip(value[pos + 1:])
-                value = _string.strip(value[:pos])
-            if name:
-                opts[name] = value
-        else:
-            options = None
-    return opts

@@ -1,9 +1,10 @@
 """Several useful routines that isolate some of the weirdness of Grail-based
 applications.
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 import os
+import string
 
 # TBD: hack!  grail.py calculates grail_root, which would be
 # convenient to export to extensions, but you can't `import grail' or
@@ -85,13 +86,33 @@ def conv_mimetype(type):
     if not type:
         return None, {}
     if ';' in type:
-        i = _string.index(type, ';')
+        i = string.index(type, ';')
         opts = _parse_mimetypeoptions(type[i + 1:])
         type = type[:i]
     else:
         opts = {}
-    fields = _string.split(_string.lower(type), '/')
+    fields = string.split(string.lower(type), '/')
     if len(fields) != 2:
         raise ValueError, "Illegal media type specification."
-    type = _string.join(fields, '/')
+    type = string.join(fields, '/')
     return type, opts
+
+
+def _parse_mimetypeoptions(options):
+    opts = {}
+    options = string.strip(options)
+    while options:
+        if '=' in options:
+            pos = string.find(options, '=')
+            name = string.lower(string.strip(options[:pos]))
+            value = string.strip(options[pos + 1:])
+            options = ''
+            if ';' in value:
+                pos = string.find(value, ';')
+                options = string.strip(value[pos + 1:])
+                value = string.strip(value[:pos])
+            if name:
+                opts[name] = value
+        else:
+            options = None
+    return opts
