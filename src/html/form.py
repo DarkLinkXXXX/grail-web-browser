@@ -2,6 +2,8 @@
 
 """
 
+ATTRIBUTES_AS_KEYWORDS = 1
+
 import string
 from Tkinter import *
 import urllib
@@ -14,61 +16,71 @@ URLENCODED = "application/x-www-form-urlencoded"
 FORM_DATA = "multipart/form-data"
 
 def start_form(parser, attrs):
-    action = ''
-    method = ''
-    enctype = URLENCODED
-    for a, v in attrs:
-	if a == 'action': action = v
-	if a == 'method': method = v
-	if a == 'enctype': enctype = v
-    form_bgn(parser, action, method, enctype)
+    try:
+	action = attrs['action']
+    except KeyError:
+	action = ''
+    try:
+	method = attrs['method']
+    except KeyError:
+	method = ''
+    try:
+	enctype = attrs['enctype']
+    except KeyError:
+	enctype = URLENCODED
+    try:
+	target = attrs['target']
+    except KeyError:
+	target = ''
+    form_bgn(parser, action, method, enctype, target)
 
 def end_form(parser):
     form_end(parser)
 
 def do_input(parser, attrs):
-    type = ''
-    options = {}
-    for a, v in attrs:
-	if a == 'type': type = string.lower(v)
-	else: options[a] = v
-    handle_input(parser, type, options)
+    try:
+	type = string.lower(attrs['type'])
+	del attrs['type']
+    except KeyError:
+	type = ''
+    handle_input(parser, type, attrs)
 
 def start_select(parser, attrs):
-    name = ''
-    size = 0
-    multiple = 0
-    for a, v in attrs:
-	if a == 'multiple': multiple = 1
-	if a == 'name': name = v
-	if a == 'size':
-	    try: size = string.atoi(v)
-	    except: pass
+    try:
+	name = attrs['name']
+    except KeyError:
+	name = ''
+    try:
+	size = string.atoi(attrs['size'])
+    except (KeyError, string.atoi_error):
+	size = 0
+    multiple = attrs.has_key('multiple')
     select_bgn(parser, name, size, multiple)
 
 def end_select(parser):
     select_end(parser)
 
 def do_option(parser, attrs):
-    value = ''
-    selected = 0
-    for a, v in attrs:
-	if a == 'value': value = v
-	if a == 'selected': selected = 1
+    try:
+	value = attrs['value']
+    except KeyError:
+	value = ''
+    selected = attrs.has_key('selected')
     handle_option(parser, value, selected)
 
 def start_textarea(parser, attrs):
-    name = ''
-    rows = 0
-    cols = 0
-    for a, v in attrs:
-	if a == 'name': name = v
-	if a == 'rows':
-	    try: rows = string.atoi(v)
-	    except: pass
-	if a == 'cols':
-	    try: cols = string.atoi(v)
-	    except: pass
+    try:
+	name = attrs['name']
+    except KeyError:
+	name = ''
+    try:
+	rows = string.atoi(attrs['rows'])
+    except (KeyError, string.atoi_error):
+	rows = 0
+    try:
+	cols = string.atoi(attrs['cols'])
+    except (KeyError, string.atoi_error):
+	cols = 0
     textarea_bgn(parser, name, rows, cols)
 
 def end_textarea(parser):
@@ -76,12 +88,12 @@ def end_textarea(parser):
 
 # --- Hooks for forms
 
-def form_bgn(parser, action, method, enctype):
+def form_bgn(parser, action, method, enctype, target):
     if not hasattr(parser, 'form_stack'):
 	parser.form_stack = []
 	parser.forms = []
 	parser.context.forms = []
-    fi = FormInfo(parser, action, method, enctype)
+    fi = FormInfo(parser, action, method, enctype, target)
     parser.form_stack.append(fi)
 
 def form_end(parser):
@@ -126,11 +138,12 @@ def get_forminfo(parser):
 
 class FormInfo:
 
-    def __init__(self, parser, action, method, enctype):
+    def __init__(self, parser, action, method, enctype, target):
 	self.parser = parser
 	self.action = action or ''
 	self.method = method or 'get'
 	self.enctype = enctype
+	self.target = target
 	self.context = parser.context
 	self.viewer = self.context.viewer
 	self.inputs = []
@@ -182,17 +195,17 @@ class FormInfo:
 	    ctype, data = self.make_form_data()
 	if method == 'get' and enctype == URLENCODED:
 	    url = self.action + '?' + data
-	    self.context.follow(url)
+	    self.context.follow(url, target=self.target)
 	elif method == 'post' and enctype in (URLENCODED, FORM_DATA):
 	    if enctype == FORM_DATA:
 		enctype = ctype
 	    params = {"Content-type": enctype}
 	    if enctype == URLENCODED:
 		params["Content-length"] = `len(data)`
-	    self.viewer.context.post(self.action, data, params)
+	    self.viewer.context.post(self.action, data, params, self.target)
 	else:
-	    print "*** Form with METHOD=%s and ENCTYPE=%s not supported ***" % (
-		  self.method, self.enctype)
+	    print "*** Form with METHOD=%s and ENCTYPE=%s not supported ***" \
+		  % (self.method, self.enctype)
 
     def make_urlencoded_data(self):
 	data = ''
@@ -475,12 +488,23 @@ class FormInfo:
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
 			    command=self.fi.submit_command)
+	    self.w.bind("<Enter>", self.enter)
+	    self.w.bind("<Leave>", self.leave)
 
 	def get(self):
 	    if self.w['state'] == ACTIVE:
 		return self.value
 	    else:
 		return None
+
+	def enter(self, event):
+	    message = self.fi.action or "???"
+	    if self.fi.target:
+		message = message + " in " + self.fi.target
+	    self.viewer.enter_message(message)
+
+	def leave(self, event):
+	    self.viewer.leave_message()
 
     class InputReset(Input):
 
@@ -501,6 +525,11 @@ class FormInfo:
 	    self.browse = Button(self.w, text="Browse...",
 				 command=self.browse_command)
 	    self.browse.pack(side=RIGHT)
+
+	def reset(self):
+	    # Ignore the initial value from the HTML form.
+	    # It is a security hazard.
+	    self.entry.delete(0, END)
 
 	def browse_command(self):
 	    import FileDialog
