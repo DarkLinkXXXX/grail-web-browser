@@ -192,12 +192,21 @@ class GrailHTMLParser(HTMLParser):
 		hr.config(background = clr, highlightbackground = clr)
 	if attrs.has_key('text'):
 	    self.configcolor('foreground', attrs['text'])
+	if attrs.has_key('link'):
+	    self.configcolor('foreground', attrs['link'], 'a')
+	if attrs.has_key('vlink'):
+	    self.configcolor('foreground', attrs['vlink'], 'ahist')
+	if attrs.has_key('alink'):
+	    self.configcolor('foreground', attrs['alink'], 'atemp')
 
-    def configcolor(self, option, color):
+    def configcolor(self, option, color, tag=None):
 	if not color: return
 	if color[0] != '#': color = '#' + color
 	try:
-	    self.viewer.text[option] = color
+	    if not tag:
+		self.viewer.text[option] = color
+	    else:
+		apply(self.viewer.text.tag_config, (tag,), {option: color})
 	except TclError, msg:
 	    pass			# Ignore the error
 
