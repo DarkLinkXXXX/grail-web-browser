@@ -72,9 +72,12 @@ class AbstractFormatter:
 	self.hard_break = self.nospace = 1
 	self.have_label = self.para_end = self.softspace = 0
 
-    def add_label_data(self, format, counter):
-	if self.have_label:
+    def add_label_data(self, format, counter, blankline = None):
+	if self.have_label or not self.hard_break:
 	    self.add_line_break()
+	if not self.para_end:
+	    self.writer.send_paragraph((blankline and 1) or 0)
+	    self.have_label = 0
 	if type(format) is StringType:
 	    self.writer.send_label_data(self.format_counter(format, counter))
 	else:
