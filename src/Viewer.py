@@ -450,6 +450,8 @@ class Viewer(formatter.AbstractWriter):
 	    if tt: tag = tag + '_tt'
 	    if b: tag = tag + '_b'
 	    if i: tag = tag + '_i'
+	    if tag != self.fonttag:
+		self.flush()
 	    self.fonttag = tag or None
 	self.new_tags()
 
