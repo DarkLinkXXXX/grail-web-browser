@@ -338,7 +338,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text['state'] = NORMAL
 
     def freeze(self):
-	if self.pendingdata:
+	if self.pendingdata and string.strip(self.pendingdata):
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 	if self.smoothscroll:
