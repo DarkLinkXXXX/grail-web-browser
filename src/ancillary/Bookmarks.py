@@ -486,7 +486,7 @@ class TkListboxViewer(OutlinerViewer):
 class BookmarksDialog:
     def __init__(self, frame, controller):
 	# create the basic controls of the dialog window
-	self._frame = Toplevel(frame)
+	self._frame = Toplevel(frame, class_='Grail')
 	self._controller = controller
 	infoframe = Frame(self._frame, relief=GROOVE, borderwidth=2)
 	infoframe.pack(fill=BOTH)
@@ -732,8 +732,8 @@ class BookmarksDialog:
 
 
 class DetailsDialog:
-    def __init__(self, frame, node, controller):
-	self._frame = frame
+    def __init__(self, master, node, controller):
+	self._frame = Toplevel(master, class_='Grail')
 	self._frame.title("Bookmark Details")
 	self._frame.iconname("Bookmark Details")
 	self._node = node
@@ -1018,7 +1018,7 @@ class BookmarksController(OutlinerController):
 	    details = self._details[id(node)]
 	    details.show()
 	else:
-	    details = DetailsDialog(Toplevel(self._frame), node, self)
+	    details = DetailsDialog(self._frame, node, self)
 	    self._details[id(node)] = details
 
     def show(self, event=None):
@@ -1068,8 +1068,7 @@ class BookmarksController(OutlinerController):
 	if not node: return
 	newnode = BookmarkNode('<Category>')
 	self._insert_at_node(node, newnode)
-	frame = Toplevel(self._frame)
-	self._details[id(newnode)] = DetailsDialog(frame, newnode, self)
+	self._details[id(newnode)] = DetailsDialog(self._frame, newnode, self)
 
     def insert_entry(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1077,7 +1076,7 @@ class BookmarksController(OutlinerController):
 	newnode = BookmarkNode('<Entry>', '  ')
 	self._insert_at_node(node, newnode)
 	details = self._details[id(newnode)] = \
-		  DetailsDialog(Toplevel(self._frame), newnode, self)
+		  DetailsDialog(self._frame, newnode, self)
 
     def remove_entry(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1091,6 +1090,10 @@ class BookmarksController(OutlinerController):
 	self.root_redisplay()
 	self.viewer().select_node(self.viewer().node(selection))
 	self.set_modflag(True)
+	# destroy the details dialog for the node, if it has one
+	if self._details.has_key(id(node)):
+	    self._details[id(node)].destroy()
+	    del self._details[id(node)]
 
     ## OutlinerController overloads
 
