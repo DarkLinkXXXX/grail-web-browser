@@ -277,7 +277,11 @@ class HTMLParser(SGMLParser):
 	    v = attrs['type']
 	    if len(v) == 1: v = v + '.'
 	    label = v
-        self.list_stack.append(['ol', label, 0])
+	start = 0
+	if attrs.has_key('start'):
+	    try: start = string.atoi(attrs['start']) - 1
+	    except: pass
+        self.list_stack.append(['ol', label, start])
 
     def end_ol(self):
         if self.list_stack: del self.list_stack[-1]
@@ -389,7 +393,15 @@ class HTMLParser(SGMLParser):
 	    abswidth, percentwidth = self.parse_width(attrs['width'])
 	else:
 	    abswidth, percentwidth = None, 1.0
-        self.formatter.add_hor_rule(abswidth, percentwidth)
+	height = align = None
+	if attrs.has_key('size'):
+	    try: height = string.atoi(attrs['size'])
+	    except: pass
+	    else: height = max(1, height)
+	if attrs.has_key('align'):
+	    try: align = string.lower(attrs['align'])
+	    except: pass
+        self.formatter.add_hor_rule(abswidth, percentwidth, height, align)
 
     def parse_width(self, str):
 	str = string.strip(str)
