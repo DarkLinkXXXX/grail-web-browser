@@ -8,10 +8,13 @@
 # - Etc.
 
 
+import string
 import urllib
 import urlparse
 from Tkinter import *
 import tktools
+import os
+import sys
 from Viewer import Viewer
 from AppletHTMLParser import AppletHTMLParser
 from DefaultStylesheet import DefaultStylesheet
@@ -49,7 +52,6 @@ class Browser:
 	self.history = []
 	self.current = -1
 	self.reload_applets = 0
-	self.show_source = 0
 	self.create_widgets(height)
 
     def create_widgets(self, height):
@@ -153,7 +155,7 @@ class Browser:
 	url = urlparse.urljoin(self.url, url)
 	self.load(url)
 
-    def load(self, url, new=1):
+    def load(self, url, new=1, show_source=0):
 	# Load a new URL into the window
 	tuple = urlparse.urlparse(url)
 	fragment = tuple[-1]
@@ -186,28 +188,47 @@ class Browser:
 
 	self.viewer.clear_reset()
 
-	if content_type == 'text/html' and not self.show_source:
-	    parser = AppletHTMLParser(self.viewer)
-	elif content_type and content_type[:5] == 'text/':
-	    parser = TextParser(self.viewer)
+	istext = content_type and content_type[:5] == 'text/'
+	if show_source and istext:
+	    content_type = 'text/plain'
+	if content_type == 'text/html':
+	    parserclass = AppletHTMLParser
+	elif content_type == 'text/plain':
+	    parserclass = TextParser
+	else:
+	    parserclass = self.find_parser_extension(content_type)
+	    if not parserclass and istext:
+		parserclass = TextParser
+
+	if parserclass:
+	    parser = parserclass(self.viewer)
 	else:
 	    parser = None
 
 	if parser:
-	    while 1:
-		line = fp.readline()
-		if not line: break
-		if line[-2:] == '\r\n':
-		    line = line[:-2] + '\n'
-		parser.feed(line)
-		self.root.update_idletasks()
+	    if istext:
+		while 1:
+		    line = fp.readline()
+		    if not line: break
+		    if line[-2:] == '\r\n':
+			line = line[:-2] + '\n'
+		    parser.feed(line)
+		    self.root.update_idletasks()
+	    else:
+		# XXX This always blocks until a whole buffer is available :-(
+		BUFSIZE = 512
+		while 1:
+		    buf = fp.read(BUFSIZE)
+		    if not buf: break
+		    parser.feed(buf)
+		    self.root.update_idletasks()
 	    parser.close()
 	else:
 	    self.viewer.send_flowing_data(
 		"Sorry, I'm too stupid to display %s data yet\n" %
 		content_type)
 	    self.viewer.send_flowing_data(
-		"(But it sure would make a nice extensions :-)\n")
+		"(But it sure would make a nice extension :-)\n")
 	    self.viewer.send_flowing_data(
 		"You can still use the Save As... command to save it!\n")
 
@@ -215,7 +236,10 @@ class Browser:
 
 	self.viewer.freeze()
 
-	self.title = parser and parser.title or self.url
+	if parser and hasattr(parser, 'title'):
+	    self.title = parser.title
+	else:
+	    self.title = self.url
 	self.root.title('Grail Browser: ' + self.title)
 
 	self.message_clear()
@@ -224,6 +248,38 @@ class Browser:
 	    self.viewer.scroll_to(fragment)
 
 	self.set_history(new)
+
+    def find_parser_extension(self, content_type):
+	# XXX SECURITY XXX if content_type has weird characters
+	try:
+	    [type, subtype] = string.splitfields(content_type, '/')
+	except:
+	    return None
+	modname = type + '_' + subtype
+	# XXX Some of this needs to be moved into the Application class
+	home = getenv("HOME") or os.curdir
+	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
+	mimetypesdir = os.path.join(graildir, "mimetypes")
+	if mimetypesdir not in sys.path: sys.path.insert(0, mimetypesdir)
+	# XXX Hack, hack, hack
+	cmd = "import %s; parser = %s.parse_%s" % (modname, modname, modname)
+	cmd2 = "import %s; parser = %s.parse_%s" % (type, type, type)
+	try:
+	    try:
+		exec cmd
+	    except ImportError:
+		modname = type
+		try:
+		    exec cmd2
+		except ImportError:
+		    return None
+	    return parser
+	except:
+	    print "-"*40
+	    print "Exception occurred during import of %s:" % modname
+	    traceback.print_exc()
+	    print "-"*40
+	    return None
 
     def set_history(self, new):
 	if new:
@@ -266,12 +322,7 @@ class Browser:
     def view_source_command(self):
 	# File/View Source
 	b = Browser(self.master, self.app, height=24)
-	save_show_source = b.show_source
-	try:
-	    b.show_source = 1
-	    b.load(self.url)
-	finally:
-	    b.show_source = save_show_source
+	b.load(self.url, 1, 1)
 
     def save_as_command(self):
 	# File/Save As...
@@ -368,6 +419,12 @@ class TextParser:
 
     def close(self):
 	pass
+
+
+
+def getenv(s):
+    if os.environ.has_key(s): return os.environ[s]
+    return None
 
 
 def test():
