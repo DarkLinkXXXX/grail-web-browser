@@ -171,6 +171,9 @@ class HTMLParser(SGMLParser):
 	"""
 	self.save_end()
 
+    start_script = start_style
+    end_script = end_style
+
     # ------ Body elements
 
     # --- Headings
@@ -257,7 +260,7 @@ class HTMLParser(SGMLParser):
 	    align = string.lower(attrs['align'])
 	self.formatter.push_alignment(align)
 
-    def end_p(self, parbreak = 1):
+    def end_p(self, parbreak=1):
 	if not 'pre' in self.stack:
 	    self.formatter.end_paragraph(parbreak)
 	    self.formatter.pop_alignment()
@@ -277,6 +280,18 @@ class HTMLParser(SGMLParser):
 
     def end_div(self):
 	self.end_p(parbreak=0)
+
+    # New tag: <CENTER> (for Amy)
+
+    def start_center(self, attrs):
+	self.implied_end_p()
+	self.formatter.add_line_break()
+	self.formatter.push_alignment('center')
+
+    def end_center(self):
+	self.implied_end_p()
+	self.formatter.add_line_break()
+	self.formatter.pop_alignment()
 
     def start_pre(self, attrs):
 	self.close_paragraph()
