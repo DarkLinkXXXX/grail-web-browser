@@ -36,7 +36,7 @@ class PageInfo:
     resolution of relative urls on this page.  Currently the base URL
     information is kept with the context object.
     """
-    def __init__(self, url='', title='', scrollpos=None, formdata=None):
+    def __init__(self, url='', title='', scrollpos=1.0, formdata=None):
 	self._url = url
 	self._title = title
 	self._scrollpos = scrollpos
