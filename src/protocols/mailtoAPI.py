@@ -3,6 +3,7 @@
 from Tkinter import *
 import tktools
 import os
+import time
 
 from __main__ import app
 from nullAPI import null_access
@@ -14,14 +15,24 @@ class mailto_access(null_access):
 	null_access.__init__(self, url, method, params)
 	toplevel = MailDialog(app.root, url)
 
+if os.sys.platform[:3] == 'sco': 
+    # Use MMDF instead of sendmail
+    SENDMAIL = "/usr/mmdf/bin/submit -mtlrxto,cc\'*\'s"
+    # submit needs a Date: field or it will not include it
+    TEMPLATE ="""\
+To: %(to)s
+Date: %(date)s
+Subject: %(subject)s
 
-SENDMAIL = "/usr/lib/sendmail -t" # XXX
-
-TEMPLATE ="""\
+"""
+else:
+    SENDMAIL = "/usr/lib/sendmail -t" # XXX
+    TEMPLATE ="""\
 To: %(to)s
 Subject: %(subject)s
 
 """
+
 
 class MailDialog:
 
@@ -44,6 +55,7 @@ class MailDialog:
 	self.cancel_button.pack(side=RIGHT)
 	variables = {
 	    'to': address,
+	    'date': time.ctime(time.time()),
 	    'subject': "",		# XXX
 	    }
 	self.text.insert(END, self.template % variables)
