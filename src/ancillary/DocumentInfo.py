@@ -4,7 +4,7 @@
 
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.12 $'
+__version__ = '$Revision: 2.13 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import regex
@@ -21,10 +21,13 @@ class DocumentInfoDialog:
     def __init__(self, master, context, class_="DocumentInfo"):
         root = tktools.make_toplevel(master, class_=class_,
                                      title="Document Info")
+        self.root = root
+        self.app = context.app
+        context.app.session.add_window(root)
         page_title = context.page.title()
         if page_title:
             root.title("Document Info: " + page_title)
-        destroy = root.destroy
+        destroy = self.destroy
         for seq in ("<Alt-W>", "<Alt-w>", "<Return>"):
             root.bind(destroy)
         root.protocol("WM_DELETE_WINDOW", destroy)
@@ -78,6 +81,10 @@ class DocumentInfoDialog:
         root.minsize(reqwidth, reqheight)
         if not stretch:
             root.maxsize(reqwidth, reqheight)
+
+    def destroy(self, event=None):
+        self.app.session.del_window(self.root)
+        self.root.destroy()
 
     def add_field(self, label, name):
         fr = Tkinter.Frame(self.__topfr, name=name, class_="Dataitem")
@@ -136,6 +143,3 @@ class DocumentInfoCommand:
     def __call__(self, event=None):
         DocumentInfoDialog(self.__viewer.master,
                            self.__viewer.context)
-
-#
-#  end of file
