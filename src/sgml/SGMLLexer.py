@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.13 $"
+__version__ = "$Revision: 1.14 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -190,8 +190,6 @@ class SGMLLexerBase:
 
 
 class SGMLLexer(SGMLLexerBase):
-    nomoretags = 0
-
     if _sgmllex:
 	def __init__(self):
 	    self.reset()
@@ -212,6 +210,7 @@ class SGMLLexer(SGMLLexerBase):
 				      self._lex_got_geref,
 				      self._lex_declaration,
 				      self._lex_err)
+	    self.nomoretags = 0
 
 	def restrict(self, constrain):
 	    self._l.compat(constrain)
@@ -223,9 +222,9 @@ class SGMLLexer(SGMLLexerBase):
 	    self._l.scan('')
 
 	def setnomoretags(self):
+	    self.nomoretags = 1
 	    self._l.scan('')		# flush flex cache - not perfect
 	    self.feed = self.lex_data
-	    self.nomoretags = 1
 
 	def _lex_got_geref(self, entname, terminator):
 	    if self.nomoretags:
