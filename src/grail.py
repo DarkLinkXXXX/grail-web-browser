@@ -7,7 +7,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.2.1"		# 0.2 plus fixes
+__version__ = "Grail/0.2.2"		# 0.2 plus fixes plus <applet> tag
 
 
 import sys
@@ -293,7 +293,9 @@ class Application:
 	self.image_cache[url] = image
 
     def open_url(self, url, method, params, reload=0, data=None):
-	return self.url_cache.open(url, method, params, reload, data=data)
+	api = self.url_cache.open(url, method, params, reload, data=data)
+	api._url_ = url
+	return api
 
     def open_url_simple(self, url):
 	api = self.open_url(url, 'GET', {})
@@ -548,7 +550,7 @@ if sys.argv[1:] and sys.argv[1][:2] == '-p':
     p = sys.argv[1]
     del sys.argv[1]
     if p[2:]: n = eval(p[2:])
-    else: n = 10
+    else: n = 20
     import profile
     profile.run('main()', '@grail.prof')
     import pstats
