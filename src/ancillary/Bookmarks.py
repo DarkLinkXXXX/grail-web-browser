@@ -34,13 +34,16 @@ except KeyError:
 
 
 BMPREFGROUP = 'bookmarks'
+ADDLOC_PREF = 'add-location'
+COLLAPSE_PREF = 'aggressive-collapse'
+INCLUDE_PREF = 'include-in-pulldown'
 
 True = 1
 False = None
 
-NEW_AT_END = 1
-NEW_AT_BEG = 2
-NEW_AS_CHILD = 3
+NEW_AT_BEG = 'file-prepend'
+NEW_AT_END = 'file-append'
+NEW_AS_CHILD = 'as-child-or-sib'
 
 BookmarkFormatError = 'BookmarkFormatError'
 PoppedRootError = 'PoppedRootError'
@@ -647,26 +650,6 @@ class BookmarksDialog:
 	self._frame.bind("<Down>", self._controller.next_cmd)
 	self._frame.bind("n", self._controller.next_cmd)
 	self._frame.bind("N", self._controller.next_cmd)
-##	itemmenu.add_separator()
-	#
-	# Properties menu (details)
-	#
-	propsbtn = Menubutton(self._menubar, text="Properties")
-	propsbtn.pack(side=LEFT)
-	propsmenu = Menu(propsbtn)
-	propsmenu.add_checkbutton(label="Aggressive Collapse",
-				  variable=self._controller.aggressive)
-	propsmenu.add_separator()
-	propsmenu.add_radiobutton(label='Add Current Appends to File',
-				  variable=self._controller.addcurloc,
-				  value=NEW_AT_END)
-	propsmenu.add_radiobutton(label='Add Current Prepends to File',
-				  variable=self._controller.addcurloc,
-				  value=NEW_AT_BEG)
-	propsmenu.add_radiobutton(label='Add Current As Child or Sibling',
-				  variable=self._controller.addcurloc,
-				  value=NEW_AS_CHILD)
-	propsbtn.config(menu=propsmenu)
 
     def _create_listbox(self):
 	self._listbox, frame = tktools.make_list_box(self._frame,
@@ -854,35 +837,44 @@ class BookmarksController(OutlinerController):
 	self._initialized_p = False
 	self._tkvars = {
 	    'aggressive': BooleanVar(),
-	    'addcurloc':  IntVar(),
+	    'addcurloc':  StringVar(),
 	    'fileformat': StringVar(),
 	    'statusmsg': StringVar(),
+	    'includepulldown': BooleanVar(),
 	    }
 	# get preferences and set the values
-	prefs = app.prefs
+	self._prefs = prefs = app.prefs
+	prefs.AddGroupCallback(BMPREFGROUP, self._notify)
 	try:
-	    where = prefs.Get(BMPREFGROUP, 'add-location')
-	    if where == 'file-prepend':
-		where = NEW_AT_BEG
-	    elif where == 'file-append':
-		where = NEW_AT_END
-	    elif where == 'as-child-or-sib':
-		where = NEW_AS_CHILD
-	    else:
+	    where = prefs.Get(BMPREFGROUP, ADDLOC_PREF)
+	    if where not in [NEW_AT_BEG, NEW_AT_END, NEW_AS_CHILD]:
 		raise TypeError
 	except (TypeError, KeyError):
-	    where = NEW_AT_BET
+	    where = NEW_AT_BEG
 	self.addcurloc.set(where)
 	try:
-	    aggressive = prefs.GetBoolean(BMPREFGROUP, 'aggressive-collapse')
+	    aggressive = prefs.GetBoolean(BMPREFGROUP, COLLAPSE_PREF)
 	except (TypeError, KeyError):
 	    aggressive = 0
 	self.aggressive.set(aggressive and 1 or 0)
+	try:
+	    includepulldown = prefs.GetBoolean(BMPREFGROUP, INCLUDE_PREF)
+	except (TypeError, KeyError):
+	    includepulldown = 0
+	self.includepulldown.set(includepulldown and 1 or 0)
 	# other initializations
 	self.fileformat.set('Automatic')
 	self.statusmsg.set('')
 	self._modflag = False
 	app.register_on_exit(self.on_app_exit)
+
+    def _notify(self):
+	addcurloc = self._prefs.Get(BMPREFGROUP, ADDLOC_PREF)
+	aggressive = self._prefs.GetBoolean(BMPREFGROUP, COLLAPSE_PREF)
+	includepulldown = self._prefs.GetBoolean(BMPREFGROUP, INCLUDE_PREF)
+	self.addcurloc.set(addcurloc)
+	self.aggressive.set(aggressive and 1 or 0)
+	self.includepulldown.set(includepulldown and 1 or 0)
 
     def __getattr__(self, name):
 	if self._tkvars.has_key(name): return self._tkvars[name]
@@ -1325,10 +1317,11 @@ class BookmarksMenu:
 	# delete any old existing bookmark entries
 	last = self._menu.index('end')
 	if last > 2: self._menu.delete(3, 'end')
-	# First make sure the controller has initialized
-	self._controller.initialize(active_browser=self._browser)
-	viewer = BookmarksMenuViewer(self._controller, self._menu)
-	viewer.populate()
+	if self._controller.includepulldown.get():
+	    # First make sure the controller has initialized
+	    self._controller.initialize(active_browser=self._browser)
+	    viewer = BookmarksMenuViewer(self._controller, self._menu)
+	    viewer.populate()
 
     def show(self, event=None):
 	# make sure controller is initialized
