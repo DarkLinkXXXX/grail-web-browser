@@ -1,24 +1,52 @@
 """Functional interface to Grail user preferences.
 
-There are two preferences files, both named "grail-preferences".  The
-system-wide one is located in the Grail root directory.  The user's custom
-preferences, which supercede the system preferences, is in
-grailutil.getgraildir().
-
-Preferences files contain string name/value pairs, delimited with rfc822
-header fields.  The names are case insensitive, and consist of two parts -
-group and preference name - delimited by '--' a pair of dashes, eg:
-
-group--pref:	value...
+There are two preferences files.  The system-wide defaults file is located
+in the grail root directory, and named "grail-defaults".  The user's custom
+preferences, whose settings supercede ones from the system preferences, is
+in the directory named by grailutil.getgraildir().
 
 Interrogation for preferences which have no set value provokes a KeyError
 exception.
+
+	Preferences file format:
+
+Preferences files contain string name/value pairs, delimited like rfc822
+header fields.  Most lines start with non-whitespace alphanumerics - the
+header-field name - followed immediately by a ':'.  Typically, whitespace
+follows and then the value for that field.
+
+There are also continuation lines, which begin with whitespace, but also
+contain non-whitespace.  These lines continue the value for the most recent
+line with a header-field name.
+
+Preference key names are derived by dividing header-field names into two
+parts, a group name and a preference name.  The two parts are represented
+in the header-field name delimited by '--' a pair of dashes.  Preference
+key names are case insensitive.
+
+The first line in a preferences file containing only white-space terminates
+the preferences, and a warning is emitted to stderr if there are any
+subsequent non-blank lines.
+
+Comments can be included in a preferences file by using header-style lines
+where the header-field name does *not* contain a '--' pair of dashes.
+
+Here is an example of a small preferences file:
+
+C: Comment lines here begin with "C:".
+landmarks--grail-home-page:	http://monty.cnri.reston.va.us/grail-0.2/
+C: Pref ('landmarks', 'home-page') with empty value:
+landmarks--home-page:
+C: Pref with value on continuation line (this comment cannot be between!):
+presentation--message-font:
+	-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*
+browser--default-height:	40
 """
 
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.4 $"
+__version__ = "$Revision: 2.5 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
@@ -90,7 +118,6 @@ class Preferences:
 	"""Ensure that the user has a graildir and it is editable."""
 	if not grailutil.establish_dir(os.path.split(self._filename)[0]):
 	    return 0
-	# XxX A gesture to establishing the file:
 	elif os.path.exists(self._filename):
 	    return 1
 	else:
@@ -171,22 +198,11 @@ class AllPreferences:
     def GetFloat(self, group, pref):
 	return self._GetTyped(group, pref, string.atof, "float")
     def GetBoolean(self, group, pref):
-	# implements enhanced Tcl 7.x notion of boolean value,
-	# specifically:
-	# Python None (false) == 'false', 'no', 'off', 0
-	# Python 1     (true) == 'true', 'yes', 'on', non-zero
-	valstr = string.lower(string.strip(self.Get(group, pref)))
-	if valstr in ['false', 'no', 'off']:
-	    return None
-	elif valstr in ['true', 'yes', 'on']:
-	    return 1
-	# check numeric values
-	try:
-	    val = string.atoi(valstr)
-	    return (val and 1 or None)
-	except ValueError:
+	got = self._GetTyped(group, pref, string.atoi, "Boolean")
+	if got not in (0, 1):
 	    raise TypeError, ('%s not %s: %s'
-			      % ((group, pref), "Boolean", `valstr`))
+			      % ((group, pref), "Boolean", `got`))
+	return got
 
     # Editing utensils.
 
@@ -233,6 +249,9 @@ def test():
 	     "Ref to a non-existent pref.", KeyError)
     exercise("x = prefs.GetInt('landmarks', 'grail-home-page')", env,
 	     "Typed ref to incorrect type.", TypeError)
+    exercise("x = prefs.GetBoolean('browser', 'default-height')", env,
+	     "Invalid Boolean (which has complicated err handling) typed ref.",
+	     TypeError)
     # Editing:
     exercise("prefs.Set('browser', 'default-height', height + 1)", env,
 	     "Set a simple value")
