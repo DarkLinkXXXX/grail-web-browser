@@ -272,11 +272,13 @@ class HTMLParser(SGMLParser):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_margin('blockquote')
+        self.formatter.push_style('blockquote')
 
     def end_blockquote(self):
 	self.close_paragraph()		# may be paragraphs in blockquotes
         self.formatter.end_paragraph(1)
         self.formatter.pop_margin()
+        self.formatter.pop_style()
 
     # --- List Elements
 
@@ -473,6 +475,20 @@ class HTMLParser(SGMLParser):
     def start_code(self, attrs): self.start_tt(attrs)
     def end_code(self): self.end_tt()
 
+    def start_del(self, attrs):
+	self.formatter.push_font((AS_IS, 1, AS_IS, AS_IS))
+	self.formatter.push_style('red')
+    def end_del(self):
+	self.formatter.pop_style()
+	self.formatter.pop_font()
+
+    def start_ins(self, attrs):
+	self.formatter.push_font((AS_IS, 1, AS_IS, AS_IS))
+	self.formatter.push_style('ins')
+    def end_ins(self):
+	self.formatter.pop_style()
+	self.formatter.pop_font()
+
     def start_dfn(self, attrs): self.start_i(attrs)
     def end_dfn(self): self.end_i()
 
@@ -484,6 +500,11 @@ class HTMLParser(SGMLParser):
 
     def start_samp(self, attrs): self.start_tt(attrs)
     def end_samp(self): self.end_tt()
+
+    def start_strike(self, attrs):
+	self.formatter.push_style('overstrike', 'red')
+    def end_strike(self):
+	self.formatter.pop_style(2)
 
     def start_strong(self, attrs): self.start_b(attrs)
     def end_strong(self): self.end_b()
@@ -507,6 +528,16 @@ class HTMLParser(SGMLParser):
 	self.formatter.push_font((AS_IS, AS_IS, AS_IS, 1))
     def end_tt(self):
 	self.formatter.pop_font()
+
+    def start_u(self, attrs):
+	self.formatter.push_style('underline')
+    def end_u(self):
+	self.formatter.pop_style()
+
+    def start_s(self, attrs):
+	self.formatter.push_style('overstrike')
+    def end_s(self):
+	self.formatter.pop_style()
 
     def start_a(self, attrs):
         href = ''
