@@ -101,7 +101,6 @@ class PrintDialog:
     def print_to_fp(self, fp):
 	from urllib import urlopen
 	from html2ps import PSWriter
-	from htmllib import HTMLParser
 	from formatter import AbstractFormatter
 	try:
 	    infp = urlopen(self.url)
@@ -110,7 +109,7 @@ class PrintDialog:
 	    return
 	w = PSWriter(fp, self.title)
 	f = AbstractFormatter(w)
-	p = HTMLParser(f)
+	p = PrintingHTMLParser(f)
 	p.feed(infp.read())
 	infp.close()
 	p.close()
@@ -122,3 +121,19 @@ class PrintDialog:
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
 	self.root.destroy()
+
+
+from htmllib import HTMLParser
+
+
+class PrintingHTMLParser(HTMLParser):
+
+    # Override HTMLParser internal methods
+
+    def anchor_bgn(self, href, name, type):
+	self.anchor = href
+	self.formatter.push_style(href and 'u' or None)
+
+    def anchor_end(self):
+	self.formatter.pop_style()
+	self.anchor = None
