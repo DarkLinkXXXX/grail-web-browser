@@ -120,7 +120,11 @@ class AppletRExec(RExec):
 
     def reset_urlpath(self):
 	path = self.modules['sys'].path
-	path[:] = filter(lambda x: not is_url(x), path)
+	path[:] = self.get_url_free_path()
+
+    def get_url_free_path(self):
+	path = self.modules['sys'].path
+	return filter(lambda x: not is_url(x), path)
 
     def make_initial_modules(self):
 	RExec.make_initial_modules(self)
@@ -142,6 +146,7 @@ class AppletRExec(RExec):
 	except ImportError:
 	    return
 	m = self.copy_except(socket, ('fromfd',))
+	# XXX Ought to only allow connections to host from which applet loaded
 
     def make_sunaudiodev(self):
 	try:
