@@ -1,6 +1,6 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.9 $'
+__version__ = '$Revision: 1.10 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -15,21 +15,23 @@ class Writer(bookmarks.walker.TreeWalker):
     __depth = 0
     __header = '''\
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE xbel
+<!DOCTYPE %s
   PUBLIC "%s"
          "%s">
-<xbel xmlns="%s"''' \
-    % (XBEL_PUBLIC_ID, XBEL_SYSTEM_ID, XBEL_SYSTEM_ID)
+'''
 
     def __init__(self, root=None):
         bookmarks.walker.TreeWalker.__init__(self, root)
         self.__close_folders = []
 
     def write_tree(self, fp):
-        fp.write(self.__header)
+        root = self.get_root()
+        root_type = string.lower(root.get_nodetype())
+        if root_type == "folder":
+            root_type = "xbel"
+        fp.write(self.__header % (root_type, XBEL_PUBLIC_ID, XBEL_SYSTEM_ID))
         self.__fp = fp
         self.walk()
-        fp.write("</xbel>\n")
 
     def get_filetype(self):
         return "xbel"
@@ -49,7 +51,8 @@ class Writer(bookmarks.walker.TreeWalker):
             attrs = '%s id="%s"' % (attrs, node.id())
         #
         if not self.__depth:
-            self.__fp.write(attrs + ">\n")
+            self.__fp.write('<xbel xmlns="%s"%s>\n'
+                            % (XBEL_SYSTEM_ID, attrs))
             if title:
                 self.__fp.write("%s  <title>%s</title>\n"
                                 % (tab, bookmarks._prepstring(title)))
@@ -85,17 +88,27 @@ class Writer(bookmarks.walker.TreeWalker):
         depth = self.__depth = self.__depth - 1
         if self.__close_folders.pop():
             self.__fp.write("  " * depth + "</folder>\n")
+        else:
+            self.__fp.write("</xbel>\n")
 
     def start_Separator(self, node):
-        self.__fp.write("  " * self.__depth + "<separator/>\n")
+        tab = "  " * self.__depth
+        if self.__depth:
+            s = "<separator/>\n"
+        else:
+            s = '<separator xmlns="%s"/>\n' % XBEL_SYSTEM_ID
+        self.__fp.write(tab + s)
 
     def start_Alias(self, node):
         idref = node.idref()
         if idref is None:
             sys.stderr.write("Alias node has no referent; dropping.\n")
-        else:
+        elif self.__depth:
             self.__fp.write('%s<alias ref="%s"/>\n'
                             % ("  " * self.__depth, idref))
+        else:
+            self.__fp.write('%s<alias xmlns="%s"\n       ref="%s"/>\n'
+                            % ("  " * self.__depth, XBEL_SYSTEM_ID, idref))
 
     def start_Bookmark(self, node):
         date_attr = _fmt_date_attr
@@ -108,7 +121,10 @@ class Writer(bookmarks.walker.TreeWalker):
             idref = 'id="%s"' % idref
         title = bookmarks._prepstring(node.title() or '')
         uri = bookmarks._prepstring(node.uri() or '')
-        attrs = filter(None, (idref, added, modified, visited))
+        xmlns = ''
+        if not self.__depth:
+            xmlns = 'xmlns="%s"' % XBEL_SYSTEM_ID
+        attrs = filter(None, (xmlns, idref, added, modified, visited))
         #
         tab = "  " * self.__depth
         if attrs:
@@ -133,9 +149,8 @@ class Writer(bookmarks.walker.TreeWalker):
         w = 60 - len(tab)
         desc = bookmarks._prepstring(desc)
         if len(desc) > w:
-            desc = _wrap_lines(desc, 70 - len(tab),
-                               indentation=len(tab) + 4)
-            desc = "\n%s\n%s    " % (desc, tab)
+            desc = _wrap_lines(desc, 70 - len(tab), indentation=len(tab) + 4)
+            desc = "%s\n%s    " % (desc, tab)
         self.__fp.write("%s  <desc>%s</desc>\n" % (tab, desc))
 
     def __write_info(self, info):
