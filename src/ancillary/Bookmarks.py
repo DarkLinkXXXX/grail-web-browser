@@ -518,7 +518,9 @@ class BookmarksDialog:
         self._controller.hide()
 
     def hide(self):
-        browser = self._controller.get_browser().root.focus_set()
+        browser = self._controller.get_browser()
+        if browser:
+            browser.root.focus_set()
         self._frame.withdraw()
 
     def visible_p(self):
@@ -535,8 +537,8 @@ class BookmarksDialog:
 
 class DetailsDialog:
     def __init__(self, master, node, controller):
-        self._frame = tktools.make_toplevel(master, class_='BookmarkDetail')
-#                                           title="Bookmark Details")
+        self._frame = tktools.make_toplevel(master, class_='Detail',
+                                            title="Bookmark Details")
         self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
         self._node = node
         self._controller = controller
@@ -716,8 +718,10 @@ class BookmarksController(OutlinerController):
 
     def get_browser(self):
         if self._active not in self._app.browsers:
-            # there better be at least one browser window open!
-            self._active = self._app.browsers[-1]
+            try:
+                self._active = self._app.browsers[-1]
+            except IndexError:
+                self._active = None     # all browsers have been closed
         return self._active
 
     ## coordinate with Application instance
@@ -855,7 +859,9 @@ class BookmarksController(OutlinerController):
     def bookmark_goto(self, event=None):
         filename = self._iomgr.filename()
         if filename:
-            self.get_browser().context.load('file:' + filename)
+            browser = self.get_browser()
+            if browser:
+                browser.context.load('file:' + filename)
 
     def goto_node(self, node, browser=None):
         if node and node.leaf_p() and node.uri():
@@ -864,6 +870,8 @@ class BookmarksController(OutlinerController):
                 self._details[id(node)].revert()
             if browser is None:
                 browser = self.get_browser()
+                if browser is None:
+                    return
             browser.context.load(node.uri())
             self.viewer().select_node(node)
             self.set_modflag(True, quiet=True)
@@ -871,6 +879,8 @@ class BookmarksController(OutlinerController):
     def add_current(self, event=None):
         # create a new node for the page in the current browser
         browser = self.get_browser()
+        if browser is None:
+            return
         title = browser.context.get_title()
         url = browser.context.get_baseurl()
         node = self.add_link(url, title)
@@ -930,7 +940,7 @@ class BookmarksController(OutlinerController):
             details = self._details[id(node)]
             details.show()
         else:
-            details = DetailsDialog(self._master, node, self)
+            details = DetailsDialog(self._dialog._frame, node, self)
             self._details[id(node)] = details
 
     def title_dialog(self, event=None):
@@ -986,15 +996,16 @@ class BookmarksController(OutlinerController):
         if not node: return
         newnode = BookmarksParser.BookmarkNode('<Category>')
         self._insert_at_node(node, newnode)
-        self._details[id(newnode)] = DetailsDialog(self._master, newnode, self)
+        details = DetailsDialog(self._dialog._frame, newnode, self)
+        self._details[id(newnode)] = details
 
     def insert_entry(self, event=None):
         node, selection = self._get_selected_node()
         if not node: return
         newnode = BookmarksParser.BookmarkNode('<Entry>', '')
         self._insert_at_node(node, newnode)
-        details = self._details[id(newnode)] = \
-                  DetailsDialog(self._master, newnode, self)
+        details = DetailsDialog(self._dialog._frame, newnode, self)
+        self._details[id(newnode)] = details
 
     def remove_entry(self, event=None):
         node, selection = self._get_selected_node()
