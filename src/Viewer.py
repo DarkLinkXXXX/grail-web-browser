@@ -109,6 +109,7 @@ class Viewer(formatter.AbstractWriter):
 	if not self.parent:
 	    # Avoid showing the widget until it's fully constructed:
 	    self.master.withdraw()
+	self.__fonttags_built = {}
 	self.create_widgets(width=width, height=height)
 	self.reset_state()
 	self.freeze(1)
@@ -255,9 +256,11 @@ class Viewer(formatter.AbstractWriter):
 
 	    self.text.config(stylesheet.default)
 	    use_font_dingbats = 1
-	    for tag, cnf in stylesheet.styles.items():
+	    # Build tags that we might be using or have special semantics;
+	    # other font tags will be configured dynamically.
+	    for tag in ['_ding'] + self.__fonttags_built.keys():
 		try:
-		    self.text.tag_config(tag, cnf)
+		    self.configure_fonttag(tag)
 		except TclError, err:
 		    # This extra logic is needed to switch to gif-based
 		    # dingbats if the font is not available in the current
@@ -311,6 +314,13 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
 	    self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
 	    self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
+
+    def configure_fonttag(self, tag):
+	# configure a single font
+	if self.__fonttags_built is None:
+	    self.__fonttags_built = {}
+	self.__fonttags_built[tag] = tag
+	apply(self.text.tag_config, (tag,), self.stylesheet.styles[tag])
 
     def bind_anchors(self, tag):
 	# Each URL must have a separate binding so moving between
@@ -457,18 +467,25 @@ class Viewer(formatter.AbstractWriter):
 
     def new_font(self, font):
 ##	print "New font:", font
-	if not font:
-	    self.fonttag = None
+	if font:
+	    tag = self.make_fonttag(font)
 	else:
-	    tag, i, b, tt = font
-	    tag = tag or ''
-	    if tt: tag = tag + '_tt'
-	    if b: tag = tag + '_b'
-	    if i: tag = tag + '_i'
-	    if tag != self.fonttag:
-		self.flush()
-	    self.fonttag = tag or None
+	    tag = None
+	if tag != self.fonttag:
+	    self.flush()
+	    self.fonttag = tag
 	self.new_tags()
+
+    def make_fonttag(self, (tag, i, b, tt)):
+	tag = tag or ''
+	if tt: tag = tag + '_tt'
+	if b: tag = tag + '_b'
+	if i: tag = tag + '_i'
+	if tag:
+	    if self.__fonttags_built and self.__fonttags_built.has_key(tag):
+		return tag
+	    self.configure_fonttag(tag)
+	return tag or None
 
     def new_margin(self, margin, level):
 ##	print "New margin:", margin, level
@@ -531,6 +548,7 @@ class Viewer(formatter.AbstractWriter):
 		self.text.insert(END, self.pendingdata, self.flowingtags,
 				 '\t', tags,
 				 data, tags + (fonttag,))
+		self.text.tag_raise(fonttag)
 		self.pendingdata = '\t'
 	    else:
 		self.text.insert(END, self.pendingdata, self.flowingtags,
