@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.6 1995/09/21 20:56:39 bwarsaw Exp $
+$Id: html2ps.py,v 2.7 1995/09/27 23:28:24 bwarsaw Exp $
 """
 
 
@@ -189,10 +189,10 @@ def pt_to_inch(points): return points / 72.0
 
 TOP_MARGIN = inch_to_pt(10)
 BOT_MARGIN = inch_to_pt(0.5)
-LEFT_MARGIN = inch_to_pt(1.0)
+LEFT_MARGIN = inch_to_pt(0.75)
 RIGHT_MARGIN = inch_to_pt(1.0)
 PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN)
-PAGE_WIDTH = inch_to_pt(8.5) - 2 * LEFT_MARGIN
+PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 
 # horizontal rule spacing, in points
 HR_TOP_MARGIN = 8.0
@@ -200,6 +200,9 @@ HR_BOT_MARGIN = 8.0
 
 # distance after a label tag in points
 LABEL_TAB = 8.0
+
+# page indicator yposition
+PAGE_TAB = -PAGE_HEIGHT - 32
 
 # I don't support color yet
 F_FULLCOLOR = 0
@@ -436,7 +439,7 @@ class PSQueue:
 	self.ofile = ofile
 	self.title = title
 	self.curpage = 1
-	self.margin = 0
+	self.margin = 0.0
 
     def push_string(self, string):
 	tag, info = self.pop(STRING)
@@ -636,8 +639,7 @@ class PSQueue:
 	    elif tag == HR:
 		self.ofile.write('%f HR\n' % PAGE_WIDTH)
 	    elif tag == MARGIN:
-		self.ofile.write('/indentmargin %f D\n' %
-				 (info * LEFT_MARGIN))
+		self.ofile.write('/indentmargin %f D\n' % (info * LEFT_MARGIN))
 		self.ofile.write('NL\n')
 	    elif tag == LABEL:
 		if info is not None:
@@ -647,13 +649,12 @@ class PSQueue:
 	    elif tag == LITERAL:
 		pass
 	    elif tag == VERT_TAB:
-		if ypos - info < -PAGE_HEIGHT:
+		ypos = ypos - info
+		if ypos <= -PAGE_HEIGHT:
 		    self._end_page()
 		    self.curpage = self.curpage + 1
 		    self._start_page(self.curpage)
 		    ypos = 0.0
-		else:
-		    ypos = ypos - info
 		self.ofile.write('0 -%f R\n' % info)
 	    elif tag == HARD_NL:
 		self.ofile.write('NL\n')
@@ -668,7 +669,7 @@ class PSQueue:
 	    print '%%Page:', pagenum, pagenum
 	    print 'save'
 	    print 'NP'
-	    print '0 0 M'
+	    print '0 0 M NL'
 	    if RECT_DEBUG:
 		print 'gsave', 0, 0, "M"
 		print PAGE_WIDTH, 0, "RL"
@@ -683,7 +684,7 @@ class PSQueue:
 	stdout = sys.stdout
 	try:
 	    sys.stdout = self.ofile
-	    print 'save', 0, -PAGE_HEIGHT - 12, "M"
+	    print 'save', 0, PAGE_TAB, "M"
 	    print "FONTVI 12 SF"
 	    print "(Page", self.curpage, ") S restore"
 	    print "showpage"
