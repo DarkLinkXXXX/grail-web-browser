@@ -1,6 +1,6 @@
 """Wrapper for the PSStream to support the standard AbstractWriter interface.
 """
-__version__ = '$Revision: 1.7 $'
+__version__ = '$Revision: 1.8 $'
 #  $Source: /home/john/Code/grail/src/printing/PSWriter.py,v $
 
 import formatter
@@ -95,6 +95,8 @@ class PSWriter(formatter.AbstractWriter):
     def suppress_indentation(self, suppress=1):
         """Controll suppression of the *next* indentation sent."""
         self.__suppress_indentation = suppress
+        if suppress:
+            self.__pending_indentation = None
 
     def send_indentation(self, width):
         """Add some 'pended' paragraph indentation which might get cancelled
