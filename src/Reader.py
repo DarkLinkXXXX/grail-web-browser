@@ -1,6 +1,6 @@
 """Reader class -- helper to read documents asynchronously."""
 
-
+import grailutil
 import os
 import sys
 import string
@@ -482,6 +482,7 @@ class TransferDisplay:
 	self.context = Context.SimpleContext(self, self)
 	self.context._url = self.context._baseurl = url
 	reader.last_context = self.context
+	self.__filename = filename
 	self.__reader = reader
 	self.__save_file = reader.save_file
 	reader.save_file = self
@@ -492,7 +493,6 @@ class TransferDisplay:
 	    self.root.title("Grail Download")
 	self.root.iconname("Download")
 	# icon set up
-	import grailutil
 	iconxbm_file = grailutil.which('icon.xbm')
 	if iconxbm_file:
 	    try: self.root.iconbitmap('@' + iconxbm_file)
@@ -509,19 +509,16 @@ class TransferDisplay:
 	es.configure(state=DISABLED)
 	ed.configure(state=DISABLED)
 	fd.pack(pady='1m')
-	Button(topfr, command=self.close, text="Stop").pack()
+	Button(topfr, command=self.stop, text="Stop").pack()
 	Frame(self.root, borderwidth=1, relief=SUNKEN, height=2
 	      ).pack(fill=X)
 	f = Frame(self.root)
 	f.pack(fill=X)
 	if headers.has_key('content-length'):
 	    self.make_progress_bar(headers['content-length'], f)
-	print "Debugging info for", self
-	print "self.context =", `self.context`
-	print "self.context.app =", `self.context.app`
 	self.__status = Label(f, font=self.context.app.prefs.Get(
-	    'presentation', 'message-font'))
-	self.__status.pack(side=LEFT)
+	    'presentation', 'message-font'), anchor=W)
+	self.__status.pack(side=LEFT, fill=X)
 	reader.restart(reader.url)
 	reader.bufsize = 8096
 
@@ -534,12 +531,23 @@ class TransferDisplay:
 	    size = string.atoi(size)
 	except ValueError:
 	    return
-	self.__maxsize = 100.0 * size
+	self.__maxsize = 1.0 * size	# make it a float for future calc.
+	self.__progdesc = "%.1f%% of " + grailutil.nicebytes(size)
+	# These frames must use the cnf={} approach to get the 1.4
+	# Tkinter.Frame implementation to use the class setting.
 	f = Frame(frame, relief=SUNKEN, borderwidth=1, background="powderblue",
-		  height=10, width=102)
+		  height=10, width=162)
 	f.pack(side=RIGHT, padx='1m')
-	self.__progbar = Frame(f, height=8, width=1, background="midnightblue")
+	self.__progfr = f
+	self.__progbar = Frame(f, width=1, background="darkblue",
+			       height=string.atoi(f.cget('height')) - 2)
 	self.__progbar.place(x=0, y=0)
+
+    def stop(self):
+	self.close()
+	if os.path.isfile(self.__filename):
+	    try: os.unlink(self.__filename)
+	    except IOError, msg: self.context.error_dialog(IOError, msg)
 
     # file-like methods; these allow us to intercept the close() method
     # on the reader's save file object
@@ -547,12 +555,13 @@ class TransferDisplay:
     __datasize = 0
     def write(self, data):
 	self.__save_file.write(data)
-	self.__datasize = self.__datasize + len(data)
+	datasize = self.__datasize = self.__datasize + len(data)
 	if self.__progbar:
-	    width = max(1, int(self.__maxsize / self.__datasize))
-	    self.__progbar.config(width=width)
-	desc = str(self.__reader)
-	desc = desc[string.find(desc, ":") + 1:]
+	    self.__progbar.config(
+		width=max(1, int(datasize * 160 / self.__maxsize)))
+	    desc = self.__progdesc % (100.0 * datasize / self.__maxsize)
+	else:
+	    desc = grailutil.nicebytes(datasize)
 	self.__status["text"] = desc
 
     def close(self):
