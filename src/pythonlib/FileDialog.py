@@ -6,12 +6,6 @@ Classes:
 - LoadFileDialog
 - SaveFileDialog
 
-XXX Bugs:
-
-- The fields are not labeled
-- Each FileDialog instance can be used only once
-- There is no easy way for an application to add widgets of its own
-
 """
 
 from Tkinter import *
@@ -23,6 +17,9 @@ import os
 import fnmatch
 
 
+dialogstates = {}
+
+
 class FileDialog:
 
     """Standard file selection dialog -- no checks on selected file.
@@ -30,8 +27,19 @@ class FileDialog:
     Usage:
 
         d = FileDialog(master)
-        file = d.go(directory, pattern, default)
+        file = d.go(dir_or_file, pattern, default, key)
         if file is None: ...canceled...
+	else: ...open file...
+
+    All arguments to go() are optional.
+
+    The 'key' argument specifies a key in the global dictionary
+    'dialogstates', which keeps track of the values for the directory
+    and pattern arguments, overriding the values passed in (it does
+    not keep track of the default argument!).  If no key is specified,
+    the dialog keeps no memory of previous state.  Note that memory is
+    kept even when the dialog is cancelled.  (All this emulates the
+    behavior of the Macintosh file selection dialogs.)
 
     """
 
@@ -52,9 +60,6 @@ class FileDialog:
 	self.selection = Entry(self.top)
 	self.selection.pack(side=BOTTOM, fill=X)
 	self.selection.bind('<Return>', self.ok_event)
-
-	self.label = Label(self.top, text=title)
-	self.label.pack(side=TOP)
 
 	self.filter = Entry(self.top)
 	self.filter.pack(side=TOP, fill=X)
@@ -99,12 +104,15 @@ class FileDialog:
 	self.top.bind('<Alt-w>', self.cancel_command)
 	self.top.bind('<Alt-W>', self.cancel_command)
 
-    def go(self, dir_or_file=os.curdir, pattern="*", default=""):
-	dir_or_file = os.path.expanduser(dir_or_file)
-	if os.path.isdir(dir_or_file):
-	    self.directory = dir_or_file
+    def go(self, dir_or_file=os.curdir, pattern="*", default="", key=None):
+	if key and dialogstates.has_key(key):
+	    self.directory, pattern = dialogstates[key]
 	else:
-	    self.directory, default = os.path.split(dir_or_file)
+	    dir_or_file = os.path.expanduser(dir_or_file)
+	    if os.path.isdir(dir_or_file):
+		self.directory = dir_or_file
+	    else:
+		self.directory, default = os.path.split(dir_or_file)
 	self.set_filter(self.directory, pattern)
 	self.set_selection(default)
 	self.filter_command()
@@ -112,6 +120,7 @@ class FileDialog:
 	self.top.grab_set()
 	self.how = None
 	self.master.mainloop()		# Exited by self.quit(how)
+	if key: dialogstates[key] = self.get_filter()
 	self.top.destroy()
 	return self.how
 
@@ -120,7 +129,6 @@ class FileDialog:
 	self.master.quit()		# Exit mainloop()
 
     def dirs_double_event(self, event):
-##	self.dirs_select_event(event)
 	self.filter_command()
 
     def dirs_select_event(self, event):
@@ -130,8 +138,6 @@ class FileDialog:
 	self.set_filter(dir, pat)
 
     def files_double_event(self, event):
-##	self.files_select_event(event)
-##	self.master.update_idletasks()
 	self.ok_command()
 
     def files_select_event(self, event):
@@ -230,13 +236,14 @@ class SaveFileDialog(FileDialog):
 	    if os.path.isdir(file):
 		self.master.bell()
 		return
-	    d = Dialog(self.master,
+	    d = Dialog(self.top,
 		       title="Overwrite Existing File Question",
 		       text="Overwrite existing file %s?" % `file`,
 		       bitmap='questhead',
-		       default=0,
+		       default=1,
 		       strings=("Yes", "Cancel"))
-	    if d.num != 0: file = None
+	    if d.num != 0:
+		return
 	else:
 	    head, tail = os.path.split(file)
 	    if not os.path.isdir(head):
@@ -250,9 +257,9 @@ def test():
     root = Tk()
     root.withdraw()
     fd = LoadFileDialog(root)
-    loadfile = fd.go()
+    loadfile = fd.go(key="test")
     fd = SaveFileDialog(root)
-    savefile = fd.go()
+    savefile = fd.go(key="test")
     print loadfile, savefile
 
 
