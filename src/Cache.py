@@ -8,7 +8,6 @@ XXX To do
 - probably need an interface to get the raw CacheItem instead of the
   CacheAPI instance, for the history list (which wants stuff cached
   even if the cache decides against it)
-- need an interface to force reloads
 - etc.
 
 """
@@ -35,8 +34,7 @@ class Cache:
     def __init__(self):
 	self.cachedir = {}
 
-    def open(self, url, mode, params):
-	reload = params.has_key('.reload') and params['.reload']
+    def open(self, url, mode, params, reload=0):
 	key = self.url2key(url, mode, params)
 	if not self.cachedir.has_key(key):
 	    self.cachedir[key] = item = CacheItem(url, mode, params, self, key)
@@ -175,6 +173,12 @@ class CacheItem:
 		self.data = self.data + buf
 	return self.data[offset:offset+maxbytes]
 
+    def fileno(self):
+	if self.api:
+	    return self.api.fileno()
+	else:
+	    return -1
+
     def abort(self):
 	if self.cache:
 	    cachedir = self.cache.cachedir
@@ -234,6 +238,9 @@ class CacheAPI:
 	if not data:
 	    self.close()
 	return data
+
+    def fileno(self):
+	return self.item.fileno()
 
     def close(self):
 	self.stage = DONE
