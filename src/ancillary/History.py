@@ -26,7 +26,7 @@ class HistoryLineReader:
 
 class NetscapeHistoryReader(HistoryLineReader):
     def parse_line(self, line):
-	link, timestamp = ''
+	link = timestamp = ''
 	try:
 	    link, timestamp = tuple(string.splitfields(line, '\t'))
 	    return link, link, string.atoi(timestamp)
