@@ -389,7 +389,7 @@ class Browser:
 	self.load(self.history[self.current][0], new=0)
 
     def reload_command(self):
-	if self.current >= len(self.history):
+	if not 0 <= self.current < len(self.history):
 	    self.root.bell()
 	    return
 	self.load(self.history[self.current][0], new=0, reload=1)
