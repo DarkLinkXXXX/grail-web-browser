@@ -42,6 +42,13 @@ CURSOR_WAIT = 'watch'
 FONT_MESSAGE = "-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*"
 
 
+# Default window geometry
+DEFAULT_WIDTH = 80
+DEFAULT_HEIGHT = 40
+if sys.platform == 'mac':
+    DEFAULT_HEIGHT = 20
+
+
 
 class Browser:
     """A browser window provides the user interface to browse the web.
@@ -51,8 +58,9 @@ class Browser:
     but not least) a viewer widget.
 
     """
-    def __init__(self, master, app=None, width=80, height=40, hist=None,
-		 geometry=None):
+    def __init__(self, master, app=None,
+		 width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
+		 hist=None, geometry=None):
 	self.master = master
 	if not app:
 	    import __main__
@@ -72,8 +80,9 @@ class Browser:
 	# icon set up
 	iconxbm_file = grailutil.which('icon.xbm')
 	self.root.iconname('Grail')
-	try: self.root.iconbitmap('@' + iconxbm_file)
-	except TclError: pass
+	if iconxbm_file:
+	    try: self.root.iconbitmap('@' + iconxbm_file)
+	    except TclError: pass
 
     def _window_title(self, title):
 	# some window managers don't automatically set the iconname to
@@ -100,14 +109,17 @@ class Browser:
 	self.viewer = Viewer(self.root, browser=self,
 			     stylesheet=DefaultStylesheet,
 			     width=width, height=height)
-	self.logo_init()
+	if not getenv("GRAIL_NO_LOGO") and sys.platform != 'mac':
+	    self.logo_init()
 
     def create_logo(self):
 	self.logo = Button(self.topframe,
-				  text="Grail",
-				  command=self.stop_command)
-	self.logo.pack(side=LEFT, padx=10, pady=10)
+			   text="Stop",
+			   command=self.stop_command,
+			   state=DISABLED)
+	self.logo.pack(side=LEFT, fill=BOTH, padx=10, pady=10)
 	self.root.bind("<Alt-period>", self.stop_command)
+	self.logo_animate = 0
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
@@ -615,9 +627,10 @@ class Browser:
 	self.logo_images = []
 	self.logo_image = AsyncImage(self, FIRST_LOGO_IMAGE)
 	self.logo_image.load_synchronously()
-	self.logo.config(image=self.logo_image)
+	self.logo.config(image=self.logo_image, state=NORMAL)
 	self.logo_images = [self.logo_image]
 	self.logo_more = self.logo_image.loaded
+	self.logo_animate = 1
 
     def logo_next(self):
 	self.logo_id = None
@@ -634,11 +647,17 @@ class Browser:
 	    self.logo.config(image=self.logo_images[self.logo_index])
 
     def logo_start(self):
+	self.logo.config(state=NORMAL)
+	if not self.logo_animate:
+	    return
 	if not self.logo_id:
 	    self.logo_index = 0
 	    self.logo_next()
 
     def logo_stop(self):
+	if not self.logo_animate:
+	    self.logo.config(state=DISABLED)
+	    return
 	if self.logo_id:
 	    self.root.after_cancel(self.logo_id)
 	    self.logo_id = None
