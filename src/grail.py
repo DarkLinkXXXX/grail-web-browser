@@ -34,10 +34,6 @@ for path in 'utils', 'pythonlib', 'ancillary', 'applets', \
     sys.path.insert(0, os.path.join(grail_root, path))
 
 # More imports
-import Tkinter # Do this first to avoid confusing ni on Mac/Win
-if sys.version < "1.5":
-    # only use this if necessary since it slows down imports
-    import ni
 import filetypes
 import grailutil
 # TBD: hack!
