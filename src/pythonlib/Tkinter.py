@@ -23,7 +23,6 @@ def _flatten(tuple):
 
 def _cnfmerge(cnfs):
 	if type(cnfs) is DictionaryType:
-		_fixgeometry(cnfs)
 		return cnfs
 	elif type(cnfs) in (NoneType, StringType):
 		
@@ -31,35 +30,9 @@ def _cnfmerge(cnfs):
 	else:
 		cnf = {}
 		for c in _flatten(cnfs):
-			_fixgeometry(c)
 			for k, v in c.items():
 				cnf[k] = v
 		return cnf
-
-if TkVersion >= 4.0:
-	_fixg_warning = "Warning: patched up pre-Tk-4.0 geometry option\n"
-	def _fixgeometry(c):
-		if c and c.has_key('geometry'):
-			wh = _parsegeometry(c['geometry'])
-			if wh:
-				# Print warning message -- once
-				global _fixg_warning
-				if _fixg_warning:
-					import sys
-					sys.stderr.write(_fixg_warning)
-					_fixg_warning = None
-				w, h = wh
-				c['width'] = w
-				c['height'] = h
-				del c['geometry']
-	def _parsegeometry(s):
-		from string import splitfields
-		fields = splitfields(s, 'x')
-		if len(fields) == 2:
-			return tuple(fields)
-		# else: return None
-else:
-	def _fixgeometry(c): pass
 
 class Event:
 	pass
@@ -360,9 +333,9 @@ class Misc:
 	def bind(self, sequence, func=None, add=''):
 		if add: add = '+'
 		if func:
-		    name = self._register(func, self._substitute)
-		    self.tk.call('bind', self._w, sequence, 
-				 (add + name,) + self._subst_format)
+			name = self._register(func, self._substitute)
+			self.tk.call('bind', self._w, sequence, 
+				     (add + name,) + self._subst_format)
 		else:
 		    return self.tk.call('bind', self._w, sequence)
 	def unbind(self, sequence):
@@ -370,21 +343,21 @@ class Misc:
 	def bind_all(self, sequence, func=None, add=''):
 		if add: add = '+'
 		if func:
-		    name = self._register(func, self._substitute)
-		    self.tk.call('bind', 'all' , sequence, 
-				 (add + name,) + self._subst_format)
+			name = self._register(func, self._substitute)
+			self.tk.call('bind', 'all' , sequence, 
+				     (add + name,) + self._subst_format)
 		else:
-		    return self.tk.call('bind', 'all', sequence)
+			return self.tk.call('bind', 'all', sequence)
 	def unbind_all(self, sequence):
 		self.tk.call('bind', 'all' , sequence, '')
 	def bind_class(self, className, sequence, func=None, add=''):
 		if add: add = '+'
 		if func:
-		    name = self._register(func, self._substitute)
-		    self.tk.call('bind', className , sequence, 
-				 (add + name,) + self._subst_format)
+			name = self._register(func, self._substitute)
+			self.tk.call('bind', className , sequence, 
+				     (add + name,) + self._subst_format)
 		else:
-		    return self.tk.call('bind', className, sequence)
+			return self.tk.call('bind', className, sequence)
 	def unbind_class(self, className, sequence):
 		self.tk.call('bind', className , sequence, '')
 	def mainloop(self, n=0):
@@ -588,9 +561,9 @@ class Tk(Misc, Wm):
 		    "tcl.h version (%s) doesn't match libtcl.a version (%s)" \
 		    % (tkinter.TCL_VERSION, tcl_version)
 		if TkVersion < 4.0:
-		    raise RuntimeError, \
-			  "Tk 4.0 or higher is required; found Tk %s" \
-			  % str(TkVersion)
+			raise RuntimeError, \
+			"Tk 4.0 or higher is required; found Tk %s" \
+			% str(TkVersion)
 		self.tk.createcommand('tkerror', _tkerror)
 		self.tk.createcommand('exit', _exit)
 		self.readprofile(baseName, className)
@@ -738,11 +711,7 @@ class Widget(Misc, Pack, Place):
 		apply(self.tk.call, (self._w, 'configure')
 		      + self._options(cnf))
 	def __getitem__(self, key):
-		if TkVersion >= 4.0:
-			return self.tk.call(self._w, 'cget', '-' + key)
-		v = self.tk.splitlist(self.tk.call(
-			self._w, 'configure', '-' + key))
-		return v[4]
+		return self.tk.call(self._w, 'cget', '-' + key)
 	def __setitem__(self, key, value):
 		Widget.config(self, {key: value})
 	def keys(self):
@@ -973,12 +942,6 @@ class Checkbutton(Widget):
 class Entry(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		Widget.__init__(self, master, 'entry', cnf, kw)
-	def tk_entryBackspace(self):
-		self.tk.call('tk_entryBackspace', self._w)
-	def tk_entryBackword(self):
-		self.tk.call('tk_entryBackword', self._w)
-	def tk_entrySeeCaret(self):
-		self.tk.call('tk_entrySeeCaret', self._w)
 	def delete(self, first, last=None):
 		self.tk.call(self._w, 'delete', first, last)
 	def get(self):
@@ -999,7 +962,7 @@ class Entry(Widget):
 	def select_clear(self):
 		self.tk.call(self._w, 'select', 'clear', 'end')
 	def select_from(self, index):
-	        self.tk.call(self._w, 'select', 'set', index)
+		self.tk.call(self._w, 'select', 'set', index)
 	def select_present(self):
 		return self.tk.getboolean(
 			self.tk.call(self._w, 'select', 'present'))
@@ -1018,8 +981,6 @@ class Frame(Widget):
 			extra = ('-class', cnf['class'])
 			del cnf['class']
 		Widget.__init__(self, master, 'frame', cnf, {}, extra)
-	def tk_menuBar(self, *args):
-		apply(self.tk.call, ('tk_menuBar', self._w) + args)
 
 class Label(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
@@ -1028,11 +989,6 @@ class Label(Widget):
 class Listbox(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		Widget.__init__(self, master, 'listbox', cnf, kw)
-	def tk_listboxSingleSelect(self):
-		if TkVersion >= 4.0:
-			self['selectmode'] = 'single'
-		else:
-			self.tk.call('tk_listboxSingleSelect', self._w) 
 	def activate(self, index):
 		self.tk.call(self._w, 'activate', index)
 	def bbox(self, *args):
@@ -1062,24 +1018,16 @@ class Listbox(Widget):
 		return self.tk.getint(i)
 	def select_adjust(self, index):
 		self.tk.call(self._w, 'select', 'adjust', index)
-	if TkVersion >= 4.0:
-		def select_anchor(self, index):
-			self.tk.call(self._w, 'selection', 'anchor', index)
-		def select_clear(self, first, last=None):
-			self.tk.call(self._w,
-				     'selection', 'clear', first, last)
-		def select_includes(self, index):
-			return self.tk.getboolean(self.tk.call(
-				self._w, 'selection', 'includes', index))
-		def select_set(self, first, last=None):
-			self.tk.call(self._w, 'selection', 'set', first, last)
-	else:
-		def select_clear(self):
-			self.tk.call(self._w, 'select', 'clear')
-		def select_from(self, index):
-			self.tk.call(self._w, 'select', 'from', index)
-		def select_to(self, index):
-			self.tk.call(self._w, 'select', 'to', index)
+	def select_anchor(self, index):
+		self.tk.call(self._w, 'selection', 'anchor', index)
+	def select_clear(self, first, last=None):
+		self.tk.call(self._w,
+			     'selection', 'clear', first, last)
+	def select_includes(self, index):
+		return self.tk.getboolean(self.tk.call(
+			self._w, 'selection', 'includes', index))
+	def select_set(self, first, last=None):
+		self.tk.call(self._w, 'selection', 'set', first, last)
 	def size(self):
 		return self.tk.getint(self.tk.call(self._w, 'size'))
 	def xview(self, *what):
@@ -1187,7 +1135,7 @@ class Text(Widget):
 		Widget.__init__(self, master, 'text', cnf, kw)
 		self.bind('<Delete>', self.bspace)
 	def bspace(self, *args):
-	        self.delete('insert')
+		self.delete('insert')
 	def tk_textSelectTo(self, index):
 		self.tk.call('tk_textSelectTo', self._w, index)
 	def tk_textBackspace(self):
@@ -1224,18 +1172,18 @@ class Text(Widget):
 	def search(self, pattern, index, stopindex=None,
 		   forwards=None, backwards=None, exact=None,
 		   regexp=None, nocase=None, count=None):
-	    args = [self._w, 'search']
-	    if forwards: args.append('-forwards')
-	    if backwards: args.append('-backwards')
-	    if exact: args.append('-exact')
-	    if regexp: args.append('-regexp')
-	    if nocase: args.append('-nocase')
-	    if count: args.append('-count'); args.append(count)
-	    if pattern[0] == '-': args.append('--')
-	    args.append(pattern)
-	    args.append(index)
-	    if stopindex: args.append(stopindex)
-	    return apply(self.tk.call, tuple(args))
+		args = [self._w, 'search']
+		if forwards: args.append('-forwards')
+		if backwards: args.append('-backwards')
+		if exact: args.append('-exact')
+		if regexp: args.append('-regexp')
+		if nocase: args.append('-nocase')
+		if count: args.append('-count'); args.append(count)
+		if pattern[0] == '-': args.append('--')
+		args.append(pattern)
+		args.append(index)
+		if stopindex: args.append(stopindex)
+		return apply(self.tk.call, tuple(args))
 	def tag_add(self, tagName, index1, index2=None):
 		self.tk.call(
 			self._w, 'tag', 'add', tagName, index1, index2)
@@ -1376,3 +1324,9 @@ class Tributton(Button):
 		self.bind('<ButtonRelease-1>', self.tkButtonUp)
 		self['fg']               = self['bg']
 		self['activebackground'] = self['bg']
+
+
+# Emacs cruft
+# Local Variables:
+# py-indent-offset: 8
+# End:
