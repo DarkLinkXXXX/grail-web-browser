@@ -56,8 +56,6 @@ class AbstractFormatter:
 	    self.writer.send_paragraph(blankline - self.parskip)
 	    self.parskip = blankline
 	    self.have_label = 0
-	else:
-	    self.parskip = 0
 	self.hard_break = self.nospace = self.para_end = 1
 	self.softspace = 0
 
@@ -68,11 +66,10 @@ class AbstractFormatter:
 	self.hard_break = self.nospace = 1
 	self.softspace = 0
 
-    def add_hor_rule(self, abswidth=None, percentwidth=1.0,
-		     height=None, align=None):
+    def add_hor_rule(self, *args, **kw):
 	if not self.hard_break:
 	    self.writer.send_line_break()
-	self.writer.send_hor_rule(abswidth, percentwidth, height, align)
+	apply(self.writer.send_hor_rule, args, kw)
 	self.hard_break = self.nospace = 1
 	self.have_label = self.para_end = self.softspace = self.parskip = 0
 
