@@ -73,7 +73,9 @@ class AsyncImage(PhotoImage):
 		self.reader.geteverything()
 	return self.loaded
 
-    def start_loading(self, context=None):
+    def start_loading(self, context=None, reload=0):
+	# seems that the reload=1 when you click on an image that
+	# you had stopped loading
 	if context: self.context = context
 	if self.reader:
 	    return
@@ -83,7 +85,7 @@ class AsyncImage(PhotoImage):
 	    pass
 	try:
 	    api = self.context.app.open_url(self.url, 'GET', {},
-					    self.reload) # Through cache
+					    self.reload or reload) 
 	except IOError, msg:
 	    self.blank()
 	    return
