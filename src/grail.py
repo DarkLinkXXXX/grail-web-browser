@@ -81,7 +81,7 @@ def main():
 	    print "    -g : specify the geometry of the initial window"
 	    print "    -i : inhibit loading of images"
 	    sys.exit(2)
-	url = args[0]
+	url = grailutil.complete_url(args[0])
     else:
 	url = None
     global app
