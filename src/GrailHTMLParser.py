@@ -13,7 +13,7 @@ import tktools
 import formatter
 from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser
-from AppletLoader import AppletLoader
+import AppletLoader
 
 # Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
@@ -43,11 +43,18 @@ class GrailHTMLParser(HTMLParser):
 	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
 	HTMLParser.__init__(self, self.formatter_stack[-1])
+	# Hackery so reload status can be reset when all applets are loaded
+	self.reload1 = self.reload and AppletLoader.set_reload(self.context)
+	if self.reload1:
+	    self.reload1.attach(self)
 	if self.app.prefs.GetBoolean('parsing-html', 'strict'):
 	    self.restrict(0)
 
     def close(self):
 	HTMLParser.close(self)
+	if self.reload1:
+	    self.reload1.detach(self)
+	self.reload1 = None
 
     # manage the formatter stack
     def get_formatter(self):
@@ -318,11 +325,10 @@ class GrailHTMLParser(HTMLParser):
 	align = extract('align', attrs, 'baseline')
 	vspace = extract('vspace', attrs)
 	hspace = extract('hspace', attrs)
-	apploader = AppletLoader(self,
-				 width=width, height=height, menu=menu,
-				 name=name, code=code, codebase=codebase,
-				 vspace=vspace, hspace=hspace, align=align,
-				 reload=self.reload)
+	apploader = AppletLoader.AppletLoader(
+	    self, width=width, height=height,
+	    menu=menu, name=name, code=code, codebase=codebase,
+	    vspace=vspace, hspace=hspace, align=align, reload=self.reload1)
 	if apploader.feasible():
 	    self.apploader = apploader
 	    self.insert_active = len(self.insert_stack)
@@ -353,9 +359,10 @@ class GrailHTMLParser(HTMLParser):
 	height = self.extract_keyword('height', attrs, conv=string.atoi)
 	menu = self.extract_keyword('menu', attrs)
 	mod = mod + ".py"
-	apploader = AppletLoader(self, code=mod, name=cls, codebase=src,
-				 width=width, height=height, menu=menu,
-				 reload=self.reload)
+	apploader = AppletLoader.AppletLoader(
+	    self, code=mod, name=cls, codebase=src,
+	    width=width, height=height, menu=menu,
+	    reload=self.reload1)
 	if apploader.feasible():
 	    for name, value in attrs.items():
 		apploader.set_param(name, value)

@@ -53,6 +53,7 @@ class Context:
 	self.last_status_update = 0.0	# Time when last status update was done
 	self.next_status_update = None	# ID of next scheduled status update
 	self.show_source = 0
+	self.applet_group = None
 
     def clear_reset(self):
 	self.viewer.clear_reset()
@@ -95,6 +96,7 @@ class Context:
 	self._target = target
 	if self.on_top():
 	    self.browser.set_url(self._url)
+	self.applet_group = None
 
     def set_baseurl(self, baseurl=None, target=None):
 	"""Set the base URL and target for the current page.

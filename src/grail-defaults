@@ -57,6 +57,10 @@ C: these are here for now because tables are still pretty buggy
 C:
 tables--enabled: 0
 C:
+C: Applet preferences
+C:
+applet--groups: 
+C:
 C: Disk Cache preferences:
 C:
 C:

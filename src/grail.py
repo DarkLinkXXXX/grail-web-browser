@@ -38,7 +38,6 @@ import SafeDialog
 import tktools
 from Browser import Browser
 import SafeTkinter
-from AppletRExec import AppletRExec
 from CacheMgr import CacheManager
 import TbDialog
 if 0:
@@ -209,7 +208,7 @@ class Application:
 	self.global_history = GlobalHistory.GlobalHistory(self)
 	self.image_cache = {}
 	self.login_cache = {}
-	self.rexec = AppletRExec(None, 2, self)
+	self.rexec_cache = {}
 	self.graildir = grailutil.getgraildir()
 	GrailHTMLParser.iconpath.insert(0, os.path.join(self.graildir,
 							'icons'))

@@ -114,14 +114,24 @@ class AppletRExec(RExec):
     # Allow importing the ILU Python runtime
     ok_builtin_modules = RExec.ok_builtin_modules + ('iluPr',)
 
-    def __init__(self, hooks=None, verbose=1, app=None):
+    # Remove posix primitives except
+    ok_posix_names = ('error',)
+
+    def __init__(self, hooks=None, verbose=1, app=None, group=None):
 	self.app = app
+	self.appletgroup = group or "."
+	self.backup_modules = {}
 	if not hooks: hooks = AppletRHooks(self, verbose)
 	RExec.__init__(self, hooks, verbose)
 	self.modules['Dialog'] = SafeDialog
 	self.modules['Tkinter'] = SafeTkinter
+	self.special_modules = self.modules.keys()
 	self.save_files()
 	self.set_files()
+	# Don't give applets the real SystemExit, since it exits Grail!
+	self.modules['__builtin__'].SystemExit = "SystemExit"
+
+    # XXX The path manipulations below are not portable to the Mac
 
     def set_urlpath(self, url):
 	self.reset_urlpath()
@@ -136,12 +146,45 @@ class AppletRExec(RExec):
 	path = self.modules['sys'].path
 	return filter(lambda x: not is_url(x), path)
 
+    # XXX It would be cool if make_foo() would be invoked on "import foo"
+
     def make_initial_modules(self):
 	RExec.make_initial_modules(self)
 	self.make_al()
 	self.make_socket()
 	self.make_sunaudiodev()
 	self.make_types()
+	self.make_iluRt()
+	self.make_os()
+
+    def make_os(self):
+	import Bastion
+	s = OSSurrogate(self)
+	b = Bastion.Bastion(s)
+	b.path = self.copy_except(os.path, ('os', os.name))
+	b.path.os = b
+	setattr(b.path, os.name, b)
+	b.name = os.name
+	b.curdir = os.curdir
+	b.sep = os.sep
+	b.pathsep = os.pathsep
+	b.environ = {'HOME': s.home,
+		     'PWD': s.pwd,
+		     'TMPDIR': s.home,
+		     'USER': 'nobody',
+		     'LOGNAME': 'nobody'}
+	b.error = os.error
+	self.modules['os'] = self.modules[os.name] = b
+
+    def make_osname(self):
+	pass
+
+    def make_iluRt(self):
+	try:
+	    import iluRt
+	except ImportError:
+	    return
+	m = self.copy_except(iluRt, ())
  
     def make_al(self):
 	try:
@@ -169,14 +212,105 @@ class AppletRExec(RExec):
 	m = self.copy_except(types, ())
 
     def r_open(self, file, mode='r', buf=-1):
-	if not (type(file) == type('') == type(mode)):
-	    raise TypeError, "open(): file and mode must be strings"
-	if mode in ('r', 'rb'):
-	    if is_url(file):
-		return self.hooks.openurl(file)
-	    return RExec.r_open(self, file, mode, buf)
-	head, tail = os.path.split(file)
-	tempdir = tempfile.gettempdir()
-	if head != tempdir:
-	    raise IOError, "only files in %s are writable" % tempdir
-	return open(os.path.join(tempdir, tail), mode, buf)
+	return self.modules['os'].fopen(file, mode, buf)
+
+    # Cool reload hacks.  XXX I'll explain this some day...
+
+    def set_reload(self):
+	for mname, module in self.modules.items():
+	    if mname not in self.special_modules and \
+	       mname not in self.ok_builtin_modules and \
+	       mname not in self.ok_dynamic_modules:
+		self.backup_modules[mname] = module
+		del self.modules[mname]
+
+    def clear_reload(self):
+	self.backup_modules = {}
+
+    def add_module(self, mname):
+	if self.modules.has_key(mname):
+	    return self.modules[mname]
+	if self.backup_modules.has_key(mname):
+	    self.modules[mname] = m = self.backup_modules[mname]
+	    self.backup_modules[mname]
+	    return m
+	return RExec.add_module(self, mname)
+
+
+class OSSurrogate:
+
+    """Methods of this class are functions in module 'os'.
+
+    Methods whose name begins with '_' and instance variables are
+    private (thanks to bastionization).
+
+    """
+
+    def __init__(self, rexec):
+	self.rexec = rexec
+	self.app = rexec.app
+	self.appletsdir = os.path.join(self.app.graildir, "applets")
+	self.home = os.path.join(self.appletsdir,
+				 group2dirname(self.rexec.appletgroup))
+	self.home_made = 0
+	self.pwd = self.home
+
+    def _pwd(self):
+	if self.pwd == self.home:
+	    return self._home()
+	return self.pwd
+
+    def _home(self):
+	"""Make sure self.home exists."""
+	if not self.home_made:
+	    if not os.path.exists(self.home):
+		if not os.path.exists(self.appletsdir):
+		    os.mkdir(self.appletsdir, 0777)
+		os.mkdir(self.home, 0777)
+	    self.home_made = 1
+	return self.home
+
+    def _path(self, path):
+	return os.path.join(self._pwd(), path)
+
+    def getcwd(self):
+	return self._pwd()
+
+    def listdir(self, path):
+	return os.listdir(self._path(path))
+
+    def fopen(self, path, mode='r', bufsize=-1):
+	"""Substitute for __builtin__.open()."""
+	if mode[0] != 'r':
+	    if os.sep in path:
+		raise IOError, "can only write in current dir"
+	    if path in (os.curdir, os.pardir):
+		raise IOError, "illegal filename"
+	path = self._path(path)
+	return open(path, mode, bufsize)
+
+
+def group2dirname(group):
+    """Convert an applet group name to an acceptable unique directory name.
+
+    We take up to 15 characters from the group name, truncated in the
+    middle if it's longer, and substituting '_' for certain
+    characters; then we append 16 hex bytes which are the first 8
+    bytes of the MD5 checksum of the original group name.  This
+    guarantees sufficient uniqueness, while it's still possible to
+    guess which group a particular directory belongs to.  (A log file
+    should probably be maintained making the mapping explicit.)
+
+    """
+    import regsub, md5
+    sum = md5.new(group).digest()
+    path = regsub.gsub('[:/]+', '_', group)
+    if len(path) > 15:
+	path = path[:7] + '_' + path[-7:]
+    path = path + hexstring(sum[:8])
+    return path
+
+
+def hexstring(s):
+    """Convert a string to hex bytes.  Obfuscated for maximum speed."""
+    return "%02x"*len(s) % tuple(map(ord, s))

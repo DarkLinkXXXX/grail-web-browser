@@ -3,6 +3,7 @@
 import os
 import regex
 import string
+import urllib
 import urlparse
 from Tkinter import *
 from BaseReader import BaseReader
@@ -57,6 +58,11 @@ class AppletLoader:
 	self.klass = None
 	self.instance = None
 
+	self.rexec = None
+
+	if self.reload:
+	    self.reload.attach(self)
+
     def __del__(self):
 	"""Attempt to close() once more."""
 	self.close()
@@ -67,6 +73,23 @@ class AppletLoader:
 	self.params = {}
 	self.modname = self.codeurl = None
 	self.parent = self.module = self.klass = self.instance = None
+	self.rexec = None
+	if self.reload:
+	    self.reload.detach(self)
+	self.reload = None
+
+    def get_rexec(self):
+	"""Get or create the rexec object for this applet's group."""
+	if not self.rexec:
+	    key = get_key(self.context)
+	    cache = self.app.rexec_cache
+	    if not cache.has_key(key) or not cache[key]:
+		from AppletRExec import AppletRExec
+		rexec = AppletRExec(hooks=None, verbose=2, app=self.app,
+				    group=key)
+		cache[key] = rexec
+	    self.rexec = cache[key]
+	return self.rexec
 
     def feasible(self):
 	"""Test whether we should try load the applet."""
@@ -146,29 +169,20 @@ class AppletLoader:
 	    self._load_it_now()
 	except:
 	    self.show_tb()
-	    self.close()
+	self.close()
 
     def _load_it_now(self):
 	"""Internal -- load_it_now(), without the try/except clause."""
 	mod = self.modname
-	rexec = self.app.rexec
+	rexec = self.get_rexec()
 	rexec.reset_urlpath()
 	rexec.set_urlpath(self.codeurl)
 	rexec.loader.load_module = self.load_module
 	try:
-	    if self.reload and rexec.modules.has_key(mod) and \
-	       mod not in self.parser.loaded:
-		# XXX Hack, hack
-		self.context.message("Reloading module " + mod)
-		self.module = rexec.modules[mod]
-		rexec.r_reload(self.module)
-	    else:
-		self.context.message("Loading module " + mod)
-		self.module = rexec.r_import(mod)
+	    self.module = rexec.r_import(mod)
 	finally:
 	    del rexec.loader.load_module
 	self.parser.loaded.append(mod)
-	self.context.message("Done loading.")
 	self.klass = getattr(self.module, self.name)
 	self.instance = apply(self.klass, (self.parent,), self.params)
 
@@ -180,33 +194,20 @@ class AppletLoader:
 	    self.modname = "?" # Shouldn't happen
 	if not self.name:
 	    self.name = self.modname
-	self.codeurl = self.context.baseurl(self.codebase, self.code)
+	self.codeurl = self.context.get_baseurl(self.codebase, self.code)
 
     def get_easy_module(self, mod):
 	"""Internal -- import a module if it can be done locally."""
-	m = None
-	if not self.reload:
-	    m = self.mod_is_loaded(mod)
-	    if not m:
-		stuff = self.mod_is_local(mod)
-		if stuff:
-		    m = self.load_module(mod, stuff)
-	else:
+	m = self.mod_is_loaded(mod)
+	if not m:
 	    stuff = self.mod_is_local(mod)
 	    if stuff:
-		if mod in self.parser.loaded:
-		    file = stuff[0]
-		    if file and hasattr(file, 'close'):
-			file.close()
-		    m = self.mod_is_loaded(mod)
-		else:
-		    self.parser.loaded.append(mod)
-		    m = self.load_module(mod, stuff)
+		m = self.load_module(mod, stuff)
 	return m
 
     def mod_is_loaded(self, mod):
 	"""Internal -- check whether a module has already been loaded."""
-	rexec = self.app.rexec
+	rexec = self.get_rexec()
 	try:
 	    return rexec.modules[mod]
 	except KeyError:
@@ -214,13 +215,13 @@ class AppletLoader:
 
     def mod_is_local(self, mod):
 	"""Internal -- check whether a module can be found locally."""
-	rexec = self.app.rexec
+	rexec = self.get_rexec()
 	path = rexec.get_url_free_path()
 	return rexec.loader.find_module(mod, path)
 
     def load_module(self, mod, stuff):
 	"""Internal -- load a module given the imp.find_module() stuff."""
-	rexec = self.app.rexec
+	rexec = self.get_rexec()
 	rexec.reset_urlpath()
 	rexec.set_urlpath(self.codeurl)
 	# XXX Duplicate stuff from rexec.RModuleLoader.load_module()
@@ -235,7 +236,7 @@ class AppletLoader:
 	    data = string.joinfields(lines, '')
 	    linecache.cache[filename] = (len(data), 0, lines, filename)
 	    code = compile(data, filename, 'exec')
-	    m = self.app.rexec.hooks.add_module(mod)
+	    m = rexec.hooks.add_module(mod)
 	    m.__filename__ = filename
 	    exec code in m.__dict__
 	elif type == ihooks.BUILTIN_MODULE:
@@ -265,6 +266,10 @@ class ModuleReader(BaseReader):
 	BaseReader.__init__(self, context, api)
 
     def handle_error(self, errno, errmsg, headers):
+	self.apploader.context.error_dialog(
+	    ImportError,
+	    "Applet code at URL %s not loaded (%s: %s)" %
+	    (self.apploader.codeurl, errno, errmsg))
 	self.apploader.close()
 	self.apploader = None
 	BaseReader.handle_error(self, errno, errmsg, headers)
@@ -301,3 +306,90 @@ class AppletMenu(Menu, AppletMagic):
     def __init__(self, master, loader=None, cnf={}, **kw):
 	apply(Menu.__init__, (self, master, cnf), kw)
 	AppletMagic.__init__(self, loader)
+
+
+# Utilities
+
+def get_key(context):
+    key = _get_key(context)
+    context.applet_group = key
+    return key
+
+def _get_key(context):
+    """Get the key to be used in the rexec cache for this context.
+    
+    For now, we have a separate rexec environment per page.
+    In the future, the user will be able to specify the granularity.
+
+    """
+    if context.applet_group:
+	return context.applet_group
+    url = context.get_url()
+    app = context.app
+    prefs = app.prefs
+    rawgroups = prefs.Get("applet", "groups")
+    groups = map(string.lower, string.split(rawgroups))
+    list = []
+    for group in groups:
+	list.append((-len(group), string.lower(group)))
+    list.sort()
+    groups = []
+    for length, group in list:
+	groups.append(group)
+    scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
+    if scheme and netloc and scheme in urlparse.uses_netloc:
+	netloc = string.lower(netloc)
+	user, host = urllib.splituser(netloc)
+	if user: return netloc		# User:passwd present -- don't mess
+	netloc, port = urllib.splitport(netloc)	# Port is ignored
+	if netloc in groups:
+	    return netloc		# Exact match
+	for group in groups:		# Look for longest match
+	    if group[:1] == '.':
+		n = len(group)
+		if netloc[-n:] == group:
+		    return group
+	    if netloc == group[1:]:	# Exact match on domain name
+		return group
+	return netloc			# No match, return full netloc
+    return url
+
+def get_rexec(context):
+    """Get the rexec object for this context, if one already exists."""
+    app = context.app
+    key = get_key(context)
+    cache = app.rexec_cache
+    if cache.has_key(key):
+	return cache[key]
+
+def set_reload(context):
+    """If there's a rexec object for this context, prepare it for reloading."""
+    return ReloadHelper(context)
+
+
+class ReloadHelper:
+
+    """Helper class to clear reload status when all applets are loaded."""
+
+    # XXX I tried keying off reference counts but it didn't work
+
+    def __init__(self, context):
+	self.count = 0
+	self.rexec = get_rexec(context)
+	if self.rexec:
+	    self.rexec.set_reload()
+
+    def __del__(self):
+	if self.rexec:
+	    self.rexec.clear_reload()
+	self.rexec = None
+
+    def attach(self, who=None):
+	self.count = self.count + 1
+
+    def detach(self, who=None):
+	self.count = self.count - 1
+	if self.count <= 0:
+	    if self.rexec:
+		self.rexec.clear_reload()
+		self.rexec = None
