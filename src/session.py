@@ -1,5 +1,5 @@
 """Client-side session management support."""
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 
 import socket
 import string
@@ -24,6 +24,9 @@ class Session:
         self.set_command(command)
         self.set_client(client)
 
+    def get_leader(self):
+        return self.__master
+
     def set_command(self, command):
         self.__command = command
         for window in self.__windows:
@@ -45,7 +48,7 @@ class Session:
             self.__master = None
         try: self.__windows.remove(window)
         except ValueError: pass
-        if self.__windows and self.master is None:
+        if self.__windows and self.__master is None:
             self.__set_master()
 
     def __set_master(self):
