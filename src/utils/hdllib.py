@@ -953,7 +953,7 @@ def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
                 if urnscheme == HANDLE_SERVICE_ID:
                     hashtable = urndata
                     if debug: print "hash table data =", hexstr(hashtable)
-                  return HashTable(data=hashtable, debug=debug)
+                    return HashTable(data=hashtable, debug=debug)
                 else:
                     raise Error("Unknown SERVICE_ID: %s" % urnscheme)
             else:
