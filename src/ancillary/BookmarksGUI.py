@@ -1090,7 +1090,7 @@ class BookmarksController(OutlinerController):
 
     def insert_node(self, node):
         addlocation = self.addcurloc.get()
-        parent, at_end = self.get_insertion_parent()
+        parent, at_end = self.get_insertion_info()
         if not parent:
             return
         if at_end:
