@@ -3,7 +3,7 @@
 The use of 'url' in the method names is a historical accident.
 
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 import urlparse
 __default_joiner = urlparse.urljoin
@@ -16,9 +16,7 @@ del re
 def __splittype(url):
     match = __typematch(url)
     if match:
-        scheme = match.group(1)
-        return scheme, url[len(scheme) + 1:]
-    return None, url
+        return match.group(1)
 
 
 def _urljoin(a, b):
