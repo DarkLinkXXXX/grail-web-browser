@@ -16,14 +16,14 @@ class DefaultStylesheet:
 
     registered_style_validator = 0
 
-    def __init__(self, prefs, sizename, typename):
+    def __init__(self, prefs, sizename, family):
 	self.sizename = sizename
-	self.typename = typename
+	self.family = family
 	self.prefs = prefs
 	self.attrs = attrs = {}
 
 	self.size, fparms_dict = self.get_sizes()
-	fparms_dict['type'] = self.get_type()
+	fparms_dict['family'] = self.get_family()
 	fparms_dict['italic'] = self.get_italic()
 
 	self.dictify_group(prefs.GetGroup('styles-common'))
@@ -33,16 +33,6 @@ class DefaultStylesheet:
 	massaged = []
 	for ((g, c), v) in fonts:
 	    massaged.append((g, c), v % fparms_dict)
-	    #((g, c), v) = it
-	    #if c[-5:] == "-font":
-	    #	if index(c, "%s") != -1
-	    #	sz = atoi(sizes_dict[nm])
-	    #	if nm[:3] == "_tt":
-	    #	    massaged.append((g, c), v % sz)
-	    #	else:
-	    #	    massaged.append((g, c), v % (typename, sz))
-	    #else:
-	    #	massaged.append(it)
 	self.dictify_group(massaged)
 
     def __getattr__(self, composite):
@@ -73,20 +63,20 @@ class DefaultStylesheet:
 	return sname, sdict
 
     def get_italic(self):
-	"""Get the character for oblique fonts in the type."""
-	return self.prefs.Get('styles', self.typename + '-italic')
+	"""Get the character for oblique fonts in the family."""
+	return self.prefs.Get('styles', self.family + '-italic')
 
-    def get_type(self):
-	"""Get the type name and a dictionary of size name/values.
+    def get_family(self):
+	"""Get the family name and a dictionary of size name/values.
 
-	Detects unregistered types and uses registered default-type."""
-	alltypes = string.split(self.prefs.Get('styles', 'all-types'))
-	tname = self.typename
-	if tname not in alltypes:
-	    tname = self.prefs.Get('styles', 'default-type')
-	    if tname not in alltypes:
+	Detects unregistered families and uses registered default-family."""
+	allfams = string.split(self.prefs.Get('styles', 'all-families'))
+	tname = self.family
+	if tname not in allfams:
+	    tname = self.prefs.Get('styles', 'default-family')
+	    if tname not in allfams:
 		raise UndefinedStyle, ("Bad preferences file,"
-				       + " can't get valid type.")
+				       + " can't get valid family.")
 	return tname
 
     def dictify_group(self, glist, attr=None):
