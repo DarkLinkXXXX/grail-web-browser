@@ -1,6 +1,7 @@
 """Context class."""
 
 from urlparse import urljoin, urlparse
+from Cursors import *
 
 
 class Context:
@@ -98,14 +99,12 @@ class Context:
 	    return
 	if url[:1] != '#':
 	    url = urljoin(self._baseurl, url)
-	from Browser import CURSOR_NORMAL, CURSOR_LINK, CURSOR_WAIT
 	self.message(url, CURSOR_LINK)
 
     def leave(self):
 	"""Clear the message on leaving an anchor, if idle."""
 	if self.readers:
 	    return
-	from Browser import CURSOR_NORMAL, CURSOR_LINK, CURSOR_WAIT
 	self.message("", CURSOR_NORMAL)
 
     def follow(self, url):
@@ -129,7 +128,6 @@ class Context:
     # Message interfaces
 
     def message(self, string="", cursor=None):
-	from Browser import CURSOR_NORMAL, CURSOR_LINK, CURSOR_WAIT
 	if not cursor:
 	    if self.readers:
 		cursor = CURSOR_WAIT
@@ -238,7 +236,6 @@ class Context:
 		    url = "http://" + url
 	    else:
 		url = "http:" + url
-	from Browser import CURSOR_NORMAL, CURSOR_LINK, CURSOR_WAIT
 	self.message("Loading %s" % url, CURSOR_WAIT)
 	try: self.read_page(url, method, params, new, show_source, reload)
 	except IOError, msg:
@@ -252,7 +249,6 @@ class Context:
 	url = self.baseurl(url)
 	method = 'POST'
 	self.stop()
-	from Browser import CURSOR_NORMAL, CURSOR_LINK, CURSOR_WAIT
 	self.message("Posting to %s" % url, CURSOR_WAIT)
 	try: self.read_page(url, method, params, 1, 0, 1, data=data)
 	except IOError, msg:
