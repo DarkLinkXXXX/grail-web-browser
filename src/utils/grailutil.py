@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.29 $"
+__version__ = "$Revision: 2.30 $"
 
 import os
 
@@ -19,7 +19,7 @@ try:
 except AttributeError:
     # Copied from posixpath in Python 1.5.2.
     def abspath(path):
-        if not isabs(path):
+        if not os.path.isabs(path):
             path = join(os.getcwd(), path)
         return normpath(path)
 
