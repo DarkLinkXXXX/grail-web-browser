@@ -2,9 +2,7 @@ from Cache import CacheItem, CacheAPI
 from assert import assert
 import urlparse
 import string
-import regsub
 import os
-import protocols
 import time
 import ht_time
 import grailutil
@@ -59,7 +57,20 @@ class CacheManager:
 	self.disk = DiskCache(self, self.app.prefs.GetInt('disk-cache',
 						     'size') * 1024,
 			 self.app.prefs.Get('disk-cache', 'directory'))
+	self.set_freshness_test()
+	self.app.prefs.AddGroupCallback('disk-cache', self.update_prefs)
 
+    def update_prefs(self):
+	self.set_freshness_test()
+	size = self.caches[0].size = self.app.prefs.GetInt('disk-cache',
+							   'size') \
+							   * 1024
+	new_dir = self.app.prefs.Get('disk-cache', 'directory')
+	if new_dir != self.disk.directory:
+	    self.disk.close()
+	    self.disk = DiskCache(self, size, new_dir)
+
+    def set_freshness_test(self):
 	# read preferences to determine when pages should be checked
 	# for freshness -- once per session, every n secs, or never
 	fresh_type = self.app.prefs.Get('disk-cache', 'freshness-test-type')
@@ -153,6 +164,9 @@ class CacheManager:
 	"""Called by cache to notify manager this it is ready."""
 	self.caches.append(cache)
 
+    def close_cache(self, cache):
+	self.caches.remove(cache)
+
     def cache_read(self,key):
 	"""Checks cache for URL. Returns protocol API on hit.
 
@@ -178,14 +192,19 @@ class CacheManager:
 	assert(self.items.has_key(key))
 	self.items[key].evict()
 
-    def delete(self, object):
-	# does anything need to happen here
-	pass
+    def delete(self, keys):
+	if type(keys) != type([]):
+	    keys = [keys]
+	
+	for key in keys:
+	    try: 
+		del self.items[key]
+	    except KeyError:
+		pass
 
     def add(self,item,reload=0):
-	"""If item is not in the cache and is allowed to be cached, add it.
+	"""If item is not in the cache and is allowed to be cached, add it. 
 	"""
-	assert(len(self.caches) > 0)
 	try:
 	    if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
 		self.caches[0].add(item)
@@ -474,6 +493,14 @@ class DiskCache:
 					      self._checkpoint_metadata())
 
     log_version = "1.2"
+
+    def close(self):
+	self._checkpoint_metadata()
+	self.manager.delete(self.items.keys())
+	del self.items
+	del self.expires
+	self.manager.close_cache(self)
+	self.manager = None
 
     def _read_metadata(self):
 	"""Read the transaction log from the cache directory.
