@@ -127,6 +127,8 @@ class http_access:
 	self.h.putheader('User-agent', grailversion)
 	if auth:
 	    self.h.putheader('Authorization', 'Basic %s' % auth)
+	if not params.has_key('host'):
+	    self.h.putheader('Host', host)
 	for key, value in params.items():
 	    if key[:1] != '.':
 		self.h.putheader(key, value)
