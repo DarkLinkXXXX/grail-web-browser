@@ -113,7 +113,7 @@ class GlobalHistory:
 	    # update title and dialog if visible
 	    self._hmap[link] = (title, timestamp)
 	    if self._dialog: self._dialog.refresh()
-	except IndexError, KeyError:
+	except (IndexError, KeyError):
 	    pass
 
     def title(self, link):
