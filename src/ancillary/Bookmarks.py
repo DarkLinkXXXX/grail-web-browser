@@ -627,6 +627,7 @@ class BookmarksController(OutlinerController):
 	self._listbox = None
 	self._writer = GrailBookmarkWriter()
 	self._initialized_p = False
+	self._menus = []
 	self._tkvars = {
 	    'aggressive': BooleanVar(),
 	    'addcurloc':  StringVar(),
@@ -672,6 +673,12 @@ class BookmarksController(OutlinerController):
 	if self._tkvars.has_key(name): return self._tkvars[name]
 	else: raise AttributeError, name
 
+    def add_watched_menu(self, menu):
+	self._menus.append(menu)
+
+    def remove_watched_menu(self, menu):
+	self._menus.remove(menu)
+
     def set_browser(self, browser=None):
 	self._active = browser
 
@@ -689,8 +696,11 @@ class BookmarksController(OutlinerController):
 
     ## Modifications updating
     def set_modflag(self, flag, quiet=False):
-	if self._dialog and not quiet:
-	    self._dialog.set_modflag(flag)
+	if not quiet:
+	    if self._dialog:
+		self._dialog.set_modflag(flag)
+	    for menu in self._menus:
+		menu.set_modflag(flag)
 	self._modflag = flag
 
     ## I/O
@@ -1145,6 +1155,7 @@ class BookmarksMenu:
 	self._browser = menu.grail_browser
 	self._frame = self._browser.root
 	self._app = self._browser.app
+	self._viewer = None
 	# set up the global controller.  Only one of these in every
 	# application
 	try:
@@ -1152,6 +1163,7 @@ class BookmarksMenu:
 	except AttributeError:
 	    self._controller = self._app.bookmarks_controller = \
 			       BookmarksController(self._app)
+	self._controller.add_watched_menu(self)
 	# currently, too difficult to coordinate edits to bookmarks
 	# with tear-off menus, so just disable these for now and
 	# create the rest of this menu every time the menu is posted
@@ -1170,16 +1182,18 @@ class BookmarksMenu:
 
     def post(self, event=None):
 	# delete any old existing bookmark entries
-	last = self._menu.index(END)
-	if last > 1:
-	    self._menu.delete(2, END)
-	if self._controller.includepulldown.get():
-	    self._menu.add_separator()
-	    # First make sure the controller has initialized
-	    self._controller.initialize()
-	    self._controller.set_browser(self._browser)
-	    viewer = BookmarksMenuViewer(self._controller, self._menu)
-	    viewer.populate()
+	if not self._viewer:
+	    last = self._menu.index(END)
+	    if last > 1:
+		self._menu.delete(2, END)
+	    if self._controller.includepulldown.get():
+		self._menu.add_separator()
+		# First make sure the controller has initialized
+		self._controller.initialize()
+		self._controller.set_browser(self._browser)
+		self._viewer = BookmarksMenuViewer(self._controller,
+						   self._menu)
+		self._viewer.populate()
 
     def show(self, event=None):
 	# make sure controller is initialized
@@ -1195,3 +1209,10 @@ class BookmarksMenu:
 	# if the dialog is unmapped, then do a save
 	if not self._controller.dialog_is_visible_p():
 	    self._controller.save()
+
+    def set_modflag(self, flag):
+	if flag:
+	    self._viewer = None
+
+    def close(self):
+	self._controller.remove_watched_menu(self)
