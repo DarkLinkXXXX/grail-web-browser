@@ -26,6 +26,7 @@ for path in 'utils', 'pythonlib', 'ancillary', 'applets', \
     sys.path.insert(0, os.path.join(grail_root, path))
 
 # More imports
+import Tkinter # Do this first to avoid confusing ni on Mac/Win
 import ni
 import html
 import filetypes
@@ -161,6 +162,11 @@ class SplashScreen:
 	    self.root.geometry("+%d+%d" % (xpos, ypos))
 	    self.root.after(10000, self.close)
 	    self.root.update_idletasks()
+	    if sys.platform[:3] == 'win':
+		# update -idletasks doesn't display the spash screen;
+		# start a temporary mainloop to do it.
+		self.root.after(1000, self.root.quit)
+		self.root.mainloop()
 	else:
 	    self.root.withdraw()
 
@@ -633,6 +639,7 @@ class Application:
 	'.pdf': 'application/pdf',
 	'.pgm': 'image/x-portable-graymap',
 	'.pnm': 'image/x-portable-anymap',
+	'.png': 'image/png',
 	'.ppm': 'image/x-portable-pixmap',
 	'.py': 'text/x-python',
 	'.pyc': 'application/x-python-code',
