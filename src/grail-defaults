@@ -146,6 +146,43 @@ styles-fonts--styles-_tt_b_i-font:
 	-*-courier-bold-o-normal-*-%(_tt_b_i)d-*-*-*-*-*-*-*
 styles-fonts--styles-_tt_b_i_sym-font:
 	-*-*symbol*-*-*-*-*-%(_tt_b_i)d-*-*-*-*-*-*-*
+# Italic & typewriter fonts for headers:
+styles-fonts--styles-h1_b_i-font:
+	-*-%(family)s-bold-%(italic)s-normal-*-%(h1_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h1_tt_b-font:
+	-*-courier-bold-r-normal-*-%(h1_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h1_tt_b_i-font:
+	-*-courier-bold-%(italic)s-normal-*-%(h1_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h2_b_i-font:
+	-*-%(family)s-bold-%(italic)s-normal-*-%(h2_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h2_tt_b-font:
+	-*-courier-bold-r-normal-*-%(h2_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h2_tt_b_i-font:
+	-*-courier-bold-%(italic)s-normal-*-%(h2_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h3_b_i-font:
+	-*-%(family)s-bold-%(italic)s-normal-*-%(h3_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h3_tt_b-font:
+	-*-courier-bold-r-normal-*-%(h3_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h3_tt_b_i-font:
+	-*-courier-bold-%(italic)s-normal-*-%(h3_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h4_b_i-font:
+	-*-%(family)s-bold-%(italic)s-normal-*-%(h4_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h4_tt_b-font:
+	-*-courier-bold-r-normal-*-%(h4_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h4_tt_b_i-font:
+	-*-courier-bold-%(italic)s-normal-*-%(h4_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h5_b_i-font:
+	-*-%(family)s-bold-%(italic)s-normal-*-%(h5_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h5_tt_b-font:
+	-*-courier-bold-r-normal-*-%(h5_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h5_tt_b_i-font:
+	-*-courier-bold-%(italic)s-normal-*-%(h5_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h6_b_i-font:
+	-*-%(family)s-bold-%(italic)s-normal-*-%(h6_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h6_tt_b-font:
+	-*-courier-bold-r-normal-*-%(h6_b)d-*-*-*-*-*-*-*
+styles-fonts--styles-h6_tt_b_i-font:
+	-*-courier-bold-%(italic)s-normal-*-%(h6_b)d-*-*-*-*-*-*-*
 # 
 #
 # Bookmarks defaults
