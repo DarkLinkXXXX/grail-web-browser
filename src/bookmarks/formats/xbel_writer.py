@@ -1,6 +1,6 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -29,6 +29,7 @@ class Writer(bookmarks.walker.TreeWalker):
     def start_Folder(self, node):
         info = node.info()
         title = node.title()
+        desc = node.description()
         fp = self.__fp
         tab = self.__tab()
         attrs = ''
@@ -44,7 +45,9 @@ class Writer(bookmarks.walker.TreeWalker):
                 fp.write("%s  <title>%s</title>\n"
                          % (tab, bookmarks._prepstring(title)))
             if info:
-                self.__write_info(info, fp)
+                self.__write_info(info)
+            if desc:
+                self.__write_description(desc, tab)
             self.__depth = self.__depth + 1
             return
         #
@@ -52,13 +55,15 @@ class Writer(bookmarks.walker.TreeWalker):
             attrs = attrs + ' folded="no"'
         else:
             attrs = attrs + ' folded="yes"'
-        if node.children() or title or info:
+        if node.children() or title or info or desc:
             fp.write(tab + '<folder%s>\n' % attrs)
             if title:
                 fp.write("%s  <title>%s</title>\n"
                          % (tab, bookmarks._prepstring(title)))
             if info:
-                self.__write_info(info, fp)
+                self.__write_info(info)
+            if desc:
+                self.__write_description(desc, tab)
             self.__depth = self.__depth + 1
         else:
             fp.write(tab + '<folder%s/>\n' % attrs)
@@ -107,22 +112,17 @@ class Writer(bookmarks.walker.TreeWalker):
         if title:
             self.__fp.write("%s  <title>%s</title>\n" % (tab, title))
         if info:
-            self.__write_info(info, self.__fp)
+            self.__write_info(info)
         if desc:
-            w = 60 - len(tab)
-            desc = bookmarks._prepstring(desc)
-            if len(desc) > w:
-                desc = _wrap_lines(desc, 70 - len(tab))
-                desc = _indent_lines(desc, len(tab) + 4)
-                desc = "\n%s\n%s    " % (desc, tab)
-            self.__fp.write("%s  <desc>%s</desc>\n" % (tab, desc))
+            self.__write_description(desc, tab)
 
     def end_Bookmark(self, node):
         self.__fp.write(self.__tab() + "  </bookmark>\n")
 
     # support methods
 
-    def __write_info(self, info, fp):
+    def __write_info(self, info):
+        fp = self.__fp
         tab = self.__tab() + "  "
         fp.write(tab + "<info>\n")
         for tag, attrs, content in info:
@@ -130,6 +130,15 @@ class Writer(bookmarks.walker.TreeWalker):
             self.__dump_xml(["metadata", attrs, content], fp, tab + "    ")
             fp.write("\n")
         fp.write(tab + "  </info>\n")
+
+    def __write_description(self, desc, tab):
+        w = 60 - len(tab)
+        desc = bookmarks._prepstring(desc)
+        if len(desc) > w:
+            desc = _wrap_lines(desc, 70 - len(tab))
+            desc = _indent_lines(desc, len(tab) + 4)
+            desc = "\n%s\n%s    " % (desc, tab)
+        self.__fp.write("%s  <desc>%s</desc>\n" % (tab, desc))
 
     def __dump_xml(self, stuff, fp, tab):
         tag, attrs, content = stuff
