@@ -352,13 +352,13 @@ class Misc:
 		else:
 			self.tk.call('bindtags', self._w, tagList)
 	def _bind(self, what, sequence, func, add):
-		add = add and '+' or ''
 		if func:
-			name = self._register(func, self._substitute)
-			cmd = name + " " + _string.join(self._subst_format)
-			cmd = "set _tkinter_break [%s]\n" % cmd
-			cmd = cmd + 'if {"$_tkinter_break" == "break"} break\n'
-			apply(self.tk.call, what + (sequence, add + cmd))
+			cmd = ("%sset _tkinter_break [%s %s]\n"
+			       'if {"$_tkinter_break" == "break"} break\n') \
+			       % (add and '+' or '',
+				  self._register(func, self._substitute),
+				  _string.join(self._subst_format))
+			apply(self.tk.call, what + (sequence, cmd))
 		elif func == '':
 			apply(self.tk.call, what + (sequence, func))
 		else:
@@ -1237,7 +1237,7 @@ class Text(Widget):
 			self._w, 'mark', 'names'))
 	def mark_set(self, markName, index):
 		self.tk.call(self._w, 'mark', 'set', markName, index)
-	def mark_unset(self, markNames):
+	def mark_unset(self, *markNames):
 		apply(self.tk.call, (self._w, 'mark', 'unset') + markNames)
 	def scan_mark(self, y):
 		self.tk.call(self._w, 'scan', 'mark', y)
