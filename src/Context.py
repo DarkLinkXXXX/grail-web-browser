@@ -52,6 +52,7 @@ class Context:
 	self.applet_group = None
 	self.pending_frag = None
 	self.notifications = []		# callbacks when no readers left
+	self.image_maps = {}		# For ImageMap
 
     def register_notification(self, callback):
 	if callback not in self.notifications:

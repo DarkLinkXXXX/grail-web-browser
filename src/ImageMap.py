@@ -69,8 +69,7 @@ class MapInfo:
     The shapes are copied into a MapThunk object when the map is used.
     """
 
-    def __init__(self, parser, name):
-	self.parser = parser
+    def __init__(self, name):
 	self.name = name
 	self.shapes = []
 
@@ -93,24 +92,25 @@ class MapThunk:
     shapes. not sure if this is necessary/desirable.
     """
 
-    def __init__(self, parser, name):
-	"""Link MapThunk to the parser containing the map."""
+    def __init__(self, context, name):
+	"""Link MapThunk to the context containing the map."""
 
-	self.parser = parser
+	self.context = context
 	self.name = name
 	self.shapes = []
 	self.waiting = 1
 	self.memo = {}
 
     def force(self):
-	"""Try to load shapes from the parser."""
+	"""Try to load shapes from the context."""
 
 	try:
-	    map = self.parser.image_maps[self.name]
-	    self.shapes = map.shapes
-	    self.waiting = 0
+	    map = self.context.image_maps[self.name]
 	except KeyError:
 	    pass
+	else:
+	    self.shapes = map.shapes
+	    self.waiting = 0
     
     def url(self, x, y):
 	"""Get url associated with shape at (x,y)."""

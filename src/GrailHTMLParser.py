@@ -47,7 +47,6 @@ class GrailHTMLParser(HTMLParser):
 	self.loaded = []
 	self.insert_stack = []
 	self.insert_active = 0		# Length of insert_stack at activation
-	self.image_maps = {}            # for image maps
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
@@ -199,7 +198,7 @@ class GrailHTMLParser(HTMLParser):
 	height = extract('height', attrs, 0, conv=string.atoi)
 	if attrs.has_key('usemap'):
 	    # not sure how to assert(value[0] == '#')
-	    usemap = MapThunk (self, attrs['usemap'][1:])
+	    usemap = MapThunk (self.context, attrs['usemap'][1:])
         self.handle_image(src, alt, usemap, ismap,
 			  align, width, height, border, self.reload1)
 
@@ -299,11 +298,11 @@ class GrailHTMLParser(HTMLParser):
     def start_map(self, attrs):
 	# ignore maps without names
 	if attrs.has_key('name'):
-	    self.current_map = MapInfo(self, attrs['name'])
+	    self.current_map = MapInfo(attrs['name'])
 
     def end_map(self):
 	if self.current_map:
-	    self.image_maps[self.current_map.name] = self.current_map
+	    self.context.image_maps[self.current_map.name] = self.current_map
 	    self.current_map = None
 
     # New tag: <AREA> (goes inside a map)
@@ -313,7 +312,7 @@ class GrailHTMLParser(HTMLParser):
 
 	if self.current_map:
 	    extract = self.extract_keyword
-	    shape = extract('shape', attrs, 'rect')
+	    shape = string.lower(extract('shape', attrs, 'rect'))
 	    coords = extract('coords', attrs, '')
 	    alt = extract('alt', attrs, '')
 	    target = extract('target', attrs, '')
@@ -323,7 +322,7 @@ class GrailHTMLParser(HTMLParser):
 	    try:
 		self.current_map.add_shape(
 		    shape, self.parse_area_coords(shape, coords), url, target)
-	    except IndexError:
+	    except (IndexError, string.atoi_error):
 		# wrong number of coordinates
 		# how should this get reported to the user?
 		print "imagemap specifies bad coordinates"
@@ -334,20 +333,22 @@ class GrailHTMLParser(HTMLParser):
 
 	Coordinates are stored differently depending on the shape of
 	the object.
-	"""
-	coords = []
-	terms = []
 
-	string_terms = string.splitfields(text, ',')
-	for i in range(len(string_terms)):
-	    terms.append(string.atoi(string_terms[i]))
+	Raise string.atoi_error when bad numbers occur.
+	Raise IndexError when not enough coordinates are specified.
+	
+	"""
+	import regsub
+	
+	coords = []
+	
+	terms = map(string.atoi, regsub.split(text, '[, ]+'))
 
 	if shape == 'poly':
 	    # list of (x,y) tuples
 	    while len(terms) > 0:
 		coords.append((terms[0], terms[1]))
-		del terms[0]
-		del terms[0] # del terms[0:1] didn't work
+		del terms[:2]
 	    if coords[0] != coords[-1:]:
 		# make sure the polygon is closed
 		coords.append(coords[0])
