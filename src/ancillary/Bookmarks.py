@@ -420,7 +420,8 @@ class BookmarksIO:
 	return (root, reader, writer)
 
     def _save_to_file_with_writer(self, writer, root, filename=None):
-	posix.rename(filename, filename+'.bak')
+	try: posix.rename(filename, filename+'.bak')
+	except posix.error: pass # no file to backup 
 	fp = open(filename, 'w')
 	writer.write_tree(root, fp)
 
@@ -901,10 +902,11 @@ class BookmarksController(OutlinerController):
 	if node: self.viewer().select_node(node)
 
     def load(self, usedefault=False):
-	root, reader, self._writer = self._iomgr.load(usedefault=usedefault)
-	if not root and not reader and not self._writer:
+	root, reader, writer = self._iomgr.load(usedefault=usedefault)
+	if not root and not reader and not writer:
 	    # load dialog was cancelled
 	    return
+	self._writer = writer
 	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 	# clear out all the old state
 	self.set_root(root)
