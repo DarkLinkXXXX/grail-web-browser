@@ -198,6 +198,11 @@ class Reader(BaseReader):
 	    # Ask the user whether and where to save it.
 	    # Stop the transfer, and restart when we're ready.
 	    context = self.last_context
+	    # TBD: hack so that Context.rmreader() doesn't call
+	    # Viewer.remove_temp_tag().  We'll call that later
+	    # explicitly once we know whether the file has been saved
+	    # or not.
+	    context.source = None
 	    self.stop()
 	    context.message("Wait for save dialog...")
 	    import FileDialog
@@ -208,7 +213,10 @@ class Reader(BaseReader):
 	    fn = fd.go(default=urlasfile[-1], key="save")
 	    if not fn:
 		# User canceled.  Stop the transfer.
+		self.viewer.remove_temp_tag()
 		return
+	    self.viewer.remove_temp_tag(histify=1)
+	    self.app.global_history.remember_url(self.url)
 	    # Prepare to save.
 	    # Always save in binary mode.
 	    try:
