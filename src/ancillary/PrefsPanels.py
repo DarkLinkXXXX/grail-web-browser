@@ -7,7 +7,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.29 $"
+__version__ = "$Revision: 2.30 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -213,7 +213,7 @@ class Framework:
 
 	f = Frame(frame)
 	if not variable:
-	    variable = StringVar()
+	    variable = StringVar(f)
 	self.PrefsWidgetLabel(f, title, label_width=label_width)
 	inner = Frame(f, relief=SUNKEN, borderwidth=1)
 	inner.pack(side=LEFT)
@@ -250,7 +250,7 @@ class Framework:
 	f = Frame(frame)
 
 	if not variable:
-	    variable = StringVar()
+	    variable = StringVar(f)
 
 	if general:
 	    self.PrefsWidgetLabel(f, general, label_width=label_width)
@@ -272,7 +272,7 @@ class Framework:
 	fr.pack(expand=1, fill=X)
 	self.PrefsWidgetLabel(fr, label, label_width=label_width)
 	if not variable:
-	    variable = StringVar()
+	    variable = StringVar(fr)
 	menu = apply(OptionMenu, (fr, variable) + tuple(options))
 	width = reduce(max, map(len, options), menu_width)
 	menu.config(width=width, anchor=W)
@@ -287,7 +287,7 @@ class Framework:
 	"""Return routine to be used to set widget.
 	    
 	    The returned routine takes a single argument, the new setting."""
-	v = StringVar()
+	v = StringVar(widget)
 	widget.config(textvariable=v)
 	return v.set
 

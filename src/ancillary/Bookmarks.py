@@ -103,13 +103,13 @@ class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
 	self._controller = controller
 	FileDialog.SaveFileDialog.__init__(self, master, 'Save Bookmarks File')
 	FileDialogExtras.__init__(self, self.top)
-	self.__create_widgets(export)
+	self.__create_widgets(export, master)
 	self.set_filetype(
 	    export and "html" or
 	    controller._app.prefs.Get("bookmarks", "default-save-format"))
 
-    def __create_widgets(self, export):
-	self.__filetype = StringVar()
+    def __create_widgets(self, export, master):
+	self.__filetype = StringVar(master)
 	if not export:
 	    frame = Frame(self._controls)
 	    frame.pack(fill=X)
@@ -649,7 +649,7 @@ class BookmarksController(OutlinerController):
     def __init__(self, app):
 	default_root = BookmarksParser.BookmarkNode(username()+" Bookmarks")
 	OutlinerController.__init__(self, default_root)
-	self._master = app.root
+	self._master = master = app.root
 	self._app = app
 	self._active = None
 	self._iomgr = BookmarksIO(self._master, self)
@@ -660,11 +660,11 @@ class BookmarksController(OutlinerController):
 	self._initialized_p = False
 	self._menus = []
 	self._tkvars = {
-	    'aggressive': BooleanVar(),
-	    'addcurloc':  StringVar(),
-	    'fileformat': StringVar(),
-	    'statusmsg': StringVar(),
-	    'includepulldown': BooleanVar(),
+	    'aggressive': BooleanVar(master),
+	    'addcurloc':  StringVar(master),
+	    'fileformat': StringVar(master),
+	    'statusmsg': StringVar(master),
+	    'includepulldown': BooleanVar(master),
 	    }
 	# get preferences and set the values
 	self._prefs = prefs = app.prefs
