@@ -382,9 +382,13 @@ class Context:
     # External user commands
 
     def save_document(self, *relurls):
+	"""Save document to a file.
+
+	Returns true if the x-fer was initiated; allows histification.
+	"""
 	# File/Save As...
 	url = apply(self.get_baseurl, relurls)
-	if url == self.get_url() and self.busycheck(): return
+	if url == self.get_url() and self.busycheck(): return 0
 	import FileDialog, os
 	fd = FileDialog.SaveFileDialog(self.root)
 	# give it a default filename on which save within the
@@ -400,10 +404,11 @@ class Context:
 	# maybe bogus assumption?
 	if not default: default = 'index.html'
 	file = fd.go(default=default, key="save")
-	if not file: return
+	if not file: return 0
 	#
 	SavingReader(self, url, 'GET', {}, 0, 0, filename=file)
 	self.message_clear()
+	return 1
 
     def print_document(self):
 	# File/Print...
