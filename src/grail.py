@@ -346,7 +346,7 @@ class Application:
 	api = self.open_url(url, 'GET', {})
 	errcode, errmsg, meta = api.getmeta()
 	if errcode != 200:
-	    raise IOError, ('url open error', errcode, errsmg, meta)
+	    raise IOError, ('url open error', errcode, errmsg, meta)
 	return URLReadWrapper(api, meta)
 
     def get_cache_keys(self):
