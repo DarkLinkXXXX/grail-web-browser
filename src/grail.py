@@ -27,6 +27,7 @@ import tktools
 from Browser import Browser, DEFAULT_HOME
 import SafeTkinter
 from AppletRExec import AppletRExec
+from Cache import Cache
 if 0:
     import dummies
 
@@ -105,6 +106,7 @@ class Application:
     def __init__(self):
 	self.load_images = 1
 	self.home = DEFAULT_HOME
+	self.url_cache = Cache()
 	self.image_cache = {}
 	self.rexec = AppletRExec(None, 2)
 	self.urlopener = MyURLopener(self)
