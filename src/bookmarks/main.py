@@ -1,5 +1,36 @@
 #! /usr/bin/env python
-__version__ = '$Revision: 1.1 $'
+
+"""%(program)s -- Bookmark management utility.
+
+usage:  %(program)s [options] infile [outfile]
+        %(program)s -g|--guess-type [files...]
+
+Options:
+    -h, --help	        Display this help message.
+    -g, --guess-type    Guess type of one or more bookmark files, or stdin.
+    -f, --format        Specify bookmark output format ('html' or 'xbel');
+                        default is 'html'.
+    -x                  Strip all personal information fields from output.
+    --export fields     Strip specified personal fields from the output;
+                        'fields' is a comma-separated list of fields.  The
+                        field names are 'added', 'modified' and 'visited'.
+    --scrape            Attempt to parse the input file as HTML and extract
+                        links into a new bookmark file (preliminary).  The
+                        input may be a URL instead of a file name.
+    --search keywords   Search the input for bookmarks and folders which
+                        match any of the comma-separated keywords.  Search
+                        is case-insensitive.  The entire hierarchical
+                        structure above the match node is returned.  If
+                        there are no matches, an error is printed to stderr
+                        and %(program)s exits with a non-zero return code.
+
+A hyphen (-) may be used as either the input file or the output file to
+indicate standard input or standard output, respectively.  If a file is
+omitted, the appropriate standard stream is used.
+"""
+
+
+__version__ = '$Revision: 1.2 $'
 
 import bookmarks
 import errno
@@ -8,8 +39,6 @@ import os
 import string
 import sys
 
-
-OUTPUT_FORMATS = ("html", "xbel", "pickle", "pickle-binary")
 
 SCRIPT_PREFIX = "bkmk2"
 
@@ -32,7 +61,7 @@ class Options:
         s = os.path.splitext(os.path.basename(sys.argv[0]))
         if s[:len(SCRIPT_PREFIX)] == SCRIPT_PREFIX:
             s = s[len(SCRIPT_PREFIX):]
-            if s in OUTPUT_FORMATS:
+            if valid_output_format(s):
                 self.output_format = s
         opts, self.args = getopt.getopt(
             sys.argv[1:], "f:ghsx",
@@ -43,7 +72,7 @@ class Options:
             elif opt in ("-g", "--guess-type"):
                 self.guess_type = 1
             elif opt in ("-f", "--format"):
-                if arg not in OUTPUT_FORMATS:
+                if not valid_output_format(arg):
                     usage(2, "unknown output format: " + arg)
                 self.output_format = arg
             elif opt in ("-s", "--scrape"):
@@ -63,6 +92,15 @@ class Options:
                 self.search = 1
 
 
+def valid_output_format(format):
+    try:
+        bookmarks.get_writer_class(format)
+    except ImportError:
+        return 0
+    else:
+        return 1
+
+
 def main():
     try:
         options = Options(sys.argv[1:])
@@ -77,15 +115,9 @@ def main():
         return
     if len(args) > 2:
         usage(2, "too many command line arguments")
-    ifn = ofn = '-'
-    if args:
-        ifn = args[0]
-        if ifn != '-':
-            base, ext = os.path.splitext(ifn)
-            if sys.stdout.isatty():
-                # if not a TTY, we're in a pipeline & should stick with stdout
-                ofn = base + bookmarks.get_default_extension(
-                    options.output_format)
+    while len(args) < 2:
+        args.append('-')
+    [ifn, ofn] = args
     if ifn == '-':
         infile = sys.stdin
     else:
@@ -96,25 +128,11 @@ def main():
                 # try to open as URL
                 import urllib
                 infile = urllib.urlopen(ifn)
-                if ofn != "-":
-                    # we tried to guess; try again to keep it local
-                    import posixpath
-                    import urlparse
-                    pathpart = urlparse.urlparse(ifn)[2] or '/'
-                    ofn = posixpath.basename(pathpart)
-                    if not ofn:
-                        ofn = posixpath.basename(pathpart[:-1])
-                    else:
-                        ofn = posixpath.splitext(ofn)[0]
-                    ofn = ofn + bookmarks.get_default_extension(
-                        options.output_format)
                 baseurl = infile.url
             else:
                 error(1, "could not open %s: %s" % (ifn, message))
         else:
             baseurl = "file:" + os.path.join(os.getcwd(), ifn)
-    if len(args) == 2:
-        ofn = args[1]
     #
     # get the parser class, bypassing completely if the formats are the same
     #
@@ -187,20 +205,13 @@ def get_outfile(ofn):
 
 
 def usage(err=0, message=''):
+    if err:
+        sys.stdout = sys.stderr
     program = os.path.basename(sys.argv[0])
     if message:
         print "%s: %s" % (program, message)
         print
-    print "usage:", program, "[infile [outfile]]"
-    print
-    print "\tConvert a Grail bookmarks file to an HTML bookmarks file."
-    print
-    print "\tIf infile is specified, the default output filename will be"
-    print "\tthe name of the input file with the extension '.html'.  If both"
-    print "\tinfile and outfile are omitted, input will be read from standard"
-    print "\tinput and output will be written to standard output.  A hyphen"
-    print "\tmay be used in either position to explicitly request the"
-    print "\tcorresponding standard stream."
+    print __doc__ % {"program": program}
     sys.exit(err)
 
 
