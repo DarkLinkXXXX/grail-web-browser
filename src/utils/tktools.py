@@ -273,8 +273,10 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
 	entry.pack(side=RIGHT, expand=1, fill=X)
 	frame.pack(fill=X)
     else:
-	entry = make_text_box(frame, entrywidth, entryheight, 1, 1,
-			      takefocus=takefocus)
+	entry, tbframe = make_text_box(frame, entrywidth, entryheight, 1, 1,
+				       takefocus=takefocus)
+	if borderwidth is not None:
+	    entry["borderwidth"] = borderwidth
 	frame.pack(fill=BOTH, expand=1)
 
     return entry, frame, label
