@@ -86,7 +86,7 @@ class Packer:
 	def pack_array(self, list, pack_item):
 		n = len(list)
 		self.pack_uint(n)
-		self.pack_farray(n, list)
+		self.pack_farray(n, list, pack_item)
 
 
 class Unpacker:
