@@ -149,6 +149,12 @@ F_GREYSCALE = 1
 F_BWDITHER = 2
 F_REDUCED = 3
 
+# keep images that come above the ascenders for the current line
+# from clobbering the descenders of the line above by allowing the
+# font height * PROTECT_DESCENDERS_MULTIPLIER.  This should be a
+# reasonable percentage of the font height.
+PROTECT_DESCENDERS_MULTIPLIER = 0.20
+
 
 def distance(start, end):
     """Returns the distance between two points."""
@@ -305,6 +311,8 @@ class PSStream:
 	self._xpos = 0.0
 	self._ypos = 0.0
 	self._vtab = 0.0		# extra vertical tab before the line
+	self._yshift = [(0.0, 0.0)]	# vertical baseline shift w/in line
+	self._lineshift = 0.0		# adjustment at start of line
 	self._linefp = StringIO.StringIO()
 	self._inliteral_p = None
 	self._render = 'S'		# S == normal string, U == underline
@@ -343,10 +351,8 @@ class PSStream:
 	self.print_page_preamble()
 	self.push_font_change(None)
 
-    def push_eps(self, data, bbox, align = 'bottom'):
+    def push_eps(self, data, bbox, align=None):
 	"""Insert encapsulated postscript in stream.
-
-	ALIGN must be one of 'top', 'center', or 'bottom'.
 	"""
 	if not data: return
 	if self._linestr:
@@ -354,6 +360,8 @@ class PSStream:
 	ll_x, ll_y, ur_x, ur_y = bbox
 	width = distance(ll_x, ur_x)
 	height = distance(ll_y, ur_y)
+	if align not in ('absmiddle', 'baseline', 'middle', 'texttop', 'top'):
+	    align = 'bottom'
 
 	#  Determine base scaling factor and dimensions:
 	if width > PAGE_WIDTH:
@@ -365,30 +373,43 @@ class PSStream:
 	width = scale * width		# compute the maximum dimensions
 	height = scale * height
 
-	align = 'bottom'		# limitation!
-	if align == 'center':
+	#align = 'bottom'		# limitation!
+	extra = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
+	if align == 'absmiddle':
 	    above_portion = below_portion = 0.5
-	elif align == 'bottom':
+	    vshift = ((1.0 * self._font.font_size()) / 2)
+	elif align == 'middle':
+	    above_portion = below_portion = 0.5
+	    vshift = 0.0
+	elif align in ('bottom', 'baseline'):
 	    above_portion = 1.0
 	    below_portion = 0.0
+	    vshift = 0.0
 	else:
-	    #  assume align == 'top'   ------  just make it 'center' for now!
-	    above_portion = below_portion = 0.5
+	    #  ALIGN == 'top'  || ALIGN == 'texttop'
+	    above_portion = 0.0
+	    below_portion = 1.0
+	    vshift = 1.0 * self._font.font_size()
+	    extra = 0.0
 
 	if width > PAGE_WIDTH - self._xpos:
 	    self.close_line()
 	above = above_portion * height
+	below = (below_portion * height) - vshift
 	if self._baseline is None:
-	    self._baseline = above
+	    self._baseline = above + self._yshift[-1][0] + vshift + extra
 	else:
-	    self._baseline = max(self._baseline, above)
+	    self._baseline = max(self._baseline,
+				 above + self._yshift[-1][0] + vshift + extra)
+	self._descender = max(self._descender, below - self._yshift[-1][0])
 	self._xpos = self._xpos + width
 	#
 	oldstdout = sys.stdout
 	try:
 	    sys.stdout = self._linefp
 	    #  Translate & scale for image origin:
-	    print 'gsave currentpoint translate %f dup scale' % scale
+	    print 'gsave currentpoint %f sub translate %f dup scale' \
+		  % (below, scale)
 	    if ll_x or ll_y:
 		#  Have to translate again to make image happy:
 		print '%d %d translate' % (-ll_x, -ll_y)
@@ -397,6 +418,25 @@ class PSStream:
 	    print 'grestore', width, '0 R'
 	finally:
 	    sys.stdout = oldstdout
+
+    def push_yshift(self, yshift):
+	"""Adjust the current baseline relative to the real baseline.
+
+	The `yshift' parameter is a float value specifying the adjustment
+	relative to the current virtual baseline.  Use pop_yshift() to
+	undo the effects of the adjustment.
+	"""
+	if self._linestr:
+	    self.close_string()
+	yshift = 1.0 * yshift
+	self._linefp.write('0 %f R\n' % yshift)
+	self._yshift.append((self._yshift[-1][0] + yshift, yshift))
+
+    def pop_yshift(self):
+	if self._linestr:
+	    self.close_string()
+	self._linefp.write('0 %f -1.0 mul R\n' % self._yshift[-1][1])
+	del self._yshift[-1]
 
     def push_end(self):
 	self.close_line()
@@ -416,10 +456,11 @@ class PSStream:
 	psfontname, size = self._font.set_font(font)
 	self._space_width = self._font.text_width(' ')
 	self._linefp.write('%s %d SF\n' % (psfontname, size))
+	newfontsize = self._font.font_size() + max(0.0, self._yshift[-1][0])
 	if self._baseline is None:
-	    self._baseline = self._font.font_size()
+	    self._baseline = newfontsize
 	else:
-	    self._baseline = max(self._baseline, self._font.font_size())
+	    self._baseline = max(self._baseline, newfontsize)
 
     def push_space(self, spaces=1):
 	# spaces at the beginning of a line are thrown away, unless we
@@ -428,11 +469,17 @@ class PSStream:
 	    self._linestr.append(' ' * spaces)
 	    self._xpos = self._xpos + self._space_width * spaces
 
-    def push_horiz_rule(self):
+    def push_horiz_rule(self, abswidth=None, percentwidth=None):
 	self.close_line()
 	self._baseline = HR_TOP_MARGIN
 	self._descender = HR_BOT_MARGIN
-	self._linefp.write('%f HR\n' % PAGE_WIDTH)
+	if abswidth:
+	    wid = max(1.0 * abswidth, PAGE_WIDTH)
+	elif percentwidth:
+	    wid = min(1.0, percentwidth) * PAGE_WIDTH
+	else:
+	    wid = PAGE_WIDTH
+	self._linefp.write('%f HR\n' % wid)
 	self.close_line()
 	self._ypos = self._ypos - HR_LINE_WIDTH
 
@@ -618,20 +665,24 @@ class PSStream:
 	if linestr is None:
 	    linestr = self._linestr
 	if self._baseline is None:
-	    self._baseline = self._font.font_size()
-##	print 'ypos=', self._ypos, 'vtab=', self._vtab, 'linestr:', linestr
+	    self._baseline = self._font.font_size() + self._lineshift
+##	print 'ypos=', self._ypos, 'vtab=', self._vtab, 'linestr:', linestr, \
+##		'lineshift=', self._lineshift
 	if linestr:
 	    self.close_string(linestr)
 	# do we need to break the page?
 	self.print_page_break()
-	distance = -self._baseline - self._vtab
+	distance = -self._baseline - self._vtab + self._lineshift
 	self._ofp.write('CR 0 %f R\n' % distance)
+	if self._yshift[-1][0]:
+	    self._ofp.write('0 %f R\n' % self._yshift[-1][0])
 	self._ofp.write(self._linefp.getvalue())
 	if self._descender > 0:
 	    self._ofp.write('0 %f R\n' % -self._descender)
 	    self._descender = 0.0
 	# reset cache
 	self._linefp = StringIO.StringIO()
+	self._lineshift = max(self._yshift[-1][0], 0.0)
 	self._xpos = 0.0
 	self._vtab = 0.0
 	self._baseline = None
@@ -708,9 +759,9 @@ class PSWriter(AbstractWriter):
 ##	_debug('send_line_break')
 	self.ps.push_hard_newline()
 
-    def send_hor_rule(self):
+    def send_hor_rule(self, abswidth=None, percentwidth=None):
 ##	_debug('send_hor_rule')
-	self.ps.push_horiz_rule()
+	self.ps.push_horiz_rule(abswidth, percentwidth)
 
     def send_label_data(self, data):
 ##	_debug('send_label_data: %s' % data)
@@ -773,29 +824,23 @@ class PrintingHTMLParser(HTMLParser):
     to determine how the image should be converted to postscript.
 
     The interpretation of anchor tags is controlled by two options,
-    `ignore_anchors' and `underline_anchors.'  If ignore_anchors is
-    true, anchor tags are ignored completely, otherwise they are
-    assigned footnote numbers and the target URL is printed in a list
-    appended following the text of the document.  If this treatment is
-    selected, the underline_anchors flag controls the visual treatment
-    of the anchor text in the main document.
+    `footnote_anchors' and `underline_anchors.'  If footnote_anchors
+    is true, anchors are assigned footnote numbers and the target URL
+    is printed in a list appended following the body of the document.
+    The underline_anchors flag controls the visual treatment of the
+    anchor text in the main document.
     """
     def __init__(self, formatter, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=1, underline_anchors=1, ignore_anchors=0):
+		 greyscale=1, underline_anchors=1, footnote_anchors=0):
 	HTMLParser.__init__(self, formatter, verbose)
 	self._baseurl = baseurl
 	self._greyscale = greyscale
 	self._image_loader = image_loader
 	self._image_cache = {}
+	self._footnote_anchors = footnote_anchors
 	self._underline_anchors = underline_anchors
 	self._anchors = {}
 	self._anchor_sequence = []
-	if ignore_anchors:
-	    self.start_a = self.null_op
-	    self.end_a = self.null_op
-
-    def null_op(self, *notused):
-	pass
 
     def close(self):
 	if self._anchor_sequence:
@@ -827,12 +872,11 @@ class PrintingHTMLParser(HTMLParser):
 	self.formatter.pop_font()
 
     def start_a(self, attrs):
-	from urlparse import urljoin
-	baseurl = self.base or self._baseurl or ''
-	title = None
-	href = ''
+	title, href = None, None
 	for attr, value in attrs:
 	    if attr == 'href':
+		from urlparse import urljoin
+		baseurl = self.base or self._baseurl or ''
 		href = urljoin(baseurl, value)
 	    elif attr == 'title':
 		title = string.strip(value)
@@ -840,17 +884,17 @@ class PrintingHTMLParser(HTMLParser):
 	if href:
 	    if self._underline_anchors:
 		self.formatter.push_style('u')
-	    if not self._anchors.has_key(href):
+	    if self._footnote_anchors and not self._anchors.has_key(href):
 		self._anchors[href] = len(self._anchor_sequence) + 1
 		self._anchor_sequence.append((href, title))
 
     def end_a(self):
-	anchor = self.anchor
-	self.anchor = None
+	anchor, self.anchor = self.anchor, None
 	if anchor:
 	    if self._underline_anchors:
 		self.formatter.pop_style()
-	    self.handle_data('[%d]' % self._anchors[anchor])
+	    if self._footnote_anchors:
+		self.handle_data('[%d]' % self._anchors[anchor])
 
     def handle_image(self, src, alt, ismap, align, *notused):
 	if self._image_loader:
@@ -866,6 +910,7 @@ class PrintingHTMLParser(HTMLParser):
 		    return
 		else:
 		    self._image_cache[imageurl] = (eps_data, bbox)
+	    align = string.lower(align)
 	    self.formatter.writer.send_eps_data(eps_data, bbox, align)
 	    self.formatter.assert_line_data()
 	else:
@@ -973,7 +1018,7 @@ def main():
 		  '[-u url] [-t title] [-h] [-d] [-l logfile] [-a] [-U] [file]'
 	    print '    -u: URL for footer'
 	    print '    -t: title for header'
-	    print '    -a: disable anchor processing'
+	    print '    -a: disable anchor footnotes'
 	    print '    -U: disable anchor underlining'
 	    print '    -d: turn on debugging'
 	    print '    -l: logfile for debugging, otherwise stderr'
