@@ -41,6 +41,10 @@ import sys
 import tktools
 
 
+USER_DATA_DIR = os.path.normpath(
+    os.path.abspath(os.path.join(grailutil.getgraildir(), "data")))
+
+
 def get_scaling_adjustments(w):
     scheight = float(w.winfo_screenheight())
     scwidth = float(w.winfo_screenwidth())
@@ -146,6 +150,8 @@ class RealPrintDialog:
         self.baseurl = context.get_baseurl()
         self.prefs = context.app.prefs
         self.settings = printing.settings.get_settings(context.app.prefs)
+        if USER_DATA_DIR not in self.settings.user_data_dirs:
+            self.settings.user_data_dirs.append(USER_DATA_DIR)
         settings = self.settings
         #
         self.title = title
