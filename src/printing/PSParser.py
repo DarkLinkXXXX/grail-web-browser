@@ -1,6 +1,6 @@
 """HTML parser for printing.
 """
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 #  $Source: /home/john/Code/grail/src/printing/PSParser.py,v $
 
 import grailutil			# top level
@@ -58,7 +58,7 @@ class PrintingHTMLParser(HTMLParser):
 	    PrintingHTMLParser._inited = 1
 	HTMLParser.__init__(self, AbstractFormatter(writer))
 	if settings.strict_parsing:
-	    self.restrict(0)
+	    self.sgml_parser.restrict(0)
 	self._baseurl = context.get_baseurl()
 	self.context = context
 	self.settings = settings
