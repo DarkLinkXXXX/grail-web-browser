@@ -1,4 +1,4 @@
-#! /depot/sundry/plat/bin/python
+#! /usr/local/bin/python
 
 """Grail -- the Extensible Internet Browser."""
 
