@@ -26,19 +26,37 @@ from Tkinter import *
 import tktools
 import os
 
+PRINT_PREFS_GROUP = 'printing'
 PRINTCMD = "lpr"			# Default print command
 
-# Global variables tracking the last contents of the dialog box
-printcmd = PRINTCMD
+# Global variables tracking the last contents of the dialog box.
+# If printcmd is None, these need to be inited from preferences.
+printcmd = None
 printfile = ""
 fileflag = 0
 imageflag = 0
+
+
+def bool_to_tkbool(v):
+    return v and 1 or 0
 
 
 class PrintDialog:
 
     def __init__(self, context, url, title):
 	self.context = context
+	if printcmd is None:
+	    global printcmd, printfile, fileflag, imageflag
+	    prefs = context.app.prefs
+	    if not prefs:
+		printcmd = PRINTCMD
+	    else:
+		imageflag = prefs.GetBoolean(PRINT_PREFS_GROUP, 'images')
+		imageflag = bool_to_tkbool(imageflag)
+		fileflag = prefs.GetBoolean(PRINT_PREFS_GROUP, 'to-file')
+		fileflag = bool_to_tkbool(fileflag)
+		printcmd = prefs.Get(PRINT_PREFS_GROUP, 'command')
+
 	self.url = url
 	self.title = title
 	self.master = self.context.root
@@ -169,7 +187,7 @@ class PrintDialog:
 	w.close()
 
     def goaway(self):
-	global printcmd, printfile, fileflag
+	global printcmd, printfile, fileflag, imageflag
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
