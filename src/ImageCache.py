@@ -45,7 +45,7 @@ class ImageCache:
 	    if self.old_objects.has_key(owner):
 		for pair in self.old_objects[owner]:
 		    if pair[0] == url:
-			self.old_object[owner].remove(pair)
+			self.old_objects[owner].remove(pair)
 	self.image_objects[url] = image
 	self.current_owners[url] = [owner]
 
