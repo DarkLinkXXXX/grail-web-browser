@@ -33,8 +33,9 @@ class Cache:
 
     """
 
-    def __init__(self):
+    def __init__(self, app):
 	self.cachedir = {}
+	self.app = app
 
     def open(self, url, mode, params, reload=0, data=None):
 	key = self.url2key(url, mode, params)

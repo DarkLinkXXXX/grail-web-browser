@@ -199,11 +199,11 @@ class Application:
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
 	self.global_history = GlobalHistory.GlobalHistory(self)
-	self.url_cache = Cache()
 	self.image_cache = {}
 	self.login_cache = {}
 	self.rexec = AppletRExec(None, 2, self)
 	self.graildir = grailutil.getgraildir()
+	self.url_cache = Cache(self)
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
 	  read_mime_types("/usr/local/lib/netscape/mime.types") or \
