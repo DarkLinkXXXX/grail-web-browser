@@ -60,7 +60,7 @@ def set_transient(widget, master, relx=0.5, rely=0.3):
     return widget
 
 
-def make_scrollbars(parent, hbar, vbar, pack=1):
+def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None):
 
     """Subroutine to create a frame with scrollbars.
 
@@ -71,10 +71,14 @@ def make_scrollbars(parent, hbar, vbar, pack=1):
 
     Return a triple containing the hbar, the vbar, and the frame,
     where hbar and vbar are None if not requested.
-
     """
+    if class_:
+	if name: frame = Frame(parent, class_=class_, name=name)
+	else: frame = Frame(parent, class_=class_)
+    else:
+	if name: frame = Frame(parent, name=name)
+	else: frame = Frame(parent)
 
-    frame = Frame(parent)
     if pack:
 	frame.pack(fill=BOTH, expand=1)
 
@@ -85,8 +89,8 @@ def make_scrollbars(parent, hbar, vbar, pack=1):
 	else:
 	    vbarframe = Frame(frame, borderwidth=0)
 	    vbarframe.pack(fill=Y, side=RIGHT)
-	    vbar = Scrollbar(vbarframe)
-	    vbar.pack(expand=1, fill=Y, side=TOP)
+	    vbar = Scrollbar(frame, name="vbar")
+	    vbar.pack(in_=vbarframe, expand=1, fill=Y, side=TOP)
 	    sbwidth = vbar.winfo_reqwidth()
 	    corner = Frame(vbarframe, width=sbwidth, height=sbwidth)
 	    corner.pack(side=BOTTOM)
@@ -94,7 +98,7 @@ def make_scrollbars(parent, hbar, vbar, pack=1):
 	vbar = None
 
     if hbar:
-	hbar = Scrollbar(frame, orient=HORIZONTAL)
+	hbar = Scrollbar(frame, orient=HORIZONTAL, name="hbar")
 	hbar.pack(fill=X, side=BOTTOM)
     else:
 	hbar = None
@@ -123,7 +127,8 @@ def set_scroll_commands(widget, hbar, vbar):
 
 
 def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1, wrap=WORD, pack=1):
+		  fill=BOTH, expand=1, wrap=WORD, pack=1,
+		  class_=None, name=None):
 
     """Subroutine to create a text box.
 
@@ -136,10 +141,10 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
     Return the text widget and the frame widget.
 
     """
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack,
+					class_=class_, name=name)
 
-    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack)
-
-    widget = Text(frame, wrap=wrap)
+    widget = Text(frame, wrap=wrap, name="text")
     if width: widget.config(width=width)
     if height: widget.config(height=height)
     widget.pack(expand=expand, fill=fill, side=LEFT)
@@ -150,17 +155,16 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
 
 
 def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1, pack=1):
+		  fill=BOTH, expand=1, pack=1, class_=None, name=None):
 
     """Subroutine to create a list box.
 
     Like make_text_box().
-
     """
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack,
+					class_=class_, name=name)
 
-    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack)
-
-    widget = Listbox(frame)
+    widget = Listbox(frame, name="listbox")
     if width: widget.config(width=width)
     if height: widget.config(height=height)
     widget.pack(expand=expand, fill=fill, side=LEFT)
@@ -171,7 +175,7 @@ def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
 
 
 def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
-		  fill=BOTH, expand=1, pack=1):
+		  fill=BOTH, expand=1, pack=1, class_=None, name=None):
 
     """Subroutine to create a canvas.
 
@@ -179,9 +183,10 @@ def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
 
     """
 
-    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack)
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar, pack,
+					class_=class_, name=name)
 
-    widget = Canvas(frame, scrollregion=(0, 0, width, height))
+    widget = Canvas(frame, scrollregion=(0, 0, width, height), name="canvas")
     if width: widget.config(width=width)
     if height: widget.config(height=height)
     widget.pack(expand=expand, fill=fill, side=LEFT)
@@ -192,7 +197,7 @@ def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
 
 
 
-def make_form_entry(parent, label):
+def make_form_entry(parent, label, borderwidth=None):
 
     """Subroutine to create a form entry.
 
@@ -211,7 +216,10 @@ def make_form_entry(parent, label):
     label = Label(frame, text=label)
     label.pack(side=LEFT)
 
-    entry = Entry(frame, relief=SUNKEN, border= 2)
+    if borderwidth is None:
+	entry = Entry(frame, relief=SUNKEN)
+    else:
+	entry = Entry(frame, relief=SUNKEN, borderwidth=borderwidth)
     entry.pack(side=LEFT, fill=X, expand=1)
 
     return entry, frame
@@ -224,7 +232,7 @@ def make_form_entry(parent, label):
 # expandable while still aligning the colons.  This doesn't work yet.
 #
 def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
-			    labelwidth=0):
+			    labelwidth=0, borderwidth=None):
     """Subroutine to create a form entry.
 
     Create:
@@ -234,14 +242,18 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
 
     Return the entry widget and the frame widget.
     """
-    if label[-1] != ':': label = label + ':'
+    if label and label[-1] != ':': label = label + ':'
 
     frame = Frame(parent)
 
     label = Label(frame, text=label, width=labelwidth, anchor=E)
     label.pack(side=LEFT)
     if entryheight == 1:
-	entry = Entry(frame, relief=SUNKEN, border=2, width=entrywidth)
+	if borderwidth is None:
+	    entry = Entry(frame, relief=SUNKEN, width=entrywidth)
+	else:
+	    entry = Entry(frame, relief=SUNKEN, width=entrywidth,
+			  borderwidth=borderwidth)
 	entry.pack(side=RIGHT, expand=1, fill=X)
 	frame.pack(fill=X)
     else:
@@ -250,6 +262,27 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
 
     return entry, frame, label
 
+
+def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
+		      borderwidth=1):
+    """Create a pair of frames suitable for 'hosting' a dialog.
+    """
+    if name:
+	if class_: frame = Frame(master, class_=class_, name=name)
+	else: frame = Frame(master, name=name)
+    else:
+	if class_: frame = Frame(master, class_=class_)
+	else: frame = Frame(master)
+    top = Frame(frame, name="topframe", relief=relief,
+		borderwidth=borderwidth)
+    bottom = Frame(frame, name="bottomframe")
+    top.pack(expand=1, fill=BOTH, padx='1m', pady='1m')
+    bottom.pack(fill=X, padx='1m', pady='1m')
+    frame.pack(expand=1, fill=BOTH)
+    top = Frame(top)
+    top.pack(expand=1, fill=BOTH, padx='2m', pady='2m')
+
+    return frame, top, bottom
 
 
 def flatten(msg):
