@@ -55,6 +55,9 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1):
 	text['xscrollcommand'] = (hbar, 'set')
 	hbar['command'] = (text, 'xview')
 
+    text.vbar = vbar
+    text.hbar = hbar
+
     return text, frame
 
 
