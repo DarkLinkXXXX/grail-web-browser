@@ -34,6 +34,7 @@ class GrailHTMLParser(HTMLParser):
 	self.insert_active = 0		# Length of insert_stack at activation
 	self.image_maps = {}            # for image maps
 	self.current_map = None
+	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
 	HTMLParser.__init__(self, self.formatter_stack[-1])
 
