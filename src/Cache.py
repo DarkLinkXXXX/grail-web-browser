@@ -86,6 +86,16 @@ class SharedItem:
 	    # status
 	    self.incache = 1
 
+    def reset(self, reload=0):
+	# Should only be used inside constructor function.
+	# For next release, make it __reset
+	self.reloading = reload
+	self.api = protocols.protocol_access(self.url,
+					     self.mode, self.params,
+					     data=self.postdata)
+	self.stage = self.api.state
+	self.init_new_load(META)
+
     def __repr__(self):
 	return "SharedItem(%s)<%d>" % (`self.url`, self.refcnt)
 
@@ -211,14 +221,6 @@ class SharedItem:
 		    delta = diff
 		    chunk_key = chunk_offset
 	return chunk_key, delta
-
-    def reset(self,reload=0):
-	self.reloading = reload
-	self.api = protocols.protocol_access(self.url,
-					     self.mode, self.params,
-					     data=self.postdata)
-	self.stage = self.api.state
-	self.init_new_load(META)
 
     def init_new_load(self,stage):
 	self.meta = None
