@@ -293,6 +293,8 @@ class AppletLoader:
 	    exec code in m.__dict__
 	elif type == ihooks.BUILTIN_MODULE:
 	    m = imp.init_builtin(mod)
+	elif type == ihooks.C_EXTENSION:
+	    m = rexec.load_dynamic(mod, filename, file)
 	else:
 	    raise ImportError, "Unsupported module type: %s" % `filename`
         return m
