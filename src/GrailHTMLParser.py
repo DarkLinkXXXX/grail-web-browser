@@ -36,7 +36,7 @@ def init_module(prefs):
 
 class GrailHTMLParser(HTMLParser):
 
-    object_aware_tags = ['param', 'alias', 'applet']
+    object_aware_tags = ['param', 'alias', 'applet', 'script', 'object']
 
     def __init__(self, viewer, reload=0, autonumber=None):
 	self.viewer = viewer
@@ -396,7 +396,7 @@ class GrailHTMLParser(HTMLParser):
 	    if name is not None and value is not None:
 		self.apploader.set_param(name, value)
 
-    # New tag: <APP>
+    # New tag: <APP> (for Grail 0.2 compatibility)
 
     def do_app(self, attrs):
 	mod, cls, src = self.get_mod_class_src(attrs)
@@ -428,6 +428,44 @@ class GrailHTMLParser(HTMLParser):
 	else:
 	    mod = cls
 	return mod, cls, src
+
+    # New tag: <OBJECT> -- W3C proposal for <APPLET>/<IMG>/... merger.
+
+    def start_object(self, attrs):
+	if self.push_object('object'):
+	    return
+	extract = extract_keyword
+	width = extract('width', attrs, conv=string.atoi)
+	height = extract('height', attrs, conv=string.atoi)
+	menu = extract('menu', attrs)
+	classid = extract_keyword('classid', attrs)
+	codebase = extract_keyword('codebase', attrs)
+	align = extract('align', attrs, 'baseline')
+	vspace = extract('vspace', attrs)
+	hspace = extract('hspace', attrs)
+	apploader = AppletLoader.AppletLoader(
+	    self, width=width, height=height, menu=menu,
+	    classid=classid, codebase=codebase,
+	    vspace=vspace, hspace=hspace, align=align, reload=self.reload1)
+	if apploader.feasible():
+	    self.apploader = apploader
+	    self.set_suppress()
+	else:
+	    apploader.close()
+
+    def end_object(self):
+	if self.pop_object():
+	    self.apploader.go_for_it()
+
+    # New tag: <SCRIPT> -- ignore anything inside it
+
+    def start_script(self, attrs):
+	if self.push_object('script'):
+	    return
+	self.set_suppress()
+
+    def end_script(self):
+	self.pop_object()
 
     # Heading support for dingbats (iconic entities):
 

@@ -28,7 +28,8 @@ class AppletLoader:
 
     """
 
-    def __init__(self, parser, name=None, code=None, codebase=None,
+    def __init__(self, parser, name=None, classid=None,
+		 code=None, codebase=None,
 		 width=None, height=None, vspace=None, hspace=None,
 		 align=None,
 		 menu=None, reload=0):
@@ -39,6 +40,7 @@ class AppletLoader:
 	self.app = self.parser.app
 
 	self.name = name
+	self.classid = classid
 	self.code = code
 	self.codebase = codebase
 	self.width = width
@@ -52,6 +54,7 @@ class AppletLoader:
 	self.params = {}
 
 	self.modname = None
+	self.classname = None
 	self.codeurl = None
 
 	self.parent = None
@@ -104,7 +107,16 @@ class AppletLoader:
 	    groups = map(string.lower, string.split(rawgroups))
 	    if key not in groups:
 		return 0
-	return self.code and codeprog.match(self.code) == len(self.code)
+	if self.code:			# <APP> or <APPLET>
+	    return codeprog.match(self.code) == len(self.code)
+	else:				# <OBJECT>
+	    if self.classid:
+		if codeprog.match(self.classid) == len(self.classid):
+		    return 1
+	    if self.codebase:
+		if codeprog.match(self.codebase) == len(self.codebase):
+		    return 1
+	    return 0
 
     def set_param(self, name, value):
 	"""Set the value for a named parameter for the widget."""
@@ -140,7 +152,7 @@ class AppletLoader:
 	self.module = self.get_easy_module(self.modname)
 	if self.module:
 	    # Synchronous loading
-	    self.klass = getattr(self.module, self.name)
+	    self.klass = getattr(self.module, self.classname)
 	    self.parent = self.make_parent()
 	    self.instance = apply(self.klass, (self.parent,),
 				  self.params)
@@ -194,18 +206,41 @@ class AppletLoader:
 	finally:
 	    del rexec.loader.load_module
 	self.parser.loaded.append(mod)
-	self.klass = getattr(self.module, self.name)
+	self.klass = getattr(self.module, self.classname)
 	self.instance = apply(self.klass, (self.parent,), self.params)
 
     def get_defaults(self):
 	"""Internal -- calculate defaults for applet parameters."""
-	if codeprog.match(self.code) >= 0:
-	    self.modname = codeprog.group(2)
-	else:
-	    self.modname = "?" # Shouldn't happen
-	if not self.name:
-	    self.name = self.modname
-	self.codeurl = self.context.get_baseurl(self.codebase, self.code)
+	if self.code:			# <APP> or <APPLET>
+	    if codeprog.match(self.code) >= 0:
+		self.modname = codeprog.group(2)
+	    else:
+		self.modname = "?" # Shouldn't happen
+	    if self.name:
+		self.classname = self.name
+	    else:
+		self.classname = self.modname
+	    self.codeurl = self.context.get_baseurl(
+		self.codebase, self.code)
+	elif self.classid:		# <OBJECT>
+	    if codeprog.match(self.classid) >= 0:
+		self.codeurl = self.classid
+		self.modname = codeprog.group(2)
+		self.classname = self.modname
+	    else:
+		self.classname = self.classid
+		self.modname = self.classid
+		self.codeurl = self.modname + ".py"
+	    if codeprog.match(self.codebase) >= 0:
+		self.modname = codeprog.group(2)
+		self.codeurl = self.context.get_baseurl(self.codebase)
+	    else:
+		self.codeurl = self.context.get_baseurl(self.codebase,
+							self.codeurl)
+	print "codeurl =", `self.codeurl`
+	print "modname =", `self.modname`
+	print "classname =", `self.classname`
+	    
 
     def get_easy_module(self, mod):
 	"""Internal -- import a module if it can be done locally."""
