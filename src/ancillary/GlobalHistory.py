@@ -56,7 +56,7 @@ class NetscapeHistoryReader(HistoryLineReader):
 	    fields = string.splitfields(line, '\t')
 	    url = string.strip(fields[0])
 	    timestamp = string.atoi(string.strip(fields[1]))
-	    return (url, title, timestamp or now())
+	    return (url, '', timestamp or now())
 	except (ValueError, IndexError, TypeError):
 	    self._error(line)
 	    return None
