@@ -1,7 +1,6 @@
 """Reader class -- helper to read documents asynchronously."""
 
 
-from grailutil import *
 import os
 import sys
 import string
@@ -11,7 +10,6 @@ import tktools
 from AppletHTMLParser import AppletHTMLParser
 from BaseReader import BaseReader
 import regsub
-from copy import copy
 
 
 # mailcap dictionary
@@ -217,8 +215,6 @@ class Reader(BaseReader):
 		    self.context.rmreader(self)
 		    self.context = self.last_context = context
 		    self.context.addreader(self)
-		    self.context.message("Loading %s (target=%s)" %
-					 (self.url, target))
 		    self.viewer = self.context.viewer
 	self.context.clear_reset()
 	self.context.set_url(self.url)
