@@ -3,7 +3,7 @@
 This module is safe for 'from sgml.utils import *'.
 
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 
 import string
@@ -89,25 +89,6 @@ def conv_normwhitespace(val):
 
 def conv_exists(val):
     return 1
-
-
-def conv_mimetype(type):
-    """Convert MIME media type specifications to tuples of
-    ('type/subtype', {'option': 'value'}).
-    """
-    if not type:
-        return None, {}
-    if ';' in type:
-        i = _string.index(type, ';')
-        opts = _parse_mimetypeoptions(type[i + 1:])
-        type = type[:i]
-    else:
-        opts = {}
-    fields = _string.split(_string.lower(type), '/')
-    if len(fields) != 2:
-        raise ValueError, "Illegal media type specification."
-    type = _string.join(fields, '/')
-    return type, opts
 
 
 def _parse_mimetypeoptions(options):
