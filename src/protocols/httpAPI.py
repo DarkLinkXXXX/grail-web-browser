@@ -130,6 +130,7 @@ class http_access:
 	for key, value in params.items():
 	    if key[:1] != '.':
 		self.h.putheader(key, value)
+	self.h.putheader('Accept', '*/*')
 	self.h.endheaders()
 	if data:
 	    self.h.send(data)
