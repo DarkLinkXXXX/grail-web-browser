@@ -1,6 +1,6 @@
 """HTML parser for printing.
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 #  $Source: /home/john/Code/grail/src/printing/PSParser.py,v $
 
 import grailutil			# top level
@@ -404,6 +404,16 @@ class PrintingHTMLParser(HTMLParser):
 	elif attrs.has_key('src'):
 	    self.do_img(attrs)
 	    self.formatter.add_flowing_data(' ')
+
+    def header_number(self, tag, level, attrs):
+	# make sure we have at least 3*fontsize vertical space available:
+	ps = self.formatter.writer.ps
+	fontsize = ps._font.font_size()
+	available = ps.get_pageheight() + ps._ypos
+	if available < (3 * fontsize):
+	    ps.push_page_break()
+	# now call the base class:
+	HTMLParser.header_number(self, tag, level, attrs)
 
     def pi_page_break(self, arglist):
 	self.formatter.add_line_break()
