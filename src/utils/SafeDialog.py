@@ -5,13 +5,13 @@
 
 from SafeTkinter import *
 from SafeTkinter import _cnfmerge
+import tktools
 
 class Dialog(Frame):
 
     def __init__(self, master=None,
 		 title='', text='', bitmap='', default=-1, strings=[]):
-	self.root = Toplevel(master)
-	self.root.title(title)
+	self.root = tktools.make_toplevel(master, title=title)
 	self.message = Message(self.root, text=text, aspect=400)
 	self.message.pack()
 	self.frame = Frame(self.root)
@@ -27,6 +27,7 @@ class Dialog(Frame):
 		b.config(relief='ridge', border=4)
 	    b.pack(side='left', fill='both', expand=1)
 	    num = num+1
+	tktools.set_transient(self.root, master)
 	try:
 	    self.root.grab_set()
 	except TclError:
