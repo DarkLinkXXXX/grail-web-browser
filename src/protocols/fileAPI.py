@@ -48,7 +48,7 @@ class file_access:
 	if os.path.isdir(self.pathname):
 	    self.format_directory()
 	else:
-	    self.fp = open(self.pathname) # May raise IOError!
+	    self.fp = open(self.pathname, 'rb') # May raise IOError!
 	    from __main__ import app
 	    ctype, cencoding = app.guess_type(self.pathname)
 	    if ctype: self.headers['content-type'] = ctype
