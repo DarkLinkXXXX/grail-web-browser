@@ -7,7 +7,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.30 $"
+__version__ = "$Revision: 2.31 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -417,8 +417,8 @@ class Framework:
 	    import Browser
 	    browser = Browser.Browser(self.app.root, self.app)
 	    self.helpbrowser = browser
-	grailhome = self.app.prefs.Get('landmarks', 'grail-home-page')
-	browser.context.load(urlparse.urljoin(grailhome, self.HELP_URL))
+	helproot = self.app.prefs.Get('landmarks', 'grail-help-root')
+	browser.context.load(urlparse.urljoin(helproot, self.HELP_URL))
 	browser.root.tkraise()
 
     def apply_cmd(self, event=None, close=0):
