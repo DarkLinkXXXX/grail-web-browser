@@ -44,6 +44,12 @@ C:
 parsing-html--strict:		0
 parsing-html--honor-colors:	1
 parsing-html--autonumber-headers: 0
+parsing-html--format-h1:	""
+parsing-html--format-h2:	"%(h2)d. "
+parsing-html--format-h3:	"%(h2)d.%(h3)d. "
+parsing-html--format-h4:	"%(h2)d.%(h3)d.%(h4)d. "
+parsing-html--format-h5:	"%(h2)d.%(h3)d.%(h4)d.%(h5)d. "
+parsing-html--format-h6:	"%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d. "
 C:
 C: Printing preferences:
 C:

@@ -12,7 +12,7 @@ import string
 import tktools
 import formatter
 from ImageMap import MapThunk, MapInfo
-from HTMLParser import HTMLParser
+from HTMLParser import HTMLParser, set_header_default_format
 from Viewer import MIN_IMAGE_LEADER
 import AppletLoader
 import grailutil
@@ -22,6 +22,15 @@ if hasattr(HTMLParser, 'do_isindex'):
     del HTMLParser.do_isindex
 if hasattr(HTMLParser, 'do_link'):
     del HTMLParser.do_link
+
+_inited = 0
+
+def init_module(prefs):
+    global _inited
+    _inited = 1
+    for opt in (1, 2, 3, 4, 5, 6):
+	fmt = prefs.Get('parsing-html', 'format-h%d' % opt)
+	set_header_default_format(opt - 1, eval(fmt))
 
 
 class GrailHTMLParser(HTMLParser):
@@ -47,6 +56,8 @@ class GrailHTMLParser(HTMLParser):
 	if autonumber is None:
 	    if self.app.prefs.GetBoolean('parsing-html', 'autonumber-headers'):
 		self.autonumber = 1
+	if not _inited:
+	    init_module(self.app.prefs)
 	HTMLParser.__init__(self, self.formatter_stack[-1],
 			    autonumber=autonumber)
 	# Hackery so reload status can be reset when all applets are loaded
