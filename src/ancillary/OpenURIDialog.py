@@ -20,6 +20,7 @@ class OpenURIDialog:
 
     def go(self):
 	self._frame.grab_set()
+	self._entry.focus_set()
 	try:
 	    self._frame.mainloop()
 	except SystemExit, how:
