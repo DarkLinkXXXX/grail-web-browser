@@ -13,8 +13,6 @@ import os
 tempdir = None
 template = None
 
-NoTempDirectoryFoundError = 'NoTempDirectoryFoundError'
-
 
 # Function to calculate the directory to use
 
@@ -36,9 +34,8 @@ def gettempdir():
 	except IOError:
 	    pass
     if tempdir is None:
-	import string
-	raise NoTempDirectoryFoundError, \
-	      '\n\t' + string.join(attempdirs, '\n\t')
+	msg = "Can't find a usable temporary directory amongst " + `attempdirs`
+	raise IOError, msg
     return tempdir
 
 
