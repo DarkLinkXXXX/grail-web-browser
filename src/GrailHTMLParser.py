@@ -437,6 +437,7 @@ class GrailHTMLParser(HTMLParser):
 	    # list of (x,y) tuples
 	    while len(terms) > 0:
 		coords.append((terms[0], terms[1]))
+		del terms[:2]
 	    if coords[0] != coords[-1:]:
 		# make sure the polygon is closed
 		coords.append(coords[0])
