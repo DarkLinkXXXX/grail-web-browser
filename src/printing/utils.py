@@ -1,7 +1,8 @@
 """Small utility functions for printing support, mostly for debugging."""
 
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
+import os
 import sys
 
 
@@ -84,3 +85,33 @@ def image_loader(url):
     except IOError, msg:
         return None
     return imgfp.read()
+
+
+def which(filename, path=()):
+    for p in path:
+        fn = os.path.join(p, filename)
+        if os.path.exists(fn):
+            return fn
+    return None
+
+
+def conv_fontsize(spec):
+    """Parse a font size with an optional leading specification.
+
+    spec
+        should be a string representing a real number or a pair of real
+        numbers separated by a forward slash.  Whitespace is ignored.
+
+    This function returns a tuple of the fontsize and leading.  If the
+    leading is not specified by `spec', the leading will be the same as
+    the font size.
+
+    """
+    if '/' in spec:
+        spec = string.splitfields(spec, '/')
+        if len(spec) != 2:
+            raise ValueError, "illegal font size specification"
+    else:
+        spec = [spec, spec]
+    spec = map(string.atof, map(string.strip, spec))
+    return tuple(spec)
