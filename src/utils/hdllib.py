@@ -35,8 +35,9 @@ the data spills over into a continuation packet.  These packets are reassembled
 so this uglyness goes no further than here.  -roj
 
 TODO:  The Hashtable class needs to be updated to the current algorithm for
-fetching the hashtable.  as of 2/21/96 this is not documented anywhere.  However
-there is some example c code in /projects/cstr/hs/client/get_data.c. line 260 
+fetching the hashtable.  as of 2/21/96 this is not documented anywhere.
+However there is some example c code in /projects/cstr/hs/client/get_data.c.
+line 260 
 
 Classes:
 
@@ -332,8 +333,8 @@ class PacketUnpacker:
 	    #
 	    # If length_from_body < 0 , we've found a continuation packet.
 	    # you must pull off an additional field containing the
-	    # beginning offset in the buffer. This algorithm was roughly derived
-	    # from the continuations hack found in:
+	    # beginning offset in the buffer. This algorithm was roughly
+	    # derived from the continuations hack found in:
 	    # /projects/cstr/hs/client/poll_data.c, line 580ish -roj
 	    #
 	    if length_from_body < 0:
@@ -837,16 +838,24 @@ class HashTable:
 		if self.debug:
 		    print 'err: ', err
 		# TODO - Once were correctly traversing all the handle servers
-		# we need to to insure the handle's indeed not found, we probably
-		# won't want to return here.  Because HP_HANDLE_NOT_FOUND
-		# may mean we need to look on a different handle server
+		# we need to to insure the handle's indeed not found,
+		# we probably won't want to return here.  Because
+		# HP_HANDLE_NOT_FOUND may mean we need to look on a
+		# different handle server
 		if err == HP_HANDLE_NOT_FOUND:
 		    return HDL_ERR_DOES_NOT_EXIST, None
 
 		error_body = u.unpack_error_body(err)
+		clean_error_body = ''
+		#
+		# Remove unprintable characters that tend to show up :(
+		for char in error_body:
+		    if char in string.letters or char in string.whitespace:
+			clean_error_body = clean_error_body + char
+		clean_error_body = string.strip(clean_error_body)
 		if self.debug:
 		    print "Error body:", error_body
-		raise Error((err, error_body))
+		raise Error((err, clean_error_body))
 
 	    flags, items = u.unpack_reply_body()
 
@@ -861,7 +870,8 @@ class HashTable:
 		(flags, items) = responses[i]
 		item = items[0]
 		#
-		# Check for a continuation packet, if we find one, append it to the previous
+		# Check for a continuation packet, if we find one,
+		# append it to the previous
 		if item[0] < 0:
 		    error = "Internal error assembling continuation packets"
 		    try:
