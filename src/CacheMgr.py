@@ -10,6 +10,7 @@ import os
 import time
 import ht_time
 import grailutil
+import mimetypes
 import regex
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
@@ -781,11 +782,7 @@ class DiskCache:
 	if self.types.has_key(type):
 	    return self.types[type]
 	else:
-	    for suf, stype in self.manager.app.suffixes_map.items():
-		if type == stype:
-		    self.types[type] = suf
-		    return suf
-	return ''
+            return mimetypes.guess_extension(type) or ''
 
     def make_file(self,entry,object):
 	"""Write the object's data to disk."""
