@@ -156,6 +156,8 @@ class Context:
     leave = message_clear		# XXX ImageMap backward compatibility
 
     def new_reader_status(self):
+	if self.app.iostatuspanel:
+	    self.app.iostatuspanel.update()
 	now = time.time()
 	seconds = math.floor(now)
 	if self.last_status_update == seconds:
