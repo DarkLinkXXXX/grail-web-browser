@@ -44,7 +44,8 @@ class Viewer(formatter.AbstractWriter):
 	self.popup_menu = None
 	self.status = StringVar()
 	self.linkinfo = ""
-	self.frame.bind('<Enter>', self.enter_frame)
+	if self.context.viewer is self:
+	    self.frame.bind('<Enter>', self.enter_frame)
 	if self.parent:
 	    self.parent.add_subviewer(self)
 	self.message("")
@@ -57,7 +58,7 @@ class Viewer(formatter.AbstractWriter):
 	self.status.set(message)
 	if not self.parent:
 	    self.context.browser.messagevariable(self.status)
-	if self.context.busy():
+	if self.context.busy() and self.context.viewer is self:
 	    cursor = CURSOR_WAIT
 	else:
 	    cursor = CURSOR_NORMAL
