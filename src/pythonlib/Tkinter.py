@@ -1212,6 +1212,8 @@ class Text(Widget):
 		args.append(index)
 		if stopindex: args.append(stopindex)
 		return apply(self.tk.call, tuple(args))
+	def see(self, index):
+		self.tk.call(self._w, 'see', index)
 	def tag_add(self, tagName, index1, index2=None):
 		self.tk.call(
 			self._w, 'tag', 'add', tagName, index1, index2)
