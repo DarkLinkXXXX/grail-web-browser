@@ -956,8 +956,9 @@ Usage: hdllib.py [flags] ... [handle] ...
 
 Options:
 
--a         -- accept all data types (by default, only URL data is requested)
+-a         -- request all data types (by default, only URL data is requested)
 -b         -- get the hashtable from the server
+-d number  -- request additional (numeric) data type
 -f file    -- read the hashtable from this file
 -i seconds -- retry interval (default 5.0)
 -l         -- on HP_HANDLE_NOT_FOUND, retry using local handle server
@@ -980,7 +981,7 @@ def test(defargs = testsets[0]):
     import getopt
 
     try:
-	opts, args = getopt.getopt(sys.argv[1:], '01234abf:i:lqs:t:v')
+	opts, args = getopt.getopt(sys.argv[1:], '01234abd:f:i:lqs:t:v')
     except getopt.error, msg:
 	print msg
 	print usage_msg
@@ -999,6 +1000,7 @@ def test(defargs = testsets[0]):
     for o, a in opts:
 	if o == '-a': types = []
 	if o == '-b': bootstrap = 1
+	if o == '-d': types.append(string.atoi(a))
 	if o == '-f': filename = a
 	if o == '-i': interval = string.atof(a)
 	if o == '-l': local = 1
