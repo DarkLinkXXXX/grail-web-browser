@@ -1,6 +1,6 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.11 $'
+__version__ = '$Revision: 1.12 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -53,7 +53,7 @@ class Writer(bookmarks.walker.TreeWalker):
             attrs = '%s id="%s"' % (attrs, node.id())
         #
         if not self._depth:
-            self.write('<xbel xmlns="%s"%s>\n' % (self.SYSTEM_ID, attrs))
+            self.write('<xbel%s>\n' % attrs)
             if title:
                 self.write("%s  <title>%s</title>\n"
                            % (tab, bookmarks._prepstring(title)))
@@ -94,22 +94,15 @@ class Writer(bookmarks.walker.TreeWalker):
 
     def start_Separator(self, node):
         tab = "  " * self._depth
-        if self._depth:
-            s = "<separator/>\n"
-        else:
-            s = '<separator xmlns="%s"/>\n' % self.SYSTEM_ID
-        self.write(tab + s)
+        self.write(tab + "<separator/>\n")
 
     def start_Alias(self, node):
         idref = node.idref()
         if idref is None:
             sys.stderr.write("Alias node has no referent; dropping.\n")
-        elif self._depth:
+        else:
             self.write('%s<alias ref="%s"/>\n'
                        % ("  " * self._depth, idref))
-        else:
-            self.write('%s<alias xmlns="%s"\n       ref="%s"/>\n'
-                       % ("  " * self._depth, self.SYSTEM_ID, idref))
 
     def start_Bookmark(self, node):
         date_attr = _fmt_date_attr
@@ -122,10 +115,7 @@ class Writer(bookmarks.walker.TreeWalker):
             idref = 'id="%s"' % idref
         title = bookmarks._prepstring(node.title() or '')
         uri = bookmarks._prepstring(node.uri() or '')
-        xmlns = ''
-        if not self._depth:
-            xmlns = 'xmlns="%s"' % self.SYSTEM_ID
-        attrs = filter(None, (xmlns, idref, added, modified, visited))
+        attrs = filter(None, (idref, added, modified, visited))
         #
         tab = "  " * self._depth
         if attrs:
