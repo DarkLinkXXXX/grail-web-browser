@@ -6,7 +6,7 @@ import tktools
 import formatter
 import string
 from string import strip
-from Context import Context
+from Context import Context, SimpleContext
 from Cursors import *
 from types import StringType
 from urlparse import urljoin, urlparse
@@ -759,7 +759,7 @@ class Viewer(formatter.AbstractWriter):
     def find_parentviewer(self):
 	return self.parent
 
-
+
 class ViewerMenu:
     __have_link = 0
     __have_image = 0
@@ -863,39 +863,35 @@ class ViewerMenu:
 	context.browser.remove()
 
     def __save_link(self, event=None):
-	context = self.__copy_context()
-	context.save_document()
-	context.browser.remove()
+	self.__context.save_document(self.__link_url)
 
     def __open_image(self, event=None):
 	self.__context.follow(self.__image_url)
 
     def __save_image(self, event=None):
-	context = self.__copy_context(self.__image_url)
-	context.save_document()
-	context.browser.remove()
+	self.__context.save_document(self.__image_url)
 
     class DummyBrowser:
 	context = None
 
-	def __init__(self, app, root):
-	    self.app = app
-	    self.root = root
+	def __init__(self, browser):
+	    self.app = browser.context.app
+	    self.root = browser.root
+	    self.master = browser.master
 	    # this is the really evil part:
-	    app.browsers.append(self)
+	    #app.browsers.append(self)
 
 	def remove(self):
 	    # remove faked out connections to other objects
-	    self.app.browsers.remove(self)
-	    if self.context:
-		context = self.context
-		context.browser = context.root = None
+	    #self.app.browsers.remove(self)
 	    self.context = self.app = self.root = None
+
+	def message(self): pass
 
     def __copy_context(self, url=None):
 	# copy context and set to link target
-	br = self.DummyBrowser(self.__context.app, self.__context.root)
-	context = Context(self.__context.viewer, br)
+	br = self.DummyBrowser(self.__context.browser)
+	context = SimpleContext(self.__context.viewer, br)
 	context._url = context._baseurl = url or self.__link_url
 	br.context = context
 	return context

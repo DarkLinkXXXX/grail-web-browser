@@ -84,7 +84,7 @@ class Reader(BaseReader):
 	self.maxrestarts = 10
 	self.url = ''
 
-	self.restart(url)
+	if url: self.restart(url)
 
     def restart(self, url):
 	self.maxrestarts = self.maxrestarts - 1
@@ -144,7 +144,7 @@ class Reader(BaseReader):
 		    pass
 	BaseReader.handle_error(self, errcode, errmsg, headers)
 
-    def handle_meta(self, errcode, errmsg, headers):
+    def handle_meta_prelim(self, errcode, errmsg, headers):
 	self.last_context.set_headers(headers)
 	if self.save_file:
 	    if errcode != 200:
@@ -174,17 +174,20 @@ class Reader(BaseReader):
 	    if self.handle_auth_error(errcode, errmsg, headers):
 		return
 
+	return 1
+
+    def handle_meta(self, errcode, errmsg, headers):
+	if not self.handle_meta_prelim(errcode, errmsg, headers):
+	    return
+
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
 	    if ';' in content_type:
 		content_type = string.strip(
 		    content_type[:string.index(content_type, ';')])
-	else:
-	    content_type = None
-	if not content_type:
-	    content_type, content_encoding = self.app.guess_type(self.url)
-	else:
 	    content_encoding = None
+	else:
+	    content_type, content_encoding = self.app.guess_type(self.url)
 	if headers.has_key('content-encoding'):
 	    content_encoding = headers['content-encoding']
 	real_content_type = content_type or "unknown"
@@ -268,9 +271,7 @@ class Reader(BaseReader):
 	    except IOError, msg:
 		context.error_dialog(IOError, msg)
 		return
-	    self.restart(self.url)
-	    self.bufsize = 8096
-	    context.message("Saving to %s" % fn)
+	    TransferDisplay(context, fn, self)
 	    return
 
 	if headers.has_key('window-target'):
@@ -466,3 +467,96 @@ class TextParser:
 
     def close(self):
 	pass
+
+
+class TransferDisplay:
+    """A combined browser / viewer for asynchronous file transfers."""
+
+    def __init__(self, old_context, filename, reader):
+	url = old_context.get_baseurl()
+	headers = old_context.get_headers()
+	self.app = old_context.browser.app
+	self.root = Toplevel(
+	    old_context.browser.master, class_="GrailTransfer")
+	self.context = Context.SimpleContext(self, self)
+	self.context._url = self.context._baseurl = url
+	reader.last_context = self.context
+	self.__reader = reader
+	self.__save_file = reader.save_file
+	reader.save_file = self
+	if filename:
+	    self.root.title("Grail: Downloading to "
+			   + os.path.basename(filename))
+	else:
+	    self.root.title("Grail Download")
+	self.root.iconname("Download")
+	# icon set up
+	import grailutil
+	iconxbm_file = grailutil.which('icon.xbm')
+	if iconxbm_file:
+	    try: self.root.iconbitmap('@' + iconxbm_file)
+	    except TclError: pass
+	#
+	topfr = Frame(self.root)
+	topfr.pack(expand=1, fill=BOTH, padx='1m', pady='1m')
+	es, fs, ls = tktools.make_labeled_form_entry(
+	    topfr, "Source:", takefocus=0, entrywidth=45, labelwidth=10)
+	ed, fd, ld = tktools.make_labeled_form_entry(
+	    topfr, "Destination:", takefocus=0, entrywidth=45, labelwidth=10)
+	es.insert(END, url)
+	ed.insert(END, filename)
+	es.configure(state=DISABLED)
+	ed.configure(state=DISABLED)
+	fd.pack(pady='1m')
+	Button(topfr, command=self.close, text="Stop").pack()
+	Frame(self.root, borderwidth=1, relief=SUNKEN, height=2
+	      ).pack(fill=X)
+	f = Frame(self.root)
+	f.pack(fill=X)
+	if headers.has_key('content-length'):
+	    self.make_progress_bar(headers['content-length'], f)
+	print "Debugging info for", self
+	print "self.context =", `self.context`
+	print "self.context.app =", `self.context.app`
+	self.__status = Label(f, font=self.context.app.prefs.Get(
+	    'presentation', 'message-font'))
+	self.__status.pack(side=LEFT)
+	reader.restart(reader.url)
+	reader.bufsize = 8096
+
+    def message(self, string):
+	pass
+
+    __progbar = None
+    def make_progress_bar(self, size, frame):
+	try:
+	    size = string.atoi(size)
+	except ValueError:
+	    return
+	self.__maxsize = 100.0 * size
+	f = Frame(frame, relief=SUNKEN, borderwidth=1, background="powderblue",
+		  height=10, width=102)
+	f.pack(side=RIGHT, padx='1m')
+	self.__progbar = Frame(f, height=8, width=1, background="midnightblue")
+	self.__progbar.place(x=0, y=0)
+
+    # file-like methods; these allow us to intercept the close() method
+    # on the reader's save file object
+
+    __datasize = 0
+    def write(self, data):
+	self.__save_file.write(data)
+	self.__datasize = self.__datasize + len(data)
+	if self.__progbar:
+	    width = max(1, int(self.__maxsize / self.__datasize))
+	    self.__progbar.config(width=width)
+	desc = str(self.__reader)
+	desc = desc[string.find(desc, ":") + 1:]
+	self.__status["text"] = desc
+
+    def close(self):
+	self.__reader.stop()
+	self.__save_file.close()
+	self.__reader.save_file = self.__save_file
+	self.__save_file = self.__reader = None
+	self.root.destroy()

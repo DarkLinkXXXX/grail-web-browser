@@ -3,6 +3,7 @@
 from urlparse import urljoin, urlparse, urlunparse, urldefrag
 from Cursors import *
 import History
+import Reader
 import string
 import grailutil
 import time
@@ -372,14 +373,15 @@ class Context:
 
     # External user commands
 
-    def save_document(self):
+    def save_document(self, *relurls):
 	# File/Save As...
-	if self.busycheck(): return
+	url = apply(self.get_baseurl, relurls)
+	if url == self.get_url() and self.busycheck(): return
 	import FileDialog, os
 	fd = FileDialog.SaveFileDialog(self.root)
 	# give it a default filename on which save within the
 	# current directory
-	urlasfile = string.splitfields(self.get_url(), '/')
+	urlasfile = string.splitfields(url, '/')
 	default = urlasfile[-1]
 	# strip trailing query
 	i = string.find(default, '?')
@@ -391,27 +393,8 @@ class Context:
 	if not default: default = 'index.html'
 	file = fd.go(default=default, key="save")
 	if not file: return
-	save_as_dir = os.path.dirname(file)
-	api = self.app.open_url(self.get_url(), 'GET', {})
-	errcode, errmsg, params = api.getmeta()
-	if errcode != 200:
-	    self.error_dialog('Error reply', errmsg)
-	    api.close()
-	    return
-	try:
-	    ofp = open(file, 'w')
-	except IOError, msg:
-	    api.close()
-	    self.error_dialog(IOError, msg)
-	    return
-	self.message("Saving...")
-	BUFSIZE = 8*1024
-	while 1:
-	    buf = api.getdata(BUFSIZE)
-	    if not buf: break
-	    ofp.write(buf)
-	ofp.close()
-	api.close()
+	#
+	SavingReader(self, url, 'GET', {}, 0, 0, filename=file)
 	self.message_clear()
 
     def print_document(self):
@@ -569,3 +552,33 @@ class Context:
 
     def get_title(self):
 	return self.page and self.page.title() or self.get_url()
+
+
+
+class SimpleContext(Context):
+    # this can be used when interactive updates are not desired
+    def new_reader_status(self): pass
+    def on_top(self): return 0
+
+
+
+class SavingReader(Reader.Reader):
+    def __init__(self, context, url, *args, **kw):
+	self.__filename = kw['filename']
+	del kw['filename']
+	apply(Reader.Reader.__init__, (self, context, '') + args, kw)
+	context.rmreader(self)
+	self.url = url
+	self.restart(url)
+
+    def handle_meta(self, errcode, errmsg, headers):
+	if not self.handle_meta_prelim(errcode, errmsg, headers):
+	    return
+	# now save:
+	self.stop()
+	try:
+	    self.save_file = open(self.__filename, "wb")
+	except IOError, msg:
+	    self.context.error_dialog(IOError, msg)
+	    return
+	Reader.TransferDisplay(self.last_context, self.__filename, self)
