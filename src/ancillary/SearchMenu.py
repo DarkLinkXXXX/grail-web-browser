@@ -1,7 +1,6 @@
 """Search menu extension for Grail."""
 
 from Tkinter import *
-import tktools
 
 
 class SearchMenu:
@@ -53,13 +52,14 @@ class SearchDialog:
 
     def __init__(self, rootwin, searchable):
 	self._searchable = searchable
+	import tktools
 	self._root = tktools.make_toplevel(rootwin, title="Search Dialog")
 	self.create_widgets()
 	tktools.set_transient(self._root, rootwin, rely=0.0)
 
     def create_widgets(self):
-	f = Frame(self._root)
-	f.pack(padx='1m', pady='1m', fill=X)
+	import tktools
+	x, f, self.bot_frame = tktools.make_double_frame(self._root)
 	self.pat_entry, self.pat_frame = \
 			tktools.make_form_entry(f, "Find string:")
 	self.pat_entry['exportselection'] = 0
@@ -86,22 +86,16 @@ class SearchDialog:
 						 variable=self.backwards_var)
 	self.backwards_checkbutton.pack(side=RIGHT)
 
-	fr = Frame(self._root, relief=SUNKEN, height=3, borderwidth=1)
-	fr.pack(expand=1, fill=X)
-
-	self.bot_frame = Frame(self._root)
-	self.bot_frame.pack(fill=X)
-
+	# buttons along the bottom
 	self.search_button = Button(self.bot_frame, text="Search", width=12,
-
 				    command=self.search_command)
-	self.search_button.pack(side=LEFT, padx='1m', pady='1m')
+	self.search_button.pack(side=LEFT)
 	self.search_close_button = Button(self.bot_frame, text="Search+Close",
 					  command=self.search_close_command)
-	self.search_close_button.pack(side=LEFT, expand=1) # Center
+	self.search_close_button.pack(side=LEFT, expand=1, padx='1m') # Center
 	self.close_button = Button(self.bot_frame, text="Close", width=12,
 				   command=self.close_command)
-	self.close_button.pack(side=RIGHT, padx='1m')
+	self.close_button.pack(side=RIGHT)
 
 	self._root.protocol('WM_DELETE_WINDOW', self.close_command)
 	self._root.bind("<Alt-w>", self.close_event)

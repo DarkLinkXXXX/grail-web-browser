@@ -9,18 +9,14 @@ class OpenURIDialog:
     def __init__(self, master):
 	self._frame = tktools.make_toplevel(master,
 					    title="Open Location Dialog")
+	fr, top, btnframe = tktools.make_double_frame(self._frame)
 	self._entry, frame, label = tktools.make_labeled_form_entry(
-	    self._frame, 'URI:', 40)
-	frame.pack(padx='1m', pady='1m')
+	    top, 'URI:', 40)
 	self._entry.bind('<Return>', self.okay)
-	fr = Frame(self._frame, relief=SUNKEN, height=3, borderwidth=1)
-	fr.pack(expand=1, fill=X)
-	btnframe = Frame(self._frame)
-	btnframe.pack(fill=BOTH)
 	okbtn = Button(btnframe, text='Open', width=6, command=self.okay)
-	okbtn.pack(side=LEFT, padx='1m', pady='1m')
+	okbtn.pack(side=LEFT)
 	cancelbtn = Button(btnframe, text='Cancel', command=self.cancel)
-	cancelbtn.pack(side=RIGHT, padx='1m')
+	cancelbtn.pack(side=RIGHT)
 	tktools.set_transient(self._frame, master)
 
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)

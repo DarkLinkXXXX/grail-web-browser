@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.21 $"
+__version__ = "$Revision: 2.22 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -292,19 +292,17 @@ class Framework:
 
 	width=80			# Of the settings frame.
 
+	fr, container, self.dispose_bar = tktools.make_double_frame(widget)
+
 	# Do this before the panel container, so the buttons are squoze last:
-	self.create_disposition_bar(widget)
+	self.create_disposition_bar(self.dispose_bar)
 
 	# Frame for the user to build within:
-	container = Frame(widget, width=(width + 10), relief=GROOVE, bd=1)
-	container.pack(side=TOP, fill=BOTH, expand=1,
-		       padx='1m', pady='1m')
-	self.framework_widget = Frame(container)
-	self.framework_widget.pack(side=TOP, fill=BOTH, expand=1,
-				   padx='2m', pady='2m') 
+	self.framework_widget = container
+	container.pack(side=TOP, fill=BOTH, expand=1, padx='2m', pady='2m') 
 
 	# Do the user's setup:
-	self.CreateLayout(self.name, self.framework_widget)
+	self.CreateLayout(self.name, container)
 
 	# And now initialize the widget values:
 	self.set_widgets()
@@ -312,10 +310,10 @@ class Framework:
 	if self.app.prefs.GetBoolean('preferences', 'panel-debugging'):
 	    self.toggle_debugging(enable=1)
 
-    def create_disposition_bar(self, frame):
-	self.dispose_bar = bar = Frame(frame)
+    def create_disposition_bar(self, bar):
 	bartop = Frame(bar)
-	bartop.pack(side=TOP)
+	bartop.pack()
+	Frame(bar, height='1m').pack()
 	barbottom = Frame(bar)
 	barbottom.pack()
 	self.debug_bar = Frame(bar, relief=SUNKEN)
@@ -332,18 +330,18 @@ class Framework:
 	self.factory_defaults_btn = Button(barbottom, width=7,
 					   command=self.factory_defaults_cmd,
 					   text="Defaults")
-	done_btn.pack(side=LEFT, padx='1m')
+	done_btn.pack(side=LEFT)
 	# Can't just use anchor=CENTER to get help button centered - it'll
 	# go to the TOP, above OK and Cancel buttons.  Expanding without
 	# filling does what we want.
-	self.apply_btn.pack(side=LEFT, padx='1m', pady='1m')
+	self.apply_btn.pack(side=LEFT)
 	Frame(barbottom).pack(side=LEFT, expand=1)
 	help_btn.pack(side=LEFT)
 	Frame(barbottom).pack(side=LEFT, expand=1)
 	self.factory_defaults_btn.pack(side=LEFT)
 	Frame(barbottom).pack(side=LEFT, expand=1)
-	cancel_btn.pack(side=RIGHT, padx='1m')
-	self.revert_btn.pack(side=RIGHT, padx='1m')
+	cancel_btn.pack(side=RIGHT)
+	self.revert_btn.pack(side=RIGHT)
 
 	bartop.pack(fill=BOTH)
 	barbottom.pack(fill=BOTH)

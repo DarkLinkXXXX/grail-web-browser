@@ -25,7 +25,6 @@ When Cancel is actiavted, the dialog state is still saved.
 
 
 from Tkinter import *
-import tktools
 import os
 import string
 import Reader
@@ -105,15 +104,18 @@ class PrintDialog:
 	self.url = url
 	self.title = title
 	self.master = self.context.root
+	import tktools
 	self.root = tktools.make_toplevel(self.master,
-					  title="Print Dialog")
+					  title="Print Dialog",
+					  class_="PrintDialog")
 	self.root.iconname("Print Dialog")
+	fr, top, botframe = tktools.make_double_frame(self.root)
 	self.cmd_entry, dummyframe = tktools.make_form_entry(
-	    self.root, "Print command:")
+	    top, "Print command:")
 	self.cmd_entry.insert(END, printcmd)
 
 	#  Print to file controls:
-	self.midframe = Frame(self.root)
+	self.midframe = Frame(top)
 	self.midframe.pack(side=TOP, fill=X)
 
 	self.checked = IntVar(self.root)
@@ -129,35 +131,23 @@ class PrintDialog:
 
 	#  Image printing controls:
 	self.imgchecked = self.add_checkbox(
-	    "Print images", imageflag)
+	    top, "Print images", imageflag)
 	self.greychecked = self.add_checkbox(
-	    "Reduce images to greyscale", greyscaleflag)
+	    top, "Reduce images to greyscale", greyscaleflag)
 
 	#  Anchor-handling selections:
 	self.footnotechecked = self.add_checkbox(
-	    "Footnotes for anchors", footnoteflag)
+	    top, "Footnotes for anchors", footnoteflag)
 	self.underchecked = self.add_checkbox(
-	    "Underline anchors", underflag)
-
-	#  Separator:
-	fr = Frame(self.root, relief=SUNKEN, height=3, borderwidth=1)
-	fr.pack(expand=1, fill=X)
+	    top, "Underline anchors", underflag)
 
 	#  Command buttons:
-	botframe = Frame(self.root)
-	botframe.pack(side=BOTTOM, fill=X)
-
-	ok_button = Button(botframe, text="OK",
+	ok_button = Button(botframe, text="OK", width=6,
 			   command=self.ok_command)
-	ok_button.pack(side=LEFT, padx='1m', pady='1m')
+	ok_button.pack(side=LEFT)
 	cancel_button = Button(botframe, text="Cancel",
 			       command=self.cancel_command)
-	cancel_button.pack(side=RIGHT, padx='1m', pady='1m')
-	#  this seems about the only way to get both of these the same width;
-	#  should not have to rely on "average characters":
-	width = len("Cancel")
-	ok_button['width'] = width
-	cancel_button['width'] = width
+	cancel_button.pack(side=RIGHT)
 
 	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
 	self.root.bind("<Alt-w>", self.cancel_event)
@@ -171,10 +161,10 @@ class PrintDialog:
 	self.check_command()
 	self.root.grab_set()
 
-    def add_checkbox(self, description, value):
-	var = IntVar(self.root)
+    def add_checkbox(self, root, description, value):
+	var = IntVar(root)
 	var.set(value)
-	Checkbutton(self.root, text=description, variable=var).pack(anchor=W)
+	Checkbutton(root, text=description, variable=var).pack(anchor=W)
 	return var
 
     def return_event(self, event):
