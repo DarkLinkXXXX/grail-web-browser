@@ -377,11 +377,14 @@ class PSStream:
 	if width > PAGE_WIDTH - self._xpos:
 	    self.close_line()
 	above = above_portion * height
-	self._tallest = max(self._tallest, above)
+	if self._baseline is None:
+	    self._baseline = above
+	else:
+	    self._baseline = max(self._baseline, above)
 	#
 	oldstdout = sys.stdout
 	try:
-	    sys.stdout = self._linedata
+	    sys.stdout = self._linefp
 	    #  Translate & scale for image origin:
 	    print 'gsave currentpoint translate %f dup scale' % scale
 	    if ll_x or ll_y:
@@ -716,22 +719,32 @@ class PSWriter(AbstractWriter):
 	self.ps.push_literal(1)
 	self.ps.push_string(data)
 
-    def send_image(self, image, align = 'bottom'):
-##	_debug('send_image: %s, %s' % (str(image.name), str(align)))
-	import imgprint
-	epsfp = StringIO.StringIO()
-	bbox = imgprint.printImage(image, epsfp)
-	self.ps.push_eps(epsfp.getvalue(), align)
+    def send_eps_data(self, eps_data, bbox, align):
+##	_debug('send_eps_data: <epsdata>, ' + `bbox`)
+	self.ps.push_eps(eps_data, bbox, align)
+
 
 
+#  Exception which should not propogate outside this module.
+EPSError = 'html2ps.EPSError'
+
 class PrintingHTMLParser(HTMLParser):
 
-    """Class to override HTMLParser's default methods for anchors."""
+    """Class to override HTMLParser's default methods for anchors and images.
 
-    def __init__(self, formatter, verbose=0, baseurl=None, enable_images=0):
+    Image loading is controlled by an option parameter, `image_loader.'  The
+    value of this parameter should be a function which resolves a URL to an
+    image object.  The image object must provide a single method, write(),
+    which takes two string parameters:  the name of a file and the name of
+    a file format.  This method will be called with the name of a temporary
+    file and the string `ppm', indicating that a Portable PixMap
+    representation is required.
+    """
+    def __init__(self, formatter, verbose=0, baseurl=None, image_loader=None):
 	HTMLParser.__init__(self, formatter, verbose)
 	self._baseurl = baseurl
-	self._enable_images = enable_images
+	self._image_loader = image_loader
+	self._image_cache = {}
 
     def close(self):
 	from urlparse import urljoin
@@ -761,10 +774,58 @@ class PrintingHTMLParser(HTMLParser):
 	self.formatter.pop_style()
 
     def handle_image(self, src, alt, ismap, align, *notused):
-	if self._enable_images:
-	    pass
+	if self._image_loader:
+	    from urlparse import urljoin, urlparse
+	    imageurl = urljoin(self._baseurl, src)
+	    if self._image_cache.has_key(imageurl):
+		eps_data, bbox = self._image_cache[imageurl]
+	    else:
+		try:
+		    eps_data, bbox = self.load_image(imageurl)
+		except EPSError:
+		    self.handle_data(alt)
+		    return
+		else:
+		    self._image_cache[imageurl] = (eps_data, bbox)
+	    self.formatter.writer.send_eps_data(eps_data, bbox, align)
+	    self.formatter.assert_line_data()
 	else:
 	    self.handle_data(alt)
+
+    def load_image(self, imageurl):
+	"""Load image and return EPS data and bounding box.
+
+	If the conversion from raster data to EPS fails, the EPSError is
+	raised.
+	"""
+	image = self._image_loader(imageurl)
+	if not image:
+	    raise EPSError, 'Image could not be loaded.'
+	from tempfile import mktemp
+	ppm_fn = mktemp()
+	try:
+	    image.write(ppm_fn, 'ppm')
+	except:
+	    raise EPSError, 'Failed to write image to external file.'
+	eps_fn = mktemp()
+	os.system('pnmtops -nocenter -noturn %s >%s' % (ppm_fn, eps_fn))
+	os.unlink(ppm_fn)
+	fp = open(eps_fn)
+	lines = fp.readlines()
+	fp.close()
+	os.unlink(eps_fn)
+	try:
+	    lines.remove('showpage\n')
+	except:
+	    pass			# o.k. if not found
+	bbox = None
+	for line in lines:
+	    if len(line) > 15 and line[:15] == '%%BoundingBox: ':
+		bbox = tuple(map(string.atoi, string.split(line[15:])))
+		break
+	if not bbox:
+	    raise EPSError, 'Bounding box not specified.'
+	return (string.joinfields(lines, '\n'), bbox)
 
 
 
