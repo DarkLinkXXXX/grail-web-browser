@@ -246,8 +246,23 @@ class FormInfo:
 	mw.startmultipartbody("form-data")
 	for i in self.inputs:
 	    if not i.name: continue
-	    disp = 'form-data; name="%s"' % i.name
 	    v = i.get()
+	    if type(v) == type(()):
+		print `v`
+		if None in v: continue
+		# XXX Argh!  Have to do it twice, for each coordinate
+		disp = 'form-data; name="%s.x"' % i.name
+		sw = mw.nextpart()
+		sw.addheader("Content-Disposition", disp)
+		body = sw.startbody("text/plain")
+		body.write(str(v[0]))
+		disp = 'form-data; name="%s.y"' % i.name
+		sw = mw.nextpart()
+		sw.addheader("Content-Disposition", disp)
+		body = sw.startbody("text/plain")
+		body.write(str(v[1]))
+		continue
+	    disp = 'form-data; name="%s"' % i.name
 	    data = None
 	    if i.__class__.__name__ == 'InputFile':
 		try:
