@@ -39,7 +39,6 @@ class GrailHTMLParser(HTMLParser):
     object_aware_tags = ['param', 'alias', 'applet', 'script', 'object']
 
     def __init__(self, viewer, reload=0):
-	#urlparse.clear_cache()
 	self.viewer = viewer
 	self.reload = reload
 	self.context = self.viewer.context
@@ -51,10 +50,11 @@ class GrailHTMLParser(HTMLParser):
 	self.suppress_output = 0	# Length of object_stack at activation
 	self.current_map = None
 	self.target = None
-	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
+	self.formatter_stack = []
+	self.push_formatter(formatter.AbstractFormatter(self.viewer))
 	if not _inited:
 	    init_module(self.app.prefs)
-	HTMLParser.__init__(self, self.formatter_stack[-1])
+	HTMLParser.__init__(self, self.get_formatter())
 	self._ids = {}
 	# Hackery so reload status can be reset when all applets are loaded
 	import AppletLoader
@@ -114,23 +114,20 @@ class GrailHTMLParser(HTMLParser):
 
     def push_formatter(self, formatter):
 	self.formatter_stack.append(formatter)
+	self.set_formatter(formatter)
+
+    def pop_formatter(self):
+	del self.formatter_stack[-1]
+	self.set_formatter(self.formatter_stack[-1])
+
+    def set_formatter(self, formatter):
 	self.formatter = formatter	## in base class
+	self.viewer = formatter.writer
+	self.context = self.viewer.context
 	if self.nofill:
 	    self.set_data_handler(formatter.add_literal_data)
 	else:
 	    self.set_data_handler(formatter.add_flowing_data)
-	self.viewer = self.formatter.writer
-	self.context = self.viewer.context
-
-    def pop_formatter(self):
-	del self.formatter_stack[-1]
-	self.formatter = self.formatter_stack[-1] ## in base class
-	self.viewer = self.formatter.writer
-	self.context = self.viewer.context
-	if self.nofill:
-	    self.set_data_handler(self.formatter.add_literal_data)
-	else:
-	    self.set_data_handler(self.formatter.add_flowing_data)
 
     # Override HTMLParser internal methods
 
@@ -617,10 +614,8 @@ class GrailHTMLParser(HTMLParser):
 	if not self.app.prefs.GetBoolean("browser", "load-images"):
 	    return
 	src = string.joinfields(string.split(attrs['src']), '')
-	if src:
-	    src = self.context.get_baseurl(src)
-	    image = self.context.get_async_image(src, self.reload)
-	    attrs['type'] = image
+	image = self.context.get_async_image(src, self.reload)
+	if image: attrs['type'] = image
 
     # Override make_format():
     # This allows disc/circle/square to be mapped to dingbats.
