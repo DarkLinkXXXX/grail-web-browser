@@ -93,6 +93,7 @@ def main():
 	url = None
     global app
     app = Application(prefs=prefs)
+    grailutil._grail_app = app		# Whack!
 
     def load_images_vis_prefs(app=app):
 	app.load_images = app.prefs.GetBoolean('browser', 'load-images')
