@@ -118,13 +118,15 @@ class MyHTTP(httplib.HTTP):
 	if self.debuglevel > 0: print 'reply:', `line`
 	if replyprog.match(line) < 0:
 	    # Not an HTTP/1.0 response.  Fall back to HTTP/0.9.
+	    # Push the data back into the file.
+	    self.file.buf = line + self.file.buf
 	    self.headers = {}
 	    c_type, c_encoding = __main__.app.guess_type(self.selector)
 	    if c_encoding:
 		self.headers['content-encoding'] = c_encoding
 	    # HTTP/0.9 sends HTML by default
 	    self.headers['content-type'] = c_type or "text/html"
-	    return -1, line, self.headers
+	    return 200, "OK", self.headers
 	errcode, errmsg = replyprog.group(1, 2)
 	errcode = string.atoi(errcode)
 	errmsg = string.strip(errmsg)
@@ -192,8 +194,6 @@ class http_access:
 	errcode, errmsg, headers = self.h.getreply()
 	self.stage = DATA
 	self.readahead = self.h.file.buf
-	if errcode == -1:
-	    self.readahead = errmsg
 	return errcode, errmsg, headers
 
     def polldata(self):
