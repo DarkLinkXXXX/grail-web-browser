@@ -12,12 +12,11 @@ class OutlinerNode:
 	self._depth = 0
 
     def __repr__(self):
-	# root node has a special tag -- it's not collapsable
-	if self._depth == 0: tag = '*'
-	elif self.leaf_p(): tag = ' '
+	tabdepth = self._depth - 1
+	if self.leaf_p(): tag = ' '
 	elif self.expanded_p(): tag = '+'
 	else: tag = '-'
-	return (' ' * (self._depth * 3)) + tag
+	return (' ' * (tabdepth * 3)) + tag
 
     def append_child(self, node):
 	self._children.append(node)
@@ -62,7 +61,6 @@ class OutlinerViewer:
 	self._root = root
 	self._nodes = []
 	self._gcounter = 0
-	self._populate(self._root)
 
     def _insert(self, node, index=None):
 	"""Derived class specialization"""
@@ -81,6 +79,9 @@ class OutlinerViewer:
 	self._insert(node)
 	for child in node.children():
 	    self._populate(child)
+
+    def populate(self):
+	self._populate(self._root)
 
     def insert_nodes(self, at_index, node_list, before_p=None):
 	if not before_p: at_index = at_index + 1

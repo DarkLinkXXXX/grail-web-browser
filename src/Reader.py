@@ -1,7 +1,9 @@
 """Reader class -- helper to read documents asynchronously."""
 
 
+from grailutil import *
 import os
+import sys
 import string
 import urlparse
 from Tkinter import *

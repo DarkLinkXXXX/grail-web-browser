@@ -1,4 +1,6 @@
 from Tkinter import *
+import FileDialog
+from grailutil import *
 from Outliner import OutlinerNode, OutlinerViewer
 import tktools
 import formatter
@@ -12,30 +14,6 @@ import time
 InGrail_p = __name__ != '__main__'
 
 
-# utilities bogusly copied from grail.py.  should be a util.py?
-def getgraildir():
-    return getenv("GRAILDIR") or os.path.join(gethome(), ".grail")
-
-def gethome():
-    try:
-	home = getenv("HOME")
-	if not home:
-	    import pwd
-	    user = getenv("USER") or getenv("LOGNAME")
-	    if not user:
-		pwent = pwd.getpwuid(os.getuid())
-	    else:
-		pwent = pwd.getpwnam(user)
-	    home = pwent[6]
-	return home
-    except (KeyError, ImportError):
-	return os.curdir
-
-def getenv(s):
-    if os.environ.has_key(s): return os.environ[s]
-    return None
-
-
 DEFAULT_NETSCAPE_BM_FILE = os.path.join(gethome(), '.netscape-bookmarks.html')
 DEFAULT_GRAIL_BM_FILE = os.path.join(getgraildir(), '.grail-bookmarks.html')
 DEFAULT_BOOKMARK_FILE = DEFAULT_NETSCAPE_BM_FILE
@@ -81,6 +59,7 @@ class BookmarkNode(OutlinerNode):
 	self._visited = last_visited
 	self._index = None
 	self._islink_p = False
+	self._isseparator_p = False
 
     def __repr__(self):
 	return OutlinerNode.__repr__(self) + ' ' + self._title
@@ -91,6 +70,11 @@ class BookmarkNode(OutlinerNode):
     def last_visited(self): return self._visited
     def description(self): return self._desc
     def islink_p(self): return self._islink_p
+
+    def isseparator_p(self): return self._isseparator_p
+    def set_separator(self):
+	self._isseparator_p = True
+	self._title = '------------------------------'
 
     def set_title(self, title=''): self._title = title
     def set_add_date(self, add_date=time.time()): self._add_date = add_date
@@ -122,6 +106,9 @@ class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
     def __init__(self):
 	self._root = None
 	self._current = None
+	self._prevleaf = None
+	self._buffer = ''
+	self._state = []
 	w = DummyWriter()
 	f = formatter.AbstractFormatter(w)
 	htmllib.HTMLParser.__init__(self, f)
@@ -156,6 +143,28 @@ class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
 	title = self.save_end()
 	self._current.set_title(title)
 
+    def do_hr(self, attrs):
+	snode = BookmarkNode()
+	snode.set_separator()
+	self._current.append_child(snode)
+
+    def do_dd(self, attrs):
+	self._buffer = ''
+	self._state.append('dd')
+
+    def ddpop(self, bl=0):
+	if len(self._state) > 0 and self._state[-1] == 'dd':
+	    self._prevleaf.set_description(self._buffer)
+	    del self._state[-1]
+	else:
+	    htmllib.HTMLParser.ddpop(self, bl)
+
+    def handle_data(self, data):
+	if len(self._state) > 0 and self._state[-1] == 'dd':
+	    self._buffer = self._buffer + data
+	else:
+	    htmllib.HTMLParser.handle_data(self, data)
+
     def start_a(self, attrs):
 	self._push_new()
 	self.save_bgn()
@@ -168,6 +177,7 @@ class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
     def end_a(self):
 	title = self.save_end()
 	self._current.set_title(title)
+	self._prevleaf = self._current
 	self._pop()
 
 
@@ -188,16 +198,25 @@ class NetscapeBookmarkWriter:
     LEAF_FMT = '%s<DT><A HREF="%s" ADD_DATE="%d" LAST_VISIT="%d">%s</A>'
     BRANCH_FMT = '%s<DT><H3 ADD_DATE="%d">%s</H3>'
 
+    def _write_description(self, desc):
+	if not desc: return
+	# write the description, sans leading and trailing whitespace
+	print '<DD>%s' % string.strip(desc)
+
     def _rwrite(self, node):
 	tab = '    ' * node.depth()
-	if node.leaf_p():
-	    print LEAF_FMT % (tab, node.uri(), node.add_date(),
-			      node.last_visited(), node.title())
-	    if node.description():
-		print '<DD>%s' % node.description()
+	if node.isseparator_p():
+	    print '%s<HR>' % tab
+	elif node.leaf_p():
+	    print self.LEAF_FMT % (tab, node.uri(), node.add_date(),
+				   node.last_visited(), node.title())
+	    self._write_description(node.description())
 	else:
-	    print BRANCH_FMT % (tab, node.add_date(), node.title())
+	    print self.BRANCH_FMT % (tab, node.add_date(), node.title())
 	    print '%s<DL><p>' % tab
+	    for child in node.children():
+		self._rwrite(child)
+	    print '%s</DL><p>' % tab
 
     def write_tree(self, root, filename):
 	stdout = sys.stdout
@@ -212,7 +231,9 @@ class NetscapeBookmarkWriter:
 	    print '<TITLE>%s</TITLE>' % root.title()
 	    print '<H1>%s</H1>' % root.title()
 	    print '<DL><p>'
-	    self._rwrite(root)
+	    for child in root.children():
+		self._rwrite(child)
+	    print '</DL><p>'
 	finally:
 	    if fp: fp.close()
 	    sys.stdout = stdout
@@ -224,10 +245,17 @@ class TkListboxWriter(OutlinerViewer):
     def __init__(self, root, listbox):
 	self._listbox = listbox
 	OutlinerViewer.__init__(self, root)
-	self.select_node(0)
+	if len(self._nodes) > 0:
+	    self.select_node(0)
+	    self._listbox.activate(0)
+
+    def populate(self):
+	# we don't want the root node to show up
+	for child in self._root.children():
+	    OutlinerViewer._populate(self, child)
 
     def _insert(self, node, index=None):
-	if not index: index = 'end'
+	if index is None: index = 'end'
 	self._listbox.insert(index, `node`)
 
     def _delete(self, start, end=None):
@@ -251,7 +279,7 @@ class BookmarksController:
 	self._browser = browser
 	self._frame = frame
 	self._aggressive_var = BooleanVar()
-	self._bookmarkfile = DEFAULT_BOOKMARK_FILE
+	self._bookmarkfile = None
 	self._root = None
 	self._writer = None
 	self._details = {}
@@ -297,8 +325,6 @@ class BookmarksController:
 	# set, then we really need to find the start of the collapse
 	# operation (some ancestor of the selected node)
 	if uncollapsable: node = node.parent()
-	# don't collapse the root
-	if node.index() == 0: return
 	# find the start index
 	node.collapse()
 	start = node.index() + 1
@@ -340,14 +366,31 @@ class BookmarksController:
 	if node and selection < self._writer.count()-1:
 	    self._writer.select_node(selection+1)
 
-    def load(self, event=None):
+    def _load(self, filename=None):
 	# TBD: need to figure out which file reader corresponds to the
-	# bookmark ile we're reading
-	reader = NetscapeBookmarkReader()
-	self._root = reader.read_file(self._bookmarkfile)
+	# bookmark file we're reading
+	if not filename: filename = DEFAULT_BOOKMARK_FILE
+	try:
+	    reader = NetscapeBookmarkReader()
+	    self._root = reader.read_file(filename)
+	    self._bookmarkfile = filename
+	except:
+	    pass
+	
+    def load(self, event=None):
+	dialog = FileDialog.LoadFileDialog(self._frame)
+	loadfile = dialog.go(getgraildir(), '*.html')
+	if loadfile:
+	    self._load(loadfile)
+	    self._listbox.delete(0, 'end')
+	    self._writer = TkListboxWriter(self._root, self._listbox)
+	    self._writer.populate()
 
     def merge(self, event=None): pass
-    def save(self, event=None): pass
+    def save(self, event=None):
+	writer = NetscapeBookmarkWriter()
+	writer.write_tree(self._root, '/tmp/spam-bookmarks.html')
+
     def saveas(self, event=None): pass
 
     def add_current(self, event=None): pass
@@ -355,7 +398,7 @@ class BookmarksController:
 
     def details(self, event=None):
 	node, selection = self._get_selected_node()
-	if not node: return
+	if not node or node.isseparator_p(): return
 	if self._details.has_key(id(node)):
 	    details = self._details[id(node)]
 	else:
@@ -366,6 +409,7 @@ class BookmarksController:
     def show(self, event=None):
 	if not self._writer:
 	    self._writer = TkListboxWriter(self._root, self._listbox)
+	    self._writer.populate()
 	self._dialog.show()
 
     def hide(self, event=None): self._dialog.hide()
@@ -392,19 +436,24 @@ class BookmarksDialog:
 	filemenu.add_command(label="Load...",
 			     command=self._controller.load,
 			     underline=0, accelerator="Alt-L")
+	self._frame.bind("<Alt-l>", self._controller.load)
 	filemenu.add_command(label="Merge...",
 			     command=self._controller.merge,
 			     underline=0, accelerator="Alt-M")
+	self._frame.bind("<Alt-m>", self._controller.merge)
 	filemenu.add_command(label="Save",
 			     command=self._controller.save,
 			     underline=0, accelerator="Alt-S")
+	self._frame.bind("<Alt-s>", self._controller.save)
 	filemenu.add_command(label="Save As...",
 			     command=self._controller.saveas,
 			     underline=5, accelerator="Alt-A")
+	self._frame.bind("<Alt-a>", self._controller.saveas)
 	filemenu.add_separator()
 	filemenu.add_command(label="Close",
 			     command=self._controller.hide,
-			     underline=0, accelerator="Alt-Q")
+			     underline=0, accelerator="Alt-W")
+	self._frame.bind("<Alt-w>", self._controller.hide)
 	filebtn.config(menu=filemenu)
 	# navigation menu
 	navbtn = Menubutton(self._menubar, text="Navigate")
@@ -420,16 +469,20 @@ class BookmarksDialog:
 	navmenu.add_command(label="Go To Bookmark",
 			    command=self._controller.goto,
 			    underline=0, accelerator="Alt-G")
+	self._frame.bind("<Alt-g>", self._controller.goto)
 	navmenu.add_command(label="View in Grail",
 			    command=self._controller.bookmark_goto,
 			    underline=0, accelerator="Alt-V")
+	self._frame.bind("<Alt-v>", self._controller.bookmark_goto)
 	navmenu.add_separator()
 	navmenu.add_command(label="Expand",
 			    command=self._controller.expand,
-			    accelerator="Key-Right")
+			    accelerator="Alt-E")
+	self._frame.bind("<Alt-e>", self._controller.expand)
 	navmenu.add_command(label="Collapse",
 			    command=self._controller.collapse,
-			    accelerator="Key-Left")
+			    accelerator="Alt-C")
+	self._frame.bind("<Alt-c>", self._controller.collapse)
 	navbtn.config(menu=navmenu)
 	# Properties menu (details)
 	propsbtn = Menubutton(self._menubar, text="Properties")
@@ -445,6 +498,8 @@ class BookmarksDialog:
 	editmenu.add_command(label="Bookmark Details...",
 			     command=self._controller.details,
 			     underline=0, accelerator="Alt-D")
+	self._frame.bind("<Alt-d>", self._controller.details)
+	self._frame.bind("<Return>", self._controller.details)
 	editbtn.config(menu=editmenu)
 
     def _create_listbox(self):
@@ -452,10 +507,6 @@ class BookmarksDialog:
 						     60, 24, 1, 1)
 	self._listbox.config(font='fixed')
 	# bind keys
-	self._listbox.bind('<Key-Down>', self._controller.next)
-	self._listbox.bind('<Key-Up>', self._controller.previous)
-	self._listbox.bind('<Key-Right>', self._controller.expand)
-	self._listbox.bind('<Key-Left>', self._controller.collapse)
 	self._listbox.bind('<Double-Button-1>', self._controller.details)
 	self._listbox.bind('<ButtonRelease-1>', self._controller.select)
 	self._listbox.focus_set()
@@ -525,19 +576,19 @@ class DetailsDialog:
 
     def _create_buttonbar(self):
 	btnbar = Frame(self._frame)
-	revertbtn = Button(btnbar, text='Revert',
-			   command=self.revert)
+#	revertbtn = Button(btnbar, text='Revert',
+#			   command=self.revert)
+	donebtn = Button(btnbar, text='OK',
+			 command=self.done)
 	applybtn = Button(btnbar, text='Apply',
 			  command=self.apply)
 	cancelbtn = Button(btnbar, text='Cancel',
 			   command=self.cancel)
-	donebtn = Button(btnbar, text='Done',
-			 command=self.done)
-	revertbtn.pack(side='left')
-	applybtn.pack(side='left')
-	cancelbtn.pack(side='left')
+#	revertbtn.pack(side='left')
 	donebtn.pack(side='left')
-	btnbar.pack()
+	applybtn.pack(side='left')
+	cancelbtn.pack(side='right')
+	btnbar.pack(fill='both')
 
     def revert(self):
 	for entry, frame, label in self._form:
@@ -591,10 +642,13 @@ class BookmarksMenuViewer(OutlinerViewer):
 	root = controller.root()
 	OutlinerViewer.__init__(self, controller.root())
 
+    def populate(self):
+	# don't want root node to show up in list
+	for child in self._root.children():
+	    OutlinerViewer._populate(self, child)
+
     def _insert(self, node, index=None):
-	# forget about the root.  it's not useful
 	depth = node.depth()
-	if depth == 0: return
 	# this is the best way to pop the stack.  kinda kludgy...
 	if depth < len(self._menustack):
 	    del self._menustack[depth:]
@@ -637,7 +691,7 @@ class BookmarksMenu:
 
     def _load(self):
 	if self._load_deferred_p:
-	    self._controller.load()
+	    self._controller._load()
 	    self._load_deferred_p = False
 
     def show(self, event=None):
@@ -653,7 +707,8 @@ class BookmarksMenu:
 	if last > 2: self._menu.delete(3, 'end')
 	# now append all the bookmarks
 	self._load()
-	BookmarksMenuViewer(self._controller, self._menu)
+	viewer = BookmarksMenuViewer(self._controller, self._menu)
+	viewer.populate()
 
 
 if not InGrail_p:

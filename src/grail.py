@@ -12,6 +12,7 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 __version__ = "Grail/0.2a4"		# PRE 0.2; alpha == lacking features
 
 
+from grailutil import *
 import sys
 import getopt
 import string
@@ -435,31 +436,6 @@ def read_mime_types(file):
 	    map['.'+suff] = type
     f.close()
     return map
-
-
-# XXX Unix specific stuff
-
-def getgraildir():
-    return getenv("GRAILDIR") or os.path.join(gethome(), ".grail")
-
-def gethome():
-    try:
-	home = getenv("HOME")
-	if not home:
-	    import pwd
-	    user = getenv("USER") or getenv("LOGNAME")
-	    if not user:
-		pwent = pwd.getpwuid(os.getuid())
-	    else:
-		pwent = pwd.getpwnam(user)
-	    home = pwent[6]
-	return home
-    except (KeyError, ImportError):
-	return os.curdir
-
-def getenv(s):
-    if os.environ.has_key(s): return os.environ[s]
-    return None
 
 
 if sys.argv[1:2] != ['-p']:
