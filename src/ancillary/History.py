@@ -132,7 +132,7 @@ class HistoryDialog:
 	# 
 	self._context = context
 	self._history.set_dialog(self)
-	self._frame = tktools.make_toplevel(self._context.root,
+	self._frame = tktools.make_toplevel(self._context.viewer.frame,
 					    title="History Dialog")
 	# get preferences
 	self._viewby = IntVar()
