@@ -81,6 +81,7 @@ class FrameSet:
 	else:
 	    self.master = None
 	self.frames = []
+	self.viewers = []
 	self.nextframe = 0
 	if self.master and (self.rows or self.cols):
 	    self.make_sizes()
@@ -112,6 +113,14 @@ class FrameSet:
     def on_viewer_reset(self, viewer):
 	viewer.unregister_resize_interest(self.on_viewer_resize)
 	viewer.unregister_reset_interest(self.on_viewer_reset)
+	viewers = self.viewers
+	self.viewers = []
+	for viewer in viewers:
+	    viewer.close()
+	frames = self.frames
+	self.frames = []
+	for frame in frames:
+	    frame.destroy()
 
     def resize_frames(self):
 	i = 0
@@ -208,6 +217,8 @@ class FrameSet:
 	frame = self.get_next_frame()
 	if frame:
 	    viewer = self.viewer.make_subviewer(frame, name, scrolling)
+	    if viewer:
+		self.viewers.append(viewer)
 	    return viewer
 
     def get_next_frame(self):
