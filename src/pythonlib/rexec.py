@@ -150,9 +150,11 @@ class RExec(ihooks._Verbose):
 	self.hooks.set_rexec(self)
 	self.modules = {}
 	self.ok_dynamic_modules = self.ok_builtin_modules
-	self.ok_builtin_modules = map(None, filter(
-	    lambda mname: mname in sys.builtin_module_names,
-	    self.ok_builtin_modules))
+	list = []
+	for mname in self.ok_builtin_modules:
+	    if mname in sys.builtin_module_names:
+		list.append(mname)
+	self.ok_builtin_modules = list
 	self.set_trusted_path()
 	self.make_builtin()
 	self.make_initial_modules()
@@ -221,8 +223,12 @@ class RExec(ihooks._Verbose):
     def copy_except(self, src, exceptions):
 	dst = self.copy_none(src)
 	for name in dir(src):
-	    if name not in exceptions:
-		setattr(dst, name, getattr(src, name))
+	    setattr(dst, name, getattr(src, name))
+	for name in exceptions:
+	    try:
+		delattr(dst, name)
+	    except KeyError:
+		pass
 	return dst
 
     def copy_only(self, src, names):
