@@ -215,12 +215,18 @@ class Viewer(formatter.AbstractWriter):
         self.default_fg = self.text['foreground']
         self.configure_styles()
         if self.parent:
-            link = self.parent.text.tag_config('a', 'foreground')[-1]
-            vlink = self.parent.text.tag_config('ahist', 'foreground')[-1]
-            alink = self.parent.text.tag_config('atemp', 'foreground')[-1]
-            self.text.tag_config('a', foreground=link)
-            self.text.tag_config('ahist', foreground=vlink)
-            self.text.tag_config('atemp', foreground=alink)
+            link = self.parent.text.tag_configure('a', 'foreground')[-1]
+            vlink = self.parent.text.tag_configure('ahist', 'foreground')[-1]
+            alink = self.parent.text.tag_configure('atemp', 'foreground')[-1]
+            hover_fg = self.parent.text.tag_configure(
+                'hover', 'foreground')[-1]
+            hover_un = self.parent.text.tag_configure(
+                'hover', 'underline')[-1]
+            self.text.tag_configure('a', foreground=link)
+            self.text.tag_configure('ahist', foreground=vlink)
+            self.text.tag_configure('atemp', foreground=alink)
+            self.text.tag_configure(
+                'hover', foreground=hover_fg, underline=hover_un)
         self.configure_tags_fixed()
         if self.context.viewer is self:
             self.text.config(takefocus=1)
@@ -284,9 +290,10 @@ class Viewer(formatter.AbstractWriter):
                 map(self.context.app.clear_dingbat, font_dingbats.keys())
             #
             for tag, cnf in stylesheet.history.items():
-                self.text.tag_config(tag, cnf)
-            for tag, abovetag in stylesheet.priorities.items():
-                self.text.tag_raise(tag, abovetag)
+                self.text.tag_configure(tag, cnf)
+            self.text.tag_raise('ahist', 'a')
+            self.text.tag_raise('atemp', 'ahist')
+            self.text.tag_raise('hover', 'atemp')
 
             if not self.parent:
                 self.resize_event()
@@ -294,23 +301,23 @@ class Viewer(formatter.AbstractWriter):
 
     def configure_tags_fixed(self):
         # These are used in aligning block-level elements:
-        self.text.tag_config('right', justify='right')
-        self.text.tag_config('center', justify='center')
+        self.text.tag_configure('right', justify='right')
+        self.text.tag_configure('center', justify='center')
         #  Typographic controls:
-        self.text.tag_config('pre', wrap='none')
-        self.text.tag_config('underline', underline=1)
-        self.text.tag_config('overstrike', overstrike=1)
-        self.text.tag_config('red', foreground='red')
-        self.text.tag_config('ins', foreground='darkgreen')
+        self.text.tag_configure('pre', wrap='none')
+        self.text.tag_configure('underline', underline=1)
+        self.text.tag_configure('overstrike', overstrike=1)
+        self.text.tag_configure('red', foreground='red')
+        self.text.tag_configure('ins', foreground='darkgreen')
         # Configure margin tags
         for level in range(1, 20):
             pix = level * INDENTATION_WIDTH
-            self.text.tag_config('margin_%d' % level,
-                                 lmargin1=pix, lmargin2=pix)
-            self.text.tag_config('rightmargin_%d' % level, rmargin=pix)
+            self.text.tag_configure('margin_%d' % level,
+                                    lmargin1=pix, lmargin2=pix)
+            self.text.tag_configure('rightmargin_%d' % level, rmargin=pix)
             tabs = "%d right %d left" % (pix-5, pix)
-            self.text.tag_config('label_%d' % level,
-                                 lmargin1=pix-INDENTATION_WIDTH, tabs=tabs)
+            self.text.tag_configure('label_%d' % level,
+                                    lmargin1=pix-INDENTATION_WIDTH, tabs=tabs)
         # Configure anchor tags
         for tag in 'a', 'ahist':
             self.text.tag_bind(tag, '<ButtonPress-1>', self.anchor_press)
@@ -326,7 +333,7 @@ class Viewer(formatter.AbstractWriter):
         if self.__fonttags_built is None:
             self.__fonttags_built = {}
         self.__fonttags_built[tag] = tag
-        apply(self.text.tag_config, (tag,), self.stylesheet.styles[tag])
+        apply(self.text.tag_configure, (tag,), self.stylesheet.styles[tag])
 
     def bind_anchors(self, tag):
         # Each URL must have a separate binding so moving between
@@ -596,13 +603,26 @@ class Viewer(formatter.AbstractWriter):
 
     SHOW_TITLES = 0
     def anchor_enter(self, event):
-        url, target = self.split_target(self.find_tag_url())
+        tagurl = self.find_tag_url()
+        url, target = self.split_target(tagurl)
         message = ''
-        if self.SHOW_TITLES and url:
-            absurl = self.context.get_baseurl(url)
-            title, when = self.context.app.global_history.lookup_url(absurl)
-            if title:
-                message = string.join(string.split(title))
+        if url:
+            if self.SHOW_TITLES:
+                absurl = self.context.get_baseurl(url)
+                ghist = self.context.app.global_history
+                title, when = ghist.lookup_url(absurl)
+                if title:
+                    message = string.join(string.split(title))
+            self.text.tag_remove('hover', '0.1', END)
+            ranges = self.find_tag_ranges()
+            split = string.split
+            point = map(int, split(self.text.index(CURRENT), '.'))
+            for start, end in ranges:
+                startv = map(int, split(start, '.'))
+                endv = map(int, split(end, '.'))
+                if startv <= point < endv:
+                    self.text.tag_add('hover', start, end)
+                    break
         if not message:
             url = url or "???"
             if not target:
@@ -620,6 +640,7 @@ class Viewer(formatter.AbstractWriter):
         self.set_cursor(CURSOR_LINK)
 
     def anchor_leave(self, event):
+        self.text.tag_remove('hover', '1.0', END)
         self.leave_message()
 
     def leave_message(self):
