@@ -373,22 +373,27 @@ class Browser:
 	fd = FileDialog.SaveFileDialog(self.root)
 	file = fd.go()
 	if not file: return
-	ifp, url, content_type = self.app.open_url(self.url)
-	if not ifp:
+	api = self.app.open_url(self.url, 'GET', {})
+	errcode, errmsg, params = api.getmeta()
+	if errcode != 200:
+	    self.error_dialog('Error reply', errmsg)
+	    api.close()
 	    return
 	try:
 	    ofp = open(file, 'w')
 	except IOError, msg:
-	    ifp.close()
+	    api.close()
 	    self.error_dialog(IOError, msg)
 	    return
+	self.message('Saving...', CURSOR_WAIT)
 	BUFSIZE = 8*1024
 	while 1:
-	    buf = ifp.read(BUFSIZE)
+	    buf = api.getdata(BUFSIZE)
 	    if not buf: break
 	    ofp.write(buf)
 	ofp.close()
-	ifp.close()
+	api.close()
+	self.message_clear()
 
     def print_command(self):
 	# File/Print...
