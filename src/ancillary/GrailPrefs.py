@@ -2,8 +2,8 @@
 
 There are two preferences files.  The system-wide defaults file is located
 in the grail root directory, and named "grail-defaults".  The user's custom
-preferences, whose settings supercede ones from the system preferences, is
-in the directory named by grailutil.getgraildir().
+preferences is in the directory named by grailutil.getgraildir().  User
+preference settings supercede the system defaults.
 
 Interrogation for preferences which have no set value provokes a KeyError
 exception.
@@ -46,7 +46,7 @@ browser--default-height:	40
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.5 $"
+__version__ = "$Revision: 2.6 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -66,7 +66,8 @@ class Preferences:
     """Get and set fields in a customization-values file."""
 
     # We maintain an rfc822 snapshot of the file, which we read only once,
-    # and a dict, for new values.
+    # a dict for new values, and a dict to track deletions (so user default
+    # values duplicating system defaults can be excluded from save.
 
     def __init__(self, filename, readonly=0):
 	"""Initiate from FILENAME with MODE (default 'r' read-only)."""
@@ -75,10 +76,11 @@ class Preferences:
 	    f = open(filename)
 	except IOError:
 	    f = None
+	self._new = {}
+	self._deleted = {}
 	if f:
 	    self._last_mtime = os.stat(filename)[9]
 	    self._db = rfc822.Message(f)
-	    self._new = {}
 	    # Check for content misplaced after first blank line:
 	    residue = string.strip(f.read())
 	    if residue:
@@ -88,12 +90,11 @@ class Preferences:
 	else:
 	    self.file_mtime = 0
 	    self._db = None
-	    self._new = {}
 	self._modified = 0
 
-    def Get(self, group, pref):
+    def Get(self, group, prefnm):
 	"""Get preference in GROUP with NAME, or raise KeyError if none."""
-	key = self._make_key(group, pref)
+	key = make_key(group, prefnm)
 	if self._new.has_key(key):
 	    return self._new[key]
 	else:
@@ -103,12 +104,38 @@ class Preferences:
 		else:
 		    return self._db[key]
 	    except KeyError:
-		raise KeyError, "Preference %s not found" % ((group, pref),)
+		raise KeyError, "Preference %s not found" % ((group, prefnm),)
 
-    def Set(self, group, pref, val):
-	"""Set GROUP PREFERENCE to VALUE.  Return true iff successful."""
+    def Set(self, group, prefnm, val):
+	"""Set GROUP PREFERENCE to VALUE."""
 	self._modified = 1
-	self._new[self._make_key(group, pref)] = str(val)
+	k = make_key(group, prefnm)
+	self._new[k] = str(val)
+	if self._deleted.has_key(k):
+	    # Undelete.
+	    del self._deleted[k]
+
+    def __delitem__(self, item):
+	"""Register GROUP/PREFNAME so it won't be seen or saved."""
+	self._deleted[make_key(item[0], item[1])] = 1
+
+
+    def items(self):
+	"""Return a list of ("group--prefnm", value) tuples."""
+	got = []
+	did = {}
+	for k, v in self._db.items():
+	    if self._deleted.has_key(k):
+		continue
+	    elif self._new.has_key(k):
+		got.append((k, self._new[k]),)
+		did[k] = 1
+	    else:
+		got.append((k, v,),)
+	for k, v in self._new.items():
+	    if not (did.has_key(k) or self._deleted.has_key(k)):
+		got.append((k, v),)
+	return got
 
     def Tampered(self):
 	"""Has the file been externally modified?"""
@@ -131,84 +158,75 @@ class Preferences:
     def NeedsSave(self): return self._modified and 1
 
     def Save(self):
-	"""Write the preferences out to file, return true if successful.
-
-	User is responsible for ensuring that the file is self.Editable(),
-	and it has not been self.Tampered()."""
+	"""Write the preferences out to file, if possible."""
 	try: os.rename(self._filename, self._filename + '.bak')
 	except os.error: pass		# No file to backup.
 
-	try:
-	    fp = open(self._filename, 'w')
-	    did = {}
-	    new = self._new
-	    if self._db:
-		for header in self._db.headers:
-		    k = string.split(header, ':')[0]
-		    if new.has_key(k):
-			fp.write(k + ': ' + new[k])
-		    else:
-			fp.write(header)
-		    did[k] = 0
-	    for k, v in new.items():
-		if not did.has_key(k):
-		    fp.write(k + ': ' + new[k])
-	    fp.close()
-	    self._modified = 0
-	    return 1
-	except IOError:
-	    return 0
+	fp = open(self._filename, 'w')
+	for k, v in self.items():
+	    fp.write(k + ': ' + v + '\n')
+	fp.close()
+	self._modified = 0
+	self._deleted = {}
 
-    def _make_key(self, group, pref):
-	"""Produce a key from preference GROUP and NAME strings."""
-	return string.lower(group + '--' + pref)
-		    
 class AllPreferences:
     """Maintain the combination of user and system preferences."""
     def __init__(self):
 	self._user = Preferences(os.path.join(grailutil.getgraildir(),
 					      USERPREFSFILENAME))
 	from __main__ import grail_root
-	self._sys = Preferences(os.path.join(grail_root, SYSPREFSFILENAME), 1)
+	self._sys = Preferences(os.path.join(grail_root,
+					     SYSPREFSFILENAME),
+				1)
 
-    # Getting utensils.
+    # Getting:
 
-    def Get(self, group, pref):
+    def Get(self, group, prefnm, use_default=0):
 	"""Get pref in GROUP with NAME, trying the user than the sys prefs.
 
-	Or raise KeyError if not found."""
-	try:
-	    return self._user.Get(group, pref)
-	except KeyError:
-	    return self._sys.Get(group, pref)
+	Optional SYS true means get system default value.
 
-    def _GetTyped(self, group, pref, cvrtr, type_name):
+	Raise KeyError if not found."""
+	if use_default:
+	    return self._sys.Get(group, prefnm)
+	else:
+	    try:
+		return self._user.Get(group, prefnm)
+	    except KeyError:
+		return self._sys.Get(group, prefnm)
+
+    def _GetTyped(self, group, prefnm, cvrtr, type_name, use_default=0):
 	"""Get preference, using CONVERTER to convert to type NAME.
 
+	Optional SYS true means get system default value.
+
 	Raise KeyError if not found, TypeError if value is wrong type."""
-	val = self.Get(group, pref)
+	val = self.Get(group, prefnm, use_default)
 	try:
 	    return cvrtr(val)
 	except ValueError:
 	    raise TypeError, ('%s not %s: %s'
-			       % (str((group, pref)), type_name, `val`))
+			       % (str((group, prefnm)), type_name, `val`))
 
-    def GetInt(self, group, pref):
-	return self._GetTyped(group, pref, string.atoi, "integer")
-    def GetFloat(self, group, pref):
-	return self._GetTyped(group, pref, string.atof, "float")
-    def GetBoolean(self, group, pref):
-	got = self._GetTyped(group, pref, string.atoi, "Boolean")
+    def GetInt(self, group, prefnm, use_default=0):
+	return self._GetTyped(group, prefnm, string.atoi, "integer",
+			      use_default)
+    def GetFloat(self, group, prefnm, use_default=0):
+	return self._GetTyped(group, prefnm, string.atof, "float",
+			      use_default)
+    def GetBoolean(self, group, prefnm, use_default=0):
+	got = self._GetTyped(group, prefnm, string.atoi, "Boolean",
+			     use_default)
 	if got not in (0, 1):
 	    raise TypeError, ('%s not %s: %s'
-			      % ((group, pref), "Boolean", `got`))
+			      % ((group, prefnm), "Boolean", `got`))
 	return got
 
-    # Editing utensils.
+    # Editing:
 
-    def Set(self, group, pref, val):
+    def Set(self, group, prefnm, val):
 	"""Assign GROUP PREFERENCE with VALUE."""
-	self._user.Set(group, pref, val)
+	self._user.Set(group, prefnm, val)
 
     def Editable(self):
 	"""Identify or establish user's prefs file, or IO error."""
@@ -221,11 +239,27 @@ class AllPreferences:
     def NeedsSave(self): return self._user.NeedsSave()
 
     def Save(self):
-	"""Write the preferences out to file, return true if successful."""
+	"""Save (only) values different than sys defaults in the users file."""
 	if not self._user.Editable():
 	    raise IOError, 'Unable to get user prefs ' + self._user._filename
-	return self._user.Save()
+	for prefkey, val in self._user.items():
+	    # Cull user preferences with same value as system default:
+	    k = split_key(prefkey)
+	    if len(k) == 1:
+		# Probably a comment - we don't retain users' comments unless
+		# they make them look like distinct group--prefnm values.
+		continue
+	    elif self._sys.Get(k[0], k[1]) == val:
+		del self._user[k]
+	self._user.Save()
 
+def make_key(group, prefnm):
+    """Produce a key from preference GROUP and NAME strings."""
+    return string.lower(group + '--' + prefnm)
+def split_key(key):
+    """Produce a key from preference GROUP and NAME strings."""
+    return string.split(key, '--')
+		    
 def test():
     """Exercise preferences mechanisms."""
     sys.path.insert(0, "../utils")
@@ -238,29 +272,33 @@ def test():
 
     # Getting values:
     exercise("origin = prefs.Get('landmarks', 'grail-home-page')", env,
-	     "Get an existing plain pref.")
-    exercise("height = prefs.GetInt('browser', 'default-height')", env,
-	     "Get an existing int pref.")
+	     "Get an existing plain prefnm.")
+    exercise("origheight = prefs.GetInt('browser', 'default-height')", env,
+	     "Get an existing int prefnm.")
     exercise("if prefs.GetBoolean('browser', 'load-images') != 1:"
 	     + "raise SystemError, 'browser:load-images Boolean should be 1'",
-	     env, "Get an existing Boolean pref.")
+	     env, "Get an existing Boolean prefnm.")
     # A few value errors:
     exercise("x = prefs.Get('grail', 'Never:no:way:no:how!')", env,
-	     "Ref to a non-existent pref.", KeyError)
+	     "Ref to a non-existent prefnm.", KeyError)
     exercise("x = prefs.GetInt('landmarks', 'grail-home-page')", env,
 	     "Typed ref to incorrect type.", TypeError)
     exercise("x = prefs.GetBoolean('browser', 'default-height')", env,
 	     "Invalid Boolean (which has complicated err handling) typed ref.",
 	     TypeError)
     # Editing:
-    exercise("prefs.Set('browser', 'default-height', height + 1)", env,
+    exercise("prefs.Set('browser', 'default-height', origheight + 1)", env,
 	     "Set a simple value")
-    exercise("if prefs.GetInt('browser', 'default-height') != height + 1:"
+    exercise("if prefs.GetInt('browser', 'default-height') != origheight + 1:"
 	     + "raise SystemError, 'Set of new height failed'", env,
 	     "Get the new value.")
-    # Saving: 
-    exercise("if not prefs.Save(): raise SystemError", env,
-	     "Save with new values (default-height).")
+
+    exercise("prefs.Set('browser', 'default-height', origheight)", env,
+	     "Set a simple value")
+
+    # Saving - should just rewrite existing user prefs file, sans comments
+    # and any lines duplicating system prefs.
+    exercise("prefs.Save()", env, "Save as it was originally.")
     
 
     print "GrailPrefs tests passed."
