@@ -407,7 +407,8 @@ class DiskCacheEntry:
     def __init__(self, cache=None):
 	self.cache = cache
 
-    def fill(self,key,url,size,date,lastmod,expires,ctype):
+    def fill(self,key,url,size,date,lastmod,expires,ctype,
+             cencoding,ctencoding):
 	self.key = key
 	self.url = url
 	self.size = size
@@ -424,6 +425,8 @@ class DiskCacheEntry:
 	else:
 	    self.expires = None
 	self.type = ctype
+        self.encoding = cencoding
+        self.transfer_encoding = ctencoding
 
     string_date = regex.compile('^[A-Za-z]')
 
@@ -432,20 +435,35 @@ class DiskCacheEntry:
 
     def parse(self,parsed_rep):
         """Reads transaction log entry.
-         """
+        """
  	vars = string.splitfields(parsed_rep,'\t')
         self.key = vars[0]
         self.url = vars[1]
 	self.file = vars[2]
         self.size = string.atoi(vars[3])
         self.type = vars[7]
+        try:
+            self.encoding = vars[8]
+        except IndexError:
+            # log version 1.2
+            self.encoding = None
+        else:
+            if self.encoding == 'None':
+                self.encoding = None
+            try:
+                self.transfer_encoding = vars[9]
+            except IndexError:
+                self.transfer_encoding = None
+            else:
+                if self.transfer_encoding == 'None':
+                    self.transfer_encoding = None
 	self.date = None
 	self.lastmod = None
 	self.expires = None
 	for tup in [(vars[4], 'date'), (vars[5], 'lastmod'),
 		     (vars[6], 'expires')]:
 	    self.parse_assign(tup[0],tup[1])
-	
+
     def parse_assign(self,rep,var):
 	if rep == 'None':
 	    setattr(self,var,None)
@@ -453,16 +471,16 @@ class DiskCacheEntry:
 	    setattr(self,var,HTTime(str=rep))
 	else:
 	    setattr(self,var,HTTime(secs=string.atof(rep)))
- 
+
     def unparse(self):
         """Return entry for transaction log.
         """
 	if not hasattr(self, 'file'):
 	    self.file = ''
-        s = string.join(map(str,
-			    [self.key, self.url, self.file, self.size,
-			     self.date, self.lastmod, self.expires, 
-			     self.type]), '\t')
+        stuff = [self.key, self.url, self.file, self.size, self.date,
+                 self.lastmod, self.expires, self.type, self.encoding,
+                 self.transfer_encoding]
+        s = string.join(map(str, stuff), '\t')
 	return s
 
     def get(self):
@@ -480,7 +498,8 @@ class DiskCacheEntry:
 	self.cache.get(self.key) 
 	try:
 	    api = disk_cache_access(self.cache.get_file_path(self.file),
-				    self.type, self.date, self.size)
+				    self.type, self.date, self.size,
+                                    self.encoding, self.transfer_encoding)
 	except IOError:
 	    raise CacheReadFailed, self.cache
 	return api
@@ -504,7 +523,7 @@ def compare_expire_items(item1,item2):
 	return -1
     else:
 	return 0
-    
+
 class DiskCache:
     """Persistent object cache.
 
@@ -548,7 +567,8 @@ class DiskCache:
 	self._read_metadata()
 	self._reinit_log()
 
-    log_version = "1.2"
+    log_version = "1.3"
+    log_ok_versions = ["1.2", "1.3"]
 
     def close(self,log):
 	self.manager.delete(self.items.keys(), evict=0)
@@ -605,7 +625,7 @@ class DiskCache:
 		    self.size = self.size + newentry.size
 		elif kind == '3': # version (hopefully first)
 		    ver = line[2:-1]
-		    if ver != self.log_version:
+		    if ver not in self.log_ok_versions:
                    ### clear out anything we might have read
                    ### and bail. this is an old log file.
 			if len(self.use_order) > 0:
@@ -615,7 +635,7 @@ class DiskCache:
 				del self.manager.items[key]
 				self.size = 0
 			    return
-		    Assert(ver == self.log_version)
+		    Assert(ver in self.log_ok_versions)
 	    except IndexError:
 		# ignore this line
 		pass
@@ -631,7 +651,7 @@ class DiskCache:
 	    self.log.close()
 	try:
 	    newpath = os.path.join(self.directory, 'CHECKPOINT')
-	    
+
 	    newlog = open(newpath, 'w')
 	    newlog.write('3 ' + self.log_version + '\n')
 	    for key in self.use_order:
@@ -679,14 +699,14 @@ class DiskCache:
 	    # they got me
 	    self.manager.disk.erase_cache()
 	    return
-	
+
 	def walk_erase(regexp,dir,files):
 	    for file in files:
 		if regexp.match(file) != -1:
 		    path = os.path.join(dir,file)
 		    if os.path.isfile(path):
 			os.unlink(path)
-	
+
 	os.path.walk(self.directory, walk_erase, self.cache_file)
 	self.manager.reset_disk_cache(flush_log=1)
 
@@ -696,7 +716,7 @@ class DiskCache:
 	    # they got me
 	    self.manager.disk.erase_unlogged_files()
 	    return
-	
+
 	def walk_erase_unknown(known,dir,files,regexp=self.cache_file):
 	    for file in files:
 		if not known.has_key(file) \
@@ -738,9 +758,10 @@ class DiskCache:
 	self.make_space(size)
 
 	newitem = DiskCacheEntry(self)
-	(date, lastmod, expires, ctype) = self.read_headers(headers)
+	(date, lastmod, expires, ctype, cencoding, ctencoding) \
+               = self.read_headers(headers)
 	newitem.fill(object.key, object.url, size, date, lastmod,
-		   expires, ctype)
+                     expires, ctype, cencoding, ctencoding)
 	newitem.file = self.get_file_name(newitem)
 	if expires:
 	    self.add_expireable(newitem)
@@ -776,7 +797,17 @@ class DiskCache:
 	    # what is the proper default content type?
 	    ctype = 'text/html'
 
-	return (date, lastmod, expires, ctype)
+        if headers.has_key('content-encoding'):
+            cencoding = headers['content-encoding']
+        else:
+            cencoding = None
+
+        if headers.has_key('content-transfer-encoding'):
+            ctencoding = headers['content-transfer-encoding']
+        else:
+            ctencoding = None
+
+	return (date, lastmod, expires, ctype, cencoding, ctencoding)
 
 
     def add_expireable(self,entry):
@@ -877,10 +908,15 @@ class DiskCache:
 class disk_cache_access:
     """protocol access interface for disk cache"""
 
-    def __init__(self, filename, content_type, date, len):
+    def __init__(self, filename, content_type, date, len,
+                 content_encoding, transfer_encoding):
 	self.headers = { 'content-type' : content_type,
 			 'date' : date,
 			 'content-length' : str(len) }
+        if content_encoding:
+            self.headers['content-encoding'] = content_encoding
+        if transfer_encoding:
+            self.headers['content-transfer-encoding'] = transfer_encoding
 	self.filename = filename
 	try:
 	    self.fp = open(filename, 'rb')
@@ -965,7 +1001,7 @@ class HTTime:
 	if not self.str:
 	    self.str = ht_time.unparse(self.secs)
 	return self.str
-    
+
     def __repr__(self):
 	if self.secs:
 	    return str(self.secs)
