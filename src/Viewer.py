@@ -120,6 +120,7 @@ class Viewer(formatter.AbstractWriter):
             self.parent.add_subviewer(self)
         self.message("")
         self.add_styles_callbacks()
+        self.init_presentation()
         if not self.parent:
             # Ok, now show the fully constructed widget:
             self.master.deiconify()
@@ -131,6 +132,7 @@ class Viewer(formatter.AbstractWriter):
         self.prefs.AddGroupCallback('styles-common', self.init_styles)
         self.prefs.AddGroupCallback('styles-fonts', self.init_styles)
         self.prefs.AddGroupCallback('styles', self.init_styles)
+        self.prefs.AddGroupCallback('presentation', self.init_presentation)
 
     def remove_styles_callbacks(self):
         """Add prefs callbacks so text widget's reconfigured on major changes.
@@ -138,6 +140,7 @@ class Viewer(formatter.AbstractWriter):
         self.prefs.RemoveGroupCallback('styles-common', self.init_styles)
         self.prefs.RemoveGroupCallback('styles-fonts', self.init_styles)
         self.prefs.RemoveGroupCallback('styles', self.init_styles)
+        self.prefs.RemoveGroupCallback('presentation', self.init_presentation)
 
     def message(self, message):
         if not self.context or self.linkinfo:
@@ -236,6 +239,10 @@ class Viewer(formatter.AbstractWriter):
         self.text.bind("<Button-2>", self.button_2_event)
         self.text.bind("<Button-3>", self.button_3_event)
         self.frame.bind("<Button-3>", self.button_3_event)
+
+    def init_presentation(self):
+        self.SHOW_TITLES = self.prefs.GetBoolean(
+            'presentation',  'show-link-titles')
 
     def init_styles(self):
         self.configure_styles(new_styles=1)
