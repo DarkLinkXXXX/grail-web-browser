@@ -7,11 +7,14 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.2.2"		# 0.2 plus fixes plus <applet> tag
+__version__ = "Grail/0.3a1"		# 0.2 plus fixes plus <applet> tag
 
 
 import sys
 import os
+import ni
+import html
+import filetypes
 
 # Hack sys.path:
 # replace the last occurrence of curdir or "" by dirname of argv[0]
