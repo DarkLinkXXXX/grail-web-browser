@@ -128,6 +128,11 @@ class Browser:
 				  command=self.open_file_command)
 	self.root.bind('<Alt-o>', self.open_file_command)
 	self.root.bind('<Alt-O>', self.open_file_command)
+	self.filemenu.add_command(label='Open Selection',
+				  underline=6, accelerator='Alt-E',
+				  command=self.open_selection_command)
+	self.root.bind('<Alt-e>', self.open_selection_command)
+	self.root.bind('<Alt-E>', self.open_selection_command)
 	self.filemenu.add_separator()
 	self.filemenu.add_command(label="Save As...",
 			  command=self.save_as_command,
@@ -372,6 +377,15 @@ class Browser:
 	if filename:
 	    import urllib
 	    self.context.load('file:' + urllib.pathname2url(filename))
+
+    def open_selection_command(self, event=None):
+	try:
+	    selection = self.root.selection_get()
+	except TclError:
+	    self.root.bell()
+	    return
+	uri = string.strip(selection)
+	self.context.load(grailutil.complete_url(uri))
 
     def view_source_command(self, event=None):
 	self.context.view_source()
