@@ -6,17 +6,19 @@ XXX Main deficiencies:
 - should read the headers more carefully (no blocking)
 - (could even *write* the headers more carefully)
 - should poll the connection making part too
+- should transform directory listings to HTML
+- no GC of ftpcache
 
 """
 
 
 import string
 import ftplib
-from urllib import splithost, splitport, splituser, splitpasswd, splitattr
+from urllib import ftperrors, unquote, splithost, splitport, splituser, \
+     splitpasswd, splitattr, splitvalue
 import mimetools
 from assert import assert
 import socket
-from urllib import ftperrors, unquote
 
 
 # Stages
