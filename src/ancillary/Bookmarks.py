@@ -33,6 +33,8 @@ except KeyError:
     pass
 
 
+BMPREFGROUP = 'bookmarks'
+
 True = 1
 False = None
 
@@ -862,13 +864,30 @@ class BookmarksController(OutlinerController):
 	    'fileformat': StringVar(),
 	    'statusmsg': StringVar(),
 	    }
-	self.aggressive.set(0)
-	self.addcurloc.set(NEW_AT_BEG)
+	# get preferences and set the values
+	prefs = app.prefs
+	try:
+	    where = prefs.Get(BMPREFGROUP, 'add-location')
+	    if where == 'file-prepend':
+		where = NEW_AT_BEG
+	    elif where == 'file-append':
+		where = NEW_AT_END
+	    elif where == 'as-child-or-sib':
+		where = NEW_AS_CHILD
+	    else:
+		raise TypeError
+	except (TypeError, KeyError):
+	    where = NEW_AT_BET
+	self.addcurloc.set(where)
+	try:
+	    aggressive = prefs.GetBoolean(BMPREFGROUP, 'aggressive-collapse')
+	except (TypeError, KeyError):
+	    aggressive = 0
+	self.aggressive.set(aggressive and 1 or 0)
+	# other initializations
 	self.fileformat.set('Automatic')
 	self.statusmsg.set('')
 	self._modflag = False
-	from __main__ import app
-	self._app = app
 	app.register_on_exit(self.on_app_exit)
 
     def __getattr__(self, name):
