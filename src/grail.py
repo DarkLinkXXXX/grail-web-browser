@@ -39,7 +39,7 @@ import tktools
 from Browser import Browser
 import SafeTkinter
 from AppletRExec import AppletRExec
-from Cache import Cache
+from CacheMgr import CacheManager
 import TbDialog
 if 0:
     import dummies
@@ -207,7 +207,7 @@ class Application:
 	self.graildir = grailutil.getgraildir()
 	GrailHTMLParser.iconpath.insert(0, os.path.join(self.graildir,
 							'icons'))
-	self.url_cache = Cache(self)
+	self.url_cache = CacheManager(self)
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
 	  read_mime_types("/usr/local/lib/netscape/mime.types") or \

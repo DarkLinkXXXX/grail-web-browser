@@ -16,15 +16,19 @@ XXX To do
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
+CacheItemExpired = 'CacheItem Expired'
+
 
 from assert import assert
 import urlparse
 import string
+import regsub
 import os
 import protocols
+import time
+import copy
 
-
-class Cache:
+class OldCache:
 
     """A cache of URL data.
 
@@ -33,30 +37,81 @@ class Cache:
 
     """
 
-    def __init__(self, app):
+    def __init__(self,app):
 	self.cachedir = {}
 	self.app = app
 
+	###
+	###  hard-coded values follow
+	###  they are for development only
+	###  I need to figure out the preferences interface
+	###
+	self.cache_manager = CacheManager()
+	disk = DiskCache( self.cache_manager, 1000000, 
+			  self.app.graildir + '/cache' )
+
+
+#
+# potentially different cases for open
+#    should we handle POSTs differently than gets
+#
+#
+#
+
     def open(self, url, mode, params, reload=0, data=None):
+	if mode == 'GET':
+	    return self.get(url, mode, params, reload, data)
+	elif mode == 'POST':
+	    return self.post(url, mode, params, reload, data)
+
+    def OLDopen(self, url, mode, params, reload=0, data=None):
+	### do we decide here to avoid the cache for POST?
+	### the non-idempotent nature of POST may mean yes
+	if data:
+	    return CacheAPI(CacheItem(url, mode, params, self, key, data))
+
 	key = self.url2key(url, mode, params)
-	if data or not self.cachedir.has_key(key):
-	    self.cachedir[key] = item = CacheItem(url, mode, params,
-						  self, key, data)
-##	    print "Cache.open() -> new item", item
-	else:
-	    item = self.cachedir[key]
-##	    print "Cache.open() -> existing item", item
+	api = self.cache_manager.get(key)
+	if api:
+	    item = CacheItem(url, mode, params,
+			     self, key, data, api)
 	    if reload:
-		item.reset()
+		item.reset(reload) # force a reload
 	    else:
-		item.check()
+		item.check() # check for freshness
+	else:
+	    item = CacheItem(url, mode, params,
+			     self, key, data)
+	return CacheAPI(item)
+
+    def post(self, url, mode, params, reload, data):
+	# for now, never cache a POST
+	key = self.url2key(url, mode, params)
+	return CacheAPI(CacheItem(url, mode, params, None, key, data))
+
+    def get(self, url, mode, params, reload, data):
+	key = self.url2key(url, mode, params)
+	api = self.cache_manager.get(key)
+	if api:
+	    # creating reference to cached item
+	    try:
+		item = CacheItem(url, mode, params, self, key, data, api)
+	    except CacheItemExpired:
+		self.cache_manager.evict(key)
+	    if reload:
+		item.reset(reload)
+	    else:
+		item.check() # check for freshness
+	else:
+	    # cause item to be loaded (and perhaps cached)
+	    item = CacheItem(url, mode, params, self, key, data)
 	return CacheAPI(item)
 
     def delete(self, object):
 	key = object.key
 	object.cache = None
-	assert(self.cachedir.has_key(key) and self.cachedir[key] is object)
-	del self.cachedir[key]
+#	assert(self.cachedir.has_key(key) and self.cachedir[key] is object)
+#	del self.cachedir[key]
 
     def url2key(self, url, mode, params):
 	"""Normalize a URL for use as a caching key.
@@ -108,23 +163,49 @@ class CacheItem:
     getdata() takes an offset argument, and the sequencing
     restrictions are lifted (i.e. you can call anything in any order).
 
+    A CacheItem hides all protocol access from the rest of the
+    system. The reset() method actually calls on the protocol to
+    retrieve an object.
+
+    The disk cache passes an disk_cache_access api which sets some
+    basic headers and starts the object out in the DATA state.
+
     """
 
-    def __init__(self, url, mode, params, cache, key, data=None):
+    def __init__(self, url, mode, params, cache, key, data=None,
+		 api=None, last_load=None):  
 	self.refcnt = 0
 	self.url = url
 	self.mode = mode
 	self.params = params
-	self.cache = cache
 	self.key = key
 	self.postdata = data
-	# The following two are changed by reset()
-	self.api = None
-	self.stage = DONE
-	self.reset()
+	self.reloading = 0
+	self.cache = cache
+
+	if api:
+	    # loading from the cache
+	    self.api = api
+	    self.meta = api.getmeta()
+	    self.stage = self.api.stage
+	    self.data = ''
+	    self.complete = 0
+	    self.incache = 1
+	    if last_load:
+		self.refresh(last_load)
+	else:
+	    # The following two are changed by reset()
+	    self.api = None
+	    self.stage = DONE
+	    self.stored = None  # not used for anything?
+	    self.incache = 0
+	    self.reset()
 
     def __repr__(self):
 	return "CacheItem(%s)<%d>" % (`self.url`, self.refcnt)
+
+    def iscached(self):
+	return self.incache
 
     def incref(self):
 	self.refcnt = self.refcnt + 1
@@ -149,19 +230,45 @@ class CacheItem:
     def fresh(self):
 	return self.stage is not DONE or self.complete
 
-    def reset(self):
-##	print self, "reset()"
-	if self.stage != DONE:
-	    return
-	assert(self.api is None)
-##	print "Open", self.url
+    def reset(self,reload=0):
+	if self.incache == 0:
+	    if self.stage != DONE:
+		return
+	    assert(self.api is None)
 	self.api = protocols.protocol_access(self.url,
 					     self.mode, self.params,
 					     data=self.postdata)
+	self.init_new_load()
+	self.reloading = reload
+
+    def init_new_load(self):
 	self.meta = None
 	self.data = ''
 	self.stage = META
 	self.complete = 0
+
+    def refresh(self,when):
+	if self.incache == 1:
+	    # can only refresh something in the cache
+	    # should we ignore this test?
+	    params = copy.copy(self.params)
+	    params['If-Modified-Since'] = when.get_str()
+	    api = protocols.protocol_access(self.url,
+					    self.mode, params,
+					    data=self.postdata)
+	    errcode, errmsg, headers = api.getmeta()
+	    ### which errcode should I try to handle
+	    if errcode == 304:
+		# we win! it hasn't been modified
+##		print "if-mod-since reports no change"
+		pass
+	    elif errcode == 200:
+##		print "if-mod-since returned new page"
+		self.api = api
+		self.init_new_load()
+		self.reloading = 1
+	    else:
+		print "an if-mod-since returned %s, %s" % (errcode, errmsg)
 
     def pollmeta(self):
 	if self.stage == META:
@@ -213,13 +320,18 @@ class CacheItem:
     def abort(self):
 ##	print " Abort", self.url
 	if self.cache:
-	    self.cache.delete(self)
+	    # don't put this baby in the cache
+	    self.cache = None
 	self.finish()
 
     def finish(self):
 	if self.cache:
 	    if not (self.meta and self.meta[0] == 200):
 		self.cache.delete(self)
+	    elif (self.incache == 0 or self.reloading == 1) \
+		 and not self.postdata and self.refcnt == 0:
+#		 and not self.postdata and self.complete == 0:
+		self.cache.add(self,self.reloading)
 	self.stage = DONE
 	api = self.api
 	self.api = None
@@ -249,7 +361,7 @@ class CacheAPI:
 ##	print self, "__init__()"
 
     def iscached(self):
-	return self.item.stage == DONE
+	return self.item.iscached()
 
     def __repr__(self):
 	return "CacheAPI(%s)" % self.item
@@ -288,7 +400,7 @@ class CacheAPI:
 	return self.fno
 
     def close(self):
-##	print self, "close()"
+#	print self, "close()"
 	self.stage = DONE
 	fno = self.fno
 	if fno >= 0:
