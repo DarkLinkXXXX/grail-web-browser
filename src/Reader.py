@@ -176,6 +176,9 @@ class Reader(BaseReader):
 
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
+	    if ';' in content_type:
+		content_type = string.strip(
+		    content_type[:string.index(content_type, ';')])
 	else:
 	    content_type = None
 	if not content_type:
