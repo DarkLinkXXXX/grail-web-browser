@@ -188,24 +188,33 @@ class FormInfo:
     def submit_command(self):
 	enctype = string.lower(self.enctype)
 	method = string.lower(self.method)
+	if method not in ('get', 'post'):
+	    print "*** Form with unknown method:", `method`
+	    print "Default to method=GET"
+	    method = 'get'
+	if method == 'get' and enctype == FORM_DATA:
+	    print "*** Form with method=GET, enctype=form-data not supported"
+	    print "Default to enctype=urlencoded"
+	    enctype = URLENCODED
+	if enctype not in (URLENCODED, FORM_DATA):
+	    print "*** Form with unknown enctype:", `enctype`
+	    print "Default to urlencoded"
+	    enctype = URLENCODED
 	data = ''
 	if enctype == URLENCODED:
 	    data = self.make_urlencoded_data()
 	elif enctype == FORM_DATA and method == 'post':
 	    ctype, data = self.make_form_data()
-	if method == 'get' and enctype == URLENCODED:
+	if method == 'get':
 	    url = self.action + '?' + data
 	    self.context.follow(url, target=self.target)
-	elif method == 'post' and enctype in (URLENCODED, FORM_DATA):
+	elif method == 'post':
 	    if enctype == FORM_DATA:
 		enctype = ctype
 	    params = {"Content-type": enctype}
 	    if enctype == URLENCODED:
 		params["Content-length"] = `len(data)`
 	    self.viewer.context.post(self.action, data, params, self.target)
-	else:
-	    print "*** Form with METHOD=%s and ENCTYPE=%s not supported ***" \
-		  % (self.method, self.enctype)
 
     def make_urlencoded_data(self):
 	data = ''
