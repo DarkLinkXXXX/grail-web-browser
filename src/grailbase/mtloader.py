@@ -5,7 +5,7 @@ attributes: parse, embed, add_options, and update_options.  The first two
 are used as handlers for supporting the MIME type as primary and embeded
 resources.  The last two are (currently) only used for printing.
 """
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 
 
 import extloader
@@ -31,7 +31,7 @@ class MIMEExtensionLoader(extloader.ExtensionLoader):
 
 class MIMETypeExtension:
     def __init__(self, type, mod, modname):
-        self.type = name
+        self.type = type
         self.__load_attr(mod, "parse_" + modname, "parse")
         self.__load_attr(mod, "embed_" + modname, "embed")
         self.__load_attr(mod, "add_options")
