@@ -222,17 +222,19 @@ class AppletLoader:
 		self.classname = self.modname
 	    self.codeurl = self.context.get_baseurl(
 		self.codebase, self.code)
-	elif self.classid:		# <OBJECT>
-	    if codeprog.match(self.classid) >= 0:
+	elif self.classid or self.codebase: # <OBJECT>
+	    if self.classid and codeprog.match(self.classid) >= 0:
 		self.codeurl = self.classid
 		self.modname = codeprog.group(2)
 		self.classname = self.modname
-	    else:
+	    elif self.classid:
 		self.classname = self.classid
 		self.modname = self.classid
 		self.codeurl = self.modname + ".py"
-	    if codeprog.match(self.codebase) >= 0:
+	    if self.codebase and codeprog.match(self.codebase) >= 0:
 		self.modname = codeprog.group(2)
+		if not self.classname:
+		    self.classname = self.modname
 		self.codeurl = self.context.get_baseurl(self.codebase)
 	    else:
 		self.codeurl = self.context.get_baseurl(self.codebase,
