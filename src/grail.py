@@ -8,7 +8,7 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 """
 
 
-__version__ = "0.2b1"			# I.e. PRE 0.2
+__version__ = "0.2a2"			# PRE 0.2; alpha == lacking features
 
 
 import sys
@@ -183,65 +183,8 @@ class Application:
 	else:
 	    return None
 
-    def get_image(self, url, force=0):
-	if not url:
-	    return None
-	if not force:
-	    if self.image_cache.has_key(url):
-		return self.image_cache[url]
-	    if not self.load_images:
-		return None
-	# XXX Ought to complete this asynchronously
-	try:
-	    api = self.open_url(url, 'GET', {})
-	except IOError:
-	    return None
-	errcode, errmsg, params = api.getmeta()
-	if errcode != 200:
-	    api.close()
-	    return None
-	if params.has_key('content-type'):
-	    content_type = params['content-type']
-	else:
-	    content_type = None
-	if content_type and content_type[:6] != 'image/':
-	    print '***', url, 'is not an image'
-	    api.close()
-	    return None
-	if content_type[6:] in ('x-xbitmap', 'xbitmap'):
-	    imgtype = 'bitmap'
-	else:
-	    imgtype = 'photo'
-	f = None
-	tfn = tempfile.mktemp()
-	try:
-	    f = open(tfn, 'w')
-	    BLOCKSIZE = 8*1024
-	    try:
-		while 1:
-		    data = api.getdata(BLOCKSIZE)
-		    if not data: break
-		    f.write(data)
-	    except IOError, msg:
-		print '*** IOError reading image', url, msg
-		return None
-	    f.close()
-	    f = None
-	    try:
-		image = Image(imgtype, file=tfn)
-	    except TclError:
-		print '***', url, 'does not appear to be of type', imgtype
-		return None
-	    self.image_cache[url] = image
-	    return image
-	finally:
-	    api.close()
-	    if f:
-		f.close()
-	    try:
-		os.unlink(tfn)
-	    except os.error:
-		pass
+    def set_cached_image(self, url, image):
+	self.image_cache[url] = image
 
     def open_url(self, url, method, params, reload=0):
 	return self.url_cache.open(url, method, params, reload)
@@ -303,12 +246,17 @@ class Application:
 
     def exception_dialog(self, message=""):
 	exc, val, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
-	self.exc_dialog(self, message, exc, val, tb)
+	self.exc_dialog(message, exc, val, tb)
 
     def report_callback_exception(self, exc, val, tb):
 	self.exc_dialog("in a callback function", exc, val, tb)
 
     def exc_dialog(self, message, exc, val, tb):
+	def f(s=self, m=message, e=exc, v=val, t=tb):
+	    s._exc_dialog(m, e, v, t)
+	self.root.after_idle(f)
+
+    def _exc_dialog(self, message, exc, val, tb):
 	msg = "An exception occurred " + str(message) + " :\n"
 	msg = msg + str(exc) + " : " + str(val)
 	dlg = SafeDialog.Dialog(self.root,
