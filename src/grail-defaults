@@ -79,3 +79,7 @@ disk-cache--directory: cache
 disk-cache--freshness-test-type: periodic
 disk-cache--freshness-test-period: 4.0
 disk-cache--checkpoint: 1
+C:
+C: Preference panel preferences
+C:
+preferences--panel-order: General Cache Applets
