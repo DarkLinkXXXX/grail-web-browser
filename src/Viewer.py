@@ -36,7 +36,8 @@ class Viewer(formatter.AbstractWriter):
 	self.context = context or Context(self, browser)
 	self.prefs = self.context.app.prefs
 	self.stylesheet = stylesheet
-	self.current_style = None
+	self.current_size = None
+	self.current_type = None
 	self.name = name
 	self.scrolling = scrolling
 	self.parent = parent
@@ -168,7 +169,7 @@ class Viewer(formatter.AbstractWriter):
 
     def configure_styles_hard(self):
 	"""Force a full reconfigure of styles."""
-	self.current_style = None
+	self.current_size = self.current_type = None
 	self.configure_styles()
 
     def configure_styles(self):
