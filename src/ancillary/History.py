@@ -118,6 +118,10 @@ class History:
 
 
 
+HISTORY_PREFGROUP = 'history'
+VIEW_BY_TITLES = 1
+VIEW_BY_URLS = 2
+
 class HistoryDialog:
     def __init__(self, context, historyobj=None):
 	if not historyobj:
@@ -130,9 +134,21 @@ class HistoryDialog:
 	self._history.set_dialog(self)
 	self._frame = tktools.make_toplevel(self._context.root,
 					    title="History Dialog")
+	# get preferences
 	self._viewby = IntVar()
-	self._viewby.set(1)
-	self._viewing = 1
+	from __main__ import app
+	prefs = app.prefs
+	try:
+	    viewby = prefs.Get(HISTORY_PREFGROUP, 'view-by')
+	    if viewby == 'titles':
+		viewby = VIEW_BY_TITLES
+	    elif viewby == 'urls':
+		viewby = VIEW_BY_URLS
+	    else:
+		raise TypeError
+	except (KeyError, TypeError):
+	    viewby = VIEW_BY_TITLES
+	self._viewby.set(viewby)
 	# add a couple of buttons
 	btnbar = Frame(self._frame)
 	btnbar.pack(fill=BOTH, side=BOTTOM)
@@ -146,11 +162,11 @@ class HistoryDialog:
 	rb1 = Radiobutton(rbframe, text='View by titles',
 			  command=self._viewby_command,
 			  variable=self._viewby,
-			  value=1)
+			  value=VIEW_BY_TITLES)
 	rb2 = Radiobutton(rbframe, text='View by URIs',
 			  command=self._viewby_command,
 			  variable=self._viewby,
-			  value=2)
+			  value=VIEW_BY_URLS)
 	rb1.pack(anchor='w')
 	rb2.pack(anchor='w')
 	# create listbox
@@ -174,15 +190,16 @@ class HistoryDialog:
     def refresh(self):
 	# populate listbox
 	self._listbox.delete(0, END)
+	viewby = self._viewby.get()
 	# view in reverse order
 	pages = self._history.pages()[:]
 	pages.reverse()
 	for page in pages:
 	    url = page.url()
 	    title = page.title() or url
-	    if self._viewing == 1:
+	    if viewby == VIEW_BY_TITLES:
 		self._listbox.insert(END, title)
-	    elif self._viewing == 2:
+	    elif viewby == VIEW_BY_URLS:
 		self._listbox.insert(END, url)
 	self.select(self._history.current())
 
@@ -205,9 +222,6 @@ class HistoryDialog:
 	self._frame.withdraw()
 
     def _viewby_command(self, event=None):
-	state = self._viewby.get()
-	if state == self._viewing: return
-	self._viewing = state
 	self.refresh()
 
     def select(self, index):
