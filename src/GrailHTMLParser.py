@@ -197,7 +197,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	"""Handle the <AREA> tag."""
 
 	if self.current_map:
-	    coords = []
+	    coords = ''
 	    shape = 'rect'
 	    url = ''
 	    alt = ''
