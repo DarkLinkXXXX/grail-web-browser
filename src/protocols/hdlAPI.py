@@ -81,28 +81,60 @@ HTML_TRAILER = """
 
 
 
+global_hash_table = None
+local_hash_tables = {}
+
+def get_local_hash_table(hdl):
+    key = hdllib.get_authority(hdl)
+    if not local_hash_tables.has_key(key):
+	#print "Fetching local hash table for", key
+	local_hash_tables[key] = hdllib.fetch_local_hash_table(
+	    key, global_hash_table)
+    return local_hash_tables[key]
+
+
 class hdl_access(nullAPI.null_access):
-    def __init__(self, uri, method, params):
-	nullAPI.null_access.__init__(self, uri, method, params)
+
+    _types = HANDLE_TYPES
+
+    def __init__(self, hdl, method, params):
+	nullAPI.null_access.__init__(self, hdl, method, params)
 	# Can ignore methods and params... they should be 'GET' and {}
 	# respectively
-	self._uri = uri
-	self._types = HANDLE_TYPES
+	self._hdl = hdl
+	global global_hash_table
+	if not global_hash_table:
+	    try:
+		#print "Fetching global hash table"
+		global_hash_table = hdllib.fetch_global_hash_table()
+	    except hdllib.Error, inst:
+		raise IOError, inst, sys.exc_traceback
 
     def pollmeta(self):
 	nullAPI.null_access.pollmeta(self)
 	try:
-	    hashtable = hdllib.HashTable()
-	    replyflags, self._items = \
-			hashtable.get_data(self._uri, self._types)
+	    replyflags, self._items = global_hash_table.get_data(
+		self._hdl, self._types)
 	except hdllib.Error, inst:
+	    if inst.err == hdllib.HP_HANDLE_NOT_FOUND:
+		# Retry using a local handle server
+		try:
+		    hashtable = get_local_hash_table(self._hdl)
+		    replyflags, self._items = hashtable.get_data(
+			self._hdl, self._types)
+		except hdllib.Error, inst:
+		    # (Same comment as below)
+		    raise IOError, inst, sys.exc_traceback
+		else:
+		    return 'Ready', 1
 	    # Catch all errors and raise an IOError.  The Grail
 	    # protocol extension defines this as the only error we're
 	    # allowed to raise.
 	    # Because the hdllib.Error instance is passed, no
 	    # information is lost.
 	    raise IOError, inst, sys.exc_traceback
-	return 'Ready', 1
+	else:
+	    return 'Ready', 1
 
     def getmeta(self):
 	nullAPI.null_access.getmeta(self)
