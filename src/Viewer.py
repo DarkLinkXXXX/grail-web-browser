@@ -102,12 +102,16 @@ class Viewer(formatter.AbstractWriter):
 						      width=width,
 						      height=height,
 						      hbar=bars, vbar=bars)
+	if self.parent:
+	    self.text.config(background=self.parent.text['background'],
+			     foreground=self.parent.text['foreground'])
 	self.text.config(padx=10, cursor=CURSOR_NORMAL)
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
 	self.text.config(selectbackground='yellow')
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
+	self.configure_tags_fixed()
 	if self.context.viewer is self:
 	    self.text.config(takefocus=1)
 	self.text.bind("<Tab>", self.tab_event)
@@ -124,6 +128,8 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.tag_config(tag, cnf)
 	for tag, abovetag in stylesheet.priorities.items():
 	    self.text.tag_raise(tag, abovetag)
+
+    def configure_tags_fixed(self):
 	# These are used in aligning rules:
 	self.text.tag_config('left', justify = 'left')
 	self.text.tag_config('right', justify = 'right')
@@ -174,6 +180,8 @@ class Viewer(formatter.AbstractWriter):
 	self.unregister_interest(self.resize_interests, func)
 
     def clear_reset(self):
+	if self.stylesheet:
+	    self.configure_tags(self.stylesheet)
 	self._atemp = []
 	for func in self.reset_interests[:]:
 	    func(self)
