@@ -29,6 +29,13 @@ class AppletRHooks(RHooks):
     def openfile(self, p, mode='r', buf=-1):
 	# Only used to read modules
 	if is_url(p):
+	    # Avoid hitting the remote server with every suffix
+	    # in the suffix list (.pyc, .so, module.so).
+	    # We can't strip these from the suffix list, since
+	    # (at least under certain circumstances) shared libs
+	    # are okay when found on the local file system.
+	    if p[-3:] != '.py':
+		raise IOError, "Only Python modules may be read remotely"
 	    return self.openurl(p, mode, buf)
 	else:
 	    return open(p, mode, buf)
@@ -49,9 +56,6 @@ class AppletRHooks(RHooks):
 	    api.close()
 	    raise IOError, errmsg
 	return PseudoFile(api)
-
-    def get_suffixes(self):
-	return [('.py', 'r', 1)]
 
 
 class PseudoFile:
@@ -106,6 +110,9 @@ class PseudoFile:
 
 
 class AppletRExec(RExec):
+
+    # Allow importing the ILU Python runtime
+    ok_builtin_modules = RExec.ok_builtin_modules + ('iluPr',)
 
     def __init__(self, hooks=None, verbose=1, app=None):
 	self.app = app
