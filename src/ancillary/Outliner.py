@@ -120,7 +120,8 @@ class OutlinerViewer:
         self._nodes.append(node)
         # calculate the string to insert into the list box
         self._insert(node)
-        if node.get_nodetype() == "Folder" and node.expanded_p():
+        if node.get_nodetype() == "Folder" \
+           and (node.expanded_p() or self._follow_all_children_p):
             for child in node.children():
                 self._populate(child)
 
