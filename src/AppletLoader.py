@@ -286,12 +286,26 @@ class AppletMagic:
 	self.grail_parser = self.grail_viewer = self.grail_context = \
 			    self.grail_browser = self.grail_app = None
 	if loader:
-	    self.grail_parser = loader.parser
-	    self.grail_viewer = loader.viewer
-	    self.grail_context = context = loader.context
+	    from Bastion import Bastion
+	    if loader.parser:
+		self.grail_parser = Bastion(loader.parser)
+	    if loader.viewer:
+		self.grail_viewer = Bastion(loader.viewer)
+		# Add the text widget since it is referenced by some demos.
+		# Need a special filter, too!
+		def filter(name):
+		    return name[0] != '_' or name in ('__getitem__',
+						      '__setitem__',
+						      '__str__')
+		self.grail_viewer.text = Bastion(loader.viewer.text,
+						 filter=filter)
+	    context = loader.context
 	    if context:
-		self.grail_browser = context.browser
-		self.grail_app = context.app
+		self.grail_context = Bastion(context)
+		if context.browser:
+		    self.grail_browser = Bastion(context.browser)
+		if context.app:
+		    self.grail_app = Bastion(context.app)
 
 
 class AppletFrame(Frame, AppletMagic):
