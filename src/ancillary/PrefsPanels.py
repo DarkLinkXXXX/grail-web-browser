@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.22 $"
+__version__ = "$Revision: 2.23 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -318,18 +318,21 @@ class Framework:
 	barbottom.pack()
 	self.debug_bar = Frame(bar, relief=SUNKEN)
 
-	done_btn = Button(bartop, text="OK", width=7, command=self.done_cmd)
-	help_btn = Button(barbottom, text="Help", width=7,
+	done_btn = Button(bartop, text="OK", command=self.done_cmd)
+	help_btn = Button(barbottom, text="Help",
 			  command=self.help_cmd)
-	cancel_btn = Button(bartop, text="Cancel", width=7,
+	cancel_btn = Button(bartop, text="Cancel",
 			    command=self.cancel_cmd)
-	self.apply_btn = Button(barbottom, text="Apply", width=7,
+	self.apply_btn = Button(barbottom, text="Apply",
 				command=self.apply_cmd)
-	self.revert_btn = Button(barbottom, text="Revert", width=7,
+	self.revert_btn = Button(barbottom, text="Revert",
 				 command=self.revert_cmd)
-	self.factory_defaults_btn = Button(barbottom, width=7,
+	self.factory_defaults_btn = Button(barbottom,
 					   command=self.factory_defaults_cmd,
 					   text="Defaults")
+	tktools.unify_button_widths(done_btn, help_btn, cancel_btn,
+				    self.apply_btn, self.revert_btn,
+				    self.factory_defaults_btn)
 	done_btn.pack(side=LEFT)
 	# Can't just use anchor=CENTER to get help button centered - it'll
 	# go to the TOP, above OK and Cancel buttons.  Expanding without
