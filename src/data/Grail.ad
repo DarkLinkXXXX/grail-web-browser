@@ -1,5 +1,3 @@
-!!!  -*- xrdb -*-
-!!!
 !!!  X11 resources for Grail.
 
 Grail.Grail.logo.text:			Stop
@@ -37,6 +35,9 @@ Grail.Bookmarks.Detail*Frame.ok.text:		OK
 Grail.Bookmarks.Detail*Frame.revert.text:	Revert
 Grail.Bookmarks.Detail*Frame.apply.text:	Apply
 Grail.Bookmarks.Detail*Frame.cancel.text:	Cancel
+
+Grail*exportCheckbox.text:		Remove access times (for privacy)
+Grail*exportCheckbox.anchor:		w
 
 Grail.IOStatusPanel.close.text:		Close
 
