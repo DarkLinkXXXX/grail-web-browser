@@ -225,6 +225,7 @@ class HTMLParser(SGMLParser):
 	else:
 	    align = None
 	self.formatter.push_alignment(align)
+	self.viewer.flush()
         self.formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
 
@@ -665,7 +666,7 @@ class HTMLParser(SGMLParser):
         self.formatter.add_hor_rule(abswidth, percentwidth, height, align)
 
     def parse_width(self, str):
-	str = string.strip(str)
+	str = string.strip(str or '')
 	if not str:
 	    return None, None
 	wid = percent = None
