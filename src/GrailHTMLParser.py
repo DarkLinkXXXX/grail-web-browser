@@ -389,8 +389,8 @@ class GrailHTMLParser(HTMLParser):
 
     def do_param(self, attrs):
 	if 0 < self.suppress_output == len(self.object_stack):
-	    name = self.extract_keyword('name', attrs)
-	    value = self.extract_keyword('value', attrs)
+	    name = extract_keyword('name', attrs)
+	    value = extract_keyword('value', attrs)
 	    if name is not None and value is not None:
 		self.apploader.set_param(name, value)
 
