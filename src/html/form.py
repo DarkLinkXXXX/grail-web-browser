@@ -500,7 +500,7 @@ class FormInfo:
 	def setup(self):
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
-			    command=self.fi.submit_command)
+			    command=self.submit_command)
 	    self.w.bind("<Enter>", self.enter)
 	    self.w.bind("<Leave>", self.leave)
 
@@ -518,6 +518,10 @@ class FormInfo:
 
 	def leave(self, event):
 	    self.viewer.leave_message()
+
+	def submit_command(self):
+	    self.viewer.leave_message()
+	    self.fi.submit_command()
 
     class InputReset(Input):
 
