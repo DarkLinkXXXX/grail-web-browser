@@ -245,8 +245,9 @@ class Browser:
 	self.user_menus = []
 
 	# Create Help menu (on far right)
-	landmarks = string.split(self.app.prefs.Get('browser', 'landmarks'))
-	if not landmarks:
+	raw = self.app.prefs.Get('browser', 'help-menu')
+	lines = filter(None, map(string.strip, string.split(raw, '\n')))
+	if not lines:
 	    return
 
 	self.helpbutton = Menubutton(self.mbar, text="Help", name='help')
@@ -255,12 +256,17 @@ class Browser:
 	self.helpmenu = Menu(self.helpbutton, name='menu')
 	self.helpbutton['menu'] = self.helpmenu
 
-	for landmark in landmarks:
-	    if landmark == '-':
+	i = 0
+	n = len(lines) - 1
+	while i < n:
+	    label = lines[i]
+	    i = i+1
+	    if label == '-':
 		self.helpmenu.add_separator()
 	    else:
-		command = LandmarkCommand(self, landmark)
-		label = command.get_title()
+		url = lines[i]
+		i = i+1
+		command = HelpMenuCommand(self, url)
 		self.helpmenu.add_command(label=label, command=command)
 
     def create_urlbar(self):
@@ -432,7 +438,7 @@ class Browser:
     def home_command(self, event=None):
 	home = self.app.prefs.Get('landmarks', 'home-page')
 	if not home:
-	    home = self.app.prefs.Get('landmarks', 'about-grail-page')
+	    home = self.app.prefs.Get('landmarks', 'default-home-page')
 	self.context.load(home)
 
     def reload_command(self, event=None):
@@ -550,19 +556,15 @@ class Browser:
 	return hit
 
 
-class LandmarkCommand:
-    """Encapsulate a landmark item into a callable object to load the resource.
+class HelpMenuCommand:
+    """Encapsulate a menu item into a callable object to load the resource.
     """
-    def __init__(self, browser, landmark):
+    def __init__(self, browser, url):
 	self.__browser = browser
-	self.__landmark = landmark
+	self.__url = url
 
     def __call__(self, event=None):
-	self.__browser.context.load(
-	    self.__browser.app.prefs.Get('landmarks', self.__landmark))
-
-    def get_title(self):
-	return self.__browser.app.prefs.Get('landmark-names', self.__landmark)
+	self.__browser.context.load(self.__url)
 
 
 def test():
