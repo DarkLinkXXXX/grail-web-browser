@@ -9,7 +9,6 @@ import grailutil
 from Tkinter import *
 import tktools
 
-import GrailPrefs
 from DefaultStylesheet import DefaultStylesheet
 from Viewer import Viewer
 from AsyncImage import AsyncImage
@@ -22,6 +21,10 @@ FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 
 # Window title prefix
 TITLE_PREFIX = "Grail: "
+
+
+# Last directory used by Save As... command
+save_as_dir = None
 
 
 
@@ -79,7 +82,7 @@ class Browser:
 			     stylesheet=DefaultStylesheet,
 			     width=width, height=height)
 	self.context = self.viewer.context
-	if not grailutil.getenv("GRAIL_NO_LOGO") and sys.platform != 'mac':
+	if self.app.prefs.GetBoolean('browser', 'show-logo'):
 	    self.logo_init()
 
     def create_logo(self):
@@ -267,24 +270,16 @@ class Browser:
     def set_title(self, title):
 	self._window_title(TITLE_PREFIX + title)
 
-    def message(self, string = "", cursor = None):
-	msg = self.msg['text']
-	if not string:
-	    name = self.context.viewer.name # XXX Naughty ;-)
-	    if name:
-		string = "Window name = " + name
+    def message(self, string = ""):
 	self.msg['text'] = string
-	if not cursor:
-	    if self.context.busy():
-		cursor = CURSOR_WAIT
-	    else:
-		cursor = CURSOR_NORMAL
-	self.viewer.set_cursor(cursor)
-	if cursor == CURSOR_WAIT:
-	    self.root.update_idletasks()
 
-    def message_clear(self):
-	self.message("")
+    def messagevariable(self, variable=None):
+	if variable:
+	    self.msg['textvariable'] = variable
+	else:
+	    self.msg['textvariable'] = ""
+	    self.msg['text'] = ""
+    message_clear = messagevariable
 
     def error_dialog(self, exception, msg):
 	if self.app:
@@ -367,6 +362,7 @@ class Browser:
 	b.context.load(self.context.get_url(), show_source=1)
 
     def save_as_command(self, event=None):
+	global save_as_dir
 	# File/Save As...
 	if self.context.busycheck(): return
 	import FileDialog
@@ -375,10 +371,19 @@ class Browser:
 	# current directory
 	urlasfile = string.splitfields(self.context.get_url(), '/')
 	default = urlasfile[-1]
+	# strip trailing query
+	i = string.find(default, '?')
+	if i > 0: default = default[:i]
+	# strip trailing fragment
+	i = string.rfind(default, '#')
+	if i > 0: default = default[:i]
 	# maybe bogus assumption?
 	if not default: default = 'index.html'
-	file = fd.go(default=default)
+	if not save_as_dir:
+	    save_as_dir = os.getcwd()
+	file = fd.go(save_as_dir, default=default)
 	if not file: return
+	save_as_dir = os.path.dirname(file)
 	api = self.app.open_url(self.context.get_url(), 'GET', {})
 	errcode, errmsg, params = api.getmeta()
 	if errcode != 200:
@@ -391,7 +396,7 @@ class Browser:
 	    api.close()
 	    self.error_dialog(IOError, msg)
 	    return
-	self.message("Saving...", CURSOR_WAIT)
+	self.message("Saving...")
 	BUFSIZE = 8*1024
 	while 1:
 	    buf = api.getdata(BUFSIZE)
