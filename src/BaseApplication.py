@@ -5,7 +5,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import ni
@@ -59,7 +59,10 @@ class BaseApplication:
 	package = self.get_package(pkgname) # make it a 'user' package
 	if not package:
 	    return None
-	exec "from %s import %s; mod = %s" % (pkgname, modname, modname)
+	try:
+	    exec "from %s import %s; mod = %s" % (pkgname, modname, modname)
+	except SyntaxError:
+	    return None
 	return mod
 
     def find_embedder(self, devicetype, mimetype):
