@@ -857,6 +857,20 @@ class ViewerMenu:
 	menu.bind("<Unmap>", self.__unmap)
 
     def tk_popup(self, x, y):
+	# update the "Forward in Frame" item
+	context = self.__context
+	future, page = context.history.peek(+1)
+	self.__menu.entryconfig(1, state=(page and NORMAL or DISABLED))
+	#
+	# update the "Back in Frame" item
+	viewer = self.__viewer
+	future, page = context.history.peek(-1)
+	while viewer.parent and not page:
+	    viewer = viewer.parent
+	    context = viewer.context
+	    future, page = context.history.peek(-1)
+	self.__menu.entryconfig(0, state=(page and NORMAL or DISABLED))
+	#
 	need_link = self.__link_url and 1 or 0
 	need_image = self.__image_url and 1 or 0
 	if (need_link != self.__have_link
