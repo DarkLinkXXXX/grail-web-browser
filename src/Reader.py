@@ -15,6 +15,7 @@ from BaseReader import BaseReader
 import regsub
 import copy
 import regex
+import time
 
 # mailcap dictionary
 caps = None
@@ -473,6 +474,15 @@ class TextParser:
 	pass
 
 
+# This constant is the minimum interval between the times we force the
+# display to be updated during an asynchronous download.  This makes the
+# display update less "choppy" over fast links, where the display might
+# not get updated because another socket event occurs before re-entering
+# the main loop.  See TransferDisplay.write() for use.
+#
+TRANSFER_STATUS_UPDATE_PERIOD = 0.5
+
+
 class TransferDisplay:
     """A combined browser / viewer for asynchronous file transfers."""
 
@@ -491,7 +501,7 @@ class TransferDisplay:
 	self.__save_file = reader.save_file
 	reader.save_file = self
 	if filename:
-	    self.root.title("Grail: Downloading to "
+	    self.root.title("Grail: Downloading "
 			   + os.path.basename(filename))
 	else:
 	    self.root.title("Grail Download")
@@ -502,49 +512,59 @@ class TransferDisplay:
 	    try: self.root.iconbitmap('@' + iconxbm_file)
 	    except TclError: pass
 	#
-	topfr = Frame(self.root)
-	topfr.pack(expand=1, fill=BOTH, padx='1m', pady='1m')
-	es, fs, ls = tktools.make_labeled_form_entry(
-	    topfr, "Source:", takefocus=0, entrywidth=45, labelwidth=10)
-	ed, fd, ld = tktools.make_labeled_form_entry(
-	    topfr, "Destination:", takefocus=0, entrywidth=45, labelwidth=10)
-	es.insert(END, url)
-	ed.insert(END, filename)
-	es.configure(state=DISABLED)
-	ed.configure(state=DISABLED)
-	fd.pack(pady='1m')
-	Button(topfr, command=self.stop, text="Stop").pack()
-	Frame(self.root, borderwidth=1, relief=SUNKEN, height=2
-	      ).pack(fill=X)
-	f = Frame(self.root)
-	f.pack(fill=X)
+	self.content_length = None
 	if headers.has_key('content-length'):
-	    self.make_progress_bar(headers['content-length'], f)
-	self.__status = Label(f, font=self.context.app.prefs.Get(
-	    'presentation', 'message-font'), anchor=W)
-	self.__status.pack(side=LEFT, fill=X)
+	    self.content_length = `string.atoi(headers['content-length'])`
+	self.create_widgets(url, filename, self.content_length)
+	#
 	reader.restart(reader.url)
 	reader.bufsize = 8096
+
+    def create_widgets(self, url, filename, content_length):
+	"""Create the widgets in the Toplevel instance."""
+	fr, topfr, botfr = tktools.make_double_frame(self.root)
+	Label(topfr, text="Downloading %s" % os.path.basename(filename)
+	      ).pack(anchor=W, pady='1m')
+	Frame(topfr, borderwidth=1, height=2, relief=SUNKEN
+	      ).pack(fill=X, pady='1m')
+	es = self.make_labeled_field(topfr, "Source:", url)
+	ed = self.make_labeled_field(topfr, "Destination:", filename)
+	Button(botfr, command=self.stop, text="Stop").pack()
+	if content_length:
+	    self.make_progress_bar(content_length, topfr)
+	self.__bytes = self.make_labeled_field(topfr, "Bytes:", "0")
+	if content_length:
+	    self.__percent = self.make_labeled_field(
+		topfr, "Complete:", self.__bytespat % 0.0)
+	else:
+	    self.__percent = None
+
+    def make_labeled_field(self, master, labeltext, valuetext=''):
+	frame = Frame(master)
+	frame.pack(pady='1m')
+	Label(frame, anchor=E, text=labeltext, width=10).pack(side=LEFT)
+	value = Label(frame, anchor=W, text=valuetext, width=45)
+	value.pack(side=RIGHT, fill=X, expand=1)
+	return value
 
     def message(self, string):
 	pass
 
     __progbar = None
+    __bytespat = "%.1f%%"
     def make_progress_bar(self, size, frame):
 	try:
 	    size = string.atoi(size)
 	except ValueError:
 	    return
+	self.__bytespat = "%.1f%% of " + grailutil.nicebytes(size)
 	self.__maxsize = 1.0 * size	# make it a float for future calc.
-	self.__progdesc = "%.1f%% of " + grailutil.nicebytes(size)
-	# These frames must use the cnf={} approach to get the 1.4
-	# Tkinter.Frame implementation to use the class setting.
 	f = Frame(frame, relief=SUNKEN, borderwidth=1, background="powderblue",
-		  height=10, width=162)
-	f.pack(side=RIGHT, padx='1m')
-	self.__progfr = f
+		  height=20, width=202)
+	f.pack(pady='1m')
 	self.__progbar = Frame(f, width=1, background="darkblue",
-			       height=string.atoi(f.cget('height')) - 2)
+			       height=string.atoi(f.cget('height'))
+			       - 2*string.atoi(f.cget('borderwidth')))
 	self.__progbar.place(x=0, y=0)
 
     def stop(self):
@@ -557,18 +577,24 @@ class TransferDisplay:
     # on the reader's save file object
 
     __datasize = 0
+    __prevtime = 0.0
     def write(self, data):
 	self.__save_file.write(data)
 	datasize = self.__datasize = self.__datasize + len(data)
+	self.__bytes['text'] = datasize
 	if self.__progbar:
 	    self.__progbar.config(
-		width=max(1, int(datasize * 160 / self.__maxsize)))
-	    desc = self.__progdesc % (100.0 * datasize / self.__maxsize)
-	else:
-	    desc = grailutil.nicebytes(datasize)
-	self.__status["text"] = desc
+		width=max(1, int(datasize * 200 / self.__maxsize)))
+	    self.__percent['text'] = (self.__bytespat
+				      % (100.0 * datasize / self.__maxsize))
+	    t = time.time()
+	    if t - self.__prevtime >= TRANSFER_STATUS_UPDATE_PERIOD:
+		self.root.update_idletasks()
+		self.__prevtime = t
 
     def close(self):
+	# make sure the 100% mark is updated on the display:
+	self.root.update_idletasks()
 	self.__reader.stop()
 	self.__save_file.close()
 	self.__reader.save_file = self.__save_file
