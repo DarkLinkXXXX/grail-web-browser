@@ -8,7 +8,7 @@ There are parts of this module which assume the native character encoding is
 ASCII or a superset; this should be fixed.
 """
 
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 
 import copy
 import os
@@ -63,6 +63,23 @@ class Record:
 
     def __init__(self, **kw):
         self.__dict__.update(kw)
+
+
+FieldLabels = Record(
+    system_id="System ID",
+    public_id="Public ID",
+    doc_elem="Document Element",
+    standalone="Standalone",
+    xml_version="XML Version",
+    encoding="Encoding",
+    byte_order="Byte Order",
+    )
+
+
+FieldNames = dir(Record)
+for _name in FieldNames[:]:
+    if _name[:2] == "__":
+        FieldNames.remove(_name)
 
 
 def get_xml_info(buffer):
@@ -156,7 +173,7 @@ def add_extractor_class(klass):
 class Extractor:
     VERSION_CHARS = string.letters + string.digits + "_.:-"
 
-    encodings = ()
+    Encodings = ()
 
     def __init__(self, buffer, values):
         self.buffer = buffer
@@ -164,7 +181,7 @@ class Extractor:
 
     def extract(self):
         self.parse_declaration()
-        if self.values.encoding not in self.encodings:
+        if self.values.encoding not in self.Encodings:
             raise EncodingMismatchError(self.values.encoding)
         self.skip_to_doctype()
         self.parse_doctype()
@@ -840,6 +857,17 @@ def ordwstr(wstr, byte_order=None, charsize=2):
     return ords
 
 
+def dump_info(values, labels=None):
+    if labels is None:
+        labels = FieldLabels
+    format = "%%%ds: %%s" % max(map(len, FieldLabels.__dict__.values()))
+    for field_name in FieldNames:
+        value = getattr(values, field_name)
+        label = getattr(FieldLabels, field_name)
+        if value is not None:
+            print format % (label, value)
+
+
 def main():
     import getopt
     #
@@ -898,28 +926,10 @@ def main():
     #
     # Make the report:
     #
-    field_names = dir(Record)
-    field_names.remove("__doc__")
-    field_names.remove("__init__")
-    field_names.remove("__module__")
     if full_report:
-        labels = Record(
-            system_id="System ID",
-            public_id="Public ID",
-            doc_elem="Document Element",
-            standalone="Standalone",
-            xml_version="XML Version",
-            encoding="Encoding",
-            byte_order="Byte Order",
-            )
-        format = "%%%ds: %%s" % max(map(len, labels.__dict__.values()))
-        for field_name in field_names:
-            value = getattr(values, field_name)
-            label = getattr(labels, field_name)
-            if value is not None:
-                print format % (label, value)
+        dump_info(values)
     else:
-        for field_name in field_names:
+        for field_name in FieldNames:
             if getattr(reqs, field_name):
                 value = getattr(values, field_name)
                 if value is None:
