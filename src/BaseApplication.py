@@ -5,7 +5,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.7 $'
+__version__ = '$Revision: 2.8 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import keyword
@@ -73,6 +73,7 @@ class BaseApplication:
 	    return None
 	if keyword.iskeyword(modname):
 	    modname = modname + "_"
+	pkgname = package.__name__
 	exec "from %s import %s; mod = %s" % (pkgname, modname, modname)
 	return mod
 
