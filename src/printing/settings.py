@@ -1,6 +1,6 @@
 """Configuration object for the printing subsystem."""
 
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 
 
 _settings = None
@@ -12,8 +12,8 @@ def get_settings(prefs=None):
     return _settings
 
 
-import grailutil
 import string
+import utils                            # || module
 
 
 class PrintSettings:
@@ -36,7 +36,6 @@ class PrintSettings:
     margins = None
     strip_blanks = 1
     strict_parsing = 0
-    user_headers = ()
     postscript_level = 1
     paragraph_indent = 0.0
     # Proper values for a Sun 20" 1152 x 900 pixel display:
@@ -45,6 +44,8 @@ class PrintSettings:
 
     def __init__(self, prefs):
         """Load settings and register an interest in updates."""
+        self.user_data_dirs = []
+        self.user_headers = []
         self.__prefs = prefs
         if prefs:
             self.update()
@@ -81,7 +82,7 @@ class PrintSettings:
 
     def set_fontsize(self, spec):
         """Set font size and leading based on specification string."""
-        self.fontsize, self.leading = grailutil.conv_fontsize(spec)
+        self.fontsize, self.leading = utils.conv_fontsize(spec)
 
     def get_fontspec(self):
         if self.fontsize == self.leading:
