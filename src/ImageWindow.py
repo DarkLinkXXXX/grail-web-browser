@@ -38,12 +38,14 @@ class ImageWindow(Frame):
 	    if self.ismap:
 		self.label.bind('<Motion>', self.motion)
 	    self.label.bind('<ButtonRelease-1>', self.follow)
+	    self.label.bind('<ButtonRelease-2>', self.follow_new)
 	else:
 	    if self.map:
 		self.bind('<Enter>', self.enter)
 		self.bind('<Leave>', self.leave)
 		self.label.bind('<Motion>', self.motion)
 		self.label.bind('<ButtonRelease-1>', self.follow)
+		self.label.bind('<ButtonRelease-2>', self.follow_new)
 	self.image = self.context.get_async_image(self.src, reload)
 	if self.image:
 	    self.label['image'] = self.image
@@ -69,6 +71,15 @@ class ImageWindow(Frame):
 	url, target = self.whichurl(event)
 	if url:
 	    self.context.follow(url, target=target)
+	else:
+	    self.context.viewer.leave_message()
+
+    def follow_new(self, event):
+	url, target = self.whichurl(event)
+	if url:
+	    url = self.context.baseurl(url)
+	    from Browser import Browser
+	    Browser(self.context.app.root, self.context.app).context.load(url)
 	else:
 	    self.context.viewer.leave_message()
 
