@@ -101,6 +101,41 @@ class GrailHTMLParser(HTMLParser):
 	self.formatter_stack[-1].pop_style(3)
 	self.anchor = self.target = None
 
+    def do_hr(self, attrs):
+	self.formatter.add_hor_rule()
+	rule = self.viewer.rules[-1]
+	wid, percent = None, None
+	if attrs:
+	    size = self.extract_keyword('size', attrs, conv=string.atoi)
+	    if size:
+		rule['height'] = size
+	    if attrs.has_key('noshade'):
+		rule['relief'] = FLAT
+		rule['background'] = self.viewer.text['foreground']
+	    if attrs.has_key('width'):
+		wid, percent = self.parse_width(attrs['width'])
+		if wid:
+		    rule['width'] = min(wid, rule['width'])
+		elif percent:
+		    rule['width'] = int(percent * string.atoi(rule['width']))
+	rule._width = wid
+	rule._percent = percent
+
+    def parse_width(self, str):
+	str = string.strip(str)
+	if not str:
+	    return None, None
+	wid = percent = None
+	if str[-1] == '%':
+	    try: percent = string.atoi(str[:-1])
+	    except: pass
+	    else: percent = min(1.0, max(0.0, (0.01 * percent)))
+	else:
+	    try: wid = max(0, string.atoi(str))
+	    except: pass
+	    else: wid = wid or None
+	return wid, percent
+
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
 	align = ''
@@ -353,16 +388,6 @@ class GrailHTMLParser(HTMLParser):
 		return default
 	else:
 	    return default
-
-    def start_style(self, attrs):
-	"""Disable display of document data -- this is a style sheet.
-	"""
-	self.savedata = ''
-
-    def end_style(self):
-	"""Re-enable data display.
-	"""
-	self.savedata = None
 
     # Handle HTML extensions
 

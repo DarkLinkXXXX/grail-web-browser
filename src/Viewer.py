@@ -240,7 +240,13 @@ class Viewer(formatter.AbstractWriter):
 	if self.rules:
 	    width = self.rule_width()
 	    for rule in self.rules:
-		rule['width'] = width
+		wid, percent = rule._width, rule._percent
+		if percent:
+		    rule['width'] = int(percent * width)
+		elif wid:
+		    rule['width'] = min(wid, width)
+		else:
+		    rule['width'] = width
 
     def unfreeze(self):
 	self.text['state'] = NORMAL
