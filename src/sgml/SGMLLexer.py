@@ -8,7 +8,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.41 $"
+__version__ = "$Revision: 1.42 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -40,6 +40,7 @@ VI = "="                                # value indicator
 # data -- only char and entity references and end tags are special)
 # and CDATA (character data -- only end tags are special).
 
+import regex
 import string
 import sys
 
@@ -394,7 +395,6 @@ class SGMLLexer(SGMLLexerBase):
             return prev
 
         def setliteral(self, tag):
-            import regex
             self.literal = 1
             re = "%s%s[%s]*%s" % (ETAGO, tag, string.whitespace, TAGC)
             if self._normfunc is string.lower:
