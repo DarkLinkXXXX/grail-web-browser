@@ -111,6 +111,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind("<Tab>", self.tab_event)
 	self.text.bind("<Shift-Tab>", self.shift_tab_event)
 	self.text.bind("<Button-1>", self.button_1_event)
+	self.text.bind("<Button-2>", self.button_2_event)
 	self.text.bind("<Button-3>", self.button_3_event)
 
     def configure_tags(self, stylesheet):
@@ -202,7 +203,10 @@ class Viewer(formatter.AbstractWriter):
 
     def button_1_event(self, event):
 	self.context.viewer.text.focus_set()
-	self.current_index = self.text.index(CURRENT) # For anchor_click*
+	self.current_index = self.text.index(CURRENT) # For anchor_click
+
+    def button_2_event(self, event):
+	self.current_index = self.text.index(CURRENT) # For anchor_click_new
 
     def button_3_event(self, event):
 	if not self.popup_menu:
