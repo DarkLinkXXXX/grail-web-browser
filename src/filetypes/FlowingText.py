@@ -1,12 +1,7 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """text/plain variant that implements the format=flowed variant.
 
-This variant is documented in the internet draft draft-gellens-format-00.txt,
-dated 7 Aug 1998 (work in progress).
+This variant is documented in the internet draft draft-gellens-format-01.txt,
+dated 30 October 1998 (work in progress).
 
 Future versions of this draft may change substantially, or it may be dropped
 completely.
@@ -14,7 +9,7 @@ completely.
 The 'quoted' feature is not implemented at this time.
 """
 
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 
 
 import formatter
