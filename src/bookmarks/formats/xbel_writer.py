@@ -1,6 +1,6 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.6 $'
+__version__ = '$Revision: 1.7 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -12,6 +12,7 @@ import sys
 class Writer(bookmarks.walker.TreeWalker):
     __depth = 0
     __header = '''\
+<?xml version="1.0" encoding="ISO-8859-1"?>
 <!DOCTYPE xbel
   PUBLIC "+//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN"
          "http://www.python.org/topics/xml/dtds/xbel-1.0.dtd">
