@@ -9,7 +9,6 @@ Classes:
 XXX Bugs:
 
 - The fields are not labeled
-- Default doesn't have absolute pathname
 - Each FileDialog instance can be used only once
 - There is no easy way for an application to add widgets of its own
 
@@ -42,29 +41,46 @@ class FileDialog:
 	if title is None: title = self.title
 	self.master = master
 	self.directory = None
+
 	self.top = Toplevel(master)
 	self.top.title(title)
 	self.top.iconname(title)
+
+	self.botframe = Frame(self.top)
+	self.botframe.pack(side=BOTTOM, fill=X)
+
+	self.selection = Entry(self.top)
+	self.selection.pack(side=BOTTOM, fill=X)
+	self.selection.bind('<Return>', self.ok_event)
+
 	self.label = Label(self.top, text=title)
 	self.label.pack(side=TOP)
+
 	self.filter = Entry(self.top)
-	self.filter.pack(fill=X)
+	self.filter.pack(side=TOP, fill=X)
 	self.filter.bind('<Return>', self.filter_command)
+
 	self.midframe = Frame(self.top)
 	self.midframe.pack(expand=YES, fill=BOTH)
-	self.dirs = Listbox(self.midframe)
-	self.dirs.pack(side=LEFT, expand=YES, fill=BOTH)
-	self.dirs.bind('<ButtonRelease-1>', self.dirs_select_event)
-	self.dirs.bind('<Double-ButtonRelease-1>', self.dirs_double_event)
-	self.files = Listbox(self.midframe)
+
+	self.filesbar = Scrollbar(self.midframe)
+	self.filesbar.pack(side=RIGHT, fill=Y)
+	self.files = Listbox(self.midframe,
+			     yscrollcommand=(self.filesbar, 'set'))
 	self.files.pack(side=RIGHT, expand=YES, fill=BOTH)
 	self.files.bind('<ButtonRelease-1>', self.files_select_event)
 	self.files.bind('<Double-ButtonRelease-1>', self.files_double_event)
-	self.selection = Entry(self.top)
-	self.selection.pack(fill=X)
-	self.selection.bind('<Return>', self.ok_event)
-	self.botframe = Frame(self.top)
-	self.botframe.pack(fill=X)
+	self.filesbar.config(command=(self.files, 'yview'))
+
+	self.dirsbar = Scrollbar(self.midframe)
+	self.dirsbar.pack(side=LEFT, fill=Y)
+	self.dirs = Listbox(self.midframe,
+			    yscrollcommand=(self.dirsbar, 'set'))
+	self.dirs.pack(side=LEFT, expand=YES, fill=BOTH)
+	self.dirsbar.config(command=(self.dirs, 'yview'))
+	self.dirs.bind('<ButtonRelease-1>', self.dirs_select_event)
+	self.dirs.bind('<Double-ButtonRelease-1>', self.dirs_double_event)
+
 	self.ok_button = Button(self.botframe,
 				 text="OK",
 				 command=self.ok_command)
@@ -77,12 +93,14 @@ class FileDialog:
 				    text="Cancel",
 				    command=self.cancel_command)
 	self.cancel_button.pack(side=RIGHT)
+
 	self.top.protocol('WM_DELETE_WINDOW', self.cancel_command)
 	# XXX Are the following okay for a general audience?
 	self.top.bind('<Alt-w>', self.cancel_command)
 	self.top.bind('<Alt-W>', self.cancel_command)
 
     def go(self, dir_or_file=os.curdir, pattern="*", default=""):
+	dir_or_file = os.path.expanduser(dir_or_file)
 	if os.path.isdir(dir_or_file):
 	    self.directory = dir_or_file
 	else:
@@ -92,11 +110,14 @@ class FileDialog:
 	self.filter_command()
 	self.selection.focus_set()
 	self.top.grab_set()
-	try:
-	    self.master.mainloop()
-	except SystemExit, how:
-	    self.top.destroy()
-	    return how
+	self.how = None
+	self.master.mainloop()		# Exited by self.quit(how)
+	self.top.destroy()
+	return self.how
+
+    def quit(self, how=None):
+	self.how = how
+	self.master.quit()		# Exit mainloop()
 
     def dirs_double_event(self, event):
 ##	self.dirs_select_event(event)
@@ -121,7 +142,7 @@ class FileDialog:
 	self.ok_command()
 
     def ok_command(self):
-	raise SystemExit, self.selection.get()
+	self.quit(self.get_selection())
 
     def filter_command(self, event=None):
 	dir, pat = self.get_filter()
@@ -147,18 +168,24 @@ class FileDialog:
 	self.files.delete(0, END)
 	for name in matchingfiles:
 	    self.files.insert(END, name)
-	head, tail = os.path.split(self.selection.get())
+	head, tail = os.path.split(self.get_selection())
 	if tail == os.curdir: tail = ''
 	self.set_selection(tail)
 
     def get_filter(self):
 	filter = self.filter.get()
-	if filter[-1:] == os.sep:
-	    filter = filter + "*"
+	filter = os.path.expanduser(filter)
+	if filter[-1:] == os.sep or os.path.isdir(filter):
+	    filter = os.path.join(filter, "*")
 	return os.path.split(filter)
 
+    def get_selection(self):
+	file = self.selection.get()
+	file = os.path.expanduser(file)
+	return file
+
     def cancel_command(self, event=None):
-	raise SystemExit, None
+	self.quit()
 
     def set_filter(self, dir, pat):
 	if not os.path.isabs(dir):
@@ -184,11 +211,11 @@ class LoadFileDialog(FileDialog):
     title = "Load File Selection Dialog"
 
     def ok_command(self):
-	file = self.selection.get()
+	file = self.get_selection()
 	if not os.path.isfile(file):
 	    self.master.bell()
 	else:
-	    raise SystemExit, file
+	    self.quit(file)
 
 
 class SaveFileDialog(FileDialog):
@@ -198,7 +225,7 @@ class SaveFileDialog(FileDialog):
     title = "Save File Selection Dialog"
 
     def ok_command(self):
-	file = self.selection.get()
+	file = self.get_selection()
 	if os.path.exists(file):
 	    if os.path.isdir(file):
 		self.master.bell()
@@ -215,7 +242,7 @@ class SaveFileDialog(FileDialog):
 	    if not os.path.isdir(head):
 		self.master.bell()
 		return
-	raise SystemExit, file
+	self.quit(file)
 
 
 def test():
