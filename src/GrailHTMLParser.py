@@ -164,6 +164,8 @@ class GrailHTMLParser(HTMLParser):
 	    if self.app.global_history.inhistory_p(self.context.baseurl(href)):
 		atag = 'ahist'
 	ntag = name and '#' + name or None
+	if ntag:
+	    self.viewer.add_target(ntag)
 	self.formatter.push_style(atag, utag, ntag)
 
     def anchor_end(self):

@@ -43,6 +43,7 @@ class Viewer(formatter.AbstractWriter):
 	self.subviewers = []
 	self.resize_interests = [self.__class__.resize_rules]
 	self.reset_interests = []
+	self.current_cursor = CURSOR_NORMAL
 	self.create_widgets(width=width, height=height)
 	self.reset_state()
 	self.freeze()
@@ -123,7 +124,7 @@ class Viewer(formatter.AbstractWriter):
 	if self.parent:
 	    self.text.config(background=self.parent.text['background'],
 			     foreground=self.parent.text['foreground'])
-	self.text.config(padx=10, cursor=CURSOR_NORMAL)
+	self.text.config(padx=10, cursor=self.current_cursor)
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
 	self.text.config(selectbackground='yellow')
@@ -298,7 +299,7 @@ class Viewer(formatter.AbstractWriter):
 	    from supertextbox import resize_super_text_box
 	    resize_super_text_box(frame=self.frame)
 	self.text['state'] = DISABLED
-	#self.text.update_idletasks()
+	self.text.update_idletasks()
 
     def new_tags(self):
 	if self.pendingdata:
@@ -308,7 +309,6 @@ class Viewer(formatter.AbstractWriter):
 	    None,
 	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
 	    + self.addtags)
-	self.literaltags = self.flowingtags + ('pre',)
 
     def scroll_page_down(self, event=None):
 	self.text.tk.call('tkScrollByPages', self.text.vbar, 'v', 1)
@@ -429,7 +429,7 @@ class Viewer(formatter.AbstractWriter):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
-	self.text.insert(END, data, self.literaltags)
+	self.text.insert(END, data, self.flowingtags + ('pre',))
 
     # Viewer's own methods
 
@@ -528,21 +528,41 @@ class Viewer(formatter.AbstractWriter):
 		return tag[1:]
 
     def get_cursor(self):
-	return self.text['cursor']
+	return self.current_cursor
 
     def set_cursor(self, cursor):
-	self.text['cursor'] = cursor
-	self.text.update_idletasks()
+	if cursor != self.current_cursor:
+	    self.text['cursor'] = self.current_cursor = cursor
+	    if cursor == CURSOR_WAIT:
+		self.text.update_idletasks()
 
     def scrollpos(self): return self.text.index('@0,0')
     def scroll_to_position(self, pos): self.text.yview(pos)
 
+    def add_target(self, fragment):
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
+	self.text.mark_set(fragment, END + ' - 1 char')
+	self.text.mark_gravity(fragment, 'left')
+
     def scroll_to(self, fragment):
 	r = self.text.tag_nextrange('#' + fragment, '1.0')
 	if not r:
-	    r = self.parse_range(fragment)
+	    #  Maybe an empty target; try the mark database:
+	    try:
+		first = self.text.index('#' + fragment)
+	    except TclError:
+		pass			# unknown mark
+	    else:
+		#  Highlight the entire line:
+		r = (first,
+		     `1 + string.atoi(string.splitfields(first,'.')[0])` \
+		     + '.0')
 	    if not r:
-		return
+		r = self.parse_range(fragment)
+		if not r:
+		    return
 	first, last = r
 	self.text.yview(first)
 	self.text.tag_remove(SEL, '1.0', END)
