@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.10 $"
+__version__ = "$Revision: 2.11 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -95,19 +95,83 @@ class Framework:
 
     # Helpers
 
+    def PrefsWidgetLabel(self, frame, text, label_width=25):
+	"""Convenience, create regular-width widget label on frame left side.
+
+	The default width is 25.  (You can keep the width regular with text
+	longer than 25 chars by embedding \n newlines at suitable points.)
+
+	The label is returned, in the unlikely case more than the frame is
+	needed. 
+
+	Useful so your widgets line up."""
+
+	label = Label(frame, text=text, width=label_width, anchor=E)
+	label.pack(side=LEFT)
+	return label
+
+    def PrefsEntry(self, parent, label, group, component,
+		   label_width=25, entry_height=1, entry_width=None,
+		   composite=0):
+	"""Convenience for creating preferences entry or text widget.
+
+	A frame is built within the specified parent, and packed with a
+	specified label and an entry widget, created for the purpose.  The
+	value of the entry widget is coupled with the designated
+	preference.
+
+	The label is apportioned a specified number of characters, default
+	25, on the left side of the frame, to enable lining up nicely with
+	other, similarly constructed widgets.
+
+	The entry widget may optionally have a height greater than 1, in
+	which case a text widget of that height is used."""
+
+	if not composite:
+	    use_expand = 1
+	    use_fill = X
+	    use_side = TOP
+	    entry_width = 40
+	else:
+	    use_expand = 0
+	    use_fill = NONE
+	    use_side = LEFT
+	# Assemble the widget:
+	frame = Frame(parent)
+	self.PrefsWidgetLabel(frame, label, label_width=label_width)
+	if entry_height == 1:
+	    entry = Entry(frame, relief=SUNKEN, border=2, width=entry_width)
+	    entry.pack(side=use_side, expand=use_expand, fill=use_fill)
+	    getter, setter = entry.get, self.widget_set_func(entry)
+	else:
+	    entry, garbage = tktools.make_text_box(frame,
+						   width=entry_width,
+						   height=entry_height,
+						   vbar=1)
+	    def getter(entry=entry):
+		return entry.get('1.0', entry.index("end-1char"))
+	    def setter(chars, entry=entry):
+		entry.delete('1.0', entry.index(END))
+		entry.insert('1.0', chars)
+
+	frame.pack(fill=use_fill, side=use_side, expand=use_expand)
+	parent.pack(fill=use_fill, side=use_side)
+	# Couple the entry with the pref:
+	self.RegisterUI(group, component, 'string', getter, setter)
+	return frame
+
     def PrefsCheckButton(self, frame, general, specific, group, component,
-			 left_width=25):
-	"""Handy utility for creating checkbutton preferences widgets.
+			 label_width=25):
+	"""Convenience for creating checkbutton preferences widget.
 
 	A label and a button are packed in 'frame' arg, using text of
 	'general' arg for title and of 'specific' arg for button label.
 	The preferences variable is specified by 'group' and 'component'
-	args, and an optional 'left_width' arg specifies how much space
+	args, and an optional 'label_width' arg specifies how much space
 	should be assigned to the general-label side of the thing."""
 	f = Frame(frame)
 	var = StringVar()
-	l = Label(f, text=general, width=left_width, anchor=E)
-	l.pack(side=LEFT)
+	self.PrefsWidgetLabel(f, general, label_width=label_width)
 	cb = Checkbutton(f, text=specific, relief='ridge', bd=1, variable=var)
 	cb.pack(side=LEFT)
 	f.pack(fill=X, side=TOP, pady='1m')
