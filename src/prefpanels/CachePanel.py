@@ -1,6 +1,6 @@
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
 
 # Base class for the panel:
@@ -17,6 +17,8 @@ import string
 class CachePanel(PrefsPanels.Framework):
     """Miscellaneous preferences relating to the browser, startup, and
     other behaviors that don't fit in specific preferences categories."""
+
+    HELP_URL = "help/prefs/cache.html"
 
     def CreateRadioButtons(self, frame):
 	verify_frame = Frame(frame)
