@@ -75,9 +75,9 @@ class SearchDialog:
 	self.mid_frame = Frame(f)
 	self.mid_frame.pack(fill=X)
 
-	self.regexp_var = BooleanVar()
-	self.case_var = BooleanVar()
-	self.backwards_var = BooleanVar()
+	self.regexp_var = BooleanVar(f)
+	self.case_var = BooleanVar(f)
+	self.backwards_var = BooleanVar(f)
 
 	self.regexp_checkbutton = Checkbutton(self._root, name="regexp",
 					      variable=self.regexp_var)
@@ -129,7 +129,7 @@ class SearchDialog:
 	    self._root.bell()
 	    return 0
 	status = self._searchable.search_for_pattern(
-	    pat, self.case_var.get(), self.regexp_var.get(),
+	    pat, self.regexp_var.get(), self.case_var.get(),
 	    self.backwards_var.get())
 	if not status:
 	    # failure
