@@ -297,8 +297,32 @@ class HTMLParser(SGMLParser):
 
     # --- List Elements
 
+    #	The document's list structure is stored in a stack called
+    #	self.list_stack.  Each element of the stack is a list with
+    #	the entries:
+    #
+    #	    [element, label, entry_count, compact_p, stack_depth]
+    #
+    #	Where element can be 'dd', 'dl', 'ol', 'ul' (no 'dt');
+    #	      label is the item label (for 'ol', 'ul' only) for
+    #		subsequent list items.  If this is a string, it is
+    #		handled as a format string, otherwise it must be
+    #		interpretable by the add_label_data() method of the
+    #		writer;
+    #	      entry_count is the expected index of the next list
+    #	        item - 1;
+    #	      compact_p is a boolean (*must* be 0 or 1) set to true
+    #		if COMPACT is set for the list (not implied by being
+    #		in Grail) for the current list or an enclosing list;
+    #	      stack_depth is the depth of the element stack when the
+    #		list was opened.  This is used to close all elements
+    #		opened within a previous list item without having to
+    #		check for specific elements.
+
     def start_lh(self, attrs):
-	if 'p' in self.stack:
+	if self.list_stack:
+	    self.list_trim_stack()
+	elif 'p' in self.stack:
 	    self.badhtml = 1
 	    self.lex_endtag('p')
 	self.do_br({})
@@ -309,10 +333,9 @@ class HTMLParser(SGMLParser):
     def end_lh(self):
 	self.formatter.pop_font()
 	if self.list_stack:
-	    not_compact = not self.list_stack[-1][3]
+	    self.formatter.end_paragraph(not self.list_stack[-1][3])
 	else:
-	    not_compact = 1
-	self.formatter.end_paragraph(not_compact)
+	    self.formatter.end_paragraph(1)
 
     def start_ul(self, attrs):
 	self.element_close_maybe('p', 'lh')
@@ -333,7 +356,8 @@ class HTMLParser(SGMLParser):
 	    label = self.make_format(format)
         self.list_stack.append(['ul', label, 0,
 				#  Propogate COMPACT once set:
-				compact or attrs.has_key('compact')])
+				compact or attrs.has_key('compact'),
+				len(self.stack) + 1])
 
     def end_ul(self):
         if self.list_stack:
@@ -347,52 +371,56 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_margin()
 
     def do_li(self, attrs):
-	if 'lh' in self.stack:
-	    self.lex_endtag('lh')
-	if 'p' in self.stack:
-	    self.lex_endtag('p')
-        self.formatter.end_paragraph(0)
-        if self.list_stack:
-	    [dummy, label, counter, compact] = top = self.list_stack[-1]
-	    if attrs.has_key('type'):
-		s = attrs['type']
-		if type(s) is StringType:
-		    label = top[1] = self.make_format(s, label)
-		elif s:
-		    label = s
-	    if attrs.has_key('seqnum'):
-		try: top[2] = counter = \
-			      string.atoi(string.strip(attrs['seqnum']))
-		except: top[2] = counter = counter+1
-	    elif attrs.has_key('value'):
-		try: top[2] = counter = \
-			      string.atoi(string.strip(attrs['value']))
-		except: top[2] = counter = counter+1
-	    else:
-		top[2] = counter = counter+1
-	    if attrs.has_key('skip'):
-		try:  top[2] = counter = counter + string.atoi(attrs['skip'])
-		except: pass
-	    self.formatter.add_label_data(label, counter)
-        else:
-	    #  Illegal, but let's try not to be ugly:
-	    self.badhtml = 1
-	    format, value = '*', 1
-	    if attrs.has_key('value'):
-		try: value = string.atoi(attrs['value'])
-		except: pass
-		else: format = '1'
-	    elif attrs.has_key('seqnum'):
-		try: value = string.atoi(attrs['seqnum'])
-		except: pass
-		else: format = '1'
-	    if attrs.has_key('type') and (type(attrs['type']) is StringType):
-		format = self.make_format(attrs['type'], format)
-	    else:
-		format = self.make_format(format, '*')
-	    if type(format) is StringType:
-		data = self.formatter.format_counter(format, value) + ' '
-		self.formatter.add_flowing_data(data)
+        if not self.list_stack:
+	    self.fake_li(attrs)
+	    return
+	if 'p' in self.stack:		# ugly hack to compact trailing <P>
+	    self.implied_end_p()	# even though list_trim_stack() will
+	self.list_trim_stack()		# close it.
+	self.formatter.end_paragraph(0)
+	[dummy, label, counter, compact, depth] = top = self.list_stack[-1]
+	if attrs.has_key('type'):
+	    s = attrs['type']
+	    if type(s) is StringType:
+		label = top[1] = self.make_format(s, label)
+	    elif s:
+		label = s
+	if attrs.has_key('seqnum'):
+	    try: top[2] = counter = \
+			  string.atoi(string.strip(attrs['seqnum']))
+	    except: top[2] = counter = counter+1
+	elif attrs.has_key('value'):
+	    try: top[2] = counter = \
+			  string.atoi(string.strip(attrs['value']))
+	    except: top[2] = counter = counter+1
+	else:
+	    top[2] = counter = counter+1
+	if attrs.has_key('skip'):
+	    try:  top[2] = counter = counter + string.atoi(attrs['skip'])
+	    except: pass
+	self.formatter.add_label_data(label, counter)
+
+    def fake_li(self, attrs):
+	#  Illegal, but let's try not to be ugly:
+	self.badhtml = 1
+	self.element_close_maybe('p', 'lh')
+	self.formatter.end_paragraph(0)
+	format, value = '*', 1
+	if attrs.has_key('value'):
+	    try: value = string.atoi(attrs['value'])
+	    except: pass
+	    else: format = '1'
+	elif attrs.has_key('seqnum'):
+	    try: value = string.atoi(attrs['seqnum'])
+	    except: pass
+	    else: format = '1'
+	if attrs.has_key('type') and (type(attrs['type']) is StringType):
+	    format = self.make_format(attrs['type'], format)
+	else:
+	    format = self.make_format(format, '*')
+	if type(format) is StringType:
+	    data = self.formatter.format_counter(format, value) + ' '
+	    self.formatter.add_flowing_data(data)
 
     def make_format(self, format, default='*'):
 	if not format:
@@ -428,7 +456,8 @@ class HTMLParser(SGMLParser):
 	    try: start = string.atoi(attrs['start']) - 1
 	    except: pass
         self.list_stack.append(['ol', label, start,
-				compact or attrs.has_key('compact')])
+				compact or attrs.has_key('compact'),
+				len(self.stack) + 1])
 
     def end_ol(self):
 	self.end_ul()
@@ -453,7 +482,8 @@ class HTMLParser(SGMLParser):
         self.formatter.end_paragraph(1)
 	if self.list_stack and self.list_stack[-1][3]:
 	    attrs['compact'] = None
-        self.list_stack.append(['dl', '', 0, attrs.has_key('compact')])
+        self.list_stack.append(['dl', '', 0, attrs.has_key('compact'),
+				len(self.stack) + 1])
 
     def end_dl(self):
         self.ddpop(1)
@@ -466,7 +496,7 @@ class HTMLParser(SGMLParser):
         self.ddpop()
         self.formatter.push_margin('dd')
 	compact = self.list_stack and self.list_stack[-1][3]
-        self.list_stack.append(['dd', '', 0, compact])
+        self.list_stack.append(['dd', '', 0, compact, len(self.stack) + 1])
 
     def ddpop(self, bl=0):
 	self.element_close_maybe('lh', 'p')
@@ -474,7 +504,13 @@ class HTMLParser(SGMLParser):
         if self.list_stack:
             if self.list_stack[-1][0] == 'dd':
 		del self.list_stack[-1]
+		self.list_trim_stack()
 		self.formatter.pop_margin()
+
+    def list_trim_stack(self):
+	depth = self.list_stack[-1][4]
+	while len(self.stack) > depth:
+	    self.lex_endtag(self.stack[depth])
 
     # --- Phrase Markup
 
