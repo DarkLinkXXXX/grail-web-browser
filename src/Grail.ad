@@ -32,11 +32,11 @@ Grail.Bookmarks.goto.text:		Go To
 Grail.Bookmarks.collapse.text:		Collapse
 Grail.Bookmarks.expand.text:		Expand
 
-Grail.BookmarkDetail.title:		Bookmark Details
-Grail.BookmarkDetail*Frame.ok.text:	OK
-Grail.BookmarkDetail*Frame.revert.text:	Revert
-Grail.BookmarkDetail*Frame.apply.text:	Apply
-Grail.BookmarkDetail*Frame.cancel.text:	Cancel
+Grail.Bookmarks.Detail.title:			Bookmark Details
+Grail.Bookmarks.Detail*Frame.ok.text:		OK
+Grail.Bookmarks.Detail*Frame.revert.text:	Revert
+Grail.Bookmarks.Detail*Frame.apply.text:	Apply
+Grail.Bookmarks.Detail*Frame.cancel.text:	Cancel
 
 Grail*History.goto.text:		Go To
 Grail*History.close.text:		Close
@@ -50,6 +50,3 @@ Grail*Search.search.text:		Search
 Grail*Search.searchclose.text:		Search+Close
 Grail*Search.close.text:		Close
 Grail*Search.Frame.Frame.entry.label.text:	Find string:
-
-!!!
-!!!  end of file
