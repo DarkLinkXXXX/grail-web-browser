@@ -548,16 +548,14 @@ class BookmarksDialog:
 	editmenu = Menu(editbtn)
 	editmenu.add_command(label="Add Current",
 			     command=self._controller.add_current,
-			     underline=0, accelerator='A')
-	self._frame.bind("a", self._controller.add_current)
-	self._frame.bind("A", self._controller.add_current)
+			     underline=0, accelerator='Alt-A')
 	self._frame.bind("<Alt-a>", self._controller.add_current)
 	self._frame.bind("<Alt-A>", self._controller.add_current)
 	editmenu.add_command(label="Bookmark Details...",
 			     command=self._controller.details,
-			     underline=0, accelerator="D")
-	self._frame.bind("d", self._controller.details)
-	self._frame.bind("D", self._controller.details)
+			     underline=0, accelerator="Alt-D")
+	self._frame.bind("<Alt-d>", self._controller.details)
+	self._frame.bind("<Alt-D>", self._controller.details)
 	editmenu.add_separator()
 	editmenu.add_command(label="Expand",
 			    command=self._controller.expand_cmd,

@@ -1,19 +1,139 @@
-"""Data structure for History manipulation
+"""Data structures for History manipulation
 """
 
 from Tkinter import *
 import tktools
 import string
+import regex
+import os
+import sys
+import time
+from grailutil import *
+
+GRAIL_RE = regex.compile('\([^ \t]+\)[ \t]+\([^ \t\n]+\)[ \t]+?\(.*\)?')
+DEFAULT_NETSCAPE_HIST_FILE = os.path.join(gethome(), '.netscape-history')
+DEFAULT_GRAIL_HIST_FILE = os.path.join(getgraildir(), 'grail-history')
 
 
-class History:
+GLOBAL_HISTORY = None
+
+
+
+class NetscapeHistoryReader:
+    def parse_line(self, line):
+	link, timestamp = tuple(string.split(line))
+	return link, link, string.atoi(timestamp)
+
+class GrailHistoryReader:
+    def parse_line(self, line):
+	link = timestamp = title = None
+	if GRAIL_RE.match(line) >= 0:
+	    link, timestamp, title = GRAIL_RE.group(1, 2, 3)
+	if not title: title = link
+	return link, title, string.atoi(timestamp)
+
+class HistoryReader:
+    def read_file(self, fp, histobj):
+	pass
+	# read the first line, to determine what type of history file
+	# we're looking at
+	ghist = []
+	line = fp.readline()
+	if regex.match('GRAIL-global-history-file-1', line) >= 0:
+	    linereader = GrailHistoryReader()
+	elif regex.match('MCOM-Global-history-file-1', line) >= 0:
+	    linereader = NetscapeHistoryReader()
+	else:
+	    return
+	while line:
+	    line = fp.readline()
+	    if line: ghist.append(linereader.parse_line(line))
+	# now mass update the history object
+	histobj.mass_append(ghist)
+
+
+class GlobalHistory:
     def __init__(self, app):
+	self._app = app
 	self._history = []
 	self._hmap = {}
 	self._dialog = None
-	self._current = 0
-	self._app = app
+    	# first try to load the Grail global history file
+	fp = None
+	try:
+	    try: fp = open(DEFAULT_GRAIL_HIST_FILE)
+	    except IOError:
+		try: fp = open(DEFAULT_NETSCAPE_HIST_FILE)
+		except IOError: pass
+	    if fp:
+		HistoryReader().read_file(fp, self)
+	finally:
+	    if fp: fp.close()
 	app.register_on_exit(self.on_app_exit)
+
+    def mass_append(self, histlist):
+	list = histlist[:]
+	list.reverse()
+	for link, title, timestamp in list:
+	    if not self._hmap.has_key(link):
+		self._history.append(link)
+		self._hmap[link] = (title, timestamp)
+
+    def append_link(self, link, title=None):
+	try:
+	    if not self._hmap.has_key(link) and self._history[-1] <> link:
+		self._hmap[link] = (title, time.time())
+		self._history.append(link)
+		if self._dialog: self._dialog.refresh()
+	except IndexError: pass
+
+    def set_title(self, link, title):
+	timestamp = time.time()
+	if self._hmap.has_key(link):
+	    oldtitle, timestamp = self._hmap[link]
+	try:
+	    if self._hmap[link][0] == title or link == title:
+		return
+	    # update title and dialog if visible
+	    self._hmap[link] = (title, timestamp)
+	    if self._dialog: self._dialog.refresh()
+	except IndexError, KeyError:
+	    pass
+
+    def title(self, link):
+	try: return self._hmap[link][0]
+	except KeyError: return None
+
+    def on_app_exit(self):
+	stdout = sys.stdout
+	try:
+	    fp = open(DEFAULT_GRAIL_HIST_FILE, 'w')
+	    sys.stdout = fp
+	    print 'GRAIL-global-history-file-1'
+	    hlist = self._history[:]
+	    hlist.reverse()
+	    for link in hlist:
+		title, timestamp = self._hmap[link]
+		if title == link:
+		    print '%s\t%d' % (link, timestamp)
+		else:
+		    print '%s\t%d\t%s' % (link, timestamp, title)
+	finally:
+	    sys.stdout = stdout
+	    fp.close()
+	self._app.unregister_on_exit(self.on_app_exit)
+
+
+
+class History:
+    def __init__(self, app):
+	self._history = []
+	self._dialog = None
+	self._current = 0
+	# initialize global history the first time through
+	global GLOBAL_HISTORY
+	if not GLOBAL_HISTORY:
+	    GLOBAL_HISTORY = GlobalHistory(app)
 
     def set_dialog(self, dialog): self._dialog = dialog
 
@@ -28,24 +148,20 @@ class History:
 	self._history.append(link)
 	self._current = len(self._history)-1
 	if not title: title = link
-	if not self._hmap.has_key(link): self._hmap[link] = title
+	# update global history
+	global GLOBAL_HISTORY
+	GLOBAL_HISTORY.append_link(link, title)
+	# update the display
 	if self._dialog: self._dialog.refresh()
 
     def set_title(self, link, title):
-	try:
-	    if self._history[-1] != link or \
-	       self._hmap[link] == title or \
-	       link == title:
-		return
-	    # update title and dialog if visible
-	    self._hmap[link] = title
-	    if self._dialog: self._dialog.refresh()
-	except IndexError, KeyError:
-	    pass
+	global GLOBAL_HISTORY
+	GLOBAL_HISTORY.set_title(link, title)
+	if self._dialog: self._dialog.refresh()
 
     def title(self, link):
-	try: return self._hmap[link]
-	except KeyError: return None
+	global GLOBAL_HISTORY
+	return GLOBAL_HISTORY.title(link)
 
     def link(self, index=None):
 	if index is None: index = self._current
@@ -61,10 +177,6 @@ class History:
 
     def forward(self): return self.link(self.current()+1)
     def back(self): return self.link(self.current()-1)
-
-    def on_app_exit(self):
-##	print 'history exiting...'
-	self._app.unregister_on_exit(self.on_app_exit)
 
 
 
