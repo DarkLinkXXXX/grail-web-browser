@@ -542,10 +542,10 @@ class GrailHTMLParser(HTMLParser):
 
     # List attribute extensions:
 
-    def start_ul(self, attrs):
+    def start_ul(self, attrs, tag='ul'):
 	if attrs.has_key('dingbat'):
 	    self.list_handle_dingbat(attrs)
-	HTMLParser.start_ul(self, attrs)
+	HTMLParser.start_ul(self, attrs, tag=tag)
 
     def do_li(self, attrs):
 	if attrs.has_key('dingbat'):
