@@ -18,6 +18,9 @@ script_dir = os.path.normpath(script_dir)
 grail_root = script_dir
 for path in 'utils', 'pythonlib', 'ancillary', 'applet', script_dir:
     sys.path.insert(0, os.path.join(grail_root, path))
+if len(sys.argv) >= 2 and sys.argv[1] == '-dc':
+    sys.path.insert(1, os.path.join(grail_root, 'sgml_lex'))
+    del sys.argv[1]
 
 # More imports
 import ni
