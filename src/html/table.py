@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.49 1996/09/26 14:59:23 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.50 1996/12/04 21:58:17 bwarsaw Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -411,10 +411,10 @@ class Table(AttrElem):
 	self.parentviewer.register_reset_interest(self._reset)
 	abswidth = None
 	percentwidth = None
-	if type(self.Awidth) is type(()):
+	if type(self.Awidth) is TupleType:
 	    if self.Awidth[1] == '%':
 		percentwidth = float(self.Awidth[0]) / 100.0
-	elif type(self.Awidth) is type(0.0):
+	elif type(self.Awidth) is FloatType:
 	    abswidth = int(self.Awidth)
 	else:
 	    percentwidth = 1.0
