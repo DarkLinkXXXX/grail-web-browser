@@ -1,12 +1,7 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Handler for ietf: URNs.  These are defined in the Internet draft
 draft-ietf-urn-ietf-07.txt (work in progress).
 """
-__version__ = '$Revision: 2.4 $'
+__version__ = '$Revision: 2.5 $'
 
 import grailutil
 import nullAPI

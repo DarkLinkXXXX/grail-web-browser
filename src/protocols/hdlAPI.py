@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """CNRI handle protocol extension.
 
 This module glues the backend CNRI handle client resolution module in
