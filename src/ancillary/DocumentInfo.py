@@ -4,7 +4,7 @@
 
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.7 $'
+__version__ = '$Revision: 2.8 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import regex
@@ -17,20 +17,18 @@ FIELD_BREAKER = string.maketrans("&", "\n")
 MAX_TEXT_FIELD_LINES = 10
 
 
-class DocumentInfoDialog(Tkinter.Toplevel):
-    def __init__(self, master, context, *args, **kw):
-	if not kw.has_key("class_"):
-	    kw["class_"] = "DocumentInfo"
-	apply(Tkinter.Toplevel.__init__, (self, master) + args, kw)
-	self.iconname("Document Info")
+class DocumentInfoDialog:
+    def __init__(self, master, context, class_="DocumentInfo"):
+	root = tktools.make_toplevel(master, class_=class_,
+				     title="Document Info")
 	page_title = context.page.title()
-	self.title("Document Info"
-		   + (page_title and (": " + page_title) or ""))
-	self.bind("<Alt-W>", self.__destroy)
-	self.bind("<Alt-w>", self.__destroy)
-	self.bind("<Return>", self.__destroy)
-	self.protocol("WM_DELETE_WINDOW", self.__destroy)
-	frame, self.__topfr, botfr = tktools.make_double_frame(self)
+	if page_title:
+	    root.title("Document Info: " + page_title)
+	destroy = root.destroy
+	for seq in ("<Alt-W>", "<Alt-w>", "<Return>"):
+	    root.bind(destroy)
+	root.protocol("WM_DELETE_WINDOW", destroy)
+	frame, self.__topfr, botfr = tktools.make_double_frame(root)
 	#
 	# Info display
 	#
@@ -65,10 +63,13 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 	#
 	fr = Tkinter.Frame(botfr, borderwidth=1, relief=Tkinter.SUNKEN)
 	fr.pack()
-	btn = Tkinter.Button(fr, text="OK", command=self.__destroy)
+	btn = Tkinter.Button(fr, text="OK", command=destroy)
 	# '2m' is the value from the standard Tk 'tk_dialog' command
 	btn.pack(padx='2m', pady='2m')
 	btn.focus_set()
+	#
+	del self.__topfr		# loose the reference
+	tktools.set_transient(root, master)
 
     def add_field(self, label, name):
 	fr = Tkinter.Frame(self.__topfr, name=name)
@@ -83,16 +84,18 @@ class DocumentInfoDialog(Tkinter.Toplevel):
     def add_label_field(self, label, value, name):
 	fr = self.add_field(label, name)
 	label = Tkinter.Label(fr, text=value, anchor=Tkinter.W, name="value")
-	if self.__datafont is None:
+	datafont = self.__datafont
+	if datafont is None:
 	    # try to get a medium-weight version of the font if bold:
 	    font = label['font']
 	    pos = self.__boldpat.search(font) + 1
 	    if pos:
 		end = pos + len(self.__boldpat.group(1))
-		self.__datafont = "%smedium%s" % (font[:pos], font[end:])
-	if self.__datafont:
-	    try: label['font'] = self.__datafont
-	    except TclError: self.__datafont = ''
+		datafont = "%smedium%s" % (font[:pos], font[end:])
+		DocumentInfoDialog.__datafont = datafont
+	if datafont:
+	    try: label['font'] = datafont
+	    except TclError: DocumentInfoDialog.__datafont = ''
 	label.pack(anchor=Tkinter.W, fill=Tkinter.X, expand=1)
 	return label
 
@@ -107,10 +110,6 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 	text.insert(Tkinter.END, value)
 	text["state"] = Tkinter.DISABLED
 	return text
-
-    def __destroy(self, event=None):
-	self.destroy()
-	return "break"
 
 
 class DocumentInfoCommand:
