@@ -172,6 +172,7 @@ class AbstractFormatter:
 	    self.align = align = self.align_stack[-1]
 	    self.writer.new_alignment(align)
 	else:
+	    self.align = None
 	    self.writer.new_alignment(None)
 
     def push_font(self, (size, i, b, tt)):
