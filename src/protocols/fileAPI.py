@@ -5,7 +5,6 @@ META, DATA, DONE = 'META', 'DATA', 'DONE'
 
 LISTING_HEADER = """<HTML>
 <HEAD>
-<BASE HREF="%(url)s">
 <TITLE>Local Directory: %(url)s</TITLE>
 </HEAD>
 <BODY>
@@ -23,9 +22,15 @@ LISTING_PATTERN = """\
 class file_access:
 
     def __init__(self, url, method, params):
-	from urllib import unquote
+	from urllib import unquote, quote
 	self.url = url
-	self.pathname = unquote(self.url)
+	pathname = unquote(self.url)
+	if not os.path.isabs(pathname):
+	    pwd = os.getcwd()
+	    pathname = os.path.join(pwd, pathname)
+	    pathname = os.path.normpath(pathname)
+	self.pathname = pathname
+	self.url = "file:" + quote(pathname)
 	self.method = method
 	self.params = params
 	self.headers = {}
