@@ -3,7 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 """A parser for SGML, using the derived class as static DTD."""
-__version__ = "$Revision: 1.21 $"
+__version__ = "$Revision: 1.22 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -135,6 +135,9 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 
     def lex_data(self, data):
 	self.__handler.handle_data(data)
+
+    def lex_pi(self, pi_data):
+	self.__handler.handle_pi(pi_data)
 
     def set_data_handler(self, handler):
 	self.handle_data = handler
