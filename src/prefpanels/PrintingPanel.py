@@ -1,10 +1,36 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/prefpanels/PrintingPanel.py,v $
 
-# Base class for the panel:
+import html2ps
 import PrefsPanels
+import string
+import Tkinter
+
+
+GROUP = "printing"
+
+
+class FontSizeVar(Tkinter.StringVar):
+    _default = "10.0 / 10.7"
+    def get(self):
+	sizes = html2ps.parse_fontsize(Tkinter.StringVar.get(self))
+	return "%s / %s" % sizes
+
+    def set(self, value):
+	sizes = html2ps.parse_fontsize(value)
+	return Tkinter.StringVar.set(self, "%s / %s" % sizes)
+
+
+class StringSetVar(Tkinter.StringVar):
+    def get(self):
+	return string.lower(Tkinter.StringVar.get(self))
+
+    def set(self, value):
+	value = string.capitalize(value)
+	return Tkinter.StringVar.set(self, value)
+
 
 class PrintingPanel(PrefsPanels.Framework):
     """Printing preferences."""
@@ -16,24 +42,36 @@ class PrintingPanel(PrefsPanels.Framework):
 
 	# Printer configs are simple enough to use the convenience functions
 	self.PrefsEntry(frame, 'Print command: ',
-			'printing', 'command',
+			GROUP, 'command',
 			entry_width=20, label_width=16)
 	self.PrefsCheckButton(frame, "Images: ", "Print images ",
-			      'printing', 'images',
+			      GROUP, 'images',
 			      label_width=16)
 	self.PrefsCheckButton(frame, " ", "Reduce images to greyscale",
-			      'printing', 'greyscale',
+			      GROUP, 'greyscale',
 			      label_width=16)
 	self.PrefsCheckButton(frame, "Anchors: ", "Footnotes for anchors",
-			      'printing', 'footnote-anchors',
+			      GROUP, 'footnote-anchors',
 			      label_width=16)
 	self.PrefsCheckButton(frame, " ", "Underline anchors",
-			      'printing', 'underline-anchors',
+			      GROUP, 'underline-anchors',
 			      label_width=16)
-	self.PrefsEntry(frame, "Base font size: ",
-			'printing', 'base-font-size',
-			typename='float', entry_width=4,
-			label_width=16)
-	self.PrefsEntry(frame, "Leading: ", 'printing', 'leading',
-			typename='float', entry_width=4,
-			label_width=16)
+	# paper size:
+	var = StringSetVar()
+	sizes = html2ps.paper_sizes.keys()
+	sizes.sort()
+	sizes = map(string.capitalize, sizes)
+	self.PrefsOptionMenu(frame, "Paper size: ", GROUP, 'paper-size',
+			     sizes, label_width=16, variable=StringSetVar())
+	# page orientation:
+	var = StringSetVar()
+	opts = html2ps.paper_rotations.keys()
+	opts.sort()
+	opts = map(string.capitalize, opts)
+	self.PrefsOptionMenu(frame, "Orientation: ", GROUP, 'orientation',
+			     opts, label_width=16, variable=StringSetVar())
+	# font size and leading:
+	self.PrefsEntry(frame, "Font size: ",
+			GROUP, 'font-size',
+			typename='string', entry_width=12,
+			label_width=16, variable=FontSizeVar())
