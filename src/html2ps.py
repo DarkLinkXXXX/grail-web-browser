@@ -1017,9 +1017,7 @@ class PrintingHTMLParser(HTMLParser):
 		if self._anchors.has_key(href): return
 		self._anchors[href] = len(self._anchor_sequence) + 1
 		if attrs.has_key('title'):
-		    from SGMLReplacer import replace
-		    title = string.strip(replace(attrs['title'],
-						 self.entitydefs))
+		    title = string.strip(attrs['title'])
 		    self._anchor_sequence.append((href, title))
 		else:
 		    self._anchor_sequence.append((href, None))
