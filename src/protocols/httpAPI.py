@@ -59,7 +59,10 @@ class http_access:
 
     def __init__(self, resturl, mode, params):
 	assert(mode=="GET")
-	host, selector = splithost(resturl)
+	if type(resturl) == type(()):
+	    host, selector = resturl	# For proxy interface
+	else:
+	    host, selector = splithost(resturl)
 	assert(host!="")
 	i = string.find(host, '@')
 	if i >= 0:
