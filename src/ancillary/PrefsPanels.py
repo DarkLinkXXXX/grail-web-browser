@@ -7,7 +7,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.33 $"
+__version__ = "$Revision: 2.34 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -254,13 +254,12 @@ class Framework:
 
         if general:
             self.PrefsWidgetLabel(f, general, label_width=label_width)
-        cb = Checkbutton(f, text=specific, relief='ridge', bd=1,
-                         variable=variable)
+        cb = Checkbutton(f, text=specific, variable=variable)
         cb.pack(side=LEFT)
         if not general:
-            use_side, use_fill, use_bd = LEFT, NONE, 1
+            use_side, use_fill = LEFT, NONE
         else:
-            use_side, use_fill, use_bd = TOP, X, 0
+            use_side, use_fill = TOP, X
         f.pack(fill=use_fill, side=use_side, pady='1m')
 
         self.RegisterUI(group, component, 'Boolean',
@@ -309,6 +308,7 @@ class Framework:
         widget = self.widget = tktools.make_toplevel(
             self.frame, class_='Preferences')
         widget.title(self.title)
+        widget.iconname("Grail Prefs")
         tktools.install_keybindings(widget)
         widget.bind('<Return>', self.done_cmd)
         widget.bind('<Key>', self.poll_modified)
