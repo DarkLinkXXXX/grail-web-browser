@@ -518,7 +518,10 @@ class Application:
 
     dingbatimages = {'ldots': ('...', None),	# math stuff
 		     'sp': (' ', None),
-		     'thinsp': ('\240', None)
+		     'thinsp': ('\240', None),
+		     'emdash': ('--', None),
+		     'endash': ('-', None),
+		     'ensp': (' ', None)
 		     }
 
     iconpath = [os.path.join(grail_root, 'icons')]
