@@ -7,7 +7,7 @@ from SafeTkinter import *
 from SafeTkinter import _cnfmerge
 import tktools
 
-class Dialog(Frame):
+class Dialog:
 
     def __init__(self, master=None,
 		 title='', text='', bitmap='', default=-1, strings=[]):
