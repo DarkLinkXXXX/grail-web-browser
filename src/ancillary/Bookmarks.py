@@ -1,7 +1,7 @@
 from Tkinter import *
 import FileDialog
 from grailutil import *
-from Outliner import OutlinerNode, OutlinerViewer
+from Outliner import OutlinerNode, OutlinerViewer, OutlinerController
 import tktools
 import formatter
 import htmllib
@@ -19,7 +19,11 @@ DEFAULT_GRAIL_BM_FILE = os.path.join(getgraildir(), 'grail-bookmarks.html')
 
 
 True = 1
-False = 0
+False = None
+
+NEW_AT_END = 1
+NEW_AT_BEG = 2
+NEW_AS_CHILD = 3
 
 BookmarkFormatError = 'BookmarkFormatError'
 PoppedRootError = 'PoppedRootError'
@@ -336,6 +340,7 @@ class BookmarksIO:
 	self._filename = None
 
     def filename(self): return self._filename
+    def set_filename(self, filename): self._filename = filename
 
     def _choose_reader_writer(self, fp):
 	try:
@@ -407,7 +412,7 @@ class IOErrorDialog:
 	label.pack()
 	errlabel = Label(self._frame, text=errmsg)
 	errlabel.pack()
-	self.closebtn = Button(self._frame, text="Ok", command=self.close)
+	self.closebtn = Button(self._frame, text="OK", command=self.close)
 	self.closebtn.pack()
 	self._frame.grab_set()
 
@@ -425,9 +430,13 @@ class TkListboxViewer(OutlinerViewer):
 
     def populate(self):
 	# we don't want the root node to show up
+	self._gcounter = 0
 	if not self._root: return
 	for child in self._root.children():
 	    OutlinerViewer._populate(self, child)
+
+    def _clear(self):
+	self._listbox.delete(0, END)
 
     def _insert(self, node, index=None):
 	if index is None: index = 'end'
@@ -437,15 +446,13 @@ class TkListboxViewer(OutlinerViewer):
 	if not end: self._listbox.delete(start)
 	else: self._listbox.delete(start, end)
 
-    def update_node(self, node):
-	OutlinerViewer.update_node(self, node)
-	index = node.index()
-	self.select_node(index)
-	self._listbox.activate(index)
-
-    def select_node(self, index):
-	self._listbox.select_clear(0, self.count())
+    def _select(self, index):
+	last = self._listbox.index(END)
+	if not (0 <= index < last): index = 0
+	self._listbox.select_clear(0, END)
 	self._listbox.select_set(index)
+	self._listbox.activate(index)
+	self._listbox.see(index)
 
 
 class BookmarksDialog:
@@ -488,6 +495,11 @@ class BookmarksDialog:
 	self._frame.bind("<Alt-S>", self._controller.save)
 	filemenu.add_command(label="Save As...",
 			     command=self._controller.saveas)
+	filemenu.add_command(label="View in Grail",
+			     command=self._controller.bookmark_goto,
+			     underline=0, accelerator="Alt-V")
+	self._frame.bind("<Alt-v>", self._controller.bookmark_goto)
+	self._frame.bind("<Alt-V>", self._controller.bookmark_goto)
 	filemenu.add_separator()
 	filemenu.add_command(label="Close",
 			     command=self._controller.hide,
@@ -500,10 +512,10 @@ class BookmarksDialog:
 	navbtn.pack(side=LEFT)
 	navmenu = Menu(navbtn)
 	navmenu.add_command(label="Previous",
-			    command=self._controller.previous,
+			    command=self._controller.previous_cmd,
 			    accelerator="Up")
 	navmenu.add_command(label="Next",
-			    command=self._controller.next,
+			    command=self._controller.next_cmd,
 			    accelerator="Down")
 	navmenu.add_separator()
 	navmenu.add_command(label="Go To Bookmark",
@@ -511,11 +523,7 @@ class BookmarksDialog:
 			    underline=0, accelerator="Alt-G")
 	self._frame.bind("<Alt-g>", self._controller.goto)
 	self._frame.bind("<Alt-G>", self._controller.goto)
-	navmenu.add_command(label="View in Grail",
-			    command=self._controller.bookmark_goto,
-			    underline=0, accelerator="Alt-V")
-	self._frame.bind("<Alt-v>", self._controller.bookmark_goto)
-	self._frame.bind("<Alt-V>", self._controller.bookmark_goto)
+	self._frame.bind("<KeyPress-space>", self._controller.goto)
 	navbtn.config(menu=navmenu)
 	# Properties menu (details)
 	propsbtn = Menubutton(self._menubar, text="Properties")
@@ -551,10 +559,10 @@ class BookmarksDialog:
 	self._frame.bind("<Alt-A>", self._controller.add_current)
 	editmenu.add_separator()
 	editmenu.add_command(label="Expand",
-			    command=self._controller.expand,
+			    command=self._controller.expand_cmd,
 			    accelerator="Alt-E")
-	self._frame.bind("<Alt-e>", self._controller.expand)
-	self._frame.bind("<Alt-E>", self._controller.expand)
+	self._frame.bind("<Alt-e>", self._controller.expand_cmd)
+	self._frame.bind("<Alt-E>", self._controller.expand_cmd)
 	editmenu.add_command(label='Expand All Children',
 			     command=self._controller.expand_children)
 	editmenu.add_command(label="Expand Top Level",
@@ -563,10 +571,10 @@ class BookmarksDialog:
 #			    command=self._controller.expand_all)
 	editmenu.add_separator()
 	editmenu.add_command(label="Collapse",
-			    command=self._controller.collapse,
+			    command=self._controller.collapse_cmd,
 			    accelerator="Alt-C")
-	self._frame.bind("<Alt-c>", self._controller.collapse)
-	self._frame.bind("<Alt-C>", self._controller.collapse)
+	self._frame.bind("<Alt-c>", self._controller.collapse_cmd)
+	self._frame.bind("<Alt-C>", self._controller.collapse_cmd)
 	editmenu.add_command(label='Collapse All Children',
 			     command=self._controller.collapse_children)
 	editmenu.add_command(label="Collapse Top Level",
@@ -575,23 +583,47 @@ class BookmarksDialog:
 #			    command=self._controller.collapse_all)
 	editmenu.add_separator()
 	editmenu.add_command(label='Insert Separator',
-			     command=self._controller.insert_separator)
+			     command=self._controller.insert_separator,
+			     underline=7, accelerator='S')
+	self._frame.bind('s', self._controller.insert_separator)
+	self._frame.bind('S', self._controller.insert_separator)
 	editmenu.add_command(label='Insert Header',
-			     command=self._controller.insert_header)
+			     command=self._controller.insert_header,
+			     underline=7, accelerator='H')
+	self._frame.bind('h', self._controller.insert_header)
+	self._frame.bind('H', self._controller.insert_header)
 	editmenu.add_command(label='Insert Entry',
-			     command=self._controller.insert_entry)
+			     command=self._controller.insert_entry,
+			     underline=7, accelerator='E')
+	self._frame.bind('e', self._controller.insert_entry)
+	self._frame.bind('E', self._controller.insert_entry)
 	editmenu.add_separator()
 	editmenu.add_command(label='Remove Entry',
-			     command=self._controller.remove_entry)
+			     command=self._controller.remove_entry,
+			     accelerator='X')
+	self._frame.bind('x', self._controller.remove_entry)
+	self._frame.bind('X', self._controller.remove_entry)
 	editmenu.add_separator()
 	editmenu.add_command(label='Shift Entry Left',
-			     command=self._controller.shift_left)
+			     command=self._controller.shift_left_cmd,
+			     underline=12, accelerator='L')
+	self._frame.bind('l', self._controller.shift_left_cmd)
+	self._frame.bind('L', self._controller.shift_left_cmd)
 	editmenu.add_command(label='Shift Entry Right',
-			     command=self._controller.shift_right)
+			     command=self._controller.shift_right_cmd,
+			     underline=12, accelerator='R')
+	self._frame.bind('r', self._controller.shift_right_cmd)
+	self._frame.bind('R', self._controller.shift_right_cmd)
 	editmenu.add_command(label='Shift Entry Up',
-			     command=self._controller.shift_up)
+			     command=self._controller.shift_up_cmd,
+			     underline=12, accelerator='U')
+	self._frame.bind('u', self._controller.shift_up_cmd)
+	self._frame.bind('U', self._controller.shift_up_cmd)
 	editmenu.add_command(label='Shift Entry Down',
-			     command=self._controller.shift_down)
+			     command=self._controller.shift_down_cmd,
+			     underline=12, accelerator='D')
+	self._frame.bind('d', self._controller.shift_down_cmd)
+	self._frame.bind('D', self._controller.shift_down_cmd)
 	editbtn.config(menu=editmenu)
 
     def _create_listbox(self):
@@ -600,42 +632,35 @@ class BookmarksDialog:
 	self._listbox.config(font='fixed')
 	# bind keys
 	self._listbox.bind('<Double-Button-1>', self._controller.goto)
-	self._listbox.bind('<ButtonRelease-1>', self._controller.select)
 	self._listbox.focus_set()
 
     def _create_buttonbar(self):
-	# create the buttons
-	btnframe = Frame(self._frame)
-	prevbtn = Button(btnframe, text='Previous',
-			 command=self._controller.previous)
-	nextbtn = Button(btnframe, text='Next',
-			 command=self._controller.next)
-	prevbtn.pack(side='left')
-	nextbtn.pack(side='left')
-
-	if InGrail_p:
-	    gotobtn = Button(btnframe, text='Go To',
-			     command=self._controller.goto)
-	    gotobtn.pack(side='left')
-
-	colbtn = Button(btnframe, text='Collapse',
-			command=self._controller.collapse)
-	expbtn = Button(btnframe, text='Expand',
-			command=self._controller.expand)
-
-	colbtn.pack(side='left')
-	expbtn.pack(side='left')
-
-	if InGrail_p:
-	    closebtn = Button(btnframe, text='Close',
-			      command=self._controller.hide)
-	    closebtn.pack(side='left')
-	else:
-	    quitbtn = Button(btnframe, text='Quit',
-			     command=self._controller.quit)
-	    quitbtn.pack(side='left')
-
-	btnframe.pack(side='bottom')
+	# create the button bars
+	btmframe = Frame(self._frame)
+	btmframe.pack(side=BOTTOM, fill=BOTH)
+	topframe = Frame(self._frame)
+	topframe.pack(side=BOTTOM, fill=BOTH)
+	# bottom buttonbar buttons
+	okbtn = Button(btmframe, text='Ok', command=self.okay_cmd)
+	okbtn.pack(side=LEFT)
+	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
+	cancelbtn.pack(side=RIGHT)
+	# top buttonbar buttons
+	prevbtn = Button(topframe, text='Previous',
+			 command=self._controller.previous_cmd)
+	nextbtn = Button(topframe, text='Next',
+			 command=self._controller.next_cmd)
+	prevbtn.pack(side=LEFT, expand=1, fill=BOTH)
+	nextbtn.pack(side=LEFT, expand=1, fill=BOTH)
+	gotobtn = Button(topframe, text='Go To',
+			 command=self._controller.goto)
+	gotobtn.pack(side=LEFT, expand=1, fill=BOTH)
+	colbtn = Button(topframe, text='Collapse',
+			command=self._controller.collapse_cmd)
+	expbtn = Button(topframe, text='Expand',
+			command=self._controller.expand_cmd)
+	colbtn.pack(side=LEFT, expand=1, fill=BOTH)
+	expbtn.pack(side=LEFT, expand=1, fill=BOTH)
 
     def load(self, event=None):
 	try:
@@ -648,6 +673,10 @@ class BookmarksDialog:
 	self._frame.tkraise()
 	self._listbox.focus_set()
 
+    def okay_cmd(self, event=None):
+	self._controller.save()
+	self._controller.hide()
+    def cancel_cmd(self, event=None): self._controller.hide()
     def hide(self): self._frame.withdraw()
 
     def set_labels(self, filename, title):
@@ -721,7 +750,7 @@ class DetailsDialog:
 	if self._node.islink_p():
 	    self._node.set_uri(self._form[1][0].get())
 	    self._node.set_description(self._form[4][0][0].get(1.0, 'end'))
-	self._controller.update_node(self._node)
+	self._controller.viewer().update_node(self._node)
 
     def cancel(self):
 	self.revert()
@@ -739,48 +768,114 @@ class DetailsDialog:
 
 
 
-class BookmarksController:
+class BookmarksController(OutlinerController):
     def __init__(self, frame, browser):
+	default_root = BookmarkNode(username()+"'s Bookmarks")
+	OutlinerController.__init__(self, default_root)
 	self._frame = frame
 	self._browser = browser
-	self._root = None
-	self._viewer = None
 	self._iomgr = BookmarksIO(frame, self)
 	self._dialog = None
 	self._details = {}
 	self._listbox = None
 	self._writer = GrailBookmarkWriter()
+	self._initialized_p = False
 	self._tkvars = {
 	    'aggressive': BooleanVar(),
 	    'addcurloc':  IntVar(),
 	    'fileformat': StringVar()
 	    }
 	self.aggressive.set(0)
-	self.addcurloc.set(1)
+	self.addcurloc.set(NEW_AS_CHILD)
 	self.fileformat.set('Automatic')
+	from __main__ import app
+	self._app = app
+	app.register_on_exit(self.on_app_exit)
 
     def __getattr__(self, name):
 	if self._tkvars.has_key(name): return self._tkvars[name]
 	else: raise AttributeError, name
 
-    def _get_selected_node(self):
-	list = self._listbox.curselection()
-	if len(list) > 0:
-	    selection = string.atoi(list[0])
-	    return (self._viewer.node(selection), selection)
-	else:
-	    return (None, None)
+    ## coordinate with Application instance
+
+    def on_app_exit(self):
+##	self.save()
+	self._app.unregister_on_exit(self.on_app_exit)
+
+    ## I/O
+
+    def initialize(self):
+	if self._initialized_p: return
+	try:
+	    # this will attempt to load the Grail default bookmarks
+	    # file.  If this fails, it will do so with a
+	    # BookmarkFormatError.  In that case, try to load the
+	    # Netscape bookmarks file.  If *that* fails, use an empty
+	    # default.
+	    root, reader, self._writer = self._iomgr.load(True)
+	except BookmarkFormatError:
+	    self._iomgr.set_filename(DEFAULT_NETSCAPE_BM_FILE)
+	    try:
+		root, reader, self._writer = self._iomgr.load(True)
+	    except BookmarkFormatError:
+		root = BookmarkNode(username()+"'s Bookmarks")
+		self._writer = GrailBookmarkWriter()
+		self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
+	self.set_root(root)
+	self._initialized_p = True
+
+    def load(self):
+	root, reader, self._writer = self._iomgr.load()
+	if not root and not reader and not self._writer:
+	    # load dialog was cancelled
+	    return
+	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+	# clear out all the old state
+	self.set_root(root)
+	self._details = {}
+	self.set_viewer(TkListboxViewer(self.root(), self._listbox))
+	self.root_redisplay()
+	# set up new state
+	node = self.viewer().node(0)
+	if node: self.viewer().select_node(node)
+
+##    def merge(self, event=None): pass
+    def save(self, event=None):
+	self._iomgr.save(self._writer, self._root)
+	if self._dialog:
+	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+
+    def saveas(self, event=None):
+	self._iomgr.saveas(self._writer, self._root)
+	if self._dialog:
+	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+
+    ## Other commands
 
     def set_listbox(self, listbox): self._listbox = listbox
     def set_dialog(self, dialog): self._dialog = dialog
-
-    def root(self): return self._root
-    def select(self, event=None): pass
     def filename(self): return self._iomgr.filename()
+
+    def _get_selected_node(self):
+	node = selection = None
+	try:
+	    list = self._listbox.curselection()
+	    if len(list) > 0:
+		selection = string.atoi(list[0])
+		return self.viewer().node(selection), selection
+	except AttributeError: pass
+	return node, selection
 
     def goto(self, event=None):
 	node, selection = self._get_selected_node()
-	self.goto_node(node)
+	if not node: return
+	if node.leaf_p():
+	    self.goto_node(node)
+	else:
+	    if node.expanded_p(): self.collapse_node(node)
+	    else: self.expand_node(node)
+	    self.viewer().select_node(node)
+
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
 	if filename: self._browser.load('file:' + filename)
@@ -790,166 +885,33 @@ class BookmarksController:
 	    if self._details.has_key(id(node)):
 		self._details[id(node)].revert()
 	    self._browser.load(node.uri())
-
-    def _collapse_node(self, node):
-	# This node is only collapsable if it is an unexpanded branch
-	# node, or the aggressive collapse flag is set.
-	uncollapsable = node.leaf_p() or not node.expanded_p()
-	aggressive_p = self.aggressive.get()
-	if uncollapsable and not aggressive_p:
-	    return
-	# if the node is a leaf and the aggressive collapse flag is
-	# set, then we really need to find the start of the collapse
-	# operation (some ancestor of the selected node)
-	if uncollapsable: node = node.parent()
-	# find the start index
-	node.collapse()
-	start = node.index() + 1
-	# Find the end
-	end = None
-	vnode = node
-	pnode = node.parent()
-	while not end and pnode:
-	    sibs = pnode.children()
-	    nextsib = sibs.index(vnode)
-	    if nextsib+1 >= len(sibs):
-		vnode = pnode
-		pnode = vnode.parent()
-	    else:
-		end = sibs[nextsib+1].index() - 1
-	# now that we have a valid start and end, delete!
-	if not end: end = self._viewer.count()
-	self._viewer.delete_nodes(start, end)
-	self.update_node(node)
-
-    def _expand_node(self, node):
-	# now toggle the expanded flag and update the listbox
-	node.expand()
-	# we need to recursively expand this node, based on each
-	# sub-node's expand/collapse flag
-	self._viewer.expand_node(node)
-	self.update_node(node)
-
-    def collapse(self, event=None):
-	node, selection = self._get_selected_node()
-	if node: self._collapse_node(node)
-    def collapse_children(self, event=None):
-	node, selection = self._get_selected_node()
-	if not node: return
-	for child in node.children():
-	    if not child.leaf_p() and child.expanded_p():
-		self._collapse_node(child)
-    def collapse_top(self, event=None):
-	for child in self._root.children():
-	    self._collapse_node(child)
-    def collapse_all(self, event=None):
-	pass
-    def expand(self, event=None):
-	node, selection = self._get_selected_node()
-	# can't expand leaves or already expanded nodes
-	if node and not node.leaf_p() and not node.expanded_p():
-	    self._expand_node(node)
-    def expand_children(self, event=None):
-	node, selection = self._get_selected_node()
-	if not node: return
-	for child in node.children():
-	    if not child.leaf_p() and not child.expanded_p():
-		self._expand_node(child)
-    def expand_top(self, event=None):
-	for child in self._root.children():
-	    self._expand_node(child)
-    def expand_all(self, event=None):
-	pass
-
-    def previous(self, event=None):
-	node, selection = self._get_selected_node()
-	if node and selection > 0:
-	    self._viewer.select_node(selection-1)
-
-    def next(self, event=None):
-	node, selection = self._get_selected_node()
-	if node and selection < self._viewer.count()-1:
-	    self._viewer.select_node(selection+1)
-
-    def load_default(self):
-	try: self._root, reader, self._writer = self._iomgr.load(True)
-	except BookmarkFormatError:
-	    self._root = BookmarkNode(username()+"'s Bookmarks")
-
-    def load(self):
-	self._root, reader, self._writer = self._iomgr.load()
-	if not self._root and not reader and not self._writer:
-	    # load dialog was cancelled
-	    return
-	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
-	if self._listbox:
-	    self._listbox.delete(0, 'end')
-	    self._viewer = None
-	self.show()
-
-    def merge(self, event=None): pass
-    def save(self, event=None):
-	self._iomgr.save(self._writer, self._root)
-	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
-
-    def saveas(self, event=None):
-	self._iomgr.saveas(self._writer, self._root)
-	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+	    self.viewer().select_node(node)
 
     def add_current(self, event=None):
 	# create a new node to represent this addition and then fit it
 	# into the tree, updating the listbox
-	see = not not self._viewer
 	now = int(time.time())
 	node = BookmarkNode(self._browser.title,
 			    self._browser.url,
 			    now, now)
 	addlocation = self.addcurloc.get()
-	if addlocation == 1:
-	    # append this to the end of the list, which translates to:
+	if addlocation == NEW_AT_END:
 	    # add this node to the end of root's child list.
-	    self._root.append_child(node)
-	    if self._viewer:
-		lastnode = self._viewer.count()
-		self._viewer.insert_nodes(lastnode, [node], True)
-	elif addlocation == 2:
-	    # prepend the node to the front of the list, which
-	    # translates to: add this node to the beginning of root's
-	    # child list.
-	    self._root.insert_child(node, 0)
-	    if self._viewer:
-		self._viewer.insert_nodes(0, [node], True)
-	elif addlocation == 3 and self._viewer:
-	    # add current as child of selected node, which translates
-	    # to: add this node to the end of the selected node's list
-	    # of children.  The tricky bit is that we have to update
-	    # the selected node, and we only want to display the new
-	    # node in the listbox if the current selection is
-	    # expanded.
+	    self.root().append_child(node)
+	elif addlocation == NEW_AT_BEG:
+	    # add this node to the beginning of root's child list.
+	    self.root().insert_child(node, 0)
+	elif addlocation == NEW_AS_CHILD:
+	    # add this node to the end of the selected node's list of
+	    # children, making sure the selected node is expanded.
 	    snode, selection = self._get_selected_node()
-	    if snode:
-		children = snode.children()
-		if children: insertion = children[-1].index()
-		else: insertion = selection
-		snode.append_child(node)
-		if snode.expanded_p():
-		    self._viewer.insert_nodes(insertion, [node])
-		else:
-		    see = False
-		self.update_node(snode)
+	    if not snode: snode = self.root()
+	    else: snode.expand()
+	    snode.insert_child(node, 0)
 	else: pass
 	# scroll the newly added node into view
-	if see: self._listbox.see(node.index())
-
-    def update_node(self, node):
-	if self._viewer: self._viewer.update_node(node)
-    def _rupdate_node(self, node):
-	self._viewer.update_node(node)
-	for child in node.children():
-	    self._rupdate_node(child)
-    def rupdate_node(self, node):
-	if not self._viewer: return
-	self._rupdate_node(node)
+	self.root_redisplay()
+	self.viewer().select_node(node)
 
     def details(self, event=None):
 	node, selection = self._get_selected_node()
@@ -968,15 +930,12 @@ class BookmarksController:
 	# for those window managers without automatic (random)
 	# placement, the user will see a zero-sized widget
 	show_p = True
-	if not self._root:
-	    self._root = BookmarkNode(username()+"'s Bookmarks")
 	if not self._dialog:
 	    self._dialog = BookmarksDialog(self._frame, self)
 	    self._listbox = self._dialog._listbox # TBD: gross
+	    self.set_viewer(TkListboxViewer(self.root(), self._listbox))
+	    self.viewer().populate()
 	    show_p = False
-	if not self._viewer:
-	    self._viewer = TkListboxViewer(self._root, self._listbox)
-	    self._viewer.populate()
 	if show_p: self._dialog.show()
 
     def hide(self, event=None): self._dialog.hide()
@@ -984,18 +943,17 @@ class BookmarksController:
 
     def _insert_at_node(self, node, newnode):
 	if node.leaf_p() or not node.expanded_p():
-	    parent = node.parent()
-	    children = parent.children()
-	    nodei = children.index(node)
-	    if nodei == len(children): parent.append_child(newnode)
-	    else: parent.insert_child(newnode, nodei+1)
+	    parent, sibi, sibs = self._sibi(node)
+	    if not parent: return
+	    parent.insert_child(newnode, sibi+1)
 	else:
 	    # Mimic Netscape behavior: when a separator is added to a
 	    # header, the node is added as the header's first child.
 	    # If the header is collapsed, it is first expanded.
+	    node.expand()
 	    node.insert_child(newnode, 0)
-	if self._viewer:
-	    self._viewer.insert_nodes(node.index(), [newnode])
+	self.root_redisplay()
+	self.viewer().select_node(newnode)
 
     def insert_separator(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1023,130 +981,71 @@ class BookmarksController:
     def remove_entry(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
-	# if it's a branch, collapse it, making it easier to delete
-	# from the viewer
-	if not node.leaf_p(): self._collapse_node(node)
 	parent = node.parent()
-	rmnode = parent.del_child(node)
-	if rmnode:
-	    rmnode.close()
-	    if self._viewer:
-		self._viewer.delete_nodes(rmnode.index(), rmnode.index())
-		# its possible we deleted the last child of the parent
-		# node, if so, update that node's view
-		if parent.leaf_p():
-		    self.update_node(parent)
-
-    def shift_left(self, event=None):
-	node, selection = self._get_selected_node()
-	if not node: return
-	# find the index of the node in the sib list.  if it's the
-	# first in the list, it cannot be shifted right
-	parent = node.parent()
-	# if the node's parent is root, it cannot be shifted left
-	if parent == self.root(): return
-	grandparent = parent.parent()
-	sibs = parent.children()
-	nodei = sibs.index(node)
-	parenti = grandparent.children().index(parent)
-	# it becomes a sib of its parent, and all *its* later siblings
-	# now become the node's children
+	if not parent: return
+	# which node gets selected?
+	selection = node.index() - 1
+	if selection < 0: selection = 0
 	parent.del_child(node)
-	grandparent.insert_child(node, parenti+1)
-	if nodei < len(sibs):
-	    for sib in sibs[nodei:]:
-		parent.del_child(sib)
-		node.append_child(sib)
-	if grandparent != self.root():
-	    self.update_node(grandparent)
-	self.rupdate_node(node)
+	self.root_redisplay()
+	self.viewer().select_node(self.viewer().node(selection))
 
-    def shift_right(self, event=None):
-	node, selection = self._get_selected_node()
-	if not node: return
-	# find the index of the node in the sib list.  if it's the
-	# first in the list, it cannot be shifted right
-	parent = node.parent()
-	sibs = parent.children()
-	nodei = sibs.index(node)
-	# can't shift right the first child
-	if nodei == 0: return
-	sib = sibs[nodei-1]
-	parent.del_child(node)
-	# shifting right puts it under its most preceding sibling,
-	# unless this is the first sibling, the it's a no-op
-	if not sib.leaf_p() and not sib.expanded_p():
-	    self._expand_node(sib)
-	sib.append_child(node)
-	self.rupdate_node(sib)
+    ## OutlinerController overloads
 
-    def shift_up(self, event=None):
-	node, selection = self._get_selected_node()
-	if not node or not self._viewer: return
-	nodei = node.index()
-	# if it's a header, collapse it now, then possibly expand it later
-	if not node.leaf_p():
-	    expanded_p = node.expanded_p()
-	    self._collapse_node(node)
-	# if it's at the top and we're shifting up, we can't shift it
-	if nodei == 0: return
-	# delete the node from it's parent
-	nparent = node.parent()
-	nparent.del_child(node)
-	self._viewer.delete_nodes(nodei, nodei)
-	# find the above node's index in it's sib list
-	above = self._viewer.node(nodei-1)
-	aparent = above.parent()
-	# if the depth of the node we want to move above is greater
-	# than node's depth, then in fact we just want to append it to
-	# the end of above's sib list
-	if above.depth() > node.depth():
-	    aparent.append_child(node)
-	    self._viewer.insert_nodes(above.index(), [node])
-	else:
-	    abovei = aparent.children().index(above)
-	    aparent.insert_child(node, abovei)
-	    self._viewer.insert_nodes(above.index(), [node], True)
-	if not node.leaf_p() and expanded_p:
-	    self._expand_node(node)
+    def set_aggressive_collapse(self, flag):
+	if flag: self.aggressive.set(1)
+	else: self.aggressive.set(0)
+    def aggressive_collapse_p(self): return self.aggressive.get()
 
-    def shift_down(self, event=None):
+    def collapsable_p(self, node):
+	if node == self.root(): return False
+	else: return OutlinerController.collapsable_p(self, node)
+
+    ## Commands
+
+    def _cmd(self, method):
 	node, selection = self._get_selected_node()
-	if not node or not self._viewer: return
-	# if it's a header, collapse it now, then possibly expand it later
-	if not node.leaf_p():
-	    expanded_p = node.expanded_p()
-	    self._collapse_node(node)
-	# if it's at the bottom and we're shifting down, forget it, we
-	# can't shift it
-	nodei = node.index()
-	if nodei == self._viewer.count()-1: return
-	# find the below node's index in it's sib list
-	below = self._viewer.node(nodei+1)
-	bparent = below.parent()
-	# delete the node from it's parent
-	ndepth = node.depth()
-	nparent = node.parent()
-	nparent.del_child(node)
-	self._viewer.delete_nodes(nodei, nodei)
-	# if the depth of the node we want to move below is less than
-	# node's depth, then in fact we just want to prepend it to the
-	# beginning of below's child list
-	if below.depth() <= ndepth and not below.leaf_p() and \
-	   below.expanded_p():
-	    below.insert_child(node, 0)
-	    self._viewer.insert_nodes(below.index(), [node])
-	else:
-	    bsibs = bparent.children()
-	    belowi = bsibs.index(below)
-	    if belowi == len(bsibs)-1:
-		bparent.append_child(node)
-	    else:
-		bparent.insert_child(node, belowi+1)
-	    self._viewer.insert_nodes(below.index(), [node])
-	# re-expand the node if necessary
-	if not node.leaf_p() and expanded_p:
-	    self._expand_node(node)
+	if node:
+	    selected_node = method(node)
+	    if not selected_node: selected_node = node
+	    self.viewer().select_node(selected_node)
+
+    def shift_left_cmd(self, event=None):  self._cmd(self.shift_left)
+    def shift_right_cmd(self, event=None): self._cmd(self.shift_right)
+    def shift_up_cmd(self, event=None):    self._cmd(self.shift_up)
+    def shift_down_cmd(self, event=None):  self._cmd(self.shift_down)
+    def collapse_cmd(self, event=None):    self._cmd(self.collapse_node)
+    def expand_cmd(self, event=None):      self._cmd(self.expand_node)
+
+    def _prevnext(self, delta):
+	node, selection = self._get_selected_node()
+	if node:
+	    node = self.viewer().node(selection + delta)
+	    if node: self.viewer().select_node(node)
+    def previous_cmd(self, event=None): self._prevnext(-1)
+    def next_cmd(self, event=None): self._prevnext(1)
+
+    def _collapse_children(self, node):
+	for child in node.children():
+	    if not child.leaf_p() and child.expanded_p():
+		child.collapse()
+	self.root_redisplay()
+	self.viewer().select_node(node)
+    def collapse_children(self, event=None):
+	node, selection = self._get_selected_node()
+	if node: self._collapse_children(node)
+    def collapse_top(self, event=None): self._collapse_children(self.root())
+
+    def _expand_children(self, node):
+	for child in node.children():
+	    if not child.leaf_p() and not child.expanded_p():
+		child.expand()
+	self.root_redisplay()
+	self.viewer().select_node(node)
+    def expand_children(self, event=None):
+	node, selection = self._get_selected_node()
+	if node: self._expand_children(node)
+    def expand_top(self, event=None): self._expand_children(self.root())
 
 
 class BookmarksMenuLeaf:
@@ -1215,19 +1114,18 @@ class BookmarksMenu:
 	# delete any old existing bookmark entries
 	last = self._menu.index('end')
 	if last > 2: self._menu.delete(3, 'end')
-	# get the root of the current tree from the controller,
-	# telling it to load the tree if necessary.
-	if not self._controller.root():
-	    try: self._controller.load_default()
-	    except BookmarkFormatError: pass
-	if self._controller.root():
-	    viewer = BookmarksMenuViewer(self._controller, self._menu)
-	    viewer.populate()
+	# First make sure the controller has initialized
+	self._controller.initialize()
+	viewer = BookmarksMenuViewer(self._controller, self._menu)
+	viewer.populate()
 
     def show(self, event=None):
-	if not self._controller.root(): self._controller.load_default()
+	# make sure controller is initialized
+	self._controller.initialize()
 	self._controller.show()
 
     def add_current(self, event=None):
-	if not self._controller.root(): self._controller.load_default()
+	# make sure controller is initialized
+	self._controller.initialize()
 	self._controller.add_current()
+	self._controller.save()

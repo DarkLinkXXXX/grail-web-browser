@@ -75,8 +75,6 @@ class OutlinerNode:
 
 
 class OutlinerViewer:
-    _gcounter = 0
-
     def __init__(self, root):
 	self._root = root
 	self._nodes = []
@@ -93,6 +91,14 @@ class OutlinerViewer:
 	"""Derived class specialization"""
 	pass
 
+    def _select(self, index):
+	"""Derived class specialization"""
+	pass
+
+    def _clear(self):
+	"""Derived class specialization"""
+	pass
+
     def _populate(self, node):
 	# insert into linear list
 	self._nodes.append(node)
@@ -105,7 +111,12 @@ class OutlinerViewer:
 		self._populate(child)
 
     def populate(self):
+	self._gcounter = 0
 	self._populate(self._root)
+
+    def clear(self):
+	self._clear()
+	self._nodes = []
 
     def insert_nodes(self, at_index, node_list, before_p=False):
 	if not before_p: at_index = at_index + 1
@@ -127,7 +138,7 @@ class OutlinerViewer:
 
     def update_node(self, node):
 	index = node.index()
-	# TBD: is there a more efficient way of doing this!
+	# TBD: is there a more efficient way of doing this?
 	self._delete(index)
 	self._insert(node, index)
 
@@ -142,8 +153,163 @@ class OutlinerViewer:
 	self._gcounter = node.index() + 1
 	self._expand(node)
 
+    def select_node(self, node):
+	self._select(node.index())
+
     def node(self, index):
 	if 0 <= index < len(self._nodes): return self._nodes[index]
 	else: return None
 
     def count(self): return len(self._nodes)
+
+
+class OutlinerController:
+    def __init__(self, root=None, viewer=None):
+	self._viewer = viewer
+	self._root = root
+	self._aggressive_p = None
+	if not root: self._root = OutlinerNode()
+	if not viewer: self._viewer = OutlinerViewer(self._root)
+
+    def root(self): return self._root
+    def set_root(self, newroot):
+	self._root.close()
+	self._root = newroot
+    def root_redisplay(self):
+	self._viewer.clear()
+	self._viewer.populate()
+
+    def viewer(self): return self._viewer
+    def set_viewer(self, viewer): self._viewer = viewer
+
+    def set_aggressive_collapse(self, flag): self._aggressive_p = flag
+    def aggressive_collapse_p(self): return self._aggressive_p
+
+    def _sibi(self, node):
+	parent = node.parent()
+	if not parent: return (None, None, [])
+	sibs = parent.children()
+	sibi = sibs.index(node)
+	return parent, sibi, sibs
+
+    def collapsable_p(self, node):
+	# This node is only collapsable if it is an unexpanded branch
+	# node, or the aggressive collapse flag is set.
+	if node.leaf_p() or not node.expanded_p(): return False
+	else: return True
+
+    def collapse_node(self, node):
+	if not self.collapsable_p(node):
+	    if self.aggressive_collapse_p():
+		node = node.parent()
+		if not self.collapsable_p(node): return
+	    else: return
+	node.collapse()
+	self.root_redisplay()
+	return node
+
+    def expand_node(self, node):
+	# don't expand a leaf or an already expanded node
+	if node.leaf_p() or node.expanded_p(): return
+	# now toggle the expanded flag and update the listbox
+	node.expand()
+	self.root_redisplay()
+
+    def shift_left(self, node):
+	# find the index of the node in the sib list.
+	parent, sibi, sibs = self._sibi(node)
+	if not parent: return
+	grandparent, parenti, aunts = self._sibi(parent)
+	if not grandparent: return
+	# node now becomes a sibling of it's parent, and all of node's
+	# later siblings become the node's children
+	parent.del_child(node)
+	grandparent.insert_child(node, parenti+1)
+	if sibi < len(sibs):
+	    for sib in sibs[sibi:]:
+		parent.del_child(sib)
+		node.append_child(sib)
+	self.root_redisplay()
+
+    def shift_right(self, node):
+	# find the index of the node in the sib list.
+	parent, sibi, sibs = self._sibi(node)
+	# cannot shift right the first child in the sib list
+	if sibi == 0: return
+	# reparent the node such that it is now the child of the
+	# preceding sibling in the sib list
+	newparent = sibs[sibi-1]
+	parent.del_child(node)
+	newparent.append_child(node)
+	newparent.expand()
+	# update the viewer
+	self.root_redisplay()
+
+    def shift_up(self, node):
+	# find the viewer index of the node, and get the node just
+	# above it.  if it's the first visible node, it cannot be
+	# shifted up.
+	nodevi = node.index()
+	if nodevi == 0: return
+	above = self._viewer.node(nodevi-1)
+	parent, sibi, sibs = self._sibi(node)
+	if not parent: return
+	# if node and above are at the same depth, just rearrange
+	if node.depth() == above.depth():
+	    parent.del_child(node)
+	    parent.insert_child(node, sibi-1)
+	# if node is deeper than above, node becomes a sibling of
+	# above and move just above *it*
+	elif node.depth() > above.depth():
+	    aparent, asibi, asibs = self._sibi(above)
+	    if not aparent: return
+	    parent.del_child(node)
+	    aparent.insert_child(node, asibi)
+	    aparent.expand()
+	# if above is deeper than node, then above becomes a sibling
+	# of node and gets appended to the end of node's sibling list.
+	else:
+	    aparent, asibi, asibs = self._sibi(above)
+	    if not aparent: return
+	    parent.del_child(node)
+	    aparent.append_child(node)
+	    aparent.expand()
+	self.root_redisplay()
+
+    def shift_down(self, node):
+	# find the viewer index of the node, and get the node just
+	# below it.  if it's the last visible node, it cannot be
+	# shifted down.
+	nodevi = node.index()
+	if nodevi >= self._viewer.count()-1: return
+	below = self._viewer.node(nodevi+1)
+	parent, sibi, sibs = self._sibi(node)
+	if not parent: return
+	# if node and below are at the same depth, then what happens
+	# depends on the state of below.  If below is an expanded
+	# branch, then node becomes it's first sibling, otherwise it
+	# just swaps places
+	if node.depth() == below.depth():
+	    if not below.leaf_p() and below.expanded_p():
+		parent.del_child(node)
+		below.insert_child(node, 0)
+	    else:
+		parent.del_child(node)
+		parent.insert_child(node, sibi+1)
+	# if node is deeper than below, node becomes a sibling of it's parent
+	elif node.depth() > below.depth():
+	    grandparent, parenti, aunts = self._sibi(parent)
+	    if not grandparent: return
+	    parent.del_child(node)
+	    grandparent.insert_child(node, parenti+1)
+	# if below is deeper than node, then node actually swaps
+	# places with it's next sibling
+	else:
+	    # if it's the last of the sibling, then it actually shifts left
+	    if sibi >= len(sibs)-1:
+		self.shift_left(node)
+		return
+	    else:
+		parent.del_child(node)
+		parent.insert_child(node, sibi+1)
+	self.root_redisplay()
