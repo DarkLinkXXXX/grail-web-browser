@@ -960,8 +960,9 @@ class ViewerMenu:
         try:
             bmarks = self.__context.browser.app.bookmarks_controller
         except AttributeError:
-            import Bookmarks
-            bmarks = Bookmarks.BookmarksController(self.__context.browser.app)
+            import BookmarksGUI
+            bmarks = BookmarksGUI.BookmarksController(
+                self.__context.browser.app)
             self.__context.browser.app.bookmarks_controller = bmarks
         bmarks.add_link(self.__context.get_baseurl(self.__link_url))
 

@@ -184,8 +184,8 @@ class Browser:
 
     def create_menu_bookmarks(self, menu):
         menu.grail_browser = self # Applet compatibility
-        import Bookmarks
-        self.bookmarksmenu_menu = Bookmarks.BookmarksMenu(menu)
+        import BookmarksGUI
+        self.bookmarksmenu_menu = BookmarksGUI.BookmarksMenu(menu)
 
     def create_menu_preferences(self, menu):
         from PrefsPanels import PrefsPanelsMenu
