@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.23 1996/04/09 17:11:54 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.24 1996/04/09 21:40:49 bwarsaw Exp $'
 
 
 import string
@@ -382,6 +382,11 @@ class Table(AttrElem):
 			cell.close()
 		    else:
 			table[(row, col)] = cell
+			# adjust the cell's colspan and rowspan
+			# attributes so they aren't larger than the
+			# table itself.
+			cell.rowspan = min(cell.rowspan, rowcount-row)
+			cell.colspan = min(cell.colspan, colcount-col)
 		    # the cell could span multiple columns. TBD: yick!
 		    for cs in range(col+1, col + cell.colspan):
 			table[(row, cs)] = OCCUPIED
@@ -832,7 +837,8 @@ class Cell(ContainedText):
 	pass
 
     def __repr__(self):
-	return '<%s>' % id(self) + '"%s"' % self._tw.get(1.0, END)[:-1]
+##	return '<%s>' % id(self) + '"%s"' % self._tw.get(1.0, END)[:-1]
+	return '"%s"' % self._tw.get(1.0, END)[:-1]
 
     def is_empty(self):
 	return not self._tw.get(1.0, 'end - 1 c')
