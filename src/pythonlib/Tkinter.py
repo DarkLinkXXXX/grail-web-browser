@@ -1356,7 +1356,13 @@ class PhotoImage(Image):
 			args = args + to
 		apply(self.tk.call, args)
 	# XXX read
-	# XXX write
+	def write(self, filename, format=None, from_coords=None):
+		args = (self.name, 'write', filename)
+		if format:
+			args = args + ('-format', format)
+		if from_coords:
+			args = args + ('-from',) + tuple(from_coords)
+		apply(self.tk.call, args)
 
 class BitmapImage(Image):
 	def __init__(self, name=None, cnf={}, **kw):
