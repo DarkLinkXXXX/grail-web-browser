@@ -3,19 +3,13 @@
 XXX TO DO:
 
 - METHOD=POST
-- <TEXTAREA>
-
-XXX less urgent to do:
-
-- pop-up menus in <SELECT>
-- map return to tab if there are multiple text input fields???
-- scrollbars in <SELECT> listboxes
 
 """
 
 import string
 from Tkinter import *
 import urllib
+import tktools
 
 # ------ Forms
 
@@ -191,12 +185,14 @@ class FormInfo:
 	    self.select.do_option(value, selected)
 
     def start_textarea(self, name, rows, cols):
-	self.parser.start_pre([])	# XXX
+	self.textarea = Textarea(self, name, rows, cols)
 
     def end_textarea(self):
-	self.parser.end_pre()		# XXX
+	if self.textarea:
+	    self.textarea.done()
+	    self.textarea = None
 
-    # The following classes are nested with a reason!
+    # The following classes are nested so we can use getattr(self, 'Input...')
 
     class Input:
 
@@ -343,30 +339,82 @@ class Select:
 
     def done(self):
 	self.end_option()
-	size = self.size or 4
+	if not len(self.options):
+	    self.w = None
+	    return
+	any = 0
+	for v, s, t in self.options:
+	    if s: any = 1
+	if not any:
+	    v, s, t = self.options[0]
+	    self.options[0] = v, 1, t
+	size = self.size
+	if size <= 0:
+	    if self.multiple: size = 4
+	    else: size = 1
 	size = min(len(self.options), size)
-	size = max(1, size)
-	self.w = Listbox(self.viewer.text, height=size, exportselection=0)
+	if size == 1 and not self.multiple:
+	    self.make_menu()
+	else:
+	    self.make_list(size)
+
+    def make_menu(self):
+	self.v = StringVar()
+	self.v.set(self.name)
+	values = tuple(map(lambda (v,s,t): t, self.options))
+	self.w = apply(OptionMenu,
+		       (self.viewer.text, self.v) + values)
+	self.reset_menu()
+	self.fi.inputs.append(self)
+	self.parser.add_subwindow(self.w)
+
+    def make_list(self, size):
+	self.v = None
+	needvbar = len(self.options) > size
+	self.w, self.frame = tktools.make_list_box(self.viewer.text,
+						   height=size,
+						   vbar=needvbar)
+	self.w['exportselection'] = 0
 	if self.multiple:
 	    self.w['selectmode'] = 'extended'
 	for v, s, t in self.options:
 	    self.w.insert(END, t)
-	self.reset()
+	self.reset_list()
 	self.fi.inputs.append(self)
-	self.parser.add_subwindow(self.w)
+	self.parser.add_subwindow(self.frame)
 
     def reset(self):
+	if not self.w: return
+	if self.v:
+	    self.reset_menu()
+	else:
+	    self.reset_list()
+
+    def reset_menu(self):
+	for v, s, t in self.options:
+	    if s:
+		self.v.set(t)
+		break
+
+    def reset_list(self):
 	self.w.select_clear(0, END)
-	any = 0
 	for i in range(len(self.options)):
 	    v, s, t = self.options[i]
 	    if s:
 		self.w.select_set(i)
-		any = 1
-	if not any and self.options:
-	    self.w.select_set(0)
 
     def get(self):
+	if not self.w: return None
+	if self.v: return self.get_menu()
+	else: return self.get_list()
+
+    def get_menu(self):
+	text = self.v.get()
+	for v, s, t in self.options:
+	    if text == t: return v or t
+	return None
+
+    def get_list(self):
 	list = []
 	for i in range(len(self.options)):
 	    v, s, t = self.options[i]
@@ -380,11 +428,46 @@ class Select:
 	self.option = (value, selected)
 
     def end_option(self):
-	text = self.parser.save_end()
+	data = self.parser.save_end()
 	if self.option:
 	    value, selected = self.option
 	    self.option = None
-	    self.options.append((value, selected, text))
+	    self.options.append((value, selected, data))
+
+
+class Textarea:
+
+    def __init__(self, fi, name, rows, cols):
+	self.fi = fi
+	self.parser = fi.parser
+	self.viewer = fi.viewer
+	self.name = name
+	self.rows = rows
+	self.cols = cols
+	self.parser.nofill = self.parser.nofill+1
+	self.parser.save_bgn()
+
+    def done(self):
+	data = self.parser.save_end()
+	self.parser.nofill = max(0, self.parser.nofill-1)
+	if data[:1] == '\n': data = data[1:]
+	if data[-1:] == '\n': data = data[:-1]
+	self.w, self.frame = tktools.make_text_box(self.viewer.text,
+						   width=self.cols,
+						   height=self.rows,
+						   hbar=1, vbar=1)
+	self.w['wrap'] = NONE
+	self.data = data
+	self.reset()
+	self.fi.inputs.append(self)
+	self.parser.add_subwindow(self.frame)
+
+    def reset(self):
+	self.w.delete("1.0", END)
+	self.w.insert(END, self.data)
+
+    def get(self):
+	return self.w.get("1.0", END)
 
 
 def quote(s):
