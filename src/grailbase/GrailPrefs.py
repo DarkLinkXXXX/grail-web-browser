@@ -18,7 +18,7 @@ exception.
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.3 $"
+__version__ = "$Revision: 2.4 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
@@ -186,7 +186,7 @@ class AllPreferences:
 	    return (val and 1 or None)
 	except ValueError:
 	    raise TypeError, ('%s not %s: %s'
-			      % ((group, pref), "Boolean", `val`))
+			      % ((group, pref), "Boolean", `valstr`))
 
     # Editing utensils.
 
