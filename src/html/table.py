@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.26 1996/04/10 16:59:35 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.27 1996/04/10 19:25:25 bwarsaw Exp $'
 
 
 import string
@@ -43,6 +43,8 @@ class TableSubParser:
 	    if self._table_stack:
 		self._lasttable = self._table_stack[-1]
 		del self._table_stack[-1]
+	    else:
+		self._lasttable = None
 
     def start_caption(self, parser, attrs):
 	ti = self._lasttable 
@@ -223,6 +225,7 @@ class Table(AttrElem):
 	AttrElem.__init__(self, attrs)
 	self.parentviewer = parentviewer
 	self._parenttable = parenttable
+	self._cleared = None
 	# attributes
 	def conv_align(val):
 	    return grailutil.conv_enumeration(
@@ -326,6 +329,8 @@ class Table(AttrElem):
 	    self._mapped = 1
 	
     def finish(self):
+	if self._cleared:
+	    return
 	if self.layout == AUTOLAYOUT:
 	    self._mappos = self.parentviewer.text.index('end - 1 c')
 	    if self._mappos == '1.0': nls = 1
@@ -593,7 +598,8 @@ class Table(AttrElem):
 
     def _reset(self, viewer):
 	# called when the viewer is cleared
-## 	print '_reset:', viewer
+	self._cleared = 1
+##  	print '_reset:', self, viewer, self._cleared
 	self.parentviewer.context.unregister_notification(self._notify)
 	self.parentviewer.unregister_reset_interest(self._reset)
 	self.parentviewer.unregister_resize_interest(self._resize)
