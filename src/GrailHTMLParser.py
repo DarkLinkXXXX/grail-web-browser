@@ -213,7 +213,7 @@ class GrailHTMLParser(HTMLParser):
     def handle_image(self, src, alt, usemap, ismap, align, width,
 		     height, border=2, reload):
 	from ImageWindow import ImageWindow
-	window = ImageWindow(self.viewer, self.anchor, src, alt,
+	window = ImageWindow(self.viewer, self.anchor, src, alt or "(Image)",
 			     usemap, ismap, align, width, height,
 			     border, self.target, reload)
 	self.add_subwindow(window, align=align)
