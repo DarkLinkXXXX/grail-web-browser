@@ -5,6 +5,7 @@ from Tkinter import *
 import tktools
 import formatter
 import string
+from string import strip
 from Context import Context
 from Cursors import *
 from types import StringType
@@ -338,7 +339,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text['state'] = NORMAL
 
     def freeze(self):
-	if self.pendingdata and string.strip(self.pendingdata):
+	if self.pendingdata and strip(self.pendingdata):
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 	if self.smoothscroll:
@@ -352,15 +353,6 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 
-    def new_tags(self):
-	if self.pendingdata and string.strip(self.pendingdata):
-	    self.text.insert(END, self.pendingdata, self.flowingtags)
-	    self.pendingdata = ''
-	self.flowingtags = filter(
-	    None,
-	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
-	    + self.addtags)
-
     def scroll_page_down(self, event=None):
 	self.text.tk.call('tkScrollByPages', self.text.vbar, 'v', 1)
 
@@ -372,6 +364,15 @@ class Viewer(formatter.AbstractWriter):
 
     def scroll_line_up(self, event=None):
 	self.text.tk.call('tkScrollByUnits', self.text.vbar, 'v', -1)
+
+    def new_tags(self, doit_now = 0):
+	if self.pendingdata and strip(self.pendingdata):
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
+	self.flowingtags = filter(
+	    None,
+	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
+	    + self.addtags)
 
     # AbstractWriter methods
 
@@ -406,7 +407,13 @@ class Viewer(formatter.AbstractWriter):
     def new_styles(self, styles):
 ##	print 'New styles:', styles
 	self.addtags = styles
-	self.new_tags()
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
+	self.flowingtags = filter(
+	    None,
+	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
+	    + styles)
 
     def send_paragraph(self, blankline):
 	self.pendingdata = self.pendingdata + ('\n' * blankline)
@@ -446,24 +453,28 @@ class Viewer(formatter.AbstractWriter):
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
-	if self.pendingdata:
-	    self.text.insert(END, self.pendingdata, self.flowingtags)
-	    self.pendingdata = ''
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
 	data_type = type(data)
 	if data_type is StringType:
-	    self.text.insert(END, '\t%s\t' % data, tags)
+	    self.text.insert(END, self.pendingdata, self.flowingtags,
+			     '\t%s\t' % data, tags)
+	    self.pendingdata = ''
 	elif data_type is TupleType:
 	    #  (string, fonttag) pair
-	    if data[1]:
-		self.text.insert(END, '\t', tags)
-		self.text.insert(END, data[0], tags + (data[1],))
+	    data, fonttag = data
+	    if data:
+		self.text.insert(END, self.pendingdata, self.flowingtags,
+				 '\t', tags,
+				 data, tags + (fonttag,))
 		self.pendingdata = '\t'
 	    else:
-		self.text.insert(END, '\t%s\t' % data[0], tags)
+		self.text.insert(END, self.pendingdata, self.flowingtags,
+				 '\t%s\t' % data, tags)
+		self.pendingdata = ''
 	elif data_type is InstanceType:
 	    #  Some sort of image specified by DINGBAT or SRC
-	    self.text.insert(END, '\t', tags)
+	    self.text.insert(END, self.pendingdata, self.flowingtags,
+			     '\t', tags)
 	    window = Label(self.text, image = data,
 			   background = self.text['background'],
 			   borderwidth = 0)
@@ -476,19 +487,14 @@ class Viewer(formatter.AbstractWriter):
 
     def send_literal_data(self, data):
 ##	print "Literal data:", `data`, self.literaltags
-	if self.pendingdata:
-	    self.text.insert(END, self.pendingdata, self.flowingtags)
-	    self.pendingdata = ''
-	self.text.insert(END, data, self.flowingtags + ('pre',))
+	self.text.insert(END, self.pendingdata, self.flowingtags,
+			 data, self.flowingtags + ('pre',))
+	self.pendingdata = ''
 
     # Viewer's own methods
 
     def anchor_enter(self, event):
 	url, target = self.split_target(self.find_tag_url())
-	#if url:
-	#    if url[0] != '#':
-	#	url = self.context.get_baseurl(url)
-	#else:
 	url = url or "???"
 	if not target:
 	    target = self.context.get_target()
