@@ -38,9 +38,9 @@ class SearchDialog:
 
     def __init__(self, browser):
 	self.browser = browser
-	self.root = Toplevel(browser.root)
-	self.root.title("Search dialog")
+	self.root = tktools.make_toplevel(browser.root, title="Search Dialog")
 	self.create_widgets()
+	tktools.set_transient(self.root, browser.root, rely=0.0)
 
     def create_widgets(self):
 	self.pat_entry, self.pat_frame = tktools.make_form_entry(
