@@ -86,6 +86,15 @@ class HTMLParser(SGMLParser):
 	    data = string.join(string.split(data))
 	return data
 
+    def push_nofill(self):
+        self.nofill = self.nofill + 1
+	self.handle_data = self.formatter.add_literal_data
+
+    def pop_nofill(self):
+        self.nofill = max(0, self.nofill - 1)
+	if not self.nofill:
+	    self.handle_data = self.formatter.add_flowing_data
+
     # --- Hooks for anchors; should probably be overridden
 
     def anchor_bgn(self, href, name, type):
@@ -245,15 +254,12 @@ class HTMLParser(SGMLParser):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font((AS_IS, AS_IS, AS_IS, 1))
-        self.nofill = self.nofill + 1
-	self.handle_data = self.formatter.add_literal_data
+	self.push_nofill()
 
     def end_pre(self):
+	self.pop_nofill()
         self.formatter.end_paragraph(1)
         self.formatter.pop_font()
-        self.nofill = max(0, self.nofill - 1)
-	if not self.nofill:
-	    self.handle_data = self.formatter.add_flowing_data
 
     def start_xmp(self, attrs):
         self.start_pre(attrs)
