@@ -2,7 +2,13 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-"""mailto: URI scheme handler."""
+"""mailto: URI scheme handler.
+
+This implementation supports the extended mailto: url scheme described in
+ftp://ds.internic.net/internet-drafts/draft-hoffman-mailto-url-01.txt.  This
+document is a work in progress, but reflects a generalization of common
+practice in Web user agents.
+"""
 
 from Tkinter import *
 import tktools
@@ -70,6 +76,10 @@ X-Mailer: %(mailer)s
 X-URL: %(url)s
 """
 
+DISALLOWED_HEADERS = ['from', 'appearantly-to', 'bcc', 'content-length',
+		      'content-type', 'mime-version', 'to',
+		      'content-transfer-encoding', 'x-mailer', 'x-url']
+
 
 class MailDialog:
 
@@ -89,6 +99,7 @@ class MailDialog:
 	self.root.bind("<Alt-W>", self.cancel_command)
 	fr, top, botframe = tktools.make_double_frame(self.root)
 	self.text, fr = tktools.make_text_box(top, 80, 24)
+	self.text.tag_config('SUSPICIOUS_HEADER', foreground='red')
 	self.send_button = Button(botframe,
 				  text="Send",
 				  command=self.send_command)
@@ -110,19 +121,29 @@ Content-Transfer-Encoding: 7bit""",
 	    }
 	# move default set of query'd headers into variables
 	for header, vlist in headers.items():
-	    if variables.has_key(header):
-		variables[header] = vlist[0] # throw away duplicates
+	    header = string.lower(header)
+	    if variables.has_key(header) and header != 'body':
+		if header not in DISALLOWED_HEADERS:
+		    variables[header] = vlist[0] # throw away duplicates
 		del headers[header]
 	self.text.insert(END, self.template % variables)
 	# insert extra headers
 	for header, vlist in headers.items():
-	    value = vlist[0]		# throw away duplicates
-	    self.text.insert(END, '%s: %s\n' % (capwords(header, '-'), value))
+	    header = string.lower(header)
+	    if header != 'body' and header not in DISALLOWED_HEADERS:
+		value = vlist[0]		# throw away duplicates
+		s = '%s: %s\n' % (capwords(header, '-'), value)
+		if header == 'keywords':
+		    self.text.insert(END, s)
+		else:
+		    self.text.insert(END, s, "SUSPICIOUS_HEADER")
 	# insert newline
-	self.text.insert(END, '\n')
+	self.text.insert(END, '\n', ())
 	# insert data
 	if data:
 	    self.text.insert(END, data)
+	elif headers.has_key('body'):
+	    self.text.insert(END, headers['body'][0] + '\n')
 
     def send_command(self):
 	message = self.text.get("1.0", END)
