@@ -126,7 +126,7 @@ class CacheManager:
 	    elif not self.fresh_p(key):
 		# is this direct reference to the headers dangerous?
 		item.refresh(self.items[key].lastmod)
-		self.touch(key)
+		self.touch(key,refresh=1)
 	else:
 	    # cause item to be loaded (and perhaps cached)
 	    item = CacheItem(url, mode, params, self, key, data)
@@ -165,12 +165,12 @@ class CacheManager:
 	else:
 	    return None
 
-    def touch(self,key=None,url=None):
+    def touch(self,key=None,url=None,refresh=0):
 	"""Calls touch() method of CacheEntry object."""
 	if url:
 	    key = self.url2key(url,'GET',{})
 	if key and self.items.has_key(key):
-	    self.items[key].touch()
+	    self.items[key].touch(refresh)
 
     def expire(self,key):
 	"""Should not be used."""
@@ -405,9 +405,11 @@ class DiskCacheEntry:
 				self.type, self.date, self.size)
 	return api
 
-    def touch(self):
+    def touch(self,refresh=0):
 	"""Change the date of most recent check with server."""
 	self.date = HTTime(secs=time.time())
+	if refresh:
+	    self.cache.log_entry(self)
 
     def delete(self):
 	pass
