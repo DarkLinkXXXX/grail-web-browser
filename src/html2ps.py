@@ -8,7 +8,10 @@ AbstractWriter, called PSWriter, that supports this high level
 interface as appropriate for PostScript generation.
 """
 
-__version__ = "$Id: html2ps.py,v 1.12 1995/09/14 20:37:49 bwarsaw Exp $"
+__version__ = """
+$Id: html2ps.py,v 2.0 1995/09/14 21:57:47 bwarsaw Exp $
+"""
+
 
 import sys
 import string
@@ -16,9 +19,11 @@ import StringIO
 import regsub
 from formatter import *
 
+
+
+# debugging
 RECT_DEBUG = 0
 DEBUG = 0
-LP_COMMAND = 'lp -d tps'
 
 def _debug(text):
     if DEBUG:
@@ -26,12 +31,17 @@ def _debug(text):
 	sys.stderr.flush()
 
 
-# Font Dictionary.  Key is the short name describing the font, value
-# is a 5-tuple indicating the real name of the font, then the regular,
-# bold, and italic modifiers of the font.  Note that if their is no
-# regular name modifier, then use the empty string, but if there is a
-# regular name modifier, make sure it includes a leading dash.  Other
-# modifiers should not include the dash.
+# Font definitions and metrics.
+
+# This dictionary maps PostScript font names to the normal, bold and
+# italic suffixes for the font.  Key is the short name describing the
+# font, value is a tuple indicating the real name of the font (for
+# mapping fonts to other fonts), then the regular, bold, and italic
+# suffix modifiers of the font.  Note that if their is no regular name
+# modifier, then use the empty string, but if there is a regular name
+# modifier, make sure it includes a leading dash.  Other modifiers
+# should not include the dash.
+
 fonts = {
     'Times':            (None, '-Roman', 'Bold', 'Italic'),
     'Helvetica':        (None, '',       'Bold', 'Oblique'),
@@ -40,15 +50,24 @@ fonts = {
     # The code from HTML-PSformat.c says:
     # "This is a nasty trick, I have put Times in place of Lucida,
     # because most printers don't have Lucida font"
-    # Hmm...
+    # Hmm...  -BAW
     #'Lucida':           ('Times', None, 'Bold', 'Italic'),
     'Lucida':           (None, '', 'Bold', 'Italic'),
     }
 
-# contains mappings of font family to font metrics dictionary.  each
-# dictionary contains a mapping between characters in the 0-256 range
-# and their widths in points.  it is assumed that different font sizes
-# scale these widths linearly
+# The font family to font metrics dictionaries.  Each dictionary
+# contains a mapping between characters in the 0-256 range and their
+# widths in points.  It is assumed that different font sizes scale
+# these widths linearly, but this is not actually the case.  Close
+# enough for jazz.
+#
+# Oh, and yes I hand calculated these based on my printer's output.
+# It's certainly possible I got some of these wrong, and in fact I'm
+# seeing about a 10% deviation in calculated size to actual size (the
+# latter coming up 10% less that the former).  Don't know why that is
+# exactly, but I suspect it's some incorrect values in the numbers
+# below.
+
 font_metrics = {}
 
 # 12 point, fixed width font metrics, all chars are the same width.
@@ -58,6 +77,7 @@ font_metrics = {}
 #font_metrics['Courier'] = courier_charmap
 font_metrics['Courier'] = 7.2
 
+# Standard variable width font is Helvetica
 helv_charmap = {}
 def fill_hfm(clist, psz):
     for c in clist: helv_charmap[c] = psz
@@ -95,8 +115,10 @@ fill_hfm(['|'], 3.15)
 #	raise KeyError, c
 font_metrics['Helvetica'] = helv_charmap
 
-# some of the Helvetica Bold characters are a bit wider than their
-# non-bold parallels.
+# Some of the Helvetica Bold characters are a bit wider than their
+# normal versions.  However there seems to be no difference in metrics
+# imposed by the italics modifier
+
 helv_bold_charmap = {}
 for c in helv_charmap.keys():
     helv_bold_charmap[c] = helv_charmap[c]
@@ -119,30 +141,54 @@ fill_hbfm(['|'], 3.4875)
 
 font_metrics['Helvetica-Bold'] = helv_bold_charmap
 
+# Mappings between HTML header tags and font sizes
+# The values used by Mosaic
+#font_sizes = {
+#    None: 12,
+#    'h1': 36,
+#    'h2': 24,
+#    'h3': 18,
+#    'h4': 14,
+#    'h5': 12,
+#    'h6': 10
+#    }
 
+# The values used by Grail
 font_sizes = {
     None: 12,
-    'h1': 36,
-    'h2': 24,
-    'h3': 18,
-    'h4': 14,
-    'h5': 12,
+    'h1': 18,
+    'h2': 14,
+    'h3': 12,
+    'h4': 10,
+    'h5': 10,
     'h6': 10
     }
 
 
-ruler = [1, 16, 8, 16, 4, 16, 8, 16, 2, 16, 8, 16, 4, 16, 8, 16]
-ruler = map(lambda(x): 72.0/(x*2.0), ruler)
+# Ruler stuff, not used...
+#ruler = [1, 16, 8, 16, 4, 16, 8, 16, 2, 16, 8, 16, 4, 16, 8, 16]
+#ruler = map(lambda(x): 72.0/(x*2.0), ruler)
+
 
 
-# contants
+# Page layout and other contants.  Some of this stuff is carried over
+# from HTML-PSformat.c and perhaps no longer relevent
+
+# TBD: This is a kludge!  See the note at the top of the font metrics
+# page above.  Once I figure out the bug, I will get rid of this hack.
 FONT_METRIC_SCALE_FACTOR = 0.9
-PS_HEADER_FILE = 'header.ps'
-ISO_LATIN1_FILE = 'latin1.ps'
+
+# Regular expressions.
 CR = '\015'
 LF = '\012'
 CRLF_re = '%c\\|%c' % (CR, LF)
 
+L_PAREN = '('
+R_PAREN = ')'
+B_SLASH = '\\\\'
+QUOTE_re = '\\(%c\\|%c\\|%s\\)' % (L_PAREN, R_PAREN, B_SLASH)
+
+MAX_ASCII = '\177'
 
 # the next page sizes are a compromise between letter sized paper
 # (215.9 x 279.4 mm) and european standard A4 sized paper (210.0 x
@@ -166,27 +212,48 @@ HR_BOT_MARGIN = 8.0
 # distance after a label tag in points
 LABEL_TAB = 8.0
 
+# I don't support color yet
 F_FULLCOLOR = 0
 F_GREYSCALE = 1
 F_BWDITHER = 2
 F_REDUCED = 3
 
-L_PAREN = '('
-R_PAREN = ')'
-B_SLASH = '\\\\'
-QUOTE_re = '\\(%c\\|%c\\|%s\\)' % (L_PAREN, R_PAREN, B_SLASH)
-
-MAX_ASCII = '\177'
-
 
 
 class PSFont:
-    """Manages fonts and associated metrics for PostScript output."""
+    """This class manages font changes and calculation of associated
+    metrics for PostScript output.  It basically defines a mapping
+    between a PostScript definition for a font and a short name used
+    by PostScript functions defined in the header template.
+
+    When the font is created, it is passed the name of a variable
+    width family and a fixed width family.  Those are the only
+    configuration options you have.  Should probably allow a scaling
+    factor to be passed in, mapping GUI dpi to PostScript dpi, but
+    that would have to be calculated by Grail for the underlying GUI.
+
+    Exported methods:
+
+       __init__(optional: VARIFAMILY, FIXEDFAMILY)
+       set_font((SIZE, ITALIC?, BOLD?, TT?)) ==> (PSFONTNAME, SIZE)
+       text_width(TEXT) ==> WIDTH_IN_POINTS
+       font_size(optional: (SIZE, ITALIC?, BOLD?, TT?)) ==> SZ_IN_POINTS
+
+    Exported ivars:
+
+       space_width  --> width in points of a single space
+
+    """
     def __init__(self, varifamily='Helvetica', fixedfamily='Courier'):
+	"""Create a font definition using VARIFAMILY as the variable
+	width font and FIXEDFAMILY as the fixed width font.  Defaults
+	to Helvetica and Courier respectively.
+	"""
 	# current font is a tuple of size, family, italic, bold
 	self.vfamily = varifamily
 	self.ffamily = fixedfamily
 	self.font = (12, 'FONTV', '', '')
+
 	# TBD: this number is slightly bogus, but the rational is
 	# thus.  The original code was tied fairly closely with X so
 	# it had to map screen resolutions to PostScript.  I don't
@@ -195,8 +262,10 @@ class PSFont:
 	# that the hardcopy will probably not be formatted exactly as
 	# it appears on the screen, but I believe that is appropriate.
 	# Should we decide to change that, this scaling factor may
-	# come into play.
+	# come into play, but should probably be passed in from Grail,
+	# since only it can interface to the underlying window system.
 	self.points_per_pixel = 72.0 / 72.0
+
 	# calculate document fonts
 	if not fonts.has_key(self.vfamily): self.vfamily = 'Helvetica'
 	if not fonts.has_key(self.ffamily): self.ffamily = 'Courier'
@@ -205,10 +274,10 @@ class PSFont:
 	# fonts may be mapped to other fonts
 	if not vrealname: vrealname = self.vfamily
 	if not frealname: frealname = self.ffamily
+
 	# gather appropriate metrics
 	try: fmetrics = font_metrics[frealname]
 	except KeyError: fmetrics = font_metrics['Courier']
-
 	if vbold:
 	    vmetricname = vrealname + '-Bold'
 	    if not font_metrics.has_key(vmetricname):
@@ -218,12 +287,14 @@ class PSFont:
 	    try: vmetrics = font_metrics[vrealname]
 	    except KeyError: vmetrics = font_metrics['Helvetica']
 	self.metrics = (vmetrics, fmetrics)
+
 	# calculate font names in PostScript space. Eight fonts are
 	# used, naming scheme is as follows.  All PostScript font
 	# name definitions start with `FONT', followed by `V' for the
 	# variable width font and `F' for the fixed width font.  `B'
 	# for the bold version, `I' for italics, and for the
-	# bold-italic version, `B' *must* preceed `I'
+	# bold-italic version, `B' *must* preceed `I'.  See
+	# header_template below for more info.
 	self.docfonts = {
 	    'FONTV':   '%s%s' % (vrealname, vreg),
 	    'FONTVB':  '%s-%s' % (vrealname, vbold),
@@ -238,18 +309,18 @@ class PSFont:
 	self.set_font((12, 'FONTV', '', ''))
 
     def set_font(self, font_tuple):
-	"""Set the current font to that specified by FONT_TUPLE, which is
-	of the form (SIZE, ITALIC-P, BOLD-P, TT-P).  Returns the
+	"""Set the current font to that specified by FONT_TUPLE, which
+	is of the form (SIZE, ITALIC?, BOLD?, TT?).  Returns the
 	PostScript layer name of the font, and the font size in
-	points.
-	"""
+	points.  """
+	# we *said* we wanted a tuple
 	if font_tuple is None: font_tuple = (None, None, None, None)
-	# get the current font and break up the arg
+	# get the current font and break up the tuple
 	cur_sz, cur_family, cur_italic, cur_bold = self.font
 	set_sz, set_italic, set_bold, set_tt = font_tuple
 	# calculate size
 	new_sz = self.font_size(font_tuple)
-	# calculate variable vs. fixed
+	# calculate variable vs. fixed base name
 	if set_tt:
 	    new_family = 'FONTF'
 	    self.metric = self.metrics[1]
@@ -272,12 +343,14 @@ class PSFont:
 	font = '%s%s%s' % (new_family, new_bold, new_italic)
 	# set the width of a space, an oft used `constant'
 	self.space_width = self.text_width(' ')
+	# return the PostScript font definition and the size in points
 	return (font, new_sz)
 
     def text_width(self, text):
-	"""Calculate the width of the given text in points using the
+	"""Calculate the width of the given TEXT in points using the
 	current font size and metrics.
 	"""
+	# optimization for fixed width fonts
 	if type(self.metric) == type(1.0):
 	    return len(text) * self.metric * self.font[0] / 12.0
 	else:
@@ -287,6 +360,8 @@ class PSFont:
 	    return cooked * FONT_METRIC_SCALE_FACTOR
 
     def font_size(self, font_tuple=None):
+	"""Return the size of the current font, or the font defined by
+	optional FONT_TUPLE if present."""
 	if not font_tuple: return self.font[0]
 	tuple_sz = font_tuple[0]
 	try:
@@ -296,6 +371,18 @@ class PSFont:
 
 
 
+# PSQueue class contains a queue of high level directives to the
+# PostScript generator.  This is necessary because some things you
+# just can't calculate until you've seen the end of the current line
+# (e.g. the vertical tab distance).  We actually make 3 passes through
+# the queue of directives.  The first just populates them via stream
+# of (Grail) consciousness... i.e. the PSWriter interface.  Next, we
+# scan through the queue generating such things as line breaks and
+# other non-linear directives.  Finally we cruise through the queue
+# generating PostScript code for each directive we find.  Turns out
+# not to be too slow, and it is very flexible and easy to add new
+# directives.
+
 tag_consts = """
 START = 0
 STRING = 1
@@ -318,7 +405,38 @@ for key, value in tags.items():
     if key != '__builtins__':
 	tags[value] = key
 
+
+
 class PSQueue:
+    """Class PSQueue manages a queue of high level PostScript
+    rendering directives as fed from the PSWriter interface to
+    AbstractWriter.  Because of complexities of PostScript generation,
+    two passes are made through the queue after initial population.
+    First the queue is scanned for line breaks and other non-linear
+    directives, and then it is scanned for direct translation to
+    PostScript code.
+
+    Exported methods:
+
+       __init__(PSFont_instance, OutputFileObject, optional: TITLE_STRING)
+       push_string(STRING)
+       push_font_change(FONT_TUPLE)
+       push_space(NUMBER_OF_SPACES)
+       push_horiz_rule()
+       push_end()
+       push_margin(INDENTATION_LEVEL)
+       push_label(BULLET_TAG)
+       push_hard_newline(NUMBER_OF_NEWLINES)
+       push_vtab(DISTANCE_IN_POINTS, optional:QUEUE_MARK)
+       push_underline(FLAG)
+       push_literal(FLAG)
+       mark() ==> QUEUE_MARK
+       pop(optional: TAG_TO_MATCH) ==> TOP_OF_QUEUE or None
+       break_lines()
+       write_to_postscript()
+
+    Exported ivars:
+    """
     def __init__(self, psfont, ofile, title=''):
 	self.queue = [(START, title)]
 	self.font = psfont
@@ -353,6 +471,14 @@ class PSQueue:
 	self.queue.append((HARD_NL, blanklines))
 
     def push_vtab(self, distance, atmark=None):
+	"""Push a VERT_TAB directive onto the queue, providing the
+	vertical DISTANCE in points.
+
+	Optional ATMARK is a queue mark as returned by the mark()
+	method, indicating a position into the queue at which to
+	insert the VERT_TAB directive.  Otherwise, append it to the
+	end of the queue.
+	"""
 	tag, info = self.pop(VERT_TAB)
 	if tag: distance = distance + info
 	if atmark: self.queue.insert(atmark, (VERT_TAB, distance))
@@ -369,9 +495,22 @@ class PSQueue:
 	self.queue.append((LITERAL, flag))
 
 
-    def mark(self): return len(self.queue)
+    def mark(self):
+	"""Return a queue mark, marking the current end of the queue.
+	This is appropriate for non-append inserts into the queue, if
+	the push_() method used supports inserts.
+	"""
+	return len(self.queue)
 
     def pop(self, tagmatch=None):
+	"""Pops the last element off of the queue and returns it.  If
+	an error occurs (i.e. the queue is empty), it returns the
+	tuple (None, None).
+
+	With optional TAGMATCH, only pop and return the last element
+	if its tag matches TAGMATCH, otherwise do not pop and return
+	(None, None).
+	"""
 	try:
 	    if not tagmatch or tagmatch == self.queue[-1][0]:
 		rtn = self.queue[-1]
@@ -381,6 +520,9 @@ class PSQueue:
 	except IndexError: return (None, None)
 
     def break_lines(self):
+	"""Perform first pass through directive queue.  You *must*
+	call this before calling write_to_postscript().
+	"""
 	nq = PSQueue(self.font, self.ofile, self.title)
 	xpos = 0.0
 	tallest = self.font.font_size()
@@ -475,9 +617,9 @@ class PSQueue:
 	self.queue = nq.queue
 
     def write_to_postscript(self):
-	"""By this time the queue accurately reflects the layout of the
-	page.  in other words, for each tag we see, just generate
-	the appropriate postscript calls.
+	"""Second pass through directive queue.  Actually generates
+	PostScript output based on the directives it finds.  Note that
+	you *must* call break_lines() before calling this method.
 	"""
 	# now scan through the queue
 	render_cmd = 'S'
@@ -607,6 +749,28 @@ class PSQueue:
 
 
 class PSWriter(AbstractWriter):
+    """Class PSWriter supports the backend interface expected by
+    Grail, actually the HTMLParser class.  It does this by deriving
+    from AbstractWriter and overriding methods to interface with the
+    PSQueue class, which performs the real PostScript work.
+
+    Exported methods:
+
+      __init__(OUTPUT_FILE_OBJECT, optional:TITLE)
+      close()
+      new_font(FONT_TUPLE)
+      new_margin(MARGIN_TAG(ignored) LEVEL)
+      new_spacing(SPACING)
+      new_styles(STYLE_TUPLE)
+      send_paragraph(NUMBER_OF_BLANKLINES)
+      send_line_break()
+      send_hor_rule()
+      send_label_data(LABEL_TAG)
+      send_flowing_data(TEXT)
+      send_literal_data(TEXT)
+
+    Exported ivars:
+    """
     def __init__(self, ofile, title=''):
 	font = PSFont()
 	self.ps = PSQueue(font, ofile, title)
@@ -652,13 +816,13 @@ class PSWriter(AbstractWriter):
 
     def send_flowing_data(self, data):
 	self.ps.push_literal(0)
-	self.write_text(data)
+	self._write_text(data)
 
     def send_literal_data(self, data):
 	self.ps.push_literal(1)
-	self.write_text(data)
+	self._write_text(data)
 
-    def write_text(self, data):
+    def _write_text(self, data):
 	lines = string.splitfields(data, '\n')
 	linecnt = len(lines)-1
 	for line in lines:
