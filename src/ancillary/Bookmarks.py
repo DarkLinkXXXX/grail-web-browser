@@ -414,7 +414,7 @@ class BookmarksIO:
 	else: filename = DEFAULT_GRAIL_BM_FILE
 	if not usedefault:
 	    loader = BMLoadDialog(self._frame, self._controller)
-	    filename = loader.go(filename, '*.html')
+	    filename = loader.go(filename, '*.html', key="bookmarks")
 	# load the file
 	root = reader = writer = None
 	if filename:
@@ -438,7 +438,7 @@ class BookmarksIO:
 	if not self._filename: filename = DEFAULT_GRAIL_BM_FILE
 	else: filename = self._filename
 	saver = BMSaveDialog(self._frame, self._controller)
-	savefile = saver.go(filename, '*.html')
+	savefile = saver.go(filename, '*.html', key="bookmarks")
 	if savefile:
 	    self._save_to_file_with_writer(writer, root, savefile)
 	    self._filename = savefile

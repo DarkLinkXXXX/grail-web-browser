@@ -565,7 +565,7 @@ class FormInfo:
 	def browse_command(self):
 	    import FileDialog
 	    fd = FileDialog.LoadFileDialog(self.browse)
-	    filename = fd.go(self.entry.get())
+	    filename = fd.go(self.entry.get(), key="load")
 	    if filename:
 		self.set(filename)
 

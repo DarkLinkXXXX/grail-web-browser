@@ -202,7 +202,7 @@ class Reader(BaseReader):
 	    # give it a default filename on which save within the
 	    # current directory
 	    urlasfile = string.splitfields(self.url, '/')
-	    fn = fd.go(default=urlasfile[-1])
+	    fn = fd.go(default=urlasfile[-1], key="save")
 	    if not fn:
 		# User canceled.  Stop the transfer.
 		return

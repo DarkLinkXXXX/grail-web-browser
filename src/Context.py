@@ -11,10 +11,6 @@ import math
 VALID_TARGET_STARTS = string.letters + '_'
 
 
-# Last directory used by Save As... command
-save_as_dir = None
-
-
 class Context:
 
     """Context for browsing operations.
@@ -309,7 +305,6 @@ class Context:
     # External user commands
 
     def save_document(self):
-	global save_as_dir
 	# File/Save As...
 	if self.busycheck(): return
 	import FileDialog, os
@@ -326,9 +321,7 @@ class Context:
 	if i > 0: default = default[:i]
 	# maybe bogus assumption?
 	if not default: default = 'index.html'
-	if not save_as_dir:
-	    save_as_dir = os.getcwd()
-	file = fd.go(save_as_dir, default=default)
+	file = fd.go(default=default, key="save")
 	if not file: return
 	save_as_dir = os.path.dirname(file)
 	api = self.app.open_url(self.get_url(), 'GET', {})

@@ -369,7 +369,7 @@ class Browser:
     def open_file_command(self, event=None):
 	import FileDialog
 	dialog = FileDialog.LoadFileDialog(self.master)
-	filename = dialog.go()
+	filename = dialog.go(key="load")
 	if filename:
 	    import urllib
 	    self.context.load('file:' + urllib.pathname2url(filename))
