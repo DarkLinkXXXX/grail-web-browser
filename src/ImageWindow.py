@@ -3,11 +3,14 @@ from Tkinter import *
 class ImageWindow(Frame):
 
     def __init__(self, viewer, url,
-		 src, alt, ismap, align, width, height, borderwidth):
+		 src, alt, map, align, width, height, borderwidth):
 	self.viewer = viewer
 	self.context = self.viewer.context
-	self.url = url
-	self.src, self.alt, self.ismap, self.align = src, alt, ismap, align
+	self.src, self.alt, self.map, self.align = src, alt, map, align
+	if self.map and self.map != 'ismap':
+	    self.url = None
+	else:
+	    self.url = url
 	bg = viewer.text['background']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
@@ -23,33 +26,50 @@ class ImageWindow(Frame):
 	    self['background'] ='blue'	# XXX should use style sheet
 	    self.bind('<Enter>', self.enter)
 	    self.bind('<Leave>', self.leave)
-	    if self.ismap:
+	    if self.map: # must be an ismap, because self.url test
 		self.label.bind('<Motion>', self.motion)
 	    self.label.bind('<ButtonRelease-1>', self.follow)
 	else:
-##	    self['background'] = 'black' # XXX for debug
-	    self.label.bind('<ButtonRelease-1>', self.toggle_loading_image)
+	    if self.map:
+		self.bind('<Enter>', self.enter)
+		self.bind('<Leave>', self.leave)
+		self.label.bind('<Motion>', self.motion)
+		self.label.bind('<ButtonRelease-1>', self.follow)
+	    else:
+##		self['background'] = 'black' # XXX for debug
+		self.label.bind('<ButtonRelease-1>', self.toggle_loading_image)
 	self.label.bind('<ButtonRelease-3>', self.toggle_loading_image)
 	self.image = self.context.get_async_image(self.src)
 	if self.image:
 	    self.label['image'] = self.image
 
     def enter(self, event):
-	self.context.enter(self.url)
+	url = self.whichurl(event)
+	if url:
+	    self.context.enter(url)
 
     def leave(self, event):
 	self.context.leave()
 
     def motion(self, event):
-	self.context.enter(self.whichurl(event))
+	url = self.whichurl(event)
+	if url:
+	    self.context.enter(url)
 
     def follow(self, event):
-	self.context.follow(self.whichurl(event))
+	url = self.whichurl(event)
+	if url:
+	    self.context.follow(url)
+	else:
+	    self.context.leave()
 
     def whichurl(self, event):
-	if not self.ismap:
-	    return self.url
-	return self.url + "?%d,%d" % (event.x, event.y)
+	if self.map:
+	    if self.map == 'ismap':
+		return self.url + "?%d,%d" % (event.x, event.y)
+	    else:
+		return self.map.url(event.x,event.y)
+	return self.url
 
     def toggle_loading_image(self, event=None):
 	if self.image:
@@ -61,3 +81,4 @@ class ImageWindow(Frame):
 		    self.image.start_loading(reload=1)
 	else:
 	    print "[no image]"
+
