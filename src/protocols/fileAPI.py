@@ -32,6 +32,7 @@ class file_access:
 	    except os.error:
 		pass
 	    else:
+		pathname = os.path.expanduser(pathname)
 		pathname = os.path.join(pwd, pathname)
 		pathname = os.path.normpath(pathname)
 		self.redirect = 1
