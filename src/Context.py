@@ -120,22 +120,6 @@ class Context:
 	"""Return the default target for this page (which may be None)."""
 	return self._target
 
-    # Anchor callback support
-
-    def enter(self, url):
-	"""Show the full URL of the current anchor as a message, if idle."""
-	if self.readers:
-	    return
-	if url[:1] != '#':
-	    url = urljoin(self._baseurl, url)
-	self.message(url)
-
-    def leave(self):
-	"""Clear the message on leaving an anchor, if idle."""
-	if self.readers:
-	    return
-	self.message("")
-
     def follow(self, url, target=""):
 	"""Follow a link, given by a relative URL.
 
@@ -158,16 +142,24 @@ class Context:
 
     # Message interfaces
 
-    def message(self, string="", cursor=None):
-	if not cursor:
-	    if self.readers:
-		cursor = CURSOR_WAIT
-	    else:
-		cursor = CURSOR_NORMAL
-	self.browser.message(string, cursor)
+    def message(self, string=""):
+	self.viewer.message(string)
+    enter = message			# XXX ImageMap backward compatibility
 
     def message_clear(self):
-	self.message("")
+	self.new_reader_status()
+    leave = message_clear		# XXX ImageMap backward compatibility
+
+    def new_reader_status(self):
+	if self.readers:
+	    message = string.join(map(str, self.readers))
+	elif self.on_top():
+	    message = "idle"
+	elif self._url:
+	    message = "URL: %s" % self._url
+	else:
+	    message = "empty"
+	self.message(message)
 
     def error_dialog(self, exception, msg):
 	if self.app:
@@ -284,7 +276,7 @@ class Context:
 	self.save_page_state()
 	# Start loading a new URL into the window
 	self.stop()
-	self.message("Loading %s" % url, CURSOR_WAIT)
+	self.message("Loading %s" % url)
 	try:
 	    self.read_page(url, method, params,
 			   show_source=show_source, reload=reload,
@@ -349,7 +341,7 @@ class Context:
 	url = self.get_baseurl(url)
 	method = 'POST'
 	self.stop()
-	self.message("Posting to %s" % url, CURSOR_WAIT)
+	self.message("Posting to %s" % url)
 	try:
 	    self.read_page(url, method, params, reload=1, data=data)
 	except IOError, msg:
@@ -360,17 +352,20 @@ class Context:
 
     def addreader(self, reader):
 	self.readers.append(reader)
-	self.browser.allowstop()
+	if self.on_top():
+	    self.browser.allowstop()
+	self.new_reader_status()
 
     def rmreader(self, reader):
 	if reader in self.readers:
 	    self.readers.remove(reader)
 	if not self.readers:
-	    self.browser.clearstop()
-	    self.message("Done.")
+	    if self.on_top():
+		self.browser.clearstop()
 	    if self.source:
 		self.source.remove_temp_tag()
 		self.source = None
+	self.new_reader_status()
 
     def busy(self):
 	return not not self.readers
