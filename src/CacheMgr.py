@@ -73,9 +73,9 @@ class CacheManager:
 
     def update_prefs(self):
 	self.set_freshness_test()
-	size = self.caches[0].size = self.app.prefs.GetInt('disk-cache',
-							   'size') \
-							   * 1024
+	size = self.caches[0].max_size = self.app.prefs.GetInt('disk-cache',
+							       'size') \
+							       * 1024
 	new_dir = self.app.prefs.Get('disk-cache', 'directory')
 	if new_dir != self.disk.pref_dir:
 	    self.disk._checkpoint_metadata()
@@ -92,7 +92,7 @@ class CacheManager:
 	keep the old log intact.
 	"""
 	if not size:
-	    size = self.disk.size
+	    size = self.disk.max_size
 	if not dir:
 	    dir = self.disk.directory
 	self.disk.close(flush_log)
