@@ -21,3 +21,7 @@ def font_from_name(psfontname):
     # for us!
     module = __import__(modulename, globals(), locals())
     return module.font
+
+# the general solution... gross!
+for name in ['font_from_name', '__doc__']:
+    setattr(__, name, vars()[name])
