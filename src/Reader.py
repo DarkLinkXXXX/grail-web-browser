@@ -120,6 +120,8 @@ class Reader(BaseReader):
 	    return
 
 	if errcode == 204:
+	    self.last_context.viewer.remove_temp_tag(histify=1)
+	    self.app.global_history.remember_url(self.url)
 	    self.stop()
 	    return
 
