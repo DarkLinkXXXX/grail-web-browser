@@ -65,6 +65,21 @@ def set_transient(widget, master, relx=0.5, rely=0.3, expose=1):
     return widget
 
 
+def _inTkStep(window):
+    """Return true if the TkStep patches have been applied to Tk."""
+    global _in_tkstep
+    try:
+        return _in_tkstep
+    except NameError:
+        try:
+            f = Frame(window, text='is TkStep installed?')
+        except TclError:
+            _in_tkstep = 0
+        else:
+            _in_tkstep = 1
+        return _in_tkstep
+
+
 def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
                     takefocus=0):
 
@@ -91,12 +106,16 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
 
     corner = None
     if vbar:
-        if not hbar:
+        if _inTkStep(frame):
+            vbar_side = LEFT
+        else:
+            vbar_side = RIGHT
+        if vbar_side == LEFT or not hbar:
             vbar = Scrollbar(frame, takefocus=takefocus)
-            vbar.pack(fill=Y, side=RIGHT)
+            vbar.pack(fill=Y, side=vbar_side)
         else:
             vbarframe = Frame(frame, borderwidth=0)
-            vbarframe.pack(fill=Y, side=RIGHT)
+            vbarframe.pack(fill=Y, side=vbar_side)
             vbar = Scrollbar(frame, name="vbar", takefocus=takefocus)
             vbar.pack(in_=vbarframe, expand=1, fill=Y, side=TOP)
             sbwidth = vbar.winfo_reqwidth()
