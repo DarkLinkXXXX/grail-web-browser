@@ -85,7 +85,7 @@ def main():
     app.load_images = load_images
     browser = Browser(app.root, app, geometry=geometry)
     if url:
-	app.home = url
+	app.home = grailutil.complete_url(url)
     if sys.platform != 'mac':
     	browser.context.load(app.home)
     SafeTkinter._castrate(app.root.tk)
