@@ -181,8 +181,13 @@ class HTMLParser(SGMLParser):
     def start_p(self, attrs):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
+	align = None
+	if attrs.has_key('align') and attrs['align']:
+	    align = string.lower(attrs['align'])
+	self.formatter.push_style(align)
 
     def end_p(self):
+	self.formatter.pop_style()
         self.formatter.end_paragraph(1)
 
     def start_pre(self, attrs):
@@ -234,7 +239,11 @@ class HTMLParser(SGMLParser):
 	self.close_paragraph()
         self.formatter.end_paragraph(not self.list_stack)
         self.formatter.push_margin('ul')
-        self.list_stack.append(['ul', '*', 0])
+	if attrs.has_key('plain'):
+	    label = ''
+	else:
+	    label = '*'
+        self.list_stack.append(['ul', label, 0])
 
     def end_ul(self):
         if self.list_stack: del self.list_stack[-1]
@@ -245,6 +254,8 @@ class HTMLParser(SGMLParser):
         self.formatter.end_paragraph(0)
         if self.list_stack:
 	    [dummy, label, counter] = top = self.list_stack[-1]
+	    if attrs.has_key('type'):
+		label = top[1] = self.make_format(attrs['type'], label)
 	    if attrs.has_key('value'):
 		try:
 		    v = string.atoi(string.strip(attrs['value']))
@@ -257,28 +268,39 @@ class HTMLParser(SGMLParser):
 	    self.formatter.add_label_data(label, counter)
         else:
 	    #  Illegal, but let's try not to be ugly:
+	    format, value = '* ', 1
 	    if attrs.has_key('value'):
-		try:
-		    v = string.strip(attrs['value'])
-		except:
-		    v = '1'
-		else:
-		    if not v: v = '1'
-		self.formatter.add_flowing_data(v + '. ')
-	    else:
-		self.formatter.add_flowing_data('* ')
+		try: v = string.atoi(attrs['value'])
+		except: pass
+	    if attrs.has_key('type'):
+		format = self.make_format(attrs['type']) + ' '
+	    data = self.formatter.format_counter(format, count)
+	    self.formatter.add_flowing_data(data)
+
+    def make_format(self, format, default='*'):
+	if not format:
+	    format = default
+	if format in ('1', 'a', 'A', 'i', 'I'):
+	    format = format + '.'
+	elif string.lower(format) in ('disc', 'circle', 'square'):
+	    format = '*'
+	else:
+	    format = string.strip(format)
+	return format
 
     def start_ol(self, attrs):
 	self.close_paragraph()
         self.formatter.end_paragraph(not self.list_stack)
         self.formatter.push_margin('ol')
-        label = '1.'
 	if attrs.has_key('type'):
-	    v = attrs['type']
-	    if len(v) == 1: v = v + '.'
-	    label = v
+	    label = self.make_format(attrs['type'], '1')
+	else:
+	    label = '1.'
 	start = 0
-	if attrs.has_key('start'):
+	if attrs.has_key('seqnum'):
+	    try: start = string.atoi(attrs['seqnum']) - 1
+	    except: pass
+	elif attrs.has_key('start'):
 	    try: start = string.atoi(attrs['start']) - 1
 	    except: pass
         self.list_stack.append(['ol', label, start])
@@ -289,12 +311,15 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_margin()
 
     def start_menu(self, attrs):
+	attrs['plain'] = None
         self.start_ul(attrs)
 
     def end_menu(self):
         self.end_ul()
 
     def start_dir(self, attrs):
+	attrs['plain'] = None
+	attrs['wrap'] = 'horiz'
         self.start_ul(attrs)
 
     def end_dir(self):
