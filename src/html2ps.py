@@ -636,7 +636,7 @@ class PSStream:
 	    print 'save'
 	    print "FONTV 8 SF"
 	    # print title on top of all but first page
-	    if self._pageno > 1:
+	    if self._pageno > 1 and self._title <> self._url:
 		print 0, HEADER_POS, "M"
 		print "(", self._title, ") S"
 	    # print url and page number on all pages
