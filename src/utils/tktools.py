@@ -1,5 +1,7 @@
 """Assorted Tk-related subroutines used in Grail."""
 
+# XXX test comment
+
 
 import string
 from types import *
