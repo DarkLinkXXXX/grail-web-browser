@@ -409,7 +409,7 @@ class Browser:
 	# File/Print...
 	if self.context.busycheck(): return
 	import PrintDialog
-	PrintDialog.PrintDialog(self,
+	PrintDialog.PrintDialog(self.context,
 				self.context.get_url(),
 				self.context.get_title())
 
