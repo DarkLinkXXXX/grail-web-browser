@@ -9,7 +9,9 @@ def %(name)s(*args, **kw):
     def filter(name):
 	return name[0] != '_' or name in ('__getitem__',
 					  '__setitem__',
-					  '__str__')
+					  '__str__',
+					  '_create',
+					  '_do')
     from Bastion import Bastion
     bastion = Bastion(original, filter=filter)
     if hasattr(original, '_w'):
@@ -33,7 +35,8 @@ del TEMPLATE, name
     
 from Tkconstants import *
 
-from Tkinter import tkinter
+from Tkinter import _tkinter, _cnfmerge, _flatten
+tkinter = _tkinter
 
 class _DumbTkinter:
     """Helper class to provide interfaces to low-level handler functions"""
