@@ -60,13 +60,11 @@ __formats = {
     # format-name     first-line-magic
     #                  short-name   extension
     "html":          ('<!DOCTYPE\s+(GRAIL|NETSCAPE)-Bookmark-file-1',
-                      "html",      ".html"),
-    "pickle":        ('#.*GRAIL-Bookmark-file-2',
-                      "pickle",    ""),
-    "pickle-binary": ('#.*GRAIL-Bookmark-file-3',
-                      "bpickle",   ""),
+                      "html",      ".html",	"html"),
+    "pickle":        ('#.*GRAIL-Bookmark-file-[234]',
+                      "pickle",    ".pkl",	"xbel"),
     "xbel":          ('<(\?xml|!DOCTYPE)\s+xbel',
-                      "xbel",      ".xml"),
+                      "xbel",      ".xml",	"xbel"),
     }
 
 __format_inited = 0
@@ -76,7 +74,7 @@ def __init_format_table():
     global __format_table
     import re
     __format_table = table = []
-    for result, (rx, sname, ext) in __formats.items():
+    for result, (rx, sname, ext, outfmt) in __formats.items():
         if rx:
             rx = re.compile(rx)
             table.append((rx, result))
@@ -109,17 +107,8 @@ def get_parser_class(format):
     return Parser
 
 def get_writer_class(format):
-    sname = get_short_name(format)
-    exec "from formats.%s_writer import Writer" % sname
+    exec "from formats.%s_writer import Writer" % get_short_name(format)
     return Writer
 
-
-def get_handlers(format, filename):
-    parser_class = get_parser_class(format)
-    writer_class = get_writer_class(format)
-    parser = writer = None
-    if parser_class is not None:
-        parser = parser_class(filename)
-    if writer_class is not None:
-        writer = writer_class()
-    return parser, writer
+def get_output_format(format):
+    return __formats[format][3]
