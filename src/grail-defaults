@@ -166,16 +166,10 @@ bookmarks--include-in-pulldown: 1
 # view-by can be 'titles', 'urls'
 history--view-by: titles
 #
-# Special fonts:
-#
-fonts--symbols:		*symbol*
-fonts--dingbats:	*dingbats*
-#
 # Parsing preferences:
 #
 parsing-html--strict:		0
 parsing-html--honor-colors:	1
-parsing-html--autonumber-headers: 0
 parsing-html--format-h1:	""
 parsing-html--format-h2:	"%(h2)d. "
 parsing-html--format-h3:	"%(h2)d.%(h3)d. "
