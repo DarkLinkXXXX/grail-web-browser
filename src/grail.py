@@ -20,6 +20,7 @@ import tempfile
 import posixpath
 import os
 import traceback
+import mimetools
 from Tkinter import *
 import SafeDialog
 import tktools
@@ -30,7 +31,7 @@ if 0:
     import dummies
 
 # Milliseconds between interrupt checks
-KEEPALIVE_TIMER = 1000
+KEEPALIVE_TIMER = 200
 
 
 def main():
@@ -68,20 +69,22 @@ def main():
 
 class MyURLopener(urllib.URLopener):
 
-    openers = {}
+    openers = {}			# XXX Should be in Application class
     
     def open_unknown(self, fullurl):
 	type, url = urllib.splittype(fullurl)
 	if self.openers.has_key(type):
 	    opener = self.openers[type]
 	else:
-	    opener = self.openers[type] = self.find_extension(type)
+	    opener = self.find_extension(type)
+	    if opener: self.openers[type] = opener
 	if opener:
 	    return opener(url)
 	print "Unknown URL type:", type
 	return urllib.URLopener.open_unknown(self, fullurl)
 
     def find_extension(self, type):
+	# XXX Some of this needs to be moved into the Application class
 	home = getenv("HOME") or os.curdir
 	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
 	protodir = os.path.join(graildir, "protocols")
@@ -114,6 +117,11 @@ class Application:
 	self.image_cache = {}
 	self.rexec = AppletRExec(None, 2)
 	self.urlopener = MyURLopener()
+	e = read_mime_types("/usr/local/etc/httpd/conf/mime.types") or \
+	    read_mime_types("/usr/local/lib/netscape/mime.types") or {}
+	for key, value in self.extensions_map.items():
+	    if not e.has_key(key): e[key] = value
+	self.extensions_map = e
 	self.root = Tk()
 	self.root.withdraw()
 ##	self.quit_button = Button(self.root, text='Quit', command=self.quit)
@@ -184,7 +192,7 @@ class Application:
 
     def open_url(self, url, error=1):
 	# Open a URL:
-	# - return (fp, url) if successful
+	# - return (fp, url, content_type) if successful
 	# - display dialog and return (None, url) for errors
 	#   (no dialog if errors argument is false)
 	# - handle erro code 302 (redirect) silently
@@ -203,14 +211,58 @@ class Application:
 	    if error:
 		self.error_dialog(IOError, msg)
 	    fp = None
-	content_type = None
-	if fp:
+	content_type = content_encoding = content_transfer_encoding = None
+	if fp and hasattr(fp, 'info'):
 	    headers = fp.info()
 	    if headers:
-		content_type = headers.type
-	if not content_type:
-	    content_type = self.guess_type(url)
+		content_type = headers.gettype()
+		content_encoding = headers.getheader('content-encoding')
+		content_transfer_encoding = headers.getencoding()
+	if fp and not content_type:
+	    content_type, content_encoding = self.guess_type(url)
+	# XXX content-transfer-encoding is not yet supported
+##	if fp and content_transfer_encoding:
+##	    fp = self.transfer_decode_pipeline(
+##		fp, content_transfer_encoding, error)
+	if fp and content_encoding:
+	    fp = self.decode_pipeline(fp, content_encoding, error)
 	return fp, url, content_type
+
+    def decode_pipeline(self, fp, content_encoding, error=1):
+	if self.decode_prog.has_key(content_encoding):
+	    prog = self.decode_prog[content_encoding]
+	    if not prog: return fp
+	    tfn = tempfile.mktemp()
+	    ok = 0
+	    try:
+		temp = open(tfn, 'w')
+		BUFSIZE = 8192
+		while 1:
+			buf = fp.read(BUFSIZE)
+			if not buf: break
+			temp.write(buf)
+		temp.close()
+		ok = 1
+	    finally:
+		if not ok:
+		    try:
+			os.unlink(tfn)
+		    except os.error:
+			pass
+	    pipeline = '%s <%s; rm -f %s' % (prog, tfn, tfn)
+	    # XXX What if prog fails?
+	    return os.popen(pipeline, 'r')
+	if error:
+	    self.error_dialog(IOError,
+		"Can't decode content-encoding: %s" % content_encoding)
+	return None
+
+    decode_prog = {
+	'gzip': 'gzip -d',
+	'x-gzip': 'gzip -d',
+	'compress': 'compress -d',
+	'x-compress': 'compress -d',
+	}
 
     def error_dialog(self, exc, msg):
 	# Display an error dialog.
@@ -239,17 +291,126 @@ class Application:
 
 	"""
 	base, ext = posixpath.splitext(url)
-	if self.extensions_map.has_key(ext):
-	    return self.extensions_map[ext]
-	elif self.extensions_map.has_key(string.lower(ext)):
-	    return self.extensions_map[string.lower(ext)]
+	if ext == '.tgz':
+	    # Special case, can't be encoded in tables
+	    base = base + '.tar'
+	    ext = '.gz'
+	if self.encodings_map.has_key(ext):
+	    encoding = self.encodings_map[ext]
+	    base, ext = posixpath.splitext(base)
 	else:
-	    return None
+	    encoding = None
+	if self.extensions_map.has_key(ext):
+	    return self.extensions_map[ext], encoding
+	elif self.extensions_map.has_key(string.lower(ext)):
+	    return self.extensions_map[string.lower(ext)], encoding
+	else:
+	    return 'text/plain', encoding
+
+    encodings_map = {
+	'.gz': 'gzip',
+	'.Z': 'compress',
+	}
 
     extensions_map = {
-	'.html': 'text/html',
+	'.a': 'application/octet-stream',
+	'.ai': 'application/postscript',
+	'.aif': 'audio/x-aiff',
+	'.aifc': 'audio/x-aiff',
+	'.aiff': 'audio/x-aiff',
+	'.au': 'audio/basic',
+	'.avi': 'video/x-msvideo',
+	'.bcpio': 'application/x-bcpio',
+	'.bin': 'application/octet-stream',
+	'.cdf': 'application/x-netcdf',
+	'.cpio': 'application/x-cpio',
+	'.csh': 'application/x-csh',
+	'.dvi': 'application/x-dvi',
+	'.eps': 'application/postscript',
+	'.etx': 'text/x-setext',
+	'.gif': 'image/gif',
+	'.gtar': 'application/x-gtar',
+	'.hdf': 'application/x-hdf',
 	'.htm': 'text/html',
+	'.html': 'text/html',
+	'.ief': 'image/ief',
+	'.jpe': 'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.jpg': 'image/jpeg',
+	'.latex': 'application/x-latex',
+	'.man': 'application/x-troff-man',
+	'.me': 'application/x-troff-me',
+	'.mif': 'application/x-mif',
+	'.mov': 'video/quicktime',
+	'.movie': 'video/x-sgi-movie',
+	'.mpe': 'video/mpeg',
+	'.mpeg': 'video/mpeg',
+	'.mpg': 'video/mpeg',
+	'.ms': 'application/x-troff-ms',
+	'.nc': 'application/x-netcdf',
+	'.o': 'application/octet-stream',
+	'.oda': 'application/oda',
+	'.pbm': 'image/x-portable-bitmap',
+	'.pdf': 'application/pdf',
+	'.pgm': 'image/x-portable-graymap',
+	'.pnm': 'image/x-portable-anymap',
+	'.ppm': 'image/x-portable-pixmap',
+	'.ps': 'application/postscript',
+	'.qt': 'video/quicktime',
+	'.ras': 'image/x-cmu-raster',
+	'.rgb': 'image/x-rgb',
+	'.roff': 'application/x-troff',
+	'.rtf': 'application/rtf',
+	'.rtx': 'text/richtext',
+	'.sgm': 'text/x-sgml',
+	'.sgml': 'text/x-sgml',
+	'.sh': 'application/x-sh',
+	'.shar': 'application/x-shar',
+	'.snd': 'audio/basic',
+	'.so': 'application/octet-stream',
+	'.src': 'application/x-wais-source',
+	'.sv4cpio': 'application/x-sv4cpio',
+	'.sv4crc': 'application/x-sv4crc',
+	'.t': 'application/x-troff',
+	'.tar': 'application/x-tar',
+	'.tcl': 'application/x-tcl',
+	'.tex': 'application/x-tex',
+	'.texi': 'application/x-texinfo',
+	'.texinfo': 'application/x-texinfo',
+	'.tif': 'image/tiff',
+	'.tiff': 'image/tiff',
+	'.tr': 'application/x-troff',
+	'.tsv': 'text/tab-separated-values',
+	'.txt': 'text/plain',
+	'.ustar': 'application/x-ustar',
+	'.wav': 'audio/x-wav',
+	'.xbm': 'image/x-xbitmap',
+	'.xpm': 'image/x-xpixmap',
+	'.xwd': 'image/x-xwindowdump',
+	'.zip': 'application/zip',
 	}
+
+
+def read_mime_types(file):
+    try:
+	f = open(file)
+    except IOError:
+	return None
+    map = {}
+    while 1:
+	line = f.readline()
+	if not line: break
+	words = string.split(line)
+	for i in range(len(words)):
+	    if words[i][0] == '#':
+		del words[i:]
+		break
+	if not words: continue
+	type, extensions = words[0], words[1:]
+	for e in extensions:
+	    map['.'+e] = type
+    f.close()
+    return map
 
 
 main()
