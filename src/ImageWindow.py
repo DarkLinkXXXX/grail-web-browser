@@ -1,4 +1,10 @@
 from Tkinter import *
+from __main__ import app
+
+STYLEGROUP = 'styles-common'
+AHISTPREF = 'history-ahist-foreground'
+APREF = 'history-a-foreground'
+ATEMPPREF = 'history-atemp-foreground'
 
 class ImageWindow(Frame):
 
@@ -21,7 +27,15 @@ class ImageWindow(Frame):
 	    self.url = url
 	    self.ismap = None
 	    self.map = None
-	bg = viewer.text['background']
+	# figure out colors for link, if the image is a link
+	if self.url:
+	    histurl = self.context.get_baseurl(self.url)
+	    if app.global_history.inhistory_p(histurl):
+		bg = app.prefs.Get(STYLEGROUP, AHISTPREF)
+	    else:
+		bg = app.prefs.Get(STYLEGROUP, APREF)
+	else:
+	    bg = viewer.text['background']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
 	self.label = Label(self, text=self.alt, background=bg, borderwidth=0)
@@ -32,7 +46,7 @@ class ImageWindow(Frame):
 	    self.config(width=width + 2*borderwidth,
 			height=height + 2*borderwidth)
 	if self.url:
-	    self['background'] ='blue'	# XXX should use style sheet
+##	    self['background'] ='blue'	# XXX should use style sheet
 	    self.bind('<Enter>', self.enter)
 	    self.bind('<Leave>', self.leave)
 	    if self.ismap:
@@ -70,6 +84,7 @@ class ImageWindow(Frame):
     def follow(self, event):
 	url, target = self.whichurl(event)
 	if url:
+	    self['background'] = app.prefs.Get(STYLEGROUP, ATEMPPREF)
 	    self.context.follow(url, target=target)
 	else:
 	    self.context.viewer.leave_message()
@@ -77,9 +92,11 @@ class ImageWindow(Frame):
     def follow_new(self, event):
 	url, target = self.whichurl(event)
 	if url:
+	    self['background'] = app.prefs.Get(STYLEGROUP, ATEMPPREF)
 	    url = self.context.baseurl(url)
 	    from Browser import Browser
 	    Browser(self.context.app.root, self.context.app).context.load(url)
+	    self['background'] = app.prefs.Get(STYLEGROUP, AHISTPREF)
 	else:
 	    self.context.viewer.leave_message()
 
