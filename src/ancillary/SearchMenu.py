@@ -3,19 +3,34 @@
 from Tkinter import *
 import tktools
 
-class SearchMenu:
 
-    def __init__(self, menu):
-	self.browser = menu.grail_browser
-	menu.add('command',
-		 label='Find...',
-		 command=self.find_command, underline=0, accelerator="Alt-F")
-	self.browser.root.bind('<Alt-f>', self.find_command)
-	menu.add('command',
-		 label='Find again',
+class SearchMenu:
+    """Installation of a searching subitems in a top-level window.
+
+    You must pass a menu on which to add the searching subitems, and
+    the root window on which to install the keybindings.  You also
+    need to pass in a `searchable' object, which is simply one that
+    conforms to the following interface:
+
+    search_for_pattern(pattern, regex_flag, case_flag, backwards_flag)
+    	Searchs for the pattern, returning true if the search
+    	succeeded, false if it failed.  This search module will ring
+    	the bell if no hit was found.
+
+    """
+    def __init__(self, menu, rootwin, searchable):
+	self._searchable = searchable
+	self._root = rootwin
+	menu.add('command', label='Find...',
+		 command=self.find_command,
+		 underline=0, accelerator="Alt-F")
+	self._root.bind('<Alt-f>', self.find_command)
+	self._root.bind('<Alt-F>', self.find_command)
+	menu.add('command', label='Find again',
 		 command=self.find_again_command,
 		 underline=6, accelerator="Alt-G")
-	self.browser.root.bind('<Alt-g>', self.find_again_command)
+	self._root.bind('<Alt-g>', self.find_again_command)
+	self._root.bind('<Alt-G>', self.find_again_command)
 	self.sdialog = None
 
     def find_command(self, event=None):
@@ -27,29 +42,29 @@ class SearchMenu:
 
     def create_dialog(self, force=0):
 	if not self.sdialog:
-	    self.sdialog = SearchDialog(self.browser)
+	    self.sdialog = SearchDialog(self._root, self._searchable)
 	elif force:
-	    self.sdialog.root.deiconify()
+	    self.sdialog._root.deiconify()
 	    self.sdialog.pat_entry.focus_set()
 	    self.sdialog.pat_entry.select_range(0, END)
 
-
+
 class SearchDialog:
 
-    def __init__(self, browser):
-	self.browser = browser
-	self.root = tktools.make_toplevel(browser.root, title="Search Dialog")
+    def __init__(self, rootwin, searchable):
+	self._searchable = searchable
+	self._root = tktools.make_toplevel(rootwin, title="Search Dialog")
 	self.create_widgets()
-	tktools.set_transient(self.root, browser.root, rely=0.0)
+	tktools.set_transient(self._root, rootwin, rely=0.0)
 
     def create_widgets(self):
-	self.pat_entry, self.pat_frame = tktools.make_form_entry(
-	    self.root, "Find string:")
+	self.pat_entry, self.pat_frame = \
+			tktools.make_form_entry(self._root, "Find string:")
 	self.pat_entry['exportselection'] = 0
 	self.pat_entry.bind('<Return>', self.return_event)
 	self.pat_entry.focus_set()
 
-	self.mid_frame = Frame(self.root)
+	self.mid_frame = Frame(self._root)
 	self.mid_frame.pack(fill=X)
 
 	self.regexp_var = BooleanVar()
@@ -69,7 +84,7 @@ class SearchDialog:
 						 variable=self.backwards_var)
 	self.backwards_checkbutton.pack(side=RIGHT)
 
-	self.bot_frame = Frame(self.root)
+	self.bot_frame = Frame(self._root)
 	self.bot_frame.pack(fill=X)
 
 	self.search_button = Button(self.bot_frame, text="Search",
@@ -94,31 +109,16 @@ class SearchDialog:
 	self.close_command()
 
     def close_command(self):
-	self.root.withdraw()
+	self._root.withdraw()
 
     def search(self):
-	text = self.browser.viewer.text
-	try:
-	    index = text.index(SEL_FIRST)
-	    index = "%s + 1 chars" % str(index)
-	except TclError:
-	    index = "1.0"
 	pat = self.pat_entry.get()
 	if not pat:
-	    self.root.bell()
+	    self._root.bell()
 	    return 0
-	length = IntVar()
-	hit = text.search(pat, index, count=length,
-			  nocase=not self.case_var.get(),
-			  regexp=self.regexp_var.get(),
-			  backwards=self.backwards_var.get())
-	if not hit:
-	    self.root.bell()
-	    return 0
-	try:
-	    text.tag_remove(SEL, SEL_FIRST, SEL_LAST)
-	except TclError:
-	    pass
-	text.tag_add(SEL, hit, "%s + %s chars" % (hit, length.get()))
-	text.yview_pickplace(SEL_FIRST)
-	return 1
+	if not self._searchable.search_for_pattern(
+	    pat, self.case_var.get(), self.regexp_var.get(),
+	    self.backwards_var.get()):
+	    # failure
+	    # TBD: it would be better to bring up a Not Found notice
+	    self._root.bell()
