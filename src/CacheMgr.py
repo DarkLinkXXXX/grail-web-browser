@@ -388,17 +388,6 @@ class DiskCacheEntry:
 		  self.date, self.lastmod, self.expires, self.type])
 	return string
 
-    def __getstate__(self):
-	"""Don't pickel a pointer to the cache."""
-	return { 'key'    : self.key,
-		 'url'    : self.url,
-		 'file'   : self.file,
-		 'size'   : self.size,
-		 'date'   : self.date,
-		 'lastmod': self.lastmod,
-		 'expires': self.expires,
-		 'type'   : self.type }
-
     def get(self):
 	"""Create a disk_cache_access API object and return it.
 
