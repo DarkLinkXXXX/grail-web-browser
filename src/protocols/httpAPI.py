@@ -76,7 +76,8 @@ class http_access:
 	if auth:
 	    self.h.putheader('Authorization', 'Basic %s' % auth)
 	for key, value in params.items():
-	    self.h.putheader(key, value)
+	    if key[:1] != '.':
+		self.h.putheader(key, value)
 	self.h.endheaders()
 	self.stage = META
 
