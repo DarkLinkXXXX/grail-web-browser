@@ -463,9 +463,11 @@ class Viewer(formatter.AbstractWriter):
 	self.send_line_break()
 ##	self.text.update_idletasks()
 
+    RULE_WIDTH_MAGIC = 11
+
     def rule_width(self):
 	return (self.text.winfo_width()
-		- 12 - 2*string.atoi(self.text['padx'])
+		- self.RULE_WIDTH_MAGIC - 2*string.atoi(self.text['padx'])
 		- self.marginlevel*INDENTATION_WIDTH
 		- ((('blockquote' in self.addtags) and 1 or 0)
 		   *INDENTATION_WIDTH))
