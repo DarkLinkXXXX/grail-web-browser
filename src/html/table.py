@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.27 1996/04/10 19:25:25 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.28 1996/04/11 00:13:29 bwarsaw Exp $'
 
 
 import string
@@ -306,6 +306,7 @@ class Table(AttrElem):
 				borderwidth=borderwidth,
 				highlightthickness=0,
 				background=parentviewer.text['background'])
+	self.container._table = self
 
 	self.caption = None
 	self.cols = []			# multiple COL or COLGROUP
@@ -321,30 +322,38 @@ class Table(AttrElem):
 	self.parentviewer.register_reset_interest(self._reset)
 	self.parentviewer.register_resize_interest(self._resize)
 
+    def minwidth(self): return self._minwidth
+    def maxwidth(self): return self._maxwidth
+
     def _map(self):
 	if not self._mapped:
 	    self.container.pack()
-	    self.parentviewer.add_subwindow(self.container,
-					    index=self._mappos)
+	    pv = self.parentviewer
+	    pv.text.insert(self._mappos, '\n')
+	    pv.add_subwindow(self.container, index=self._mappos)
 	    self._mapped = 1
 	
     def finish(self):
 	if self._cleared:
 	    return
 	if self.layout == AUTOLAYOUT:
-	    self._mappos = self.parentviewer.text.index('end - 1 c')
-	    if self._mappos == '1.0': nls = 1
-	    else: nls = 2
-	    self.parentviewer.text.insert(END, ('\n' * nls))
+	    pv = self.parentviewer
+	    pvt = pv.text
+	    index = pvt.index('end - 1 c')
+	    if index <> '1.0':
+		self._mappos = pvt.index(END)
+	    else:
+		self._mappos = index
+	    pvt.insert(END, '\n')
 	    self._autolayout_1()
 	    self._autolayout_2()
 	    self._autolayout_3()
-	    if len(self.parentviewer.context.readers) <= 1:
+	    if len(pv.context.readers) <= 1:
 		# if there are more readers than the one currently
 		# loading the page with the table, defer mapping the
 		# table
 		self._map()
-	    self.parentviewer.context.register_notification(self._notify)
+	    pv.context.register_notification(self._notify)
 	else:
 	    # FIXEDLAYOUT not yet supported
 	    pass
@@ -360,9 +369,7 @@ class Table(AttrElem):
 	# itself in. first get the actual width, then apply any <TABLE
 	# WIDTH=xxx> attributes.
 	ptext = self.parentviewer.text
-	viewerwidth = ptext.winfo_width() - \
-		      2 * string.atof(ptext['padx']) - \
-		      13		# TBD: kludge alert!
+	viewerwidth = ptext.winfo_width() - 2 * string.atof(ptext['padx'])
 	return viewerwidth
 
     def _autolayout_1(self):
@@ -477,6 +484,9 @@ class Table(AttrElem):
 	for col in range(colcount):
 	    mincanvaswidth = mincanvaswidth + minwidths[col]
 	    maxcanvaswidth = maxcanvaswidth + maxwidths[col]
+
+	self._minwidth = mincanvaswidth
+	self._maxwidth = maxcanvaswidth
 
 	# debugging
 ## 	print '==========', id(self)
@@ -603,6 +613,7 @@ class Table(AttrElem):
 	self.parentviewer.context.unregister_notification(self._notify)
 	self.parentviewer.unregister_reset_interest(self._reset)
 	self.parentviewer.unregister_resize_interest(self._resize)
+	delattr(self.container, '_table')
 	# TBD: garbage collect internal structures, but not windows!
 
     def _resize(self, viewer):
@@ -758,14 +769,22 @@ class ContainedText(AttrElem):
 	recalc_flag = None
 	# take into account all embedded windows
 	for sub in self._viewer.subwindows:
-	    geom = sub.winfo_geometry()
-	    if self._re.search(geom) >= 0:
-		[w, h, x, y] = map(grailutil.conv_integer,
-				   self._re.group(1, 2, 3, 4))
-	    min_nonaligned = max(min_nonaligned, x+w)
-	    maxwidth = max(maxwidth, x+w)
-	    embedheight = max(embedheight, y+h)
-	    recalc_flag = 1
+	    # if the subwindow is a canvas containing a table, so
+	    # something different since it has a range of widths it
+	    # can be
+	    if hasattr(sub, '_table'):
+		min_nonaligned = max(min_nonaligned, sub._table.minwidth())
+		maxwidth = max(maxwidth, sub._table.maxwidth())
+		recalc_flag = 1
+	    else:
+		geom = sub.winfo_geometry()
+		if self._re.search(geom) >= 0:
+		    [w, h, x, y] = map(grailutil.conv_integer,
+				       self._re.group(1, 2, 3, 4))
+		min_nonaligned = max(min_nonaligned, x+w)
+		maxwidth = max(maxwidth, x+w)
+		embedheight = max(embedheight, y+h)
+		recalc_flag = 1
 	self._embedheight = embedheight
 	self._minwidth = min_nonaligned
 	self._maxwidth = maxwidth
