@@ -735,12 +735,16 @@ class Toplevel(Widget, Wm):
 		if kw:
 			cnf = _cnfmerge((cnf, kw))
 		extra = ()
-		if cnf.has_key('screen'):
-			extra = ('-screen', cnf['screen'])
-			del cnf['screen']
-		if cnf.has_key('class'):
-			extra = extra + ('-class', cnf['class'])
-			del cnf['class']
+		for wmkey in ['screen', 'class_', 'class', 'visual',
+			      'colormap']:
+			if cnf.has_key(wmkey):
+				val = cnf[wmkey]
+				# TBD: a hack needed because some keys
+				# are not valid as keyword arguments
+				if wmkey[-1] == '_': opt = '-'+wmkey[:-1]
+				else: opt = '-'+wmkey
+				extra = extra + (opt, val)
+				del cnf[wmkey]
 		Widget.__init__(self, master, 'toplevel', cnf, {}, extra)
 		root = self._root()
 		self.iconname(root.iconname())
