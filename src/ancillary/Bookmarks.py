@@ -212,6 +212,11 @@ class BookmarkWindow:
 	expbtn.pack(side='left')
 	quitbtn.pack(side='left')
 	btnframe.pack(side='bottom')
+	# bind keys
+	self._listbox.bind('<Key-Down>', self.next)
+	self._listbox.bind('<Key-Up>', self.previous)
+	self._listbox.bind('<Double-Button-1>', self.expand)
+	self._listbox.focus_set()
 	# populate the list box
 	r = NetscapeBookmarkReader()
 	self._noderoot = r.read_file(filename)
@@ -259,7 +264,7 @@ class BookmarkWindow:
 	self._writer.delete_nodes(start, end)
 	self._writer.update_node(node)
 
-    def expand(self):
+    def expand(self, event=None):
 	node, index = self._get_selected_node()
 	# can't expand leaves or already expanded nodes
 	if node.leaf_p() or node.expanded_p(): return
@@ -270,12 +275,12 @@ class BookmarkWindow:
 	self._writer.expand_node(node)
 	self._writer.update_node(node)
 
-    def previous(self):
+    def previous(self, event=None):
 	node, index = self._get_selected_node()
 	if index > 0: index = index - 1
 	self._writer.select_node(index)
 
-    def next(self):
+    def next(self, event=None):
 	node, index = self._get_selected_node()
 	if index < self._writer.count()-1: index = index + 1
 	self._writer.select_node(index)
