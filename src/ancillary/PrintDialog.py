@@ -134,8 +134,9 @@ class PrintDialog:
 	self.goaway()
 
     def print_to_fp(self, fp):
+	# do the printing
 	from urllib import urlopen
-	from html2ps import PSWriter
+	from html2ps import PSWriter, PrintingHTMLParser
 	from formatter import AbstractFormatter
 	try:
 	    infp = urlopen(self.url)
@@ -156,19 +157,3 @@ class PrintDialog:
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
 	self.root.destroy()
-
-
-from htmllib import HTMLParser
-
-
-class PrintingHTMLParser(HTMLParser):
-
-    """Class to override HTMLParser's default methods for anchors."""
-
-    def anchor_bgn(self, href, name, type):
-	self.anchor = href
-	self.formatter.push_style(href and 'u' or None)
-
-    def anchor_end(self):
-	self.formatter.pop_style()
-	self.anchor = None
