@@ -42,6 +42,18 @@ import string
 import sys
 import tktools
 
+
+def get_scaling_adjustments(w):
+    scheight = float(w.winfo_screenheight())
+    scwidth = float(w.winfo_screenwidth())
+    scheight_mm = float(w.winfo_screenmmheight())
+    scwidth_mm = float(w.winfo_screenmmwidth())
+    vert_pixels_per_in = scheight / (scheight_mm / 25)
+    horiz_pixels_per_in = scwidth / (scwidth_mm / 25)
+    result = (72.0 / horiz_pixels_per_in), (72.0 / vert_pixels_per_in)
+##     print "scaling adjustments:", result
+    return result
+
 
 class PrintSettings:
     """Store the current preference settings."""
@@ -113,10 +125,6 @@ def PrintDialog(context, url, title):
     except IOError, msg:
 	context.error_dialog(IOError, msg)
 	return
-    if not html2ps.standard_header_template:
-	context.app.error_dialog("Missing file",
-				 "header.ps missing from the source directory")
-	return
     try:
 	ctype = infp.info()['content-type']
     except KeyError:
@@ -150,7 +158,7 @@ plain text if you elect to continue."""
 	self.__url = url
 	self.__title = title
 	self.__infp = infp
-	top = self.__top = Toplevel(context.browser.root)
+	top = self.__top = tktools.make_toplevel(context.browser.root)
 	top.title("Print Action")
 	fr, topfr, botfr = tktools.make_double_frame(top)
 	Label(topfr, bitmap="warning", foreground='darkblue'
@@ -197,6 +205,7 @@ class RealPrintDialog:
 	self.ctype = ctype
 	self.context = context
 	self.baseurl = context.get_baseurl()
+	self.prefs = context.app.prefs
 
 	global settings
 	try:
@@ -209,12 +218,15 @@ class RealPrintDialog:
 	self.root = tktools.make_toplevel(self.master,
 					  title="Print Dialog",
 					  class_="PrintDialog")
-	self.root.iconname("Print Dialog")
 	# do this early in case we're debugging:
 	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
 	self.root.bind("<Alt-w>", self.cancel_event)
 	self.root.bind("<Alt-W>", self.cancel_event)
 	self.cursor_widgets = [self.root]
+	#
+	adjust = get_scaling_adjustments(self.root)
+	html2ps.PIXEL_SIZE_ADJUST_HORIZ = adjust[0]
+	html2ps.PIXEL_SIZE_ADJUST_VERT = adjust[1]
 
 	fr, top, botframe = tktools.make_double_frame(self.root)
 
@@ -389,6 +401,8 @@ class RealPrintDialog:
     def print_to_fp(self, fp):
 	# do the printing
 	self.update_settings()
+	html2ps.USERHEADER_FILENAME = self.prefs.Get(
+	    settings.GROUP, 'user-header')
 	paper = html2ps.PaperInfo(settings.papersize)
 	paper.rotate(settings.orientation)
 	if settings.margins:
