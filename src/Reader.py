@@ -274,7 +274,7 @@ class Reader(BaseReader):
 
 	if hasattr(self.parser, 'title'):
 	    title = self.parser.title
-	    if title and title != self.browser.title():
+	    if title:
 		self.browser.set_title(title)
 
     def handle_eof(self):
