@@ -130,6 +130,15 @@ class Application:
 	self.root.report_callback_exception = self.report_callback_exception
 	self.root.withdraw()
 	self.keep_alive()
+	self.on_exit_methods = []
+
+    def register_on_exit(self, method):
+	self.on_exit_methods.append(method)
+    def unregister_on_exit(self, method):
+	try: self.on_exit_methods.remove(method)
+	except ValueError: pass
+    def exit_notification(self):
+	for m in self.on_exit_methods[:]: m()
 
     def quit(self):
 	self.root.destroy()
@@ -142,7 +151,8 @@ class Application:
 	try:
 	    self.root.mainloop()
 	except KeyboardInterrupt:
-	    return
+	    pass
+	self.exit_notification()
 
     def keep_alive(self):
 	# Exercise the Python interpreter regularly so keyboard
