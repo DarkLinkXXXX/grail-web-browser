@@ -124,6 +124,7 @@ class CacheManager:
 	3. call activate(), which adds the URL to the shared object
 	list and creates a CacheAPI for the item
 	"""
+
 	try:
 	    api = self.cache_read(key)
 	except CacheReadFailed, cache:
@@ -142,6 +143,8 @@ class CacheManager:
 	else:
 	    # cause item to be loaded (and perhaps cached)
 	    item = CacheItem(url, mode, params, self, key, data)
+
+	#print "cache.open_get( %s )" % (url)
 	return self.activate(item)
 
     def open_post(self, key, url, mode, params, reload, data):
@@ -300,34 +303,16 @@ class CacheManager:
 	- reformat the port using %d
 	- get rid of the fragment identifier
 
-	XXX Questions
-
-	- how do we know the scheme's default port?
-	- do we need mode, params?
-	- should we default the scheme to http?
-	- should we default the netloc to localhost?
-	- should we equivalence file and ftp schemes?
-	- should we lowercase the scheme?
-	- should we change the hostname to numeric form to catch DNS aliases?
-	  (but what about round-robin DNS?)
-
-	XXX Idea
-
-	Servers that use session ids make it hard to
-	cache. OpenMarket, however, sends the session id in the
-	headers, so that we could strip it out of the URL. :-)
-
-	OpenMarket sends two headers:
-        Set-Cookie: OpenMarketSI=/@@THWJ@sL5SwMAQJOt; path=/;
-        Location: http://pathfinder.com/@@THWJ@sL5SwMAQJOt/welcome/
 	"""
 	scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
 	i = string.find(netloc, '@')
 	if i > 0:
 	    userpass = netloc[:i]
-	    netloc = netloc[i:]
+	    netloc = netloc[i+1:]    # delete the '@'
 	else:
 	    userpass = ""
+	scheme = string.lower(scheme)
+	netloc = string.lower(netloc)
 	i = string.find(netloc, ':')
 	if i >= 0:
 	    try:
@@ -340,6 +325,9 @@ class CacheManager:
 	    netloc = netloc[:i]
 	elif type(port) == type(0):
 	    netloc = netloc[:i] + ":%d" % port
+	if path[-1:] == '/':
+	    # remove trailing slashes
+	    path = path[:-1]
 	return urlparse.urlunparse((scheme, netloc, path, params, query, ""))
 
 
