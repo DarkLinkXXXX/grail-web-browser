@@ -36,6 +36,7 @@ class Viewer(formatter.AbstractWriter):
 	self.name = name
 	self.scrolling = scrolling
 	self.parent = parent
+	self.align = None
 	self.subwindows = []
 	self.rules = []
 	self.subviewers = []
@@ -79,8 +80,8 @@ class Viewer(formatter.AbstractWriter):
 	self.marginlevel = 0		# Numeric margin level
 	self.spacingtag = None		# Tag specifying spacing
 	self.addtags = ()		# Additional tags (e.g. anchors)
-	self.literaltags = ()		# Tags for literal text
-	self.flowingtags = ()		# Tags for flowed text
+	self.align = None		# Alignment setting
+	self.new_tags()
 
     def __del__(self):
 	self.close()
@@ -144,7 +145,6 @@ class Viewer(formatter.AbstractWriter):
 
     def configure_tags_fixed(self):
 	# These are used in aligning rules:
-	self.text.tag_config('left', justify = 'left')
 	self.text.tag_config('right', justify = 'right')
 	self.text.tag_config('center', justify = 'center')
 	if DINGBAT_FONT:
@@ -286,7 +286,8 @@ class Viewer(formatter.AbstractWriter):
     def new_tags(self):
 	self.flowingtags = filter(
 	    None,
-	    (self.fonttag, self.margintag, self.spacingtag)) + self.addtags
+	    (self.align, self.fonttag, self.margintag, self.spacingtag)) \
+	    + self.addtags
 	self.literaltags = self.flowingtags + ('pre',)
 
     def scroll_page_down(self, event=None):
@@ -302,7 +303,12 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tk.call('tkScrollByUnits', self.text.vbar, 'v', -1)
 
     # AbstractWriter methods
-	
+
+    def new_alignment(self, align):
+	if align == 'left': align = None
+	self.align = align
+	self.new_tags()
+
     def new_font(self, font):
 ##	print "New font:", font
 	if not font:
@@ -341,7 +347,6 @@ class Viewer(formatter.AbstractWriter):
 
     def send_hor_rule(self, abswidth=None, percentwidth=1.0,
 		      height=None, align=None):
-	self.text.insert(END, '\n')
 	width = self.rule_width()
 	if abswidth:
 	    width = min(width, abswidth)
@@ -354,11 +359,9 @@ class Viewer(formatter.AbstractWriter):
 	self.rules.append(window)
 	window._width = abswidth
 	window._percent = percentwidth
-	if align:
-	    align = string.lower(align)
-	    self.text.insert(END, MIN_IMAGE_LEADER, align)
-	else:
-	    self.text.insert(END, MIN_IMAGE_LEADER)
+	if not align:
+	    align = self.align
+	self.text.insert(END, MIN_IMAGE_LEADER, align)
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()

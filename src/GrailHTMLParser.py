@@ -244,7 +244,7 @@ class GrailHTMLParser(HTMLParser):
 	    #  Normally not important, but ISINDEX would cause
 	    #  these to be non-empty:
 	    for hr in self.viewer.rules + self.viewer.subwindows:
-		hr.config(background = clr, highlightbackground = clr)
+		hr.config(highlightbackground = clr)
 	if attrs.has_key('text'):
 	    self.configcolor('foreground', attrs['text'])
 	if attrs.has_key('link'):
@@ -279,10 +279,10 @@ class GrailHTMLParser(HTMLParser):
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
-	self.formatter.push_style('center')
+	self.formatter.push_alignment('center')
 
     def end_center(self):
-	self.formatter.pop_style()
+	self.formatter.pop_alignment()
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
@@ -455,7 +455,7 @@ class GrailHTMLParser(HTMLParser):
 	formatter = self.formatter
         formatter.end_paragraph(1)
 	align = self.extract_keyword('align', attrs, conv=string.lower)
-	formatter.push_style(align)
+	formatter.push_alignment(align)
         formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
 	dingbat = self.extract_keyword('dingbat', attrs)
@@ -470,7 +470,7 @@ class GrailHTMLParser(HTMLParser):
 
     def header_end(self, tag, level):
 	formatter = self.formatter
-	formatter.pop_style()
+	formatter.pop_alignment()
         formatter.pop_font()
         formatter.end_paragraph(1)
 

@@ -142,6 +142,10 @@ TAB_STOP = inch_to_pt(0.5)
 HEADER_POS = inch_to_pt(0.25)
 FOOTER_POS = -PAGE_HEIGHT - inch_to_pt(0.5)
 
+ALIGN_LEFT = 0
+ALIGN_CENTER = 1
+ALIGN_RIGHT = 2
+
 # I don't support color yet
 F_FULLCOLOR = 0
 F_GREYSCALE = 1
@@ -348,6 +352,7 @@ class PSStream:
 	self._url = url
 	self._pageno = 1
 	self._margin = 0.0
+	self._align = ALIGN_LEFT
 	# current line state
 	self._space_width = 0.0
 	self._linestr = []
@@ -457,6 +462,14 @@ class PSStream:
 	finally:
 	    sys.stdout = oldstdout
 
+    def push_alignment(self, align):
+	if align == 'right':
+	    self._align = ALIGN_RIGHT
+	elif align == 'center':
+	    self._align = ALIGN_CENTER
+	else:
+	    self._align = ALIGN_LEFT
+
     def push_yshift(self, yshift):
 	"""Adjust the current baseline relative to the real baseline.
 
@@ -520,17 +533,14 @@ class PSStream:
 
     def push_horiz_rule(self, abswidth=None, percentwidth=None,
 			height=None, align=None):
-	if type(height) is type(0):
-	    height = 0.5 * max(height, 1)
-	else:
-	    height = 1				# 2
-	if type(align) is type(''):
-	    align = string.lower(align)
-	    if align not in ('left', 'center', 'right'):
-		align = 'left'
-	else:
-	    align = 'left'
 	self.close_line()
+	if type(height) is type(0):
+	    height = 0.5 * max(height, 1)	# each unit is 0.5pts
+	else:
+	    height = 1				# 2 "units"
+	old_align = self._align
+	if align is not None:
+	    self.push_alignment(align)
 	self._baseline = HR_TOP_MARGIN
 	self._descender = HR_BOT_MARGIN
 	if abswidth:
@@ -539,15 +549,16 @@ class PSStream:
 	    width = min(1.0, percentwidth) * PAGE_WIDTH
 	else:
 	    width = PAGE_WIDTH
-	if align == 'left':
+	if self._align is ALIGN_LEFT:
 	    start = 0.0
-	elif align == 'center':
+	elif self._align is ALIGN_CENTER:
 	    start = (PAGE_WIDTH - width) / 2
-	else:  # ALIGN = left
+	else:	#  ALIGN = right
 	    start = PAGE_WIDTH - width
 	self._linefp.write('%d %f %f HR\n' % (height, start, width))
 	self.close_line()
 	self._ypos = self._ypos - height
+	self._align = old_align
 
     def push_margin(self, level):
 	if self._linestr:
@@ -831,6 +842,10 @@ class PSWriter(AbstractWriter):
     def close(self):
 ##	_debug('close')
 	self.ps.push_end()
+
+    def new_alignment(self, align):
+##	_debug('new_alignment: %s' % `align`)
+	self.ps.push_alignment(align)
 
     def new_font(self, font):
 ##	_debug('new_font: %s' % `font`)

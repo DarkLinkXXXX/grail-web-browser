@@ -43,7 +43,6 @@ import TbDialog
 if 0:
     import dummies
 import GlobalHistory
-import Viewer
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
@@ -222,6 +221,7 @@ class Application:
 	self.browsers = []
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
+	import Viewer
 	try:
 	    dummy = Label(text = 'dummy', font = Viewer.DINGBAT_FONT)
 	except TclError:
