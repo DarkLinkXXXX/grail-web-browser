@@ -14,11 +14,13 @@ XXX Main deficiencies:
 
 import string
 import ftplib
-from urllib import ftperrors, unquote, splithost, splitport, splituser, \
+from urllib import unquote, splithost, splitport, splituser, \
      splitpasswd, splitattr, splitvalue
 import mimetools
 from assert import assert
 import socket
+
+from __main__ import app		# app.guess_type(url)
 
 
 # Stages
@@ -27,7 +29,7 @@ DATA = 'data'
 DONE = 'done'
 
 
-ftpcache = {}			# XXX Ouch!  A global!
+ftpcache = {}				# XXX Ouch!  A global!
 
 
 class ftp_access:
@@ -46,13 +48,23 @@ class ftp_access:
 	path, attrs = splitattr(path)
 	dirs = string.splitfields(path, '/')
 	dirs, file = dirs[:-1], dirs[-1]
+	if not file:
+	    self.content_type, self.content_encoding = None, None
+	    type = 'D'
+	else:
+	    self.content_type, self.content_encoding = app.guess_type(file)
+	    if self.content_encoding:
+		type = 'I'
+	    elif self.content_encoding and \
+		 self.content_encoding[:5] == 'text/':
+		type = 'A'
+	    else:
+		type = 'I'
 	if dirs and not dirs[0]: dirs = dirs[1:]
 	key = (user, host, port, string.joinfields(dirs, '/'))
 	try:
 	    if not ftpcache.has_key(key):
 		ftpcache[key] = []
-	    if not file: type = 'D'
-	    else: type = 'I'
 	    for attr in attrs:
 		attr, value = splitvalue(attr)
 		if string.lower(attr) == 'type' and \
@@ -69,7 +81,7 @@ class ftp_access:
 	    # XXX Need to clean the cache every once in a while
 	    self.cand = cand
 	    self.sock = cand.retrfile(file, type)
-	except ftperrors(), msg:
+	except ftplib.all_errors, msg:
 	    raise IOError, ('ftp error', msg)
 	self.state = META
 
@@ -80,8 +92,12 @@ class ftp_access:
     def getmeta(self):
 	assert(self.state == META)
 	self.state = DATA
-	# XXX Ought to return the Content-type
-	return 200, "OK", {}
+	headers = {}
+	if self.content_type:
+	    headers['content-type'] = self.content_type
+	if self.content_encoding:
+	    headers['content-encoding'] = self.content_encoding
+	return 200, "OK", headers
 
     def polldata(self):
 	assert(self.state == DATA)
@@ -124,7 +140,7 @@ class ftpwrapper:
 
     def __del__(self):
 	self.done()
-	self.quit()
+	self.ftp.quit()
 
     def reset(self):
 	self.conn = None
@@ -142,7 +158,10 @@ class ftpwrapper:
 	self.conn = None
 	if conn:
 	    conn.close()
-	    self.ftp.voidresp()
+	    try:
+		self.ftp.voidresp()
+	    except ftplib.all_errors:
+		print "[ftp.voidresp() failed]"
 
     def retrfile(self, file, type):
 	if type in ('d', 'D'): cmd = 'TYPE A'; isdir = 1
