@@ -387,14 +387,32 @@ class ContextDummy(Dummy):
 ##    def get_async_image(self, src):
 ##	return Bastion(self.real.get_async_image(src))
 
+class GlobalHistoryDummy(Dummy):
+
+    ok_names = ['remember_url', 'lookup_url', 'inhistory_p', 'urls']
+
 class ParserDummy(Dummy):
 
     ok_names = []
 
 class ViewerDummy(Dummy):
 
-    ok_names = []
-
+    ok_names = [
+	'add_subwindow',
+	'bind_anchors',
+	# Writer methods:
+	'new_alignment',
+	'new_font',
+	'new_margin',
+	'new_spacing',
+	'new_styles',
+	'send_paragraph',
+	'send_line_break',
+	'send_hor_rule',
+	'send_label_data',
+	'send_flowing_data',
+	'send_literal_data',
+	]
 
 def AppBastion(real, key):
     try:
@@ -404,6 +422,7 @@ def AppBastion(real, key):
     except AttributeError:
 	real._bastions = {}
     real._bastions[key] = bastion = Bastion(AppDummy(real))
+    bastion.global_history = GlobalHistoryBastion(real.global_history, key)
     return bastion
 
 def BrowserBastion(real, key):
@@ -431,6 +450,16 @@ def ContextBastion(real, key):
     real._bastions[key] = bastion = Bastion(ContextDummy(real))
     return bastion
 
+def GlobalHistoryBastion(real, key):
+    try:
+	return real._bastions[key]
+    except KeyError:
+	pass
+    except AttributeError:
+	real._bastions = {}
+    real._bastions[key] = bastion = Bastion(GlobalHistoryDummy(real))
+    return bastion
+
 def ParserBastion(real, key):
     try:
 	return real._bastions[key]
@@ -455,7 +484,12 @@ def ViewerBastion(real, key):
 	return name[0] != '_' or name in ('__getitem__',
 					  '__setitem__',
 					  '__str__')
-    bastion.text = Bastion(real.text, filter=filter)
+    rtext = real.text
+    bastion.text = btext = Bastion(real.text, filter=filter)
+    btext._w = rtext._w			# XXX This defeats the purpose :-(
+    btext.tk = rtext.tk			# XXX This too :-(
+    btext.children = rtext.children	# XXX And this :-(
+    btext.master = rtext.master		# XXX And so on :-(
     return bastion
 
 
