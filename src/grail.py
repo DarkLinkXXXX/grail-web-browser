@@ -30,6 +30,10 @@ import ni
 import html
 import filetypes
 import grailutil
+try:
+    import ilu_tk
+except:
+    ilu_tk = 0
 import getopt
 import string
 import urllib
@@ -334,7 +338,10 @@ class Application:
     def go(self):
 	try:
 	    try:
-		self.root.mainloop()
+		if ilu_tk:
+		    ilu_tk.RunMainLoop()
+		else:
+		    self.root.mainloop()
 	    except KeyboardInterrupt:
 		pass
 	finally:
