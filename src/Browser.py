@@ -320,7 +320,7 @@ class Browser:
 	# File/Print...
 	if self.busycheck(): return
 	import PrintDialog
-	PrintDialog.PrintDialog(self, self.url)
+	PrintDialog.PrintDialog(self, self.url, self.title)
 
     def close_command(self):
 	# File/Close
