@@ -9,19 +9,13 @@ import grailutil
 from Tkinter import *
 import tktools
 
+import GrailPrefs
 from DefaultStylesheet import DefaultStylesheet
 from Viewer import Viewer
 from AsyncImage import AsyncImage
 from Cursors import *
 
 
-# URLs of various sorts
-GRAIL_HOME = "http://monty.cnri.reston.va.us/grail-0.2/"
-PYTHON_HOME = "http://www.python.org/"
-PSA_HOME = 'http://www.python.org/psa/'
-CNRI_HOME = "http://www.cnri.reston.va.us/"
-ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail-0.2/about/"
-DEFAULT_HOME = GRAIL_HOME
 LOGO_IMAGES = "logo:"
 FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 
@@ -29,16 +23,6 @@ FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 # Window title prefix
 TITLE_PREFIX = "Grail: "
 
-
-# Font used in message area (default is too heavy)
-FONT_MESSAGE = "-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*"
-
-
-# Default window geometry
-DEFAULT_WIDTH = 80
-DEFAULT_HEIGHT = 40
-if sys.platform == 'mac':
-    DEFAULT_HEIGHT = 20
 
 
 
@@ -51,16 +35,22 @@ class Browser:
 
     """
     def __init__(self, master, app=None,
-		 width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
+		 width=None, height=None,
 		 geometry=None):
 	self.master = master
 	if not app:
 	    import __main__
 	    try: app = __main__.app
 	    except NameError: pass
+	# In common operation, we should always have an app at this point.
 	if app:
 	    app.add_browser(self)
+	    prefs = app.prefs
 	self.app = app
+
+	if not width: width = prefs.GetInt('browser', 'default-width')
+	if not height: height = prefs.GetInt('browser', 'default-height')
+
 	self.create_widgets(width=width, height=height, geometry=geometry)
 	# icon set up
 	iconxbm_file = grailutil.which('icon.xbm')
@@ -247,7 +237,10 @@ class Browser:
 	self.msg_frame = Frame(self.topframe, height=20)
 	self.msg_frame.pack(fill=X, side=BOTTOM)
 	self.msg_frame.propagate(OFF)
-	self.msg = Label(self.msg_frame, anchor=W, font=FONT_MESSAGE)
+	self.msg = Label(self.msg_frame, anchor=W,
+			 font=self.app.prefs.Get('presentation',
+						 'message-font'))
+
 	self.msg.pack(fill=X, in_=self.msg_frame)
 
     # --- External interfaces ---
@@ -425,7 +418,9 @@ class Browser:
     # History menu commands
 
     def home_command(self, event=None):
-	home = self.app and self.app.home or DEFAULT_HOME
+	home = self.app.prefs.Get('landmarks', 'home-page')
+	if not home:
+	    home = self.app.prefs.Get('landmarks', 'grail-home-page')
 	self.context.load(home)
 
     def reload_command(self, event=None):
@@ -442,11 +437,16 @@ class Browser:
 
     # Help menu commands
 
-    def about_command(self, event=None):       self.context.load(ABOUT_GRAIL)
-    def grail_home_command(self, event=None):  self.context.load(GRAIL_HOME)
-    def python_home_command(self, event=None): self.context.load(PYTHON_HOME)
-    def psa_home_command(self, event=None):    self.context.load(PSA_HOME)
-    def cnri_home_command(self, event=None):   self.context.load(CNRI_HOME)
+    def about_command(self, event=None):
+	self.context.load(self.app.prefs.Get('landmarks', 'about-grail-page'))
+    def grail_home_command(self, event=None):
+	self.context.load(self.app.prefs.Get('landmarks', 'grail-home-page'))
+    def python_home_command(self, event=None):
+	self.context.load(self.app.prefs.Get('landmarks', 'python-home-page'))
+    def psa_home_command(self, event=None):
+	self.context.load(self.app.prefs.Get('landmarks', 'psa-home-page'))
+    def cnri_home_command(self, event=None):
+	self.context.load(self.app.prefs.Get('landmarks', 'cnri-home-page'))
 
     # --- Animated logo ---
 
