@@ -30,12 +30,86 @@ DATA = 'data'
 DONE = 'done'
 
 
+class _socketfile:
+
+    """Helper class to simulate file object with access to its buffer."""
+
+    # Code copied from Lib/mac/socket.py
+
+    def __init__(self, sock, rw, bs):
+	if rw not in ('r', 'w'): raise _myerror, "mode must be 'r' or 'w'"
+	self.sock = sock
+	self.rw = rw
+	self.bs = bs
+	self.buf = ''
+
+    def read(self, length = -1):
+	if length < 0:
+	    length = 0x7fffffff
+	while len(self.buf) < length:
+	    new = self.sock.recv(512)
+	    if not new:
+		break
+	    self.buf = self.buf + new
+	rv = self.buf[:length]
+	self.buf = self.buf[length:]
+	return rv
+
+    def readline(self):
+	while not '\n' in self.buf:
+	    new = self.sock.recv(512)
+	    if not new:
+		break
+	    self.buf = self.buf + new
+	if not '\n' in self.buf:
+	    rv = self.buf
+	    self.buf = ''
+	else:
+	    i = string.index(self.buf, '\n')
+	    rv = self.buf[:i+1]
+	    self.buf = self.buf[i+1:]
+	return rv
+
+    def readlines(self):
+	list = []
+	line = self.readline()
+	while line:
+	    list.append(line)
+	    line = self.readline()
+	return list
+
+    def write(self, buf):
+	BS = self.bs
+	if len(buf) >= BS:
+	    self.flush()
+	    self.sock.send(buf)
+	elif len(buf) + len(self.buf) >= BS:
+	    self.flush()
+	    self.buf = buf
+	else:
+	    self.buf = self.buf + buf
+
+    def writelines(self, list):
+	for line in list:
+	    self.write(line)
+
+    def flush(self):
+	if self.buf and self.rw == 'w':
+	    self.sock.send(self.buf)
+	    self.buf = ''
+
+    def close(self):
+	self.flush()
+	##self.sock.close()
+	del self.sock
+
+
 class MyHTTP(httplib.HTTP):
 
     def getreply(self):
 	# Use unbuffered file so we can use the raw socket later on;
 	# don't zap the socket
-	self.file = self.sock.makefile('r', 0)
+	self.file = _socketfile(self.sock, 'r', 0)
 	line = self.file.readline()
 	if self.debuglevel > 0: print 'reply:', `line`
 	if replyprog.match(line) < 0:
@@ -107,7 +181,7 @@ class http_access:
 	assert(self.stage == META)
 	errcode, errmsg, headers = self.h.getreply()
 	self.stage = DATA
-	self.readahead = None
+	self.readahead = self.h.file.buf
 	if errcode == -1:
 	    self.readahead = errmsg
 	return errcode, errmsg, headers
