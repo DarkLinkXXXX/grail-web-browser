@@ -213,14 +213,19 @@ class HTMLParser(SGMLParser):
 	self.header_end('h6', 5)
 
     def header_bgn(self, tag, level, attrs):
-	self.close_paragraph()
+	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
+	while self.list_stack:
+	    self.lex_endtag(self.list_stack[0][0])
         self.formatter.end_paragraph(1)
+	align = extract_keyword('align', attrs, conv=string.lower)
+	self.formatter.push_alignment(align)
         self.formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
 
     def header_end(self, tag, level):
-        self.formatter.end_paragraph(1)
         self.formatter.pop_font()
+	self.formatter.pop_alignment()
+        self.formatter.end_paragraph(1)
 
     def header_number(self, tag, level, attrs):
 	if self.autonumber is None:
