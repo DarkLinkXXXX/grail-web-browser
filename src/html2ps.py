@@ -869,6 +869,8 @@ class PSWriter(AbstractWriter):
 
     Exported ivars:
     """
+    _detab_pos = 0
+
     def __init__(self, ofile, title='', url='',
 		 varifamily='Times', fixedfamily='Courier'):
 	if not title:
@@ -893,6 +895,7 @@ class PSWriter(AbstractWriter):
     def new_margin(self, margin, level):
 ##	_debug('new_margin: margin=%s, level=%s' % (margin, level))
 	self.ps.push_margin(level)
+	self._detab_pos = 0
 
     def new_spacing(self, spacing):
 	raise RuntimeError, 'not yet implemented'
@@ -907,34 +910,56 @@ class PSWriter(AbstractWriter):
     def send_paragraph(self, blankline):
 ##	_debug('send_paragraph: %s' % blankline)
 	self.ps.push_paragraph(blankline)
+	self._detab_pos = 0
 
     def send_line_break(self):
 ##	_debug('send_line_break')
 	self.ps.push_hard_newline()
+	self._detab_pos = 0
 
     def send_hor_rule(self, abswidth=None, percentwidth=None,
 		      height=None, align=None):
 ##	_debug('send_hor_rule')
 	self.ps.push_horiz_rule(abswidth, percentwidth, height, align)
+	self._detab_pos = 0
 
     def send_label_data(self, data):
 ##	_debug('send_label_data: %s' % data)
 	self.ps.push_label(data)
+	self._detab_pos = 0
 
     def send_flowing_data(self, data):
 ##	_debug('send_flowing_data: %s' % data)
 	self.ps.push_literal(0)
 	self.ps.push_string(data)
+	self._detab_pos = 0
 
     def send_literal_data(self, data):
 ##	_debug('send_literal_data: %s' % data)
 	self.ps.push_literal(1)
-	self.ps.push_string(data)
+	self.ps.push_string(self._detab_data(data))
 
     def send_eps_data(self, image, align):
 ##	_debug('send_eps_data: <epsdata>, ' + `bbox`)
 	self.ps.push_eps(image, align)
+	self._detab_pos = 0
 
+    def _detab_data(self, data):
+	pos = self._detab_pos
+	s = []
+	append = s.append
+	for c in data:
+	    if c == '\n':
+		append('\n')
+		pos = 0
+	    elif c == '\t':
+		append(' ' * (8 - (pos % 8)))
+		pos = 0
+	    else:
+		append(c)
+		pos = pos + 1
+	self._detab_pos = pos
+	return string.joinfields(s, '')
 
 
 #  Exception which should not propogate outside this module.
