@@ -15,6 +15,7 @@ from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser
 from Viewer import MIN_IMAGE_LEADER
 import AppletLoader
+import grailutil
 
 # Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
@@ -132,7 +133,6 @@ class GrailHTMLParser(HTMLParser):
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
-	align = ''
 	alt = '(image)'
 	ismap = None
 	usemap = None
@@ -141,8 +141,25 @@ class GrailHTMLParser(HTMLParser):
 	height = 0
 	border = 2
 
+	def conv_align(val):
+	    # This should work, but Tk doesn't actually do the right
+	    # thing so for now everything gets mapped to CENTER
+	    # alignment.
+	    return CENTER
+## 	    conv = grailutil.conv_enumeration(
+## 		grailutil.conv_normstring(val),
+## 		{'top': TOP,
+## 		 'middle': CENTER,
+## 		 'bottom': BASELINE,
+## 		 # note: no HTML 2.0 equivalent of Tk's BOTTOM alignment
+## 		 })
+## 	    if conv: return conv
+## 	    else: return CENTER
+	align = grailutil.extract_attribute('align', attrs,
+					    conv=conv_align,
+					    default=CENTER)
+
 	extract = self.extract_keyword
-	align = extract('align', attrs, conv=string.lower)
 	alt = extract('alt', attrs, '(image)')
 	border = extract('border', attrs, 2, conv=string.atoi)
 	if attrs.has_key('ismap'):
@@ -162,14 +179,17 @@ class GrailHTMLParser(HTMLParser):
 	window = ImageWindow(self.viewer, self.anchor, src, alt,
 			     usemap, ismap, align, width, height,
 			     border, self.target)
-	self.add_subwindow(window)
+	self.add_subwindow(window, align=align)
 
-    def add_subwindow(self, w):
+    def add_subwindow(self, w, align=None):
 	if self.formatter_stack[-1].nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
 	    self.handle_data(MIN_IMAGE_LEADER) # Non-breaking space
-	self.viewer.add_subwindow(w)
+	if align is None:
+	    self.viewer.add_subwindow(w)
+	else:
+	    self.viewer.add_subwindow(w, align=align)
 
     # Extend tag: </TITLE>
 
@@ -496,7 +516,6 @@ class GrailHTMLParser(HTMLParser):
 	    return self.entityimages[entname]
 	except KeyError:
 	    pass
-	import grailutil
 	gifname = grailutil.which(entname + '.gif', self.iconpath)
 	if gifname:
 	    img = PhotoImage(file=gifname)
