@@ -1,7 +1,5 @@
 """Context class."""
 
-from urlparse import urljoin, urlparse, urlunparse, urldefrag
-from Cursors import *
 import History
 import Reader
 import string
@@ -10,6 +8,11 @@ import time
 import math
 import urllib
 import regsub
+
+from Cursors import *
+from grailbase.uricontext import URIContext
+from urlparse import urljoin, urlparse, urlunparse, urldefrag
+
 
 VALID_TARGET_STARTS = string.letters + '_'
 
@@ -31,7 +34,7 @@ def urljoin(a, b):
     return default_joiner(a, b)
 
 
-class Context:
+class Context(URIContext):
 
     """Context for browsing operations.
     
@@ -54,6 +57,7 @@ class Context:
     """
 
     def __init__(self, viewer, browser):
+        URIContext.__init__(self)
         self.viewer = viewer
         self.browser = browser
         self.history = History.History()
@@ -64,7 +68,6 @@ class Context:
         self.page = None
         self.future = -1
         self.source = None
-        self._url = self._baseurl = ""
         self._target = None
         self.last_status_update = 0.0   # Time when last status update was done
         self.next_status_update = None  # ID of next scheduled status update
@@ -139,12 +142,10 @@ class Context:
                 self.future = -1
             else:
                 self.page = None
-        self._url = self._baseurl = url
-        if baseurl:
-            self._baseurl = urljoin(url, baseurl)
+        URIContext.set_url(self, url, baseurl=baseurl)
         self._target = target
         if self.on_top():
-            self.browser.set_url(self._url)
+            self.browser.set_url(self.get_url())
         self.applet_group = None
 
     def set_baseurl(self, baseurl=None, target=None):
@@ -153,28 +154,12 @@ class Context:
         The base URL is taken relative to the existing base URL.
 
         """
-        if baseurl:
-            self._baseurl = urljoin(self._baseurl, baseurl)
+        URIContext.set_baseurl(self, baseurl)
         if target:
             self._target = target
 
-    def get_baseurl(self, *relurls):
-        """Return the base URL for the current page, joined with relative URLs.
-
-        Without arguments, return the base URL.
-        
-        With arguments, return the base URL joined with all of the
-        arguments.  Empty arguments don't contribute.
-
-        E.g. baseurl(x, y) == urljoin(urljoin(baseurl(), x), y).
-
-        """
-        url = self._baseurl
-        for relurl in relurls:
-            if relurl:
-                url = urljoin(url, relurl)
-        return url
-    baseurl = get_baseurl               # XXX Backwards compatibility
+    def baseurl(self):               # XXX Backwards compatibility
+        return self.get_baseurl()
     # XXX see: GrailHTMLParser, AppletLoader, Viewer, isindex
 
     def get_target(self):
@@ -190,7 +175,7 @@ class Context:
         """
 
         newurl, frag = urldefrag(url)
-        current, f = urldefrag(self._url)
+        current, f = urldefrag(self.get_url())
         if newurl == current:
             # XXX This is not correct if we got here through a POST.
             context = self.find_window_target(target)
@@ -281,8 +266,8 @@ class Context:
                 message = "%d streams, %d active: %s" % (nr, nr - nw, message)
         elif self.on_top():
             message = ""
-        elif self._url:
-            message = "URL: %s" % self._url
+        elif self.get_url():
+            message = "URL: %s" % self.get_url()
         else:
             message = "empty"
         self.message(message)
@@ -295,9 +280,9 @@ class Context:
 
     def set_title(self, title):
         if not title:
-            title, when = self.app.global_history.lookup_url(self._url)
+            title, when = self.app.global_history.lookup_url(self.get_url())
             title = title or ''
-        self.app.global_history.remember_url(self._url, title)
+        self.app.global_history.remember_url(self.get_url(), title)
         if self.on_top():
             self.browser.set_title(title)
         if self.page:
@@ -625,9 +610,6 @@ class Context:
             reader.kill()
 
     # Page interface
-
-    def get_url(self):
-        return self._url
 
     def get_title(self):
         url = self.get_url()
