@@ -1,6 +1,6 @@
 """HTML parser for printing."""
 
-__version__ = '$Revision: 1.7 $'
+__version__ = '$Revision: 1.8 $'
 
 import grailutil                        # top level
 import os
@@ -211,6 +211,7 @@ class PrintingHTMLParser(HTMLParser):
         else:
             self.para_end(parbreak=1)
         self.formatter.writer.send_indentation(None)
+        self.formatter.writer.suppress_indentation(0)
 
     def do_basefont(self, attrs):
         if attrs.has_key("size"):
@@ -355,6 +356,7 @@ class PrintingHTMLParser(HTMLParser):
 
     def start_caption(self, attrs):
         self.start_div({"align": "center"})
+        self.formatter.writer.suppress_indentation()
 
     def end_caption(self):
         self.end_div()
@@ -403,6 +405,10 @@ class PrintingHTMLParser(HTMLParser):
             self.do_img(attrs)
             self.formatter.add_flowing_data(' ')
 
+    def header_end(self, tag, level):
+        HTMLParser.header_end(self, tag, level)
+        self.formatter.writer.suppress_indentation()
+
     def header_number(self, tag, level, attrs):
         # make sure we have at least 3*fontsize vertical space available:
         self.require_vspace(3)
@@ -437,9 +443,30 @@ class PrintingHTMLParser(HTMLParser):
         self.list_check_dingbat(attrs)
         apply(HTMLParser.start_ul, (self, attrs) + args, kw)
 
+    def end_ul(self):
+        HTMLParser.end_ul(self)
+        self.formatter.writer.suppress_indentation(0)
+
+    def end_dl(self):
+        HTMLParser.end_dl(self)
+        self.formatter.writer.suppress_indentation(0)
+
+    def end_ol(self):
+        HTMLParser.end_ol(self)
+        self.formatter.writer.suppress_indentation(0)
+
     def do_li(self, attrs):
         self.list_check_dingbat(attrs)
         HTMLParser.do_li(self, attrs)
+        self.formatter.writer.suppress_indentation()
+
+    def do_dd(self, attrs):
+        HTMLParser.do_dd(self, attrs)
+        self.formatter.writer.suppress_indentation()
+
+    def do_dt(self, attrs):
+        HTMLParser.do_dt(self, attrs)
+        self.formatter.writer.suppress_indentation()
 
     def list_check_dingbat(self, attrs):
         if attrs.has_key('dingbat') and attrs['dingbat']:
