@@ -50,9 +50,11 @@ class BaseReader:
 	self.fno = None   # will be assigned by start
 	self.killed = None
 
-	### only http_access has this delayed startup property
+	# Only http_access has delayed startup property.
+	# Second argument would allow implementation of persistent
+	# connections.
 	try:
-	    self.api.register_reader(self.start)
+	    self.api.register_reader(self.start, self.checkapi)
 	except AttributeError:
 	    # if the protocol doesn't do that
 	    self.start()
