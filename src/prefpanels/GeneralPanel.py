@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.7 $"
+__version__ = "$Revision: 1.8 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -35,7 +35,7 @@ class GeneralPanel(PrefsPanels.Framework):
 	# Pack some preferences entries together in a frame - we use the
 	# PrefsEntry 'composite' feature here, to put them together on the
 	# right-hand side of the label:
-	entries_frame = Frame(f, relief='ridge', bd=1)
+	entries_frame = Frame(f, relief=SUNKEN, borderwidth=1)
 	self.PrefsEntry(entries_frame,
 			"Width:", 'browser', 'default-width', 'int',
 			label_width=6, entry_width=2, composite=1)
@@ -58,3 +58,28 @@ class GeneralPanel(PrefsPanels.Framework):
 
 	frame.pack()
  
+	# History preference
+
+	from History import VIEW_BY_TITLES, VIEW_BY_URLS
+
+	viewby = StringVar()
+	viewbyframe = Frame(frame)
+	viewbyframe.pack(fill=X, side=TOP, pady='1m')
+
+	self.PrefsWidgetLabel(viewbyframe, 'View History Items By:')
+
+	byframe = Frame(viewbyframe, relief=SUNKEN, borderwidth=1)
+	byframe.pack(side=LEFT)
+
+	by_titles = Radiobutton(byframe, text='Titles',
+				variable=viewby,
+				value=VIEW_BY_TITLES)
+	by_titles.pack(side=LEFT)
+
+	by_urls = Radiobutton(byframe, text='URLs',
+			      variable=viewby,
+			      value=VIEW_BY_URLS)
+	by_urls.pack(side=LEFT)
+
+	self.RegisterUI('history', 'view-by', 'string',
+			viewby.get, viewby.set)
