@@ -390,7 +390,7 @@ class Browser:
 	except TclError:
 	    self.root.bell()
 	    return
-	uri = string.strip(selection)
+	uri = string.joinfields(string.split(selection), '')
 	self.context.load(grailutil.complete_url(uri))
 
     def view_source_command(self, event=None):
