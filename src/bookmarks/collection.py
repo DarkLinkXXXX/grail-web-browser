@@ -1,8 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Bookmark-node manager.
 
 The bookmark node manager supports requesting subsets of the bookmark
@@ -13,7 +8,7 @@ information.
 
 This class is also used to generate new ID values for nodes.
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 import nodes                            # sibling
 import search                           # sibling sub-package
@@ -53,6 +48,19 @@ class Collection:
         else:
             maps = {}, {}, {}
         self.__node_map, self.__id_map, self.__ref_map = maps
+
+    def get_type_counts(self):
+        root = self.get_root()
+        count_map = {"Alias": 0, "Bookmark": 0, "Folder": 0, "Separator": 0}
+        queue = root.children()
+        while queue:
+            node = queue[0]
+            del queue[0]
+            nodetype = node.get_nodetype()
+            count_map[nodetype] = count_map[nodetype] + 1
+            if nodetype == "Folder":
+                queue[len(queue):] = node.children()
+        return count_map
 
     def merge_node(self, node, folder):
         node_map, id_map, ref_map = self.build_info(node)
