@@ -3,19 +3,22 @@ import string
 import urllib
 
 def do_isindex(parser, attrs):
-    IndexWidget(parser)
+    prompt = "This is a searchable index. Enter search keywords:"
+    for attr, value in attrs:
+	if attr == 'prompt' and value:
+	    prompt = value
+    IndexWidget(parser, prompt)
 
 class IndexWidget:
 
-    def __init__(self, parser):
+    def __init__(self, parser, prompt):
 	self.parser = parser
 	self.viewer = self.parser.viewer
 	self.context = self.viewer.context
 	self.w = Entry(self.viewer.text)
 	self.w.bind('<Return>', self.submit)
 	self.viewer.send_hor_rule()
-	self.viewer.send_flowing_data(
-	    "This is a searchable index. Enter search keywords:")
+	self.viewer.send_flowing_data(prompt)
 	self.parser.add_subwindow(self.w)
 	self.viewer.send_hor_rule()
 
