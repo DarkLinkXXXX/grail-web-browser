@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.17 $"
+__version__ = "$Revision: 2.18 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -53,13 +53,18 @@ class Framework:
      - Create a class inheriting from this one, named with the
        concatenation of the panel name and "Panel", eg "GeneralPanel".
      - Implement panel-specific layout by overriding the .CreateLayout()
-       method.
+       method.  This is mandatory.
        - Within .CreateLayout, use the self.RegisterUI() to couple the
          widget (or whatever user interface element) with the corresponding
          preference.  (.widget_set_func() is useful for producing the uiset
          func for many tkinter widgets.) 
        - There are also some convenient routines for making widgets, eg
          self.PrefsCheckButton().
+     - Override .UpdateLayout() for actions, if any, that need to be done
+       when settings are changed with the Revert or Factory Defaults
+       buttons.
+     - Override .Dismiss() for actions, if any, to be done when the panel
+       is closed.
 
     Your panel will be included in the Preferences menu bar pulldown, and
     will be posted when its entry is selected."""
@@ -277,7 +282,8 @@ class Framework:
 	widget.bind('<Button>', self.poll_modified)
 	widget.bind("<Alt-w>", self.cancel_cmd)
 	widget.bind("<Alt-W>", self.cancel_cmd)
-	widget.bind("<Alt-Control-r>", self.reload_panel_cmd) # Unadvertised
+	widget.bind("<Alt-Control-r>", self.reload_panel_cmd)
+	widget.bind("<Alt-Control-d>", self.toggle_debugging)
 	widget.bind('<Button>', self.poll_modified)
 	widget.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 
@@ -300,12 +306,17 @@ class Framework:
 	# And now initialize the widget values:
 	self.set_widgets()
 
+	if self.app.prefs.GetBoolean('preferences', 'panel-debugging'):
+	    self.toggle_debugging(enable=1)
+
     def create_disposition_bar(self, frame):
-	bar = Frame(frame)
+	self.dispose_bar = bar = Frame(frame)
 	bartop = Frame(bar)
 	bartop.pack(side=TOP)
 	barbottom = Frame(bar)
-	barbottom.pack(side=BOTTOM)
+	barbottom.pack()
+	self.debug_bar = Frame(bar, relief=SUNKEN)
+
 	done_btn = Button(bartop, text="OK", command=self.done_cmd)
 	help_btn = Button(bartop, text="Help", command=self.help_cmd)
 	cancel_btn = Button(bartop, text="Cancel", command=self.cancel_cmd)
@@ -329,6 +340,15 @@ class Framework:
 	bartop.pack(fill=BOTH)
 	barbottom.pack(fill=BOTH)
 	bar.pack(fill=BOTH, side=BOTTOM)
+
+	reload_panel_btn = Button(self.debug_bar, text="Reload Panel",
+				  command=self.reload_panel_cmd)
+	reload_preferences_btn = Button(self.debug_bar,
+					text="Reload Preferences",
+					command=self.reload_preferences_cmd)
+	reload_panel_btn.pack(side=LEFT, expand=1)
+	reload_preferences_btn.pack(side=RIGHT, expand=1)
+	self.debugging = 0
 
     # Operational commands:
     def set_widgets(self, factory=0):
@@ -405,12 +425,29 @@ class Framework:
 	self.Dismiss()
 	self.widget.withdraw()
 
+    def toggle_debugging(self, event=None, enable=0):
+	"""Include debug buttons - for, eg, reloading panel and prefs."""
+	if self.debugging and not enable:
+	    self.debug_bar.forget()
+	    self.debugging = 0
+	else:
+	    self.debug_bar.pack(fill=X, side=BOTTOM)
+	    self.debugging = 1
+
     def reload_panel_cmd(self, event=None):
 	"""Unadvertised routine for reloading panel code during development."""
 	# Zeroing the entry for the module will force an import, which
 	# will force a reload if the code has been modified.
 	self.hide()
 	self.app.prefs_panels.load(self.name, reloading=1)
+
+    def reload_preferences_cmd(self, event=None):
+	"""Unadvertised routine for reloading preferences db.
+
+	Note that callbacks are *not* processed."""
+	self.app.prefs.load()
+	self.poll_modified()
+	self.UpdateLayout()
 
     # State mechanisms.
 
