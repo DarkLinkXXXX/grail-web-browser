@@ -8,7 +8,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3b3--"
+__version__ = "Grail/0.3b3"
 GRAILVERSION = __version__
 
 # Standard python imports (needed by path munging code)
@@ -73,8 +73,8 @@ def main():
 	try: import ilu_tk
 	except ImportError: pass
     try:
-	opts, args = getopt.getopt(sys.argv[1:], 'g:i',
-				   ['geometry=', 'noimages'])
+	opts, args = getopt.getopt(sys.argv[1:], 'd:g:i',
+				   ['display=', 'geometry=', 'noimages'])
 	if len(args) > 1:
 	    raise getopt.error, "too many arguments"
     except getopt.error, msg:
@@ -85,17 +85,21 @@ def main():
 
     geometry = prefs.Get('browser', 'initial-geometry')
 
+    display = None
+
     for o, a in opts:
 	if o in ('-i', '--noimages'):
 	    load_images = 0
 	if o in ('-g', '--geometry'):
 	    geometry = a
+	if o in ('-d', '--display'):
+	    display = a
     if args:
 	url = grailutil.complete_url(args[0])
     else:
 	url = None
     global app
-    app = Application(prefs=prefs)
+    app = Application(prefs=prefs, display=display)
     grailutil._grail_app = app		# Whack!
 
     def load_images_vis_prefs(app=app):
@@ -214,8 +218,8 @@ class Application:
 
     """The application class represents a group of browser windows."""
 
-    def __init__(self, prefs=None):
-	self.root = Tk(className='Grail')
+    def __init__(self, prefs=None, display=None):
+	self.root = Tk(className='Grail', screenName=display)
 	self.root.withdraw()
 	self.prefs = prefs or GrailPrefs.AllPreferences()
 	# The stylesheet must be initted before any Viewers, so it
