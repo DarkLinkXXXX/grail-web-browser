@@ -223,7 +223,7 @@ class Browser:
 	self.searchbutton['menu'] = self.searchmenu
 	self.searchmenu.grail_browser = self # Applet compatibility
 	import SearchMenu
-	SearchMenu.SearchMenu(self.searchmenu)
+	SearchMenu.SearchMenu(self.searchmenu, self.root, self)
 
 	# Create the Bookmarks menu
 
@@ -659,6 +659,33 @@ class Browser:
 	    self.root.after_cancel(self.logo_id)
 	    self.logo_id = None
 	self.logo.config(image=self.logo_image)
+
+    # API for searching
+
+    def search_for_pattern(self, pattern,
+			   regex_flag, case_flag, backwards_flag):
+	textwidget = self.viewer.text
+	try:
+	    index = textwidget.index(SEL_FIRST)
+	    index = '%s + %s chars' % (str(index),
+				       backwards_flag and '0' or '1')
+	except TclError:
+	    index = '1.0'
+	length = IntVar()
+	hitlength = None
+	hit = textwidget.search(pattern, index, count=length,
+				nocase=not case_flag,
+				regexp=regex_flag,
+				backwards=backwards_flag)
+	if hit:
+	    try:
+		textwidget.tag_remove(SEL, SEL_FIRST, SEL_LAST)
+	    except TclError:
+		pass
+	    hitlength = length.get()
+	    textwidget.tag_add(SEL, hit, "%s + %s chars" % (hit, hitlength))
+	    textwidget.yview_pickplace(SEL_FIRST)
+	return hit
 
 
 def getenv(s):
