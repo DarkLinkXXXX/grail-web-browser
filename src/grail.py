@@ -92,6 +92,16 @@ def main():
     tktools.install_keybindings()
     # Make everybody who's still using urllib.urlopen go through the cache
     urllib.urlopen = app.open_url_simple
+    # Add $GRAILDIR/user/ to sys.path
+    subdir = os.path.join(app.graildir, 'user')
+    if subdir not in sys.path:
+	sys.path.insert(0, subdir)
+    # Import user's grail startup file, defined as
+    # $GRAILDIR/user/grailrc.py if it exists.
+    try: import grailrc
+    except ImportError: pass
+    except:
+	app.exception_dialog('during import of startup file')
     app.go()
 
 
