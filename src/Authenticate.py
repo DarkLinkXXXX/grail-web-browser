@@ -45,6 +45,16 @@ class AuthenticationManager:
 
 	return response
 
+    def invalidate_credentials(self, headers, credentials):
+	if headers.has_key('www-authenticate'):
+	    # assume it's basic
+	    headers['realm'] = \
+			     self.basic_get_realm(headers['www-authenticate'])
+	    self.basic_invalidate_credentials(headers, credentials)
+	else:
+	    # don't know about anything other than basic
+	    pass
+
     basic_realm = regex.compile('realm="\(.*\)"')
 
     def basic_get_realm(self,challenge):
@@ -67,11 +77,24 @@ class AuthenticationManager:
 		cookie = self.basic_cookie(self.basic_realms[key])
 	    else:
 		passwd = self.basic_user_dialog(data)
-		self.basic_realms[key] = passwd
-		cookie = self.basic_cookie(passwd)
+		if passwd:
+		    self.basic_realms[key] = passwd
+		    cookie = self.basic_cookie(passwd)
+		else:
+		    return {}
 	    response['Authorization'] = cookie
 
 	return response
+
+    def basic_invalidate_credentials(self, headers, credentials):
+	if headers.has_key('realm') and headers.has_key('request-uri'):
+	    scheme, netloc, path, nil, nil, nil = \
+		    urlparse.urlparse(headers['request-uri'])
+	    key = (netloc, headers['realm'])
+	    if self.basic_realms.has_key(key):
+		test = self.basic_cookie(self.basic_realms[key])
+		if test == credentials:
+		    del self.basic_realms[key]
 
     def basic_snoop(self, headers):
 	# could watch other requests go by and learn about protection spaces
