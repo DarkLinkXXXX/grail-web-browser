@@ -50,7 +50,9 @@ class CacheItem:
 	    self.api = api
 	    self.meta = api.getmeta()
 	    self.stage = self.api.stage
-	    self.data = ''
+	    self.data = []
+	    self.datalen = 0
+	    self.datamap = {}
 	    self.complete = 0
 	    self.incache = 1
 	    if last_load:
@@ -107,7 +109,9 @@ class CacheItem:
 
     def init_new_load(self,stage):
 	self.meta = None
-	self.data = ''
+	self.data = []
+	self.datalen = 0
+	self.datamap = {}
 	self.stage = stage
 	self.complete = 0
 
@@ -170,14 +174,43 @@ class CacheItem:
 	if self.stage == META:
 	    self.meta = self.api.getmeta()
 	    self.stage = DATA
-	while self.stage == DATA and offset >= len(self.data):
+	while self.stage == DATA and offset >= self.datalen:
 	    buf = self.api.getdata(maxbytes)
 	    if not buf:
 		self.finish()
 		self.complete = 1
 	    else:
-		self.data = self.data + buf
-	return self.data[offset:offset+maxbytes]
+		self.data.append(buf)
+		self.datamap[offset] = len(self.data) - 1
+		self.datalen = self.datalen + len(buf)
+
+	try:
+	    # the common case
+	    chunk = self.data[self.datamap[offset]]
+	    if len(chunk) > maxbytes:
+		# you really don't want to do this
+		return chunk[0:maxbytes]
+	    else:
+		return chunk
+	except KeyError:
+	    # the EOF marker isn't caught
+	    if self.complete == 1 and offset >= self.datalen:
+		return ''
+	    ###
+	    ### WARNING: this lookup is costly, please avoid
+	    ###          cost is O(k), where k is # of chunks
+	    ###          if you use this a lot, you'll get O(N^2) reads
+	    ###
+	    delta = offset
+	    chunk_key = None
+	    for chunk_offset in self.datamap.keys():
+		if offset > chunk_offset:
+		    diff = offset - chunk_offset
+		    if diff < delta:
+			delta = diff
+			chunk_key = chunk_offset
+	    chunk = self.data[self.datamap[chunk_key]]
+	    return chunk[delta:]
 
     def fileno(self):
 	if self.api:
