@@ -110,12 +110,12 @@ class HTMLParser(SGMLParser):
     def start_style(self, attrs):
 	"""Disable display of document data -- this is a style sheet.
 	"""
-	self.savedata = ''
+	self.save_bgn()
 
     def end_style(self):
 	"""Re-enable data display.
 	"""
-	self.savedata = None
+	self.save_end()
 
     # ------ Body elements
 
@@ -256,9 +256,14 @@ class HTMLParser(SGMLParser):
 		top[2] = counter = counter+1
 	    self.formatter.add_label_data(label, counter)
         else:
+	    #  Illegal, but let's try not to be ugly:
 	    if attrs.has_key('value'):
-		v = string.strip(attrs['value'])
-		if not v: v = '1'
+		try:
+		    v = string.strip(attrs['value'])
+		except:
+		    v = '1'
+		else:
+		    if not v: v = '1'
 		self.formatter.add_flowing_data(v + '. ')
 	    else:
 		self.formatter.add_flowing_data('* ')
