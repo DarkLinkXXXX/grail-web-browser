@@ -496,7 +496,10 @@ class GrailHTMLParser(HTMLParser):
     def unknown_entityref(self, entname):
 	img = self.load_dingbat(entname)
 	if img:
-	    self.add_subwindow(Label(self.viewer.text, image = img))
+	    bgcolor = self.viewer.text['background']
+	    self.add_subwindow(Label(self.viewer.text, image = img,
+				     background = bgcolor,
+				     borderwidth = 0))
 	else:
 	    self.badhtml = 1
 	    self.handle_data('&%s;' % entname)
