@@ -123,9 +123,11 @@ class Viewer(formatter.AbstractWriter):
 
     def send_paragraph(self, blankline):
 	self.text.insert(END, '\n' + '\n'*blankline)
+	self.text.update_idletasks()
 
     def send_line_break(self):
 	self.text.insert(END, '\n')
+	self.text.update_idletasks()
 
     def send_hor_rule(self):
 	self.text.insert(END, '\n')
@@ -135,6 +137,7 @@ class Viewer(formatter.AbstractWriter):
 	self.rules.append(window)
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
+	self.text.update_idletasks()
 
     def rule_width(self):
 	width = self.text.winfo_width() - 16
