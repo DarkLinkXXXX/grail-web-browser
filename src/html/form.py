@@ -76,6 +76,7 @@ def form_bgn(parser, action, method, enctype):
     if not hasattr(parser, 'form_stack'):
 	parser.form_stack = []
 	parser.forms = []
+	parser.browser.forms = []
     fi = FormInfo(parser, action, method, enctype)
     parser.form_stack.append(fi)
 
@@ -84,6 +85,7 @@ def form_end(parser):
     if fi:
 	del parser.form_stack[-1]
 	parser.forms.append(fi)
+	parser.browser.forms.append(fi)
 	fi.done()
 
 def handle_input(parser, type, options):
@@ -126,18 +128,43 @@ class FormInfo:
 	self.method = method or 'get'
 	self.enctype = enctype
 	self.viewer = parser.viewer
+	self.browser = parser.viewer.browser
 	self.inputs = []
 	self.radios = {}
 	self.select = None
 	self.parser.do_p([])
+	# gather cached form data if we've been to this page before
+	formdata_list = self.browser.history.formdata(self.browser.url)
+	if formdata_list:
+	    self.formdata = formdata_list[len(parser.forms)]
+	else:
+	    self.formdata = {}
 
     def __del__(self):
 	pass				# XXX
+
+    def get(self):
+	state = {}
+	for i in self.inputs:
+	    if i.name:
+		if state.has_key(i.name):
+		    if type(state[i.name]) == type([]):
+			state[i.name] = state[i.name] + [i.get()]
+		    else:
+			state[i.name] = [state[i.name], i.get()]
+		else:
+		    state[i.name] = i.get()
+	return state
 
     def done(self):			# Called for </FORM>
 	if self.parser:
 	    self.parser.do_p([])
 	self.parser = None
+	# if there's cached state, make sure field reflects this state
+	if self.formdata:
+	    for i in self.inputs:
+		if i.name:
+		    i.set(self.formdata[i.name])
 
     def do_input(self, type, options):
 	type = string.lower(type) or 'text'
@@ -226,6 +253,9 @@ class FormInfo:
 	def get(self):
 	    return None
 
+	def set(self, value):
+	    pass
+
 	def getopt(self, key):
 	    if self.options.has_key(key):
 		setattr(self, key, self.options[key])
@@ -254,6 +284,10 @@ class FormInfo:
 	def get(self):
 	    return self.w.get()
 
+	def set(self, value):
+	    self.w.delete(0, END)
+	    self.w.insert(0, value)
+
 	def return_event(self, event):
 	    self.fi.submit_command()
 
@@ -277,6 +311,11 @@ class FormInfo:
 	def reset(self):
 	    self.var.set(self.checked and self.value or '')
 
+	def set(self, value):
+	    if (type(value) == type([]) and self.value in value) or \
+	       (type(value) == type('') and self.value == value):
+		self.var.set(self.value)
+
 	def get(self):
 	    return self.var.get()
 
@@ -289,18 +328,22 @@ class FormInfo:
 	    else:
 		self.first = 0
 	    self.var = self.fi.radios[self.name]
+	    if self.first:
+		self.var.set(self.value)
 	    self.w = Radiobutton(self.viewer.text, variable=self.var,
 				 value=self.value)
 
 	def reset(self):
-	    if self.first:
-		self.var.set('')
+#	    if self.first:
+#		self.var.set('')
 	    if self.checked:
 		self.var.set(self.value)
 
 	def get(self):
 	    if self.first:
 		return self.var.get()
+	    else:
+		return None
 
     class InputHidden(Input):
 
@@ -406,6 +449,7 @@ class Select:
 		self.w.select_set(i)
 
     def get(self):
+	# debugging
 	if not self.w: return None
 	if self.v: return self.get_menu()
 	else: return self.get_list()
@@ -423,6 +467,25 @@ class Select:
 	    if self.w.select_includes(i):
 		list.append(v or t)
 	return list
+
+    def set(self, value):
+	# debugging
+	if not self.w: return
+	if self.v: self.set_menu(value)
+	else: self.set_list(value)
+
+    def set_menu(self, value):
+	for v, s, t in self.options:
+	    if value == (v or t):
+		self.v.set(t)
+		break
+
+    def set_list(self, value):
+	self.w.select_clear(0, END)
+	for i in range(len(self.options)):
+	    v, s, t = self.options[i]
+	    if (v or t) in value:
+		self.w.select_set(i)
 
     def do_option(self, value, selected):
 	self.end_option()
@@ -471,6 +534,9 @@ class Textarea:
     def get(self):
 	return self.w.get("1.0", END)
 
+    def set(self, value):
+	self.w.delete("1.0", END)
+	self.w.insert(END, value)
 
 def quote(s):
     w = string.splitfields(s, ' ')

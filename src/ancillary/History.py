@@ -14,6 +14,8 @@ GRAIL_RE = regex.compile('\([^ \t]+\)[ \t]+\([^ \t]+\)[ \t]+?\(.*\)?')
 DEFAULT_NETSCAPE_HIST_FILE = os.path.join(gethome(), '.netscape-history')
 DEFAULT_GRAIL_HIST_FILE = os.path.join(getgraildir(), 'grail-history')
 
+def now():
+    return int(time.time())
 
 
 class HistoryLineReader:
@@ -93,30 +95,43 @@ class GlobalHistory:
 	for link, title, timestamp in list:
 	    if not self._hmap.has_key(link):
 		self._history.append(link)
-		self._hmap[link] = (title, timestamp)
+		linkdata = {'title': title,
+			    'timestamp': timestamp,
+			    'formdata': []
+			    }
+		self._hmap[link] = linkdata
 
     def append_link(self, link, title=None):
 	if not self._hmap.has_key(link):
-	    self._hmap[link] = (title, time.time())
+	    linkdata = {'title': title,
+			'timestamp': now(),
+			'formdata': []
+			}
+	    self._hmap[link] = linkdata
 	    self._history.append(link)
 	    if self._dialog: self._dialog.refresh()
 
     def set_title(self, link, title):
-	timestamp = int(time.time())
 	if self._hmap.has_key(link):
-	    oldtitle, timestamp = self._hmap[link]
-	try:
-	    if self._hmap[link][0] == title or link == title:
+	    linkdata = self._hmap[link]
+	    if linkdata['title'] == title or link == title:
 		return
-	    # update title and dialog if visible
-	    self._hmap[link] = (title, timestamp)
+	    linkdata['title'] = title
+	    linkdata['timestamp'] = now()
 	    if self._dialog: self._dialog.refresh()
-	except (IndexError, KeyError):
-	    pass
 
     def title(self, link):
-	if self._hmap.has_key(link): return self._hmap[link][0]
+	if self._hmap.has_key(link): return self._hmap[link]['title']
 	else: return None
+
+    def set_formdata(self, link, data=[]):
+	if self._hmap.has_key(link):
+	    self._hmap[link]['formdata'] = data
+
+    def formdata(self, link):
+	if self._hmap.has_key(link):
+	    return self._hmap[link]['formdata']
+	else: return []
 
     def on_app_exit(self):
 	stdout = sys.stdout
@@ -127,11 +142,15 @@ class GlobalHistory:
 	    hlist = self._history[:]
 	    hlist.reverse()
 	    for link in hlist:
-		title, timestamp = self._hmap[link]
+		linkdata = self._hmap[link]
+		title = linkdata['title']
+		timestamp = linkdata['timestamp']
+		#formdata = linkdata['formdata']
 		if title == link:
 		    print '%s\t%d' % (link, timestamp)
 		else:
 		    print '%s\t%d\t%s' % (link, timestamp, title)
+		# TBD: form data not saved across sessions!
 	finally:
 	    sys.stdout = stdout
 	    fp.close()
@@ -183,6 +202,12 @@ class History:
     def title(self, link):
 #	print 'title:', link, '=>', self._ghistory.title(link)
 	return self._ghistory.title(link)
+
+    def set_formdata(self, link, data=[]):
+	self._ghistory.set_formdata(link, data)
+
+    def formdata(self, link):
+	return self._ghistory.formdata(link)
 
     def link(self, index=None):
 	if index is None: index = self._current
