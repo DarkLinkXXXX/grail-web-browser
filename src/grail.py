@@ -254,7 +254,8 @@ class Application:
     def exc_dialog(self, message, exc, val, tb):
 	def f(s=self, m=message, e=exc, v=val, t=tb):
 	    s._exc_dialog(m, e, v, t)
-	self.root.after_idle(f)
+##	self.root.after_idle(f)		# XXX Tk 4.1 dependency
+	self.root.after(0, f)		# ### Tk 4.0 hack
 
     def _exc_dialog(self, message, exc, val, tb):
 	msg = "An exception occurred " + str(message) + " :\n"
