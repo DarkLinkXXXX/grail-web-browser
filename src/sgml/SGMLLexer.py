@@ -1,16 +1,10 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """A lexer for SGML, using derived classes as parser and DTD.
 
 This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.44 $"
-# $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
-
+__version__ = "$Revision: 1.45 $"
 
 #  These constants are not used in this module, but are provided to
 #  allow other modules to know about the concrete syntax we support.
@@ -42,15 +36,13 @@ VI = "="                                # value indicator
 
 import regex
 import string
-import sys
 
-# The sgmllex module is insufficient for parsing Netscape's HTML-based
-# bookmark files, so we disable the use of sgmllex by setting this flag
-# to zero regardless of the availability of the module.
-_sgmllex = 0
-
-
-SGMLError = 'SGMLLexer.SGMLError'
+try:
+    class SGMLError(Exception):
+        pass
+except TypeError:
+    class SGMLError:
+        pass
 
 
 # SGML lexer base class -- find tags and call handler functions.
@@ -234,637 +226,517 @@ class SGMLLexer(SGMLLexerBase):
     _in_parse = 0
     _finish_parse = 0
 
+    def __init__(self):
+        self.reset()
+
     def strict_p(self):
         return self._strict
 
     def cleanup(self):
         pass
 
-    if _sgmllex:
-        def __init__(self):
-            self.reset()
+    rawdata = ''
+    def reset(self):
+        self.stack = []
+        self.lasttag = '???'
+        self.nomoretags = 0
+        self.literal = 0
+        self._normfunc = lambda s: s
+        self._strict = 0
 
-        _pending_data = ''
-        def feed(self, data):
-            if data:                    # never pass an empty string
-                if self._in_parse:
-                    self._pending_data = self._pending_data + data
-                else:
-                    self._in_parse = 1
-                    while data:
-                        self._l.scan(data)
-                        data = self._pending_data
-                        self._pending_data = ''
-                    if self._finish_parse:
-                        self._l.scan('')
-                        self.cleanup()
-                    self._in_parse = 0
-                        
+    def close(self):
+        if not self._in_parse:
+            self.goahead(1)
+            self.cleanup()
+        else:
+            self._finish_parse = 1
 
-        def normalize(self, norm):
-            return self._l.normalize(norm)
+    def line(self):
+        return None
 
-        def reset(self):
-            self._strict = 0
-            self._l = sgmllex.scanner(self.lex_data,
-                                      self._lex_got_starttag,
-                                      self._lex_got_endtag,
-                                      self.lex_charref,
-                                      self._lex_got_namedcharref,
-                                      self._lex_got_geref,
-                                      self._lex_declaration,
-                                      self._lex_err)
-            self.nomoretags = 0
-
-        def restrict(self, constrain):
-            self._strict = not constrain
-            self._l.compat(constrain)
-            return self._l.restrict(constrain)
-
-        def close(self):
-            """Flush any remaining data in the lexer's internal buffer.
-            """
-            if self._l:
-                if self._in_parse:
-                    self._finish_parse = 1
-                else:
-                    self._l.scan('')
-                    self.cleanup()
-            if self.__dict__.has_key('feed'):
-                del self.__dict__['feed']
-
-        def line(self):
-            return self._l and self._l.line() or None
-
-        def setliteral(self, tag):
-            pass
-
-        def setnomoretags(self):
-            self.nomoretags = 1
-            self._l.normalize(0)
-            self._l.scan('')            # flush flex cache - not perfect
-            self._l = None
-            self.feed = self.lex_data
-
-        def _lex_got_geref(self, entname, terminator):
-            if self.nomoretags:
-                self.lex_data('&%s%s' % (entname, terminator))
-            else:
-                self.lex_entityref(entname[1:], terminator)
-
-        def _lex_got_namedcharref(self, name, terminator):
-            self.lex_namedcharref(name[2:], terminator)
-
-        def _lex_got_endtag(self, tagname):
-            self.lex_endtag(tagname[2:])
-
-        def _lex_got_starttag(self, name, attributes):
-            if attributes:
-                for k, v in attributes.items():
-                    if v and '&' in v:
-                        from SGMLReplacer import replace
-                        attributes[k] = replace(v, self.entitydefs)
-            self.lex_starttag(name[1:], attributes)
-
-        def _lex_declaration(self, types, strings):
-            if len(types) > 1 and types[1] is sgmllex.comment:
-                # strip of leading/trailing --
-                map(lambda s,f=self.lex_comment: f(s[2:-2]), strings[1:-1])
-
-            elif types[0] is sgmllex.processingInstruction:
-                # strip <? and >
-                self.lex_pi(strings[0][2:-1])
-            elif len(strings) == 1 and strings[0] == '<!>':
-                self.lex_declaration([])
-            else:
-                #XXX other markup declarations
-                list = [strings[0][2:]] + map(None, strings[1:-1])
-                for i in range(len(list)):
-                    if types[i] is sgmllex.number:
-                        list[i] = string.atoi(list[i])
-                self.lex_declaration(list)
-
-        def _lex_err(self, types, strings):
-            #  raise SGMLError?
-            if types[0] is sgmllex.error:
-                self.lex_error(strings[0])
-            else:
-                self.lex_limitation(strings[0])
-
-    else:                               # sgmllex not available
-
-        def __init__(self):
-            self.reset()
-
-        rawdata = ''
-        def reset(self):
-            self.stack = []
-            self.lasttag = '???'
-            self.nomoretags = 0
-            self.literal = 0
-            self._normfunc = lambda s: s
-            self._strict = 0
-
-        def close(self):
-            if not self._in_parse:
-                self.goahead(1)
+    def feed(self, data):
+        self.rawdata = self.rawdata + data
+        if not self._in_parse:
+            self._in_parse = 1
+            self.goahead(0)
+            self._in_parse = 0
+            if self._finish_parse:
                 self.cleanup()
-            else:
-                self._finish_parse = 1
 
-        def line(self):
-            return None
+    def normalize(self, norm):
+        prev = ((self._normfunc is string.lower) and 1) or 0
+        self._normfunc = (norm and string.lower) or (lambda s: s)
+        return prev
 
-        def feed(self, data):
-            self.rawdata = self.rawdata + data
-            if not self._in_parse:
-                self._in_parse = 1
-                self.goahead(0)
-                self._in_parse = 0
-                if self._finish_parse:
-                    self.cleanup()
+    def restrict(self, constrain):
+        prev = not self._strict
+        self._strict = not ((constrain and 1) or 0)
+        return prev
 
-        def normalize(self, norm):
-            prev = ((self._normfunc is string.lower) and 1) or 0
-            self._normfunc = (norm and string.lower) or (lambda s: s)
-            return prev
+    def setliteral(self, tag):
+        self.literal = 1
+        re = "%s%s[%s]*%s" % (ETAGO, tag, string.whitespace, TAGC)
+        if self._normfunc is string.lower:
+            self._lit_etag_re = regex.compile(re, regex.casefold)
+        else:
+            self._lit_etag_re = regex.compile(re)
 
-        def restrict(self, constrain):
-            prev = not self._strict
-            self._strict = not ((constrain and 1) or 0)
-            return prev
+    def setnomoretags(self):
+        self.nomoretags = 1
 
-        def setliteral(self, tag):
-            self.literal = 1
-            re = "%s%s[%s]*%s" % (ETAGO, tag, string.whitespace, TAGC)
-            if self._normfunc is string.lower:
-                self._lit_etag_re = regex.compile(re, regex.casefold)
-            else:
-                self._lit_etag_re = regex.compile(re)
-
-        def setnomoretags(self):
-            self.nomoretags = 1
-
-        # Internal -- handle data as far as reasonable.  May leave state
-        # and data to be processed by a subsequent call.  If 'end' is
-        # true, force handling all data as if followed by EOF marker.
-        def goahead(self, end):
-            i = 0
-            n = len(self.rawdata)
-            while i < n:
-                rawdata = self.rawdata  # pick up any appended data
-                n = len(rawdata)
-                if self.nomoretags:
-                    self.lex_data(rawdata[i:n])
-                    i = n
-                    break
-                if self.literal:
-                    pos = self._lit_etag_re.search(rawdata, i)
-                    if pos >= 0:
-                        # found end
-                        self.lex_data(rawdata[i:pos])
-                        i = pos + len(self._lit_etag_re.group(0))
-                        self.literal = 0
-                        continue
-                    else:
-                        pos = string.rfind(rawdata, "<", i)
-                        if pos >= 0:
-                            self.lex_data(rawdata[i:pos])
-                            i = pos
-                    break
-                # pick up self._finish_parse as soon as possible:
-                end = end or self._finish_parse
-                j = interesting.search(rawdata, i)
-                if j < 0: j = n
-                if i < j: self.lex_data(rawdata[i:j])
-                i = j
-                if i == n: break
-                if rawdata[i] == '<':
-                    if starttagopen.match(rawdata, i) >= 0:
-                        if self.literal:
-                            self.lex_data(rawdata[i])
-                            i = i+1
-                            continue
-                        k = self.parse_starttag(i)
-                        if k < 0: break
-                        i = k
-                        continue
-                    if endtagopen.match(rawdata, i) >= 0:
-                        k = self.parse_endtag(i)
-                        if k < 0: break
-                        i = k
-                        self.literal = 0
-                        continue
-                    if commentopen.match(rawdata, i) >= 0:
-                        if self.literal:
-                            self.lex_data(rawdata[i])
-                            i = i+1
-                            continue
-                        k = self.parse_comment(i, end)
-                        if k < 0: break
-                        i = i + k
-                        continue
-                    k = processinginstruction.match(rawdata, i)
-                    if k >= 0:
-                        #  Processing instruction:
-                        if self._strict:
-                            self.lex_pi(processinginstruction.group(1))
-                            i = i + k
-                        else:
-                            self.lex_data(rawdata[i])
-                            i = i + 1
-                        continue
-                    k = special.match(rawdata, i)
-                    if k >= 0:
-                        if k == 3:
-                            self.lex_declaration([])
-                            i = i + 3
-                            continue
-                        if self._strict:
-                            if rawdata[i+2] in string.letters:
-                                k = self.parse_declaration(i)
-                                if k > -1:
-                                    i = i + k
-                            else:
-                                self.lex_data('<!')
-                                i = i + 2
-                        else:
-                            #  Pretend it's data:
-                            if self.literal:
-                                self.lex_data(rawdata[i])
-                                k = 1
-                            i = i+k
-                        continue
-                elif rawdata[i] == '&':
-                    charref = (self._strict and legalcharref) or simplecharref
-                    k = charref.match(rawdata, i)
-                    if k >= 0:
-                        k = i+k
-                        if rawdata[k-1] not in ';\n':
-                            k = k-1
-                            terminator = ''
-                        else:
-                            terminator = rawdata[k-1]
-                        name = charref.group(1)[:-1]
-                        postchar = ''
-                        if terminator == '\n' and not self._strict:
-                            postchar = '\n'
-                            terminator = ''
-                        if name[0] in '0123456789':
-                            #  Character reference:
-                            try:
-                                self.lex_charref(string.atoi(name), terminator)
-                            except ValueError:
-                                self.lex_data("&#%s%s" % (name, terminator))
-                        else:
-                            #  Named character reference:
-                            self.lex_namedcharref(self._normfunc(name),
-                                                  terminator)
-                        if postchar:
-                            self.lex_data(postchar)
-                        i = k
-                        continue
-                    k = entityref.match(rawdata, i)
-                    if k >= 0:
-                        #  General entity reference:
-                        k = i+k
-                        if rawdata[k-1] not in ';\n':
-                            k = k-1
-                            terminator = ''
-                        else:
-                            terminator = rawdata[k-1]
-                        name = entityref.group(1)
-                        self.lex_entityref(name, terminator)
-                        i = k
-                        continue
-                else:
-                    raise RuntimeError, 'neither < nor & ??'
-                # We get here only if incomplete matches but
-                # nothing else
-                k = incomplete.match(rawdata, i)
-                if k < 0:
-                    self.lex_data(rawdata[i])
-##                  print "lexing single char: '%c'" % rawdata[i]
-                    i = i+1
-                    continue
-                j = i+k
-                if j == n:
-                    break # Really incomplete
-                self.lex_data(rawdata[i:j])
-                i = j
-            # end while
-            if (end or self._finish_parse) and i < n:
-                self.lex_data(self.rawdata[i:n])
+    # Internal -- handle data as far as reasonable.  May leave state
+    # and data to be processed by a subsequent call.  If 'end' is
+    # true, force handling all data as if followed by EOF marker.
+    def goahead(self, end):
+        i = 0
+        n = len(self.rawdata)
+        while i < n:
+            rawdata = self.rawdata  # pick up any appended data
+            n = len(rawdata)
+            if self.nomoretags:
+                self.lex_data(rawdata[i:n])
                 i = n
-            self.rawdata = self.rawdata[i:]
-
-        # Internal -- parse comment, return length or -1 if not terminated
-        def parse_comment(self, i, end):
-            rawdata = self.rawdata
-##          if __debug__:
-            if rawdata[i:i+4] <> (MDO + COM):
-                raise RuntimeError, 'unexpected call to parse_comment'
-            if self._strict:
-                # stricter parsing; this requires legal SGML:
-                pos = i + len(MDO)
-                datalength = len(rawdata)
-                comments = []
-                while (pos < datalength) and rawdata[pos] != MDC:
-                    matchlength, comment = comment_match(rawdata, pos)
-                    if matchlength >= 0:
-                        pos = pos + matchlength
-                        comments.append(comment)
-                    elif end:
-                        self.lex_error("unexpected end of data in comment")
-                        comments.append(rawdata[pos+2:])
-                        pos = datalength
-                    elif rawdata[pos] != "-":
-                        self.lex_error("illegal character in"
-                                       " markup declaration: "
-                                       + `rawdata[pos]`)
-                        pos = pos + 1
-                    else:
-                        return -1
-                map(self.lex_comment, comments)
-                return pos + len(MDC) - i
-            # not strict
-            j = commentclose.search(rawdata, i+4)
-            if j < 0:
-                if end:
-                    if MDC in rawdata[i:]:
-                        j = string.find(rawdata, MDC, i)
-                        self.lex_comment(rawdata[i+4: j])
-                        return j + len(MDC) - i
-                    self.lex_comment(rawdata[i+4:])
-                    return len(rawdata) - i
-                return -1
-            self.lex_comment(rawdata[i+4: j])
-            return j + commentclose.match(rawdata, j) - i
-
-        # Internal -- handle starttag, return length or -1 if not terminated
-        def parse_starttag(self, i):
-            rawdata = self.rawdata
-            if self._strict and shorttagopen.match(rawdata, i) >= 0:
-                # SGML shorthand: <tag/data/ == <tag>data</tag>
-                # XXX Can data contain &... (entity or char refs)? ... yes
-                # XXX Can data contain < or > (tag characters)? ... > yes,
-                #                               < not as delimiter-in-context
-                # XXX Can there be whitespace before the first /? ... no
-                j = shorttag.match(rawdata, i)
-                if j < 0:
-                    self.lex_data(rawdata[i])
-                    return i + 1
-                tag, data = shorttag.group(1, 2)
-                tag = self._normfunc(tag)
-                self.lex_starttag(tag, {})
-                self.lex_data(data)     # should scan for entity refs
-                self.lex_endtag(tag)
-                return i + j
-            # XXX The following should skip matching quotes (' or ")
-            j = endbracket.search(rawdata, i+1)
-            if j < 0:
-                return -1
-            # Now parse the data between i+1 and j into a tag and attrs
-            if rawdata[i:i+2] == '<>':
-                #  Semantics of the empty tag are handled by lex_starttag():
-                if self._strict:
-                    self.lex_starttag('', {})
+                break
+            if self.literal:
+                pos = self._lit_etag_re.search(rawdata, i)
+                if pos >= 0:
+                    # found end
+                    self.lex_data(rawdata[i:pos])
+                    i = pos + len(self._lit_etag_re.group(0))
+                    self.literal = 0
+                    continue
                 else:
-                    self.lex_data('<>')
-                return i + 2
-
-            k = tagfind.match(rawdata, i+1)     # matches just the GI
-##          if __debug__:
+                    pos = string.rfind(rawdata, "<", i)
+                    if pos >= 0:
+                        self.lex_data(rawdata[i:pos])
+                        i = pos
+                break
+            # pick up self._finish_parse as soon as possible:
+            end = end or self._finish_parse
+            j = interesting.search(rawdata, i)
+            if j < 0: j = n
+            if i < j: self.lex_data(rawdata[i:j])
+            i = j
+            if i == n: break
+            if rawdata[i] == '<':
+                if starttagopen.match(rawdata, i) >= 0:
+                    if self.literal:
+                        self.lex_data(rawdata[i])
+                        i = i+1
+                        continue
+                    k = self.parse_starttag(i)
+                    if k < 0: break
+                    i = k
+                    continue
+                if endtagopen.match(rawdata, i) >= 0:
+                    k = self.parse_endtag(i)
+                    if k < 0: break
+                    i = k
+                    self.literal = 0
+                    continue
+                if commentopen.match(rawdata, i) >= 0:
+                    if self.literal:
+                        self.lex_data(rawdata[i])
+                        i = i+1
+                        continue
+                    k = self.parse_comment(i, end)
+                    if k < 0: break
+                    i = i + k
+                    continue
+                k = processinginstruction.match(rawdata, i)
+                if k >= 0:
+                    #  Processing instruction:
+                    if self._strict:
+                        self.lex_pi(processinginstruction.group(1))
+                        i = i + k
+                    else:
+                        self.lex_data(rawdata[i])
+                        i = i + 1
+                    continue
+                k = special.match(rawdata, i)
+                if k >= 0:
+                    if k == 3:
+                        self.lex_declaration([])
+                        i = i + 3
+                        continue
+                    if self._strict:
+                        if rawdata[i+2] in string.letters:
+                            k = self.parse_declaration(i)
+                            if k > -1:
+                                i = i + k
+                        else:
+                            self.lex_data('<!')
+                            i = i + 2
+                    else:
+                        #  Pretend it's data:
+                        if self.literal:
+                            self.lex_data(rawdata[i])
+                            k = 1
+                        i = i+k
+                    continue
+            elif rawdata[i] == '&':
+                charref = (self._strict and legalcharref) or simplecharref
+                k = charref.match(rawdata, i)
+                if k >= 0:
+                    k = i+k
+                    if rawdata[k-1] not in ';\n':
+                        k = k-1
+                        terminator = ''
+                    else:
+                        terminator = rawdata[k-1]
+                    name = charref.group(1)[:-1]
+                    postchar = ''
+                    if terminator == '\n' and not self._strict:
+                        postchar = '\n'
+                        terminator = ''
+                    if name[0] in '0123456789':
+                        #  Character reference:
+                        try:
+                            self.lex_charref(string.atoi(name), terminator)
+                        except ValueError:
+                            self.lex_data("&#%s%s" % (name, terminator))
+                    else:
+                        #  Named character reference:
+                        self.lex_namedcharref(self._normfunc(name),
+                                              terminator)
+                    if postchar:
+                        self.lex_data(postchar)
+                    i = k
+                    continue
+                k = entityref.match(rawdata, i)
+                if k >= 0:
+                    #  General entity reference:
+                    k = i+k
+                    if rawdata[k-1] not in ';\n':
+                        k = k-1
+                        terminator = ''
+                    else:
+                        terminator = rawdata[k-1]
+                    name = entityref.group(1)
+                    self.lex_entityref(name, terminator)
+                    i = k
+                    continue
+            else:
+                raise RuntimeError, 'neither < nor & ??'
+            # We get here only if incomplete matches but
+            # nothing else
+            k = incomplete.match(rawdata, i)
             if k < 0:
-                raise RuntimeError, 'unexpected call to parse_starttag'
-            k = i+1+k
-            tag = self._normfunc(rawdata[i+1:k])
-            # pull recognizable attributes
-            attrs = {}
-            while k < j:
-                l = attrfind.match(rawdata, k)
-                if l < 0: break
-                k = k + l
-                # Break out the name[/value] pair:
-                attrname, rest, attrvalue = attrfind.group(1, 2, 3)
-                if not rest:
-                    attrvalue = None    # was:  = attrname
-                elif attrvalue[:1] == LITA == attrvalue[-1:] or \
-                     attrvalue[:1] == LIT == attrvalue[-1:]:
-                    attrvalue = attrvalue[1:-1]
-                    if '&' in attrvalue:
-                        from SGMLReplacer import replace
-                        attrvalue = replace(attrvalue, self.entitydefs)
-                attrs[self._normfunc(attrname)] = attrvalue
-            # close the start-tag
-            xx = tagend.match(rawdata, k)
-            if xx < 0:
-                #  something vile
-                endchars = self._strict and "<>/" or "<>"
-                while 1:
-                    try:
-                        while rawdata[k] in string.whitespace:
-                            k = k + 1
-                    except IndexError:
-                        return -1
-                    if rawdata[k] not in endchars:
-                        self.lex_error("bad character in tag")
-                        k = k + 1
-                    else:
-                        break
-                if not self._strict:
-                    if rawdata[k] == '<':
-                        self.lex_limitation("unclosed start tag not supported")
-                    elif rawdata[k] == '/':
-                        self.lex_limitation("NET-enabling start tags"
-                                            " not supported")
-            else:
-                k = k + len(tagend.group(0)) - 1
-            #
-            #  Vicious hack to allow XML-style empty tags, like "<hr />".
-            #  We don't require the space, but appearantly it's significant
-            #  on Netscape Navigator.  Only in non-strict mode.
-            #
-            c = rawdata[k]
-            if c == '/' and not self._strict:
-                if rawdata[k:k+2] == "/>":
-                    # using XML empty-tag hack
-                    self.lex_starttag(tag, attrs)
-                    self.lex_endtag(tag)
-                    return k + 2
-                else:
-                    self.lex_starttag(tag, attrs)
-                    return k + 1
-            if c in '>/':
-                k = k + 1
-            self.lex_starttag(tag, attrs)
-            return k
+                self.lex_data(rawdata[i])
+                i = i+1
+                continue
+            j = i+k
+            if j == n:
+                break # Really incomplete
+            self.lex_data(rawdata[i:j])
+            i = j
+        # end while
+        if (end or self._finish_parse) and i < n:
+            self.lex_data(self.rawdata[i:n])
+            i = n
+        self.rawdata = self.rawdata[i:]
 
-        # Internal -- parse endtag
-        def parse_endtag(self, i):
-            rawdata = self.rawdata
-            if rawdata[i+2] in '<>':
-                if rawdata[i+2] == '<' and not self._strict:
-                    self.lex_limitation("unclosed end tags not supported")
-                    self.lex_data(ETAGO)
-                    return i + 2
-                self.lex_endtag('')
-                return i + 2 + (rawdata[i+2] == TAGC)
-            j = endtag.match(rawdata, i)
+    # Internal -- parse comment, return length or -1 if not terminated
+    def parse_comment(self, i, end):
+        rawdata = self.rawdata
+        if rawdata[i:i+4] <> (MDO + COM):
+            raise RuntimeError, 'unexpected call to parse_comment'
+        if self._strict:
+            # stricter parsing; this requires legal SGML:
+            pos = i + len(MDO)
+            datalength = len(rawdata)
+            comments = []
+            while (pos < datalength) and rawdata[pos] != MDC:
+                matchlength, comment = comment_match(rawdata, pos)
+                if matchlength >= 0:
+                    pos = pos + matchlength
+                    comments.append(comment)
+                elif end:
+                    self.lex_error("unexpected end of data in comment")
+                    comments.append(rawdata[pos+2:])
+                    pos = datalength
+                elif rawdata[pos] != "-":
+                    self.lex_error("illegal character in"
+                                   " markup declaration: "
+                                   + `rawdata[pos]`)
+                    pos = pos + 1
+                else:
+                    return -1
+            map(self.lex_comment, comments)
+            return pos + len(MDC) - i
+        # not strict
+        j = commentclose.search(rawdata, i+4)
+        if j < 0:
+            if end:
+                if MDC in rawdata[i:]:
+                    j = string.find(rawdata, MDC, i)
+                    self.lex_comment(rawdata[i+4: j])
+                    return j + len(MDC) - i
+                self.lex_comment(rawdata[i+4:])
+                return len(rawdata) - i
+            return -1
+        self.lex_comment(rawdata[i+4: j])
+        return j + commentclose.match(rawdata, j) - i
+
+    # Internal -- handle starttag, return length or -1 if not terminated
+    def parse_starttag(self, i):
+        rawdata = self.rawdata
+        if self._strict and shorttagopen.match(rawdata, i) >= 0:
+            # SGML shorthand: <tag/data/ == <tag>data</tag>
+            # XXX Can data contain &... (entity or char refs)? ... yes
+            # XXX Can data contain < or > (tag characters)? ... > yes,
+            #                               < not as delimiter-in-context
+            # XXX Can there be whitespace before the first /? ... no
+            j = shorttag.match(rawdata, i)
             if j < 0:
-                return -1
-            j = i + j - 1
-            if rawdata[j] == TAGC:
-                j = j + 1
-            self.lex_endtag(self._normfunc(endtag.group(1)))
-            return j
-
-        def parse_declaration(self, start):
-            #  This only gets used in "strict" mode.
-            rawdata = self.rawdata
-            i = start
-            #  Markup declaration, possibly illegal:
-            strs = []
-            i = i + 2
-            k = md_name.match(rawdata, i)
-            strs.append(self._normfunc(md_name.group(1)))
-            i = i + k
-            end_target = '>'
-            while k > 0:
-                #  Have to check the comment pattern first so we don't get
-                #  confused and think this is a name that starts with '--':
-                if rawdata[i] == '[':
-                    self.lex_limitation("declaration subset not supported")
-                    end_target = ']>'
-                    break
-                k, comment = comment_match(rawdata, i)
-                if k > 0:
-                    strs.append(comment)
-                    i = i + k
-                    continue
-                k = md_string.match(rawdata, i)
-                if k > 0:
-                    strs.append(md_string.group(1))
-                    i = i + k
-                    continue
-                k = md_name.match(rawdata, i)
-                if k > 0:
-                    s = md_name.group(1)
-                    try:
-                        strs.append(string.atoi(s))
-                    except string.atoi_error:
-                        strs.append(self._normfunc(s))
-                    i = i + k
-                    continue
-            k = string.find(rawdata, end_target, i)
-            if end_target == ']>':
-                if k < 0:
-                    k = string.find(rawdata, '>', i)
-                else:
-                    k = k + 1
-            if k >= 0:
-                i = k + 1
+                self.lex_data(rawdata[i])
+                return i + 1
+            tag, data = shorttag.group(1, 2)
+            tag = self._normfunc(tag)
+            self.lex_starttag(tag, {})
+            self.lex_data(data)     # should scan for entity refs
+            self.lex_endtag(tag)
+            return i + j
+        # XXX The following should skip matching quotes (' or ")
+        j = endbracket.search(rawdata, i+1)
+        if j < 0:
+            return -1
+        # Now parse the data between i+1 and j into a tag and attrs
+        if rawdata[i:i+2] == '<>':
+            #  Semantics of the empty tag are handled by lex_starttag():
+            if self._strict:
+                self.lex_starttag('', {})
             else:
-                return -1
-            self.lex_declaration(strs)
-            return i - start
+                self.lex_data('<>')
+            return i + 2
+
+        k = tagfind.match(rawdata, i+1)     # matches just the GI
+        if k < 0:
+            raise RuntimeError, 'unexpected call to parse_starttag'
+        k = i+1+k
+        tag = self._normfunc(rawdata[i+1:k])
+        # pull recognizable attributes
+        attrs = {}
+        while k < j:
+            l = attrfind.match(rawdata, k)
+            if l < 0: break
+            k = k + l
+            # Break out the name[/value] pair:
+            attrname, rest, attrvalue = attrfind.group(1, 2, 3)
+            if not rest:
+                attrvalue = None    # was:  = attrname
+            elif attrvalue[:1] == LITA == attrvalue[-1:] or \
+                 attrvalue[:1] == LIT == attrvalue[-1:]:
+                attrvalue = attrvalue[1:-1]
+                if '&' in attrvalue:
+                    from SGMLReplacer import replace
+                    attrvalue = replace(attrvalue, self.entitydefs)
+            attrs[self._normfunc(attrname)] = attrvalue
+        # close the start-tag
+        xx = tagend.match(rawdata, k)
+        if xx < 0:
+            #  something vile
+            endchars = self._strict and "<>/" or "<>"
+            while 1:
+                try:
+                    while rawdata[k] in string.whitespace:
+                        k = k + 1
+                except IndexError:
+                    return -1
+                if rawdata[k] not in endchars:
+                    self.lex_error("bad character in tag")
+                    k = k + 1
+                else:
+                    break
+            if not self._strict:
+                if rawdata[k] == '<':
+                    self.lex_limitation("unclosed start tag not supported")
+                elif rawdata[k] == '/':
+                    self.lex_limitation("NET-enabling start tags"
+                                        " not supported")
+        else:
+            k = k + len(tagend.group(0)) - 1
+        #
+        #  Vicious hack to allow XML-style empty tags, like "<hr />".
+        #  We don't require the space, but appearantly it's significant
+        #  on Netscape Navigator.  Only in non-strict mode.
+        #
+        c = rawdata[k]
+        if c == '/' and not self._strict:
+            if rawdata[k:k+2] == "/>":
+                # using XML empty-tag hack
+                self.lex_starttag(tag, attrs)
+                self.lex_endtag(tag)
+                return k + 2
+            else:
+                self.lex_starttag(tag, attrs)
+                return k + 1
+        if c in '>/':
+            k = k + 1
+        self.lex_starttag(tag, attrs)
+        return k
+
+    # Internal -- parse endtag
+    def parse_endtag(self, i):
+        rawdata = self.rawdata
+        if rawdata[i+2] in '<>':
+            if rawdata[i+2] == '<' and not self._strict:
+                self.lex_limitation("unclosed end tags not supported")
+                self.lex_data(ETAGO)
+                return i + 2
+            self.lex_endtag('')
+            return i + 2 + (rawdata[i+2] == TAGC)
+        j = endtag.match(rawdata, i)
+        if j < 0:
+            return -1
+        j = i + j - 1
+        if rawdata[j] == TAGC:
+            j = j + 1
+        self.lex_endtag(self._normfunc(endtag.group(1)))
+        return j
+
+    def parse_declaration(self, start):
+        #  This only gets used in "strict" mode.
+        rawdata = self.rawdata
+        i = start
+        #  Markup declaration, possibly illegal:
+        strs = []
+        i = i + 2
+        k = md_name.match(rawdata, i)
+        strs.append(self._normfunc(md_name.group(1)))
+        i = i + k
+        end_target = '>'
+        while k > 0:
+            #  Have to check the comment pattern first so we don't get
+            #  confused and think this is a name that starts with '--':
+            if rawdata[i] == '[':
+                self.lex_limitation("declaration subset not supported")
+                end_target = ']>'
+                break
+            k, comment = comment_match(rawdata, i)
+            if k > 0:
+                strs.append(comment)
+                i = i + k
+                continue
+            k = md_string.match(rawdata, i)
+            if k > 0:
+                strs.append(md_string.group(1))
+                i = i + k
+                continue
+            k = md_name.match(rawdata, i)
+            if k > 0:
+                s = md_name.group(1)
+                try:
+                    strs.append(string.atoi(s))
+                except string.atoi_error:
+                    strs.append(self._normfunc(s))
+                i = i + k
+                continue
+        k = string.find(rawdata, end_target, i)
+        if end_target == ']>':
+            if k < 0:
+                k = string.find(rawdata, '>', i)
+            else:
+                k = k + 1
+        if k >= 0:
+            i = k + 1
+        else:
+            return -1
+        self.lex_declaration(strs)
+        return i - start
 
 
-if not _sgmllex:
-    # Regular expressions used for parsing:
-    OPTIONAL_WHITESPACE = "[%s]*" % string.whitespace
-    interesting = regex.compile('[&<]')
-    incomplete = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\|#[0-9]*\)?\|'
-                               '<\([a-zA-Z][^<>]*\|'
-                               '/\([a-zA-Z][^<>]*\)?\|'
-                               '![^<>]*\)?')
+# Regular expressions used for parsing:
+OPTIONAL_WHITESPACE = "[%s]*" % string.whitespace
+interesting = regex.compile('[&<]')
+incomplete = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\|#[0-9]*\)?\|'
+                           '<\([a-zA-Z][^<>]*\|'
+                           '/\([a-zA-Z][^<>]*\)?\|'
+                           '![^<>]*\)?')
 
-    entityref = regex.compile(ERO + '\([a-zA-Z][-.a-zA-Z0-9]*\)[^-.a-zA-Z0-9]')
-    simplecharref = regex.compile(CRO + '\([0-9]+[^0-9]\)')
-    legalcharref \
-        = regex.compile(CRO + '\([0-9]+[^0-9]\|[a-zA-Z.-]+[^a-zA-Z.-]\)')
-    processinginstruction = regex.compile('<\?\([^>]*\)' + PIC)
+entityref = regex.compile(ERO + '\([a-zA-Z][-.a-zA-Z0-9]*\)[^-.a-zA-Z0-9]')
+simplecharref = regex.compile(CRO + '\([0-9]+[^0-9]\)')
+legalcharref \
+    = regex.compile(CRO + '\([0-9]+[^0-9]\|[a-zA-Z.-]+[^a-zA-Z.-]\)')
+processinginstruction = regex.compile('<\?\([^>]*\)' + PIC)
 
-    starttagopen = regex.compile(STAGO + '[>a-zA-Z]')
-    shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*'
-                                 + OPTIONAL_WHITESPACE + NET)
-    shorttag = regex.compile(STAGO + '\([a-zA-Z][a-zA-Z0-9.-]*\)'
-                             + OPTIONAL_WHITESPACE + NET + '\([^/]*\)' + NET)
-    endtagopen = regex.compile(ETAGO + '[<>a-zA-Z]')
-    endbracket = regex.compile('[<>]')
-    endtag = regex.compile(ETAGO +
-                           '\([a-zA-Z][-.a-zA-Z0-9]*\)'
-                           '\([^-.<>a-zA-Z0-9]?[^<>]*\)[<>]')
-    special = regex.compile(MDO + '[^>]*' + MDC)
-    markupdeclaration = regex.compile(MDO +
-                                      '\(\([-.a-zA-Z0-9]+\|'
-                                      + LIT + '[^"]*' + LIT + '\|'
-                                      + LITA + "[^']*" + LITA + '\|'
-                                      + COM + '\([^-]\|-[^-]\)*' + COM
-                                      + '\)' + OPTIONAL_WHITESPACE
-                                      + '\)*' + MDC)
-    md_name = regex.compile('\([^>%s\'"]+\)' % string.whitespace
-                            + OPTIONAL_WHITESPACE)
-    md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)' + OPTIONAL_WHITESPACE)
-    commentopen = regex.compile(MDO + COM)
-    commentclose = regex.compile(COM + OPTIONAL_WHITESPACE + MDC)
-    tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
-    attrfind = regex.compile(
-        # comma is for compatibility
-        ('[%s,]*\([a-zA-Z_][a-zA-Z_0-9.-]*\)' % string.whitespace)
-        + '\(' + OPTIONAL_WHITESPACE + VI + OPTIONAL_WHITESPACE # VI
-        + '\(' + LITA + "[^']*" + LITA
-        + '\|' + LIT + '[^"]*' + LIT
-        + '\|[-~a-zA-Z0-9,./:+*%?!()_#=]*\)\)?')
-    tagend = regex.compile(OPTIONAL_WHITESPACE + '[<>/]')
+starttagopen = regex.compile(STAGO + '[>a-zA-Z]')
+shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*'
+                             + OPTIONAL_WHITESPACE + NET)
+shorttag = regex.compile(STAGO + '\([a-zA-Z][a-zA-Z0-9.-]*\)'
+                         + OPTIONAL_WHITESPACE + NET + '\([^/]*\)' + NET)
+endtagopen = regex.compile(ETAGO + '[<>a-zA-Z]')
+endbracket = regex.compile('[<>]')
+endtag = regex.compile(ETAGO +
+                       '\([a-zA-Z][-.a-zA-Z0-9]*\)'
+                       '\([^-.<>a-zA-Z0-9]?[^<>]*\)[<>]')
+special = regex.compile(MDO + '[^>]*' + MDC)
+markupdeclaration = regex.compile(MDO +
+                                  '\(\([-.a-zA-Z0-9]+\|'
+                                  + LIT + '[^"]*' + LIT + '\|'
+                                  + LITA + "[^']*" + LITA + '\|'
+                                  + COM + '\([^-]\|-[^-]\)*' + COM
+                                  + '\)' + OPTIONAL_WHITESPACE
+                                  + '\)*' + MDC)
+md_name = regex.compile('\([^>%s\'"]+\)' % string.whitespace
+                        + OPTIONAL_WHITESPACE)
+md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)' + OPTIONAL_WHITESPACE)
+commentopen = regex.compile(MDO + COM)
+commentclose = regex.compile(COM + OPTIONAL_WHITESPACE + MDC)
+tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
+attrfind = regex.compile(
+    # comma is for compatibility
+    ('[%s,]*\([a-zA-Z_][a-zA-Z_0-9.-]*\)' % string.whitespace)
+    + '\(' + OPTIONAL_WHITESPACE + VI + OPTIONAL_WHITESPACE # VI
+    + '\(' + LITA + "[^']*" + LITA
+    + '\|' + LIT + '[^"]*' + LIT
+    + '\|[-~a-zA-Z0-9,./:+*%?!()_#=]*\)\)?')
+tagend = regex.compile(OPTIONAL_WHITESPACE + '[<>/]')
 
-    # used below in comment_match()
-    comment_start = regex.compile(COM + "\([^-]*\)-\(.\|\n\)")
-    comment_segment = regex.compile("\([^-]*\)-\(.\|\n\)")
-    comment_whitespace = regex.compile(OPTIONAL_WHITESPACE)
+# used below in comment_match()
+comment_start = regex.compile(COM + "\([^-]*\)-\(.\|\n\)")
+comment_segment = regex.compile("\([^-]*\)-\(.\|\n\)")
+comment_whitespace = regex.compile(OPTIONAL_WHITESPACE)
 
-    del regex
+del regex
 
-    def comment_match(rawdata, start):
-        """Match a legal SGML comment.
+def comment_match(rawdata, start):
+    """Match a legal SGML comment.
 
-        rawdata
-            Data buffer, as a string.
+    rawdata
+        Data buffer, as a string.
 
-        start
-            Starting index into buffer.  This should point to the `<'
-            character of the Markup Declaration Open.
+    start
+        Starting index into buffer.  This should point to the `<'
+        character of the Markup Declaration Open.
 
-        Analyzes SGML comments using very simple regular expressions to
-        ensure that the limits of the regular expression package are not
-        exceeded.  Very long comments with embedded hyphens which cross
-        buffer boundaries can easily generate problems with less-than-
-        ideal RE implementations.
+    Analyzes SGML comments using very simple regular expressions to
+    ensure that the limits of the regular expression package are not
+    exceeded.  Very long comments with embedded hyphens which cross
+    buffer boundaries can easily generate problems with less-than-
+    ideal RE implementations.
 
-        Returns the number of characters to consume from the input buffer
-        (*not* including the first `start' characters!) and the text of
-        comment located.  If no comment was identified, returns -1 and
-        an empty string.
-        """
-        matcher = comment_start
-        matchlength = matcher.match(rawdata, start)
-        if matchlength < 0:
-            return -1, ''
-        pos = start
-        comment = ''
-        while matchlength >= 0:
-            if matcher.group(2) == "-":
-                # skip any whitespace
-                pos = pos + matchlength \
-                      + comment_whitespace.match(rawdata, pos + matchlength)
-                return pos - start, comment + matcher.group(1)
-            # only a partial match
-            comment = "%s%s-%s" % (comment,
-                                   matcher.group(1), matcher.group(2))
-            pos = pos + matchlength
-            matcher = comment_segment
-            matchlength = matcher.match(rawdata, pos)
+    Returns the number of characters to consume from the input buffer
+    (*not* including the first `start' characters!) and the text of
+    comment located.  If no comment was identified, returns -1 and
+    an empty string.
+    """
+    matcher = comment_start
+    matchlength = matcher.match(rawdata, start)
+    if matchlength < 0:
         return -1, ''
-
-
-#  Test code for the lexer is now located in the test_lexer.py script.
+    pos = start
+    comment = ''
+    while matchlength >= 0:
+        if matcher.group(2) == "-":
+            # skip any whitespace
+            pos = pos + matchlength \
+                  + comment_whitespace.match(rawdata, pos + matchlength)
+            return pos - start, comment + matcher.group(1)
+        # only a partial match
+        comment = "%s%s-%s" % (comment,
+                               matcher.group(1), matcher.group(2))
+        pos = pos + matchlength
+        matcher = comment_segment
+        matchlength = matcher.match(rawdata, pos)
+    return -1, ''
