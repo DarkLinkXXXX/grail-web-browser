@@ -475,6 +475,7 @@ class Viewer(formatter.AbstractWriter):
 	    #  Some sort of image specified by DINGBAT or SRC
 	    self.text.insert(END, self.pendingdata, self.flowingtags,
 			     '\t', tags)
+	    self.pendingdata = ''
 	    window = Label(self.text, image = data,
 			   background = self.text['background'],
 			   borderwidth = 0)
