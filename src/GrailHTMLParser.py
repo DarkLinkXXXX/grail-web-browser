@@ -517,10 +517,10 @@ class GrailHTMLParser(HTMLParser):
 	dingbat = extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
-	    formatter.add_flowing_data(' ')
+	    self.formatter.add_flowing_data(' ')
 	elif attrs.has_key('src'):
 	    self.do_img(attrs)
-	    formatter.add_flowing_data(' ')
+	    self.formatter.add_flowing_data(' ')
 
     # List attribute extensions:
 
