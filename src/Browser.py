@@ -21,7 +21,7 @@ GRAIL_HOME = "http://monty.cnri.reston.va.us/grail/"
 PYTHON_HOME = "http://www.python.org/"
 ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail/about/"
 DEFAULT_HOME = GRAIL_HOME
-LOGO_IMAGES = "http://monty.cnri.reston.va.us/grail/demo/images/at_work/"
+LOGO_IMAGES = "http://monty.cnri.reston.va.us/grail/demo/images/logo/"
 
 
 # Window title prefix
@@ -48,17 +48,17 @@ class Browser:
 
     """
 
-    def __init__(self, master, app=None, height=40):
+    def __init__(self, master, app=None, width=80, height=40):
 	self.master = master
 	self.app = app
 	self.readers = []
 	self.url = ""
 	self.title = ""
 	self.history = History.History(app)
-	self.create_widgets(height)
+	self.create_widgets(width=width, height=height)
 	self.history_dialog = None
 
-    def create_widgets(self, height):
+    def create_widgets(self, width, height):
 	self.root = Toplevel(self.master)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
 	self.topframe = Frame(self.root)
@@ -67,7 +67,9 @@ class Browser:
 	self.create_menubar()
 	self.create_urlbar()
 	self.create_statusbar()
-	self.viewer = Viewer(self.root, self, DefaultStylesheet, height)
+	self.viewer = Viewer(self.root, browser=self,
+			     stylesheet=DefaultStylesheet,
+			     width=width, height=height)
 	self.animate_logo()
 
     def create_logo(self):
@@ -109,7 +111,7 @@ class Browser:
 			  underline=0, accelerator="Alt-K")
 	self.root.bind("<Alt-k>", self.clone_command)
 	self.root.bind("<Alt-K>", self.clone_command)
-	self.filemenu.add_command(label="View source",
+	self.filemenu.add_command(label="View Source",
 			  command=self.view_source_command,
 			  underline=0, accelerator="Alt-V")
 	self.root.bind("<Alt-v>", self.view_source_command)
@@ -119,7 +121,7 @@ class Browser:
 				  underline=5, accelerator='Alt-L')
 	self.root.bind('<Alt-l>', self.open_uri_command)
 	self.root.bind('<Alt-L>', self.open_uri_command)
-	self.filemenu.add_command(label='Open file...',
+	self.filemenu.add_command(label='Open File...',
 				  underline=0, accelerator='Alt O',
 				  command=self.open_file_command)
 	self.root.bind('<Alt-o>', self.open_file_command)
@@ -161,6 +163,7 @@ class Browser:
 			  command=self.reload_command,
 			  underline=0, accelerator="Alt-R")
 	self.root.bind("<Alt-r>", self.reload_command)
+	self.root.bind("<Alt-R>", self.reload_command)
 	self.histmenu.add_command(label="Forward",
 			  command=self.forward_command,
 			  underline=0, accelerator="Alt-Right")
