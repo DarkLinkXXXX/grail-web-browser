@@ -249,8 +249,11 @@ class Controller:
 
     def _close(self):
 	self.stop()
-## 	if self._filename:
-## 	    os.unlink(self._filename)
+	if self._filename:
+	    try:
+		os.unlink(self._filename)
+	    except os.error:
+		pass
 
     def _dispatch(self, *args):
 	conn, addr = self._socket.accept()
@@ -259,12 +262,14 @@ class Controller:
 	string.strip(rawdata)
 	if self._cmdre.match(rawdata) < 0:
 	    print 'Remote Control: Ignoring badly formatted command:', rawdata
+	    return
 	# extract the command and args strings
 	command = string.strip(self._cmdre.group(1))
 	argstr = string.strip(self._cmdre.group(2))
 	# look up the command string
 	if not self._cbdict.has_key(command):
 	    print 'Remote Control: Ignoring unrecognized command:', command
+	    return
 	cblist = self._cbdict[command]
 	# call all callbacks in list
 	for cb in cblist:
@@ -273,9 +278,13 @@ class Controller:
     # convenience methods
 
     def _do_load(self, uri, in_new_window=None):
+	target = ""
 	def _new_browser(b):
 	    from Browser import Browser
 	    return Browser(b.master)
+
+	if " " in uri:
+	    [uri, target] = string.split(uri)
 
 	browsers = self._app.browsers[:]
 	if not len(browsers):
@@ -292,8 +301,8 @@ class Controller:
 	    else:
 		b = None
 	if not b:
-	    b = _new_browsers(browsers[-1])
-	b.context.load(uri)
+	    b = _new_browser(browsers[-1])
+	b.context.load(uri, target=target)
 
     def load_cmd(self, cmdstr, argstr, conn):
 	self._do_load(argstr)
