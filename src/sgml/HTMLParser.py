@@ -753,6 +753,15 @@ class HTMLParser(SGMLParser):
         self.badhtml = 1
 
     def unknown_entityref(self, entname, terminator):
+	# if the name is all upper case, try a lower case version:
+	for c in entname:
+	    if c not in string.uppercase:
+		break
+	else:
+	    if entname:
+		self.badhtml = 1
+		self.handle_entityref(string.lower(entname), terminator)
+		return
 	self.badhtml = 1
 	self.handle_data('%s%s%s' % (SGMLLexer.ERO, entname, terminator))
 
