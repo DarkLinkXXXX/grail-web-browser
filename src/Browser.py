@@ -185,7 +185,7 @@ class Browser:
 	self.message_clear()
 
     def load_from_entry(self, event):
-	self.follow(self.entry.get())
+	self.load(self.entry.get())
 
     def set_entry(self, url):
 	self.entry.delete('0', END)
@@ -202,6 +202,15 @@ class Browser:
 	     new=1, show_source=0, reload=0):
 	# Start loading a new URL into the window
 	self.stop()
+	scheme, netloc = urlparse.urlparse(url)[:2]
+	if not scheme:
+	    if not netloc:
+		if os.path.exists(url):
+		    url = "file:" + url
+		else:
+		    url = "http://" + url
+	    else:
+		url = "http:" + url
 	self.message("Loading %s" % url, CURSOR_WAIT)
 	try:
 	    Reader(self, url, method, params,
@@ -291,7 +300,7 @@ class Browser:
 	if not url: return None
 	image = self.app.get_cached_image(url)
 	if image:
-	    if self.app.load_images:
+	    if self.app.load_images and not image.loaded:
 		image.start_loading(self)
 	    return image
 	from AsyncImage import AsyncImage
