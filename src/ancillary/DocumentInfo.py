@@ -4,7 +4,7 @@
 
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.9 $'
+__version__ = '$Revision: 2.10 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import regex
@@ -80,14 +80,14 @@ class DocumentInfoDialog:
 	    root.maxsize(reqwidth, reqheight)
 
     def add_field(self, label, name):
-	fr = Tkinter.Frame(self.__topfr, name=name)
+	fr = Tkinter.Frame(self.__topfr, name=name, class_="Dataitem")
 	fr.pack(fill=Tkinter.X)
 	if label: label = label + ": "
 	Tkinter.Label(fr, text=label, width=17, anchor=Tkinter.E, name="label"
 		      ).pack(anchor=Tkinter.NE, side=Tkinter.LEFT)
 	return fr
 
-    __boldpat = regex.compile("-\([a-z]*bold\)-", regex.casefold)
+    __boldpat = regex.compile("-\([a-z]*bold\|demi\)-", regex.casefold)
     __datafont = None
     def add_label_field(self, label, value, name):
 	fr = self.add_field(label, name)
@@ -101,6 +101,9 @@ class DocumentInfoDialog:
 		end = pos + len(self.__boldpat.group(1))
 		datafont = "%smedium%s" % (font[:pos], font[end:])
 		DocumentInfoDialog.__datafont = datafont
+	    else:
+		# don't try again:
+		DocumentInfoDialog.__datafont = ''
 	if datafont:
 	    try: label['font'] = datafont
 	    except TclError: DocumentInfoDialog.__datafont = ''
