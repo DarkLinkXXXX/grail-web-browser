@@ -41,15 +41,18 @@ class ImageCache:
 	       or len(self.current_owners[url]) > 1:
 		for other_owner in self.current_owners[url]:
 		    if other_owner != owner:
-			self.keep_old_copy(other_owner, image)
-		#self.debug_show_state()
+			self.keep_old_copy(other_owner, image, url)
+	    if self.old_objects.has_key(owner):
+		for pair in self.old_objects[owner]:
+		    if pair[0] == url:
+			self.old_object[owner].remove(pair)
 	self.image_objects[url] = image
 	self.current_owners[url] = [owner]
 
-    def keep_old_copy(self, owner, image):
+    def keep_old_copy(self, owner, image, url):
 	if not self.old_objects.has_key(owner):
 	    self.old_objects[owner] = []
-	self.old_objects[owner].append(image)
+	self.old_objects[owner].append((url,image))
 
     def owner_exiting(self, owner):
 	del self.old_objects[owner]
