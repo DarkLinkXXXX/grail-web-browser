@@ -87,8 +87,7 @@ def main():
     else:
 	url = None
     global app
-    app = Application()
-    app.prefs = prefs
+    app = Application(prefs=prefs)
 
     def load_images_vis_prefs(app=app): 
 	app.load_images = app.prefs.GetBoolean('browser', 'load-images')
@@ -194,8 +193,9 @@ class Application:
 
     """The application class represents a group of browser windows."""
 
-    def __init__(self):
+    def __init__(self, prefs=None):
 	self.root = Tk(className='Grail')
+	self.prefs = prefs or GrailPrefs.AllPreferences()
 	self.splash = SplashScreen(self.root)
 	self.load_images = 1		# Overridden by cmd line or pref.
 	# initialize on_exit_methods before global_history
