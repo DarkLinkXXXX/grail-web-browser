@@ -5,7 +5,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.8 $'
+__version__ = '$Revision: 2.9 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import keyword
@@ -290,6 +290,7 @@ class BaseApplication:
 	'.ustar': 'application/x-ustar',
 	'.wav': 'audio/x-wav',
 	'.xbm': 'image/x-xbitmap',
+        '.xml': 'text/xml',
 	'.xpm': 'image/x-xpixmap',
 	'.xwd': 'image/x-xwindowdump',
 	'.zip': 'application/zip',
