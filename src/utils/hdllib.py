@@ -17,18 +17,9 @@ Classes:
 - PacketPacker -- helper for packet packing
 - PacketUnpacker -- helper for packet unpacking
 - SessionTag -- helper for session tag management
-- HSConfig -- handle client configuration parser
 - HashTable -- hash table
 
 TO DO, doubts, questions:
-
-XXX The /etc/handle.conf file is not described in the spec, and I
-    can't find any examples -- not sure if the code that parses it is
-    working.
-
-XXX While the format of the hash table file, /etc/hdl_hash_tbl,
-    is in the spec, I can't find any examples either, so the same
-    caveat applies.
 
 XXX We don't use cache servers nor do we download the hash table from
     the server.
@@ -63,14 +54,16 @@ DEBUG = 0				# Default debugging flag
 
 
 # Internal constants
-HASH_TABLE_FILE_FALLBACK = 'hdl_hash_tbl'
-CONFIG_FILE = '/etc/handle.conf'
-DEFAULT_SERVER = 'hs.cnri.reston.va.us'
-DEFAULT_HASH_FILE = '/etc/hdl_hash_tbl'
+HASH_TABLE_FILE_FALLBACK = 'hdl_hash.tbl'
+DEFAULT_SERVERS = ['132.151.1.155',
+		   '198.32.1.37',
+		   '132.151.1.159',
+		   '198.32.1.73']
+DEFAULT_NUM_OF_BITS = 2
+DEFAULT_HASH_FILE = '/etc/hdl_hash.tbl'
 FILE_NAME_LENGTH = 128
 HOST_NAME_LENGTH = 64
 MAX_BODY_LENGTH = 1024
-HP_MD5_CHECKSUM_BYTE_LENGTH = 16
 UDP = 0
 TCP = 1
 PROTOCOL = 1
@@ -82,9 +75,6 @@ FAILURE = -1
 
 
 
-# Useful constants
-MAGIC = ".HASH_TABLE"			# Hash table file magic number
-
 # Flag bits
 HDL_NONMUTABLE = 0			# LSB (0th bit)
 HDL_DISABLED = 1			# (1st bit)
@@ -99,6 +89,7 @@ HP_PORT = 2222				# Used if service "hdl-srv" is unknown
 HP_HEADER_LENGTH = 28			# Packet header length
 HP_MAX_COMMAND_SIZE = 512		# Max command packet length
 HP_MAX_DATA_VALUE_LENGTH = 128
+HP_HASH_HEADER_SIZE = 36
 
 # Handle protocol commands (packet types)
 HP_QUERY = 0
@@ -441,155 +432,6 @@ class SessionTag:
 
 
 
-class HSConfig:
-    """Handle client configuration file parser.
-
-    See hdl_client_config.c:process_config()
-
-    Methods:
-
-        __init__(FILE)  -- parses the configuration file
-
-    Ivars:
-
-        status       -- NO_CONFIG or CONFIG (whether a config file was found)
-        protocol     -- TCP or UDP
-        server_name  -- handle server name to connect to
-        udp_port     -- port number for udp
-        tcp_port     -- port number for tcp
-        hash_path    -- path in filesystem to hash table
-
-    """
-    def __init__(self, filename=CONFIG_FILE):
-	# set up defaults
-	self.status = FIRST_SCAN_OF_CONFIG
-	self.protocol = UDP
-	self.server_name = ''
-	self.udp_port = -1
-	self.tcp_port = -1
-	self.hash_path = DEFAULT_HASH_FILE
-
-	required_keywords = {
-	    'clientprotocol': 'ClientProtocol',
-	      'udpqueryport': 'UDPQueryPort',
-	      'tcpqueryport': 'TCPQueryPort',
-	        'servername': 'ServerName'
-	    }
-	
-	# crack the config file
-	try: fp = open(filename, 'r')
-	except IOError:
-	    self.status = NO_CONFIG
-	    return
-
-	lines = fp.readlines()
-	fp.close()
-	linenum = 0
-	for line in lines:
-	    linenum = linenum + 1
-	    tokens = string.split(line)
-	    # skip comments and blank lines
-	    if not tokens or tokens[0] == '#': continue
-	    # switch on token
-	    keyword = string.lower(tokens[0])
-	    if keyword == 'clientprotocol':
-		ptype = string.lower(tokens[1])
-		if ptype == 'tcp': self.protocol = TCP
-		elif ptype == 'udp': self.protocol = UDP
-		else:
-		    # TBD: should go to stderr
-		    print 'Syntax error in', filename, 'file'
-		    print 'ClientProtocol must be either TCP or UDP, line:', \
-			  linenum
-		    self.status = HDL_ERR_INTERNAL_ERROR
-		    return
-		    
-	    elif keyword == 'udpqueryport':
-		self.udp_port = string.atoi(tokens[1])
-	    elif keyword == 'tcpqueryport':
-		self.tcp_port = string.atoi(tokens[1])
-	    elif keyword == 'hashpath':
-		self.hash_path = tokens[1]
-	    elif keyword == 'servername':
-		self.server_name = tokens[1]
-	    else:
-		# TBD: should go to standard error
-		print 'Syntax error in', filename, 'file'
-		print 'Invalid keyword found:', keyword, ' on line:', linenum
-		self.status = HDL_ERR_INTERNAL_ERROR
-		return
-	    del required_keywords[keyword]
-
-	# verify that all non-optional keywords were found
-	if required_keywords:
-	    # TBD: should go to stderr
-	    print 'Syntax error in', filename, 'file'
-	    print 'The following non-optional parameters were not defined:'
-	    for rk in required_keywords.values(): print rk,
-	    print
-	    self.status = HDL_ERR_INTERNAL_ERROR
-	    return
-
-	self.status = CONFIG
-	
-
-
-class HashTable:
-    """Handle server hash table.
-
-    This class basically implements the algorithm described in the
-    client library method get_hash.c:hdl_get_service_ptr().
-
-    Methods:
-
-    def __init__(FILE, DEBUG) -- loads the hash table
-    set_debuglevel(DEBUG) -- set the debug level
-    """
-    def __init__(self, filename=None, debug=None):
-	if debug is None: debug = DEBUG
-	self.debug = debug
-
-	# see if the hash table already exists
-	if not filename:
-	    if os.path.exists(DEFAULT_HASH_FILE):
-		filename = DEFAULT_HASH_FILE
-	    else:
-		filename = HASH_TABLE_FILE_FALLBACK
-	try:
-	    if self.debug: print "Opening hash table:", `self.filename`
-	    fp = open(self.filename, 'rb')
-	except IOError:
-	    # hash table does not already exist so we need to send a
-	    # request for the hash table
-	    if self.debug: print "Requesting hash table"
-	    
-	    
-
-
-#class HandleCache:
-#    """Cache of handle resolution attempts.
-#
-#    This class caches both hits and misses, in order to properly
-#    support relative handle URNs.  Here's the current semantics.
-#
-#    Let's say you resolve a handle such as hdl://cnri-1/cnri_home
-#    where `cnri-1' is the naming authority.  This resolves to the URL
-#    http://www.cnri.reston.va.us/.  This page contains some relative
-#    URLs.  Without forcing the author to register every single handle
-#    in her set of digital objects, we propose allowing only the root
-#    object to be register, and allowing this to refer to the entire
-#    set of objects.
-#
-#    Thus if within this page, a link to a relative URL is found such
-#    as /home/cstr/handle-intro.html then the resolution scheme occurs
-#    as follows:
-#
-#    hdl://cnri-1/home/cstr/handle-intro.html (if that fails...)
-#    hdl://cnri-1/home/cstr                   (if that fails...)
-#    hdl://cnri-1/home                        (if that fails...)
-#    hdl://cnri-1/
-
-
 class HashTable:
     """Hash table.
 
@@ -608,6 +450,10 @@ class HashTable:
 	hold on to the open file.  Store the header fields as
 	instance variables.  Optional DEBUG sets debugging
 	level.
+
+	XXX This has only been tested with the default hash table at
+	"ftp://cnri.reston.va.us/handles/client_library/hdl_hash.tbl;type=i"
+	which (at the time of writing) has schema version 1.
 
 	Exceptions:
 
@@ -634,36 +480,59 @@ class HashTable:
 	if self.debug: print "Opening hash table:", `self.filename`
 	try:
 	    self.fp = fp = open(self.filename, 'rb')
-	except IOError:
-	    if self.debug: print "Using hardcoded fallback scheme"
-	    self.nbits = 0
-	    if not server:
-		server = DEFAULT_SERVER
-	    if self.debug: print 'Using Handle Server: ' + server
-	    self.bucket_cache[0] = (server,
-				    2222,
-				    210,
-				    "dely@cnri.reston.va.us")
-	else:
-	    if fp.read(len(MAGIC)) != MAGIC:
-		raise Error("Hash table magic word error")
-
-	    u = xdrlib.Unpacker(fp.read(16))
-	    self.length = u.unpack_int()
-	    self.version = u.unpack_int()
-	    self.nbits = u.unpack_int()
-	    self.maxbucket = u.unpack_int()
-
+	    # Verify the checksum before proceeding
+	    checksum = fp.read(16)
+	    if md5.new(fp.read()).digest() != checksum:
+		fp.close()
+		raise IOError, "checksum error for hash table " + self.filename
+	    # Seek back to start of header
+	    fp.seek(16)
+	except IOError, msg:
 	    if self.debug:
-		print '*'*20
-		print "Hash table file header:"
-		print "length:        ", self.length
-		print "version:       ", self.version
-		print "nbits:         ", self.nbits
-		print "maxbucket:     ", self.maxbucket
-		print '*'*20
+		print "IOError:", msg
+		print "Using hardcoded fallback scheme"
+	    if server:
+		self.num_of_bits = 0
+	    else:
+		self.num_of_bits = DEFAULT_NUM_OF_BITS
+	    for i in range(1<<self.num_of_bits):
+		s = server or DEFAULT_SERVERS[i]
+		if self.debug:
+		    print 'Bucket', i, 'uses server', s
+		self.bucket_cache[i] = (0, 0, s, 2222, 2222, 2223, -1)
+	    return
 
-	    # XXX Should do some sanity checks here
+	# Read and decode header
+	u = xdrlib.Unpacker(fp.read(4))
+	self.schema_version = u.unpack_int()
+	# The header_length field is not present if schema version < 2
+	if self.schema_version < 2:
+	    if self.debug: print "*** Old hash table detected ***"
+	    self.header_length = HP_HASH_HEADER_SIZE
+	else:
+	    u = xdrlib.Unpacker(fp.read(4))
+	    self.header_length = u.unpack_int()
+	u = xdrlib.Unpacker(fp.read(self.header_length - 4))
+	self.data_version = u.unpack_int()
+	self.num_of_bits = u.unpack_int()
+	self.max_slot_size = u.unpack_int()
+	self.max_address_length = u.unpack_int()
+	self.unique_id = u.unpack_fopaque(16)
+
+	if self.debug:
+	    print '*'*20
+	    print "Hash table file header:"
+	    print "Schema version:", self.schema_version
+	    print "header length: ", self.header_length
+	    print "data version:  ", self.data_version
+	    print "num_of_bits:   ", self.num_of_bits
+	    print "max slot size: ", self.max_slot_size
+	    print "max IP addr sz:", self.max_address_length
+	    print "unique ID:     ", hexstr(self.unique_id)
+	    print '*'*20
+
+	# Calculate file offset of first bucket
+	self.bucket_offset = 16 + self.header_length
 
 
     def set_debuglevel(self, debug):
@@ -674,48 +543,72 @@ class HashTable:
     def hash_handle(self, hdl):
 	"""Hash a HANDLE to a tuple of handle server info.
 
-	Return (ip-address, query-port, admin-port, mailbox).
+	Return an 8-tuple containing the bucket fields:
+	    slot no
+	    weight
+	    ipaddr (transformed to a string in dot notation)
+	    udp query port
+	    tcp query port
+	    admin port
+	    secondary slot no
 
 	A leading "//" is stripped from the handle and it is
 	converted to upper case before taking its MD-5 digest.
-	The first 'nbits' bits of the digest are then used to
+	The first 'num_of_bits' bits of the digest are then used to
 	compute the hash table bucket index; the selected
-	bucket is read from the hash table file and decoded.
+	bucket is read from the hash table file and decoded --
+	or if it is already in the bucket cache we return that.
 
 	Exceptions may be raised by xdrlib if the entry is
 	corrupt.
 
 	"""
 
-	# XXX Should do some sanity checks here
-
-	if self.nbits > 0:
+	if self.num_of_bits > 0:
 	    if hdl[:2] == '//': hdl = hdl[2:]
 	    hdl = string.upper(hdl)
 	    digest = md5.new(hdl).digest()
 	    u = xdrlib.Unpacker(digest)
 	    index = u.unpack_uint()
-	    index = index >> (32 - self.nbits)
+	    index = int(index >> (32 - self.num_of_bits))
 	else:
 	    index = 0
 
 	if self.bucket_cache.has_key(index):
+	    if self.debug: print "return cached bucket for index", index
 	    return self.bucket_cache[index]
 
-	pos = self.length + (index * self.maxbucket)
+	pos = self.bucket_offset + (index * self.max_slot_size)
 	self.fp.seek(pos)
 
-	entry = self.fp.read(self.maxbucket)
+	entry = self.fp.read(self.max_slot_size)
 	u = xdrlib.Unpacker(entry)
 
-	ipaddr = u.unpack_opaque()
-	qport = u.unpack_int()
-	aport = u.unpack_int()
-	mailbox = u.unpack_string()
+	slot_no = u.unpack_int()
+	weight = u.unpack_int()
+	ip_address = u.unpack_opaque()
+	udp_query_port = u.unpack_int()
+	tcp_query_port = u.unpack_int()
+	admin_port = u.unpack_int()
+	secondary_slot_no = u.unpack_int()
 
-	ipaddr = string.joinfields(map(repr, map(ord, ipaddr)), '.')
+	ipaddr = string.joinfields(map(repr, map(ord, ip_address)), '.')
 
-	result = (ipaddr, qport, aport, mailbox)
+	if self.debug:
+	    print "="*20
+	    print "Hash bucket index:", index
+	    print "slot_no:          ", slot_no
+	    print "weight:           ", weight
+	    print "ip_address:       ", hexstr(ip_address)
+	    print "decoded IP addr:  ", ipaddr
+	    print "udp_query_port:   ", udp_query_port
+	    print "tcp_query_port:   ", tcp_query_port
+	    print "admin_port:       ", admin_port
+	    print "secondary_slot_no:", secondary_slot_no
+	    print "="*20
+
+	result = (slot_no, weight, ipaddr, udp_query_port,
+		  tcp_query_port, admin_port, secondary_slot_no)
 	self.bucket_cache[index] = result
 
 	return result
@@ -743,17 +636,7 @@ class HashTable:
 	p.pack_body(hdl, flags, types)
 	request = p.get_buffer()
 
-	(server, qport, aport, mailbox) = self.hash_handle(hdl)
-
-	if self.debug:
-	    # XXX Perhaps this should be in hash_handle()?
-	    print "="*20
-	    print "Hash bucket info:"
-	    print "server: ", `server`
-	    print "qport:  ", `qport`
-	    print "aport:  ", `aport`
-	    print "mailbox:", `mailbox`
-	    print "="*20
+	(server, qport) = self.hash_handle(hdl)[2:4]
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	if self.debug: print "Send request"
@@ -860,6 +743,10 @@ class HashTable:
 		    allitems = allitems + items
 	return (allflags, allitems)
 
+
+# Convert a string to hex
+def hexstr(s):
+    return "%02x"*len(s) % tuple(map(ord, s))
 
 
 # Test sets
@@ -1000,7 +887,6 @@ def test(defargs = testsets[0]):
 		s = "UNKNOWN(%d)" % stufftype
 	    print "\t%s/%s" % (s, stuffvalue)
 	print
-
 
 
 if __name__ == '__main__':
