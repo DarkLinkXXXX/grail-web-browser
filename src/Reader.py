@@ -126,6 +126,8 @@ class Reader(BaseReader):
 	if errcode in (301, 302) and headers.has_key('location'):
 	    url = headers['location']
 	    if self.maxrestarts > 0:
+		# remember the original click location
+		self.app.global_history.remember_url(self.url)
 		self.stop()
 		self.restart(url)
 		return
