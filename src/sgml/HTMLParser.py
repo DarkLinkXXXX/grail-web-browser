@@ -324,8 +324,10 @@ class HTMLParser(SGMLParser):
         if self.list_stack:
 	    del self.list_stack[-1]
 	if self.list_stack:
+	    self.implied_end_p()
 	    self.formatter.add_line_break()
 	else:
+	    self.close_paragraph()
 	    self.formatter.end_paragraph(1)
         self.formatter.pop_margin()
 
@@ -414,13 +416,7 @@ class HTMLParser(SGMLParser):
 				compact or attrs.has_key('compact')])
 
     def end_ol(self):
-        if self.list_stack:
-	    del self.list_stack[-1]
-	if self.list_stack:
-	    self.formatter.add_line_break()
-	else:
-	    self.formatter.end_paragraph(1)
-        self.formatter.pop_margin()
+	self.end_ul()
 
     def start_menu(self, attrs):
 	attrs['plain'] = None
