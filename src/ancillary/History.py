@@ -10,7 +10,7 @@ import sys
 import time
 from grailutil import *
 
-GRAIL_RE = regex.compile('\([^ \t]+\)[ \t]+\([^ \t\n]+\)[ \t]+?\(.*\)?')
+GRAIL_RE = regex.compile('\([^ \t]+\)[ \t]+\([^ \t]+\)[ \t]+?\(.*\)?')
 DEFAULT_NETSCAPE_HIST_FILE = os.path.join(gethome(), '.netscape-history')
 DEFAULT_GRAIL_HIST_FILE = os.path.join(getgraildir(), 'grail-history')
 
@@ -28,8 +28,10 @@ class NetscapeHistoryReader(HistoryLineReader):
     def parse_line(self, line):
 	link = timestamp = ''
 	try:
-	    link, timestamp = tuple(string.splitfields(line, '\t'))
-	    return link, link, string.atoi(timestamp)
+	    fields = string.splitfields(line, '\t')
+	    link = string.strip(fields[0])
+	    timestamp = string.atoi(string.strip(fields[1]))
+	    return link, link, timestamp
 	except:
 	    self._error(line)
 	    return None, None, None
@@ -41,7 +43,7 @@ class GrailHistoryReader(HistoryLineReader):
 	    if GRAIL_RE.match(line) >= 0:
 		link, timestamp, title = GRAIL_RE.group(1, 2, 3)
 	    if not title: title = link
-	    return link, title, string.atoi(timestamp)
+	    return link, title, string.atoi(string.strip(timestamp))
 	except:
 	    self._error(line)
 	    return None, None, None
