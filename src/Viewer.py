@@ -345,7 +345,12 @@ class Viewer(formatter.AbstractWriter):
     def send_label_data(self, data):
 ##	print "Label data:", `data`
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
-	self.text.insert(END, '\t'+data+'\t', tags)
+	if type(data) is type(''):
+	    self.text.insert(END, '\t'+data+'\t', tags)
+	else:
+	    self.text.insert(END, '\t', tags)
+	    self.add_subwindow(Label(self.text, image = data))
+	    self.text.insert(END, '\t', tags)
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags

@@ -68,6 +68,11 @@ class GrailHTMLParser(HTMLParser):
     # Override HTMLParser internal methods
 
     def handle_starttag(self, tag, method, attrs):
+	if self.inhead and tag not in self.head_only_tags:
+	    self.element_close_maybe('head', 'title', 'style')
+	    self.inhead = 0
+	elif not self.inhead and tag in self.head_only_tags:
+	    self.badhtml = 1
 	if self.insert_active:
 	    if tag not in self.insert_aware_tags:
 		return
@@ -84,6 +89,7 @@ class GrailHTMLParser(HTMLParser):
 	    HTMLParser.handle_data(self, data)
 
     def anchor_bgn(self, href, name, type, target=""):
+	self.element_close_maybe('a')	# cannot nest
 	self.formatter_stack[-1].flush_softspace()
 	self.anchor = href
 	self.target = target
@@ -142,7 +148,7 @@ class GrailHTMLParser(HTMLParser):
         self.handle_image(src, alt, usemap, ismap,
 			  align, width, height, border)
 
-    def handle_image(self, src, alt, usemap, ismap, align, width, 
+    def handle_image(self, src, alt, usemap, ismap, align, width,
 		     height, border=2):
 	from ImageWindow import ImageWindow
 	window = ImageWindow(self.viewer, self.anchor, src, alt,
@@ -166,6 +172,8 @@ class GrailHTMLParser(HTMLParser):
     # Override tag: <BODY colorspecs...>
 
     def start_body(self, attrs):
+	self.element_close_maybe('head', 'style', 'title')
+	self.inhead = 0
 	if attrs.has_key('bgcolor'):
 	    clr = attrs['bgcolor']
 	    if clr and clr[0] != '#':
@@ -185,6 +193,18 @@ class GrailHTMLParser(HTMLParser):
 	    self.viewer.text[option] = color
 	except TclError, msg:
 	    pass			# Ignore the error
+
+
+    # Override make_format():
+    # This allows disc/circle/square to be mapped to images.
+
+    def make_format(self, format, default='disc'):
+	fmt = format or default
+	if fmt in ('disc', 'circle', 'square'):
+	    img = self.load_dingbat(fmt)
+	    return img or HTMLParser.make_format(self, format, default)
+	else:
+	    return HTMLParser.make_format(self, format, default)
 
     # Override tag: <BASE HREF=...>
 
@@ -254,7 +274,7 @@ class GrailHTMLParser(HTMLParser):
 	"""Parses coordinate string into list of numbers.
 
 	Coordinates are stored differently depending on the shape of
-	the object. 
+	the object.
 	"""
 	coords = []
 	terms = []
@@ -262,12 +282,12 @@ class GrailHTMLParser(HTMLParser):
 	string_terms = string.splitfields(text, ',')
 	for i in range(len(string_terms)):
 	    terms.append(string.atoi(string_terms[i]))
-    
+
 	if shape == 'poly':
 	    # list of (x,y) tuples
 	    while len(terms) > 0:
 		coords.append((terms[0], terms[1]))
-		del terms[0] 
+		del terms[0]
 		del terms[0] # del terms[0:1] didn't work
 	    if coords[0] != coords[-1:]:
 		# make sure the polygon is closed
@@ -406,9 +426,9 @@ class GrailHTMLParser(HTMLParser):
 	    self.formatter.assert_line_data(0)
 
     def header_end(self):
-        self.formatter.end_paragraph(1)
 	self.formatter.pop_style()
         self.formatter.pop_font()
+        self.formatter.end_paragraph(1)
 
     end_h1 = end_h2 = end_h3 = end_h4 = end_h5 = end_h6 = header_end
 
@@ -438,23 +458,25 @@ class GrailHTMLParser(HTMLParser):
 
     entityimages = {}
 
-    def unknown_entityref(self, entname):
+    def load_dingbat(self, entname):
 	try:
-	    img = self.entityimages[entname]
+	    return self.entityimages[entname]
 	except KeyError:
 	    pass
-	else:
-	    if img:
-		self.add_subwindow(Label(self.viewer.text, image = img))
-	    return
 	gifname = entname + '.gif'
 	for p in self.iconpath:
 	    p = os.path.join(p, gifname)
 	    if os.path.exists(p):
 		img = PhotoImage(file=p)
 		self.entityimages[entname] = img
-		w = Label(self.viewer.text, image = img)
-		self.add_subwindow(w)
-		return
+		return img
 	self.entityimages[entname] = None
-	self.handle_data('&%s;' % entname)
+	return None
+
+    def unknown_entityref(self, entname):
+	img = self.load_dingbat(entname)
+	if img:
+	    self.add_subwindow(Label(self.viewer.text, image = img))
+	else:
+	    self.badhtml = 1
+	    self.handle_data('&%s;' % entname)
