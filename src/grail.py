@@ -69,7 +69,6 @@ def main():
 	sys.exit(2)
 
     geometry = prefs.Get('browser', 'initial-geometry')
-    load_images = prefs.GetBoolean('browser', 'load-images')
 
     for o, a in opts:
 	if o == '-i':
@@ -88,7 +87,15 @@ def main():
     global app
     app = Application()
     app.prefs = prefs
-    app.load_images = load_images
+
+    def load_images_vis_prefs(app=app): 
+	app.load_images = app.prefs.GetBoolean('browser', 'load-images')
+    try:
+	app.load_images = load_images
+    except NameError:
+	load_images_vis_prefs()
+    prefs.AddGroupCallback('browser', load_images_vis_prefs)
+
     browser = Browser(app.root, app, geometry=geometry)
     if sys.platform != 'mac':
 	if url:
@@ -189,7 +196,7 @@ class Application:
     def __init__(self):
 	self.root = Tk(className='Grail')
 	self.splash = SplashScreen(self.root)
-	self.load_images = 1
+	self.load_images = 1		# Overridden by cmd line or pref.
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
 	self.global_history = GlobalHistory.GlobalHistory(self)
