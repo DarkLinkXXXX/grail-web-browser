@@ -28,20 +28,22 @@ else:
 for path in 'utils', 'pythonlib', 'ancillary', 'applets', script_dir:
     sys.path.insert(0, os.path.join(grail_root, path))
 
-# More imports
-import filetypes
-import grailutil
-# TBD: hack!
-grailutil._grail_root = grail_root
 import getopt
 import string
 import urllib
 import tempfile
 import posixpath
+
+# More imports
+import filetypes
+import grailbase.utils
+# TBD: hack!
+grailbase.utils._grail_root = grail_root
+import grailutil
 from Tkinter import *
 import tktools
 import BaseApplication
-import GrailPrefs
+import grailbase.GrailPrefs
 import Stylesheet
 from CacheMgr import CacheManager
 from ImageCache import ImageCache
@@ -56,10 +58,11 @@ USAGE = """Usage: %s [options] [url]
 Options:
     -i, --noimages : inhibit loading of images
     -g <geom>, --geometry <geom> : initial window geometry
-    -d <display>, --display <display> : override $DISPLAY""" % sys.argv[0]
+    -d <display>, --display <display> : override $DISPLAY
+    -q : ignore user's grailrc module""" % sys.argv[0]
 
 def main(args=None):
-    prefs = GrailPrefs.AllPreferences()
+    prefs = grailbase.GrailPrefs.AllPreferences()
     # XXX Disable cache for NT
     if sys.platform == 'win32':
         prefs.Set('disk-cache', 'size', '0')
