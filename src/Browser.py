@@ -18,11 +18,19 @@ import sys
 from Viewer import Viewer
 from AppletHTMLParser import AppletHTMLParser
 from DefaultStylesheet import DefaultStylesheet
+import ProtocolAPI
+import regsub
 
 
 # URLs of various sorts
-DEFAULT_HOME = 'http://monty.cnri.reston.va.us/grail/'
+GRAIL_HOME = 'http://monty.cnri.reston.va.us/grail/'
+PYTHON_HOME = 'http://www.python.org/'
 ABOUT_GRAIL = 'http://monty.cnri.reston.va.us/grail/about/'
+DEFAULT_HOME = GRAIL_HOME
+
+
+# Window title prefix
+TITLE_PREFIX = 'Grail: '
 
 
 # Various cursor shapes (argument to message())
@@ -124,6 +132,8 @@ class Browser:
 	self.helpmenu.add('separator')
 	self.helpmenu.add('command', label='Grail Home Page',
 			  command=self.grail_home_command)
+	self.helpmenu.add('command', label='Python Home Page',
+			  command=self.python_home_command)
 
     def create_urlbar(self):
 	self.entry, self.topframe = tktools.make_form_entry(self.root, 'URL:')
@@ -165,23 +175,40 @@ class Browser:
 	tuple = tuple[:-1] + ('',)
 	url = urlparse.urlunparse(tuple)
 	self.message('Following %s' % url, CURSOR_WAIT)
-	if self.app:
-	    fp, url, content_type = self.app.open_url(url)
-	else:
-	    # Fallback for test() only
-	    fp = urllib.urlopen(url)
-	    if url[-5:] == '.html':
-		content_type = 'text/html'
+	params = {}
+	if self.reload_applets:
+	    params['.reload'] = 1
+	try:
+	    if self.app:
+		# XXX Shouldn't this go via app.open_url?
+		api = self.app.url_cache.open(url, 'GET', params)
 	    else:
-		content_type = 'text/plain'
-	if not fp:
+		api = ProtocolAPI.protocol_access(url, 'GET', params)
+	except IOError, msg:
+	    self.error_dialog(IOError, msg)
 	    self.message_clear()
 	    return
-
-	self.url = url
+	self.url = self.title = url
 	self.message('Loading %s' % url, CURSOR_WAIT)
+	self.root.update_idletasks()
+	errcode, errmsg, headers = api.getmeta()
+	if errcode != 200:
+	    self.error_dialog('Error reply', errmsg)
+	if headers.has_key('content-type'):
+	    content_type = headers['content-type']
+	else:
+	    content_type = None
+	if headers.has_key('content-encoding'):
+	    content_encoding = headers['content-encoding']
+	else:
+	    content_encoding = None
+	if content_encoding:
+	    # XXX Should fix this
+	    self.error_dialog("Warning",
+			      "unsupported content-encoding: %s"
+			      % content_encoding)
 
-	self.root.title('Grail Browser: ' + self.url)
+	self.root.title(TITLE_PREFIX + self.title)
 
 	for b in self.user_menus:
 	    b.destroy()
@@ -209,22 +236,32 @@ class Browser:
 	    parser = None
 
 	if parser:
+	    BUFSIZE = 512
 	    if istext:
+		last_was_cr = 0
 		while 1:
-		    line = fp.readline()
-		    if not line: break
-		    if line[-2:] == '\r\n':
-			line = line[:-2] + '\n'
-		    parser.feed(line)
+		    message, ready = api.polldata()
+		    self.message(message, CURSOR_WAIT)
 		    self.root.update_idletasks()
+		    buf = api.getdata(BUFSIZE)
+		    if not buf: break
+		    if last_was_cr and buf[0] == '\n':
+			buf = buf[1:]
+		    last_was_cr = buf[-1:] == '\r'
+		    if '\r' in buf:
+			if '\n' in buf:
+			    buf = regsub.gsub('\r\n', '\n', buf)
+			if '\r' in buf:
+			    buf = regsub.gsub('\r', '\n', buf)
+		    parser.feed(buf)
 	    else:
-		# XXX This always blocks until a whole buffer is available :-(
-		BUFSIZE = 512
 		while 1:
-		    buf = fp.read(BUFSIZE)
+		    message, ready = api.polldata()
+		    self.message(message, CURSOR_WAIT)
+		    self.root.update_idletasks()
+		    buf = api.getdata(BUFSIZE)
 		    if not buf: break
 		    parser.feed(buf)
-		    self.root.update_idletasks()
 	    parser.close()
 	else:
 	    self.viewer.send_flowing_data(
@@ -235,15 +272,13 @@ class Browser:
 	    self.viewer.send_flowing_data(
 		"You can still use the Save As... command to save it!\n")
 
-	fp.close()
+	api.close()
 
 	self.viewer.freeze()
 
 	if parser and hasattr(parser, 'title'):
-	    self.title = parser.title or ''
-	else:
-	    self.title = self.url
-	self.root.title('Grail Browser: ' + self.title)
+	    self.title = parser.title or self.url
+	self.root.title(TITLE_PREFIX + self.title)
 
 	self.message_clear()
 
@@ -309,6 +344,12 @@ class Browser:
     def message_clear(self):
 	self.message('', CURSOR_NORMAL)
 
+    def error_dialog(self, exception, msg):
+	if self.app:
+	    self.app.error_dialog(exception, msg)
+	else:
+	    print "ERROR:", msg
+
     def on_delete(self):
 	self.close()
 
@@ -340,7 +381,7 @@ class Browser:
 	    ofp = open(file, 'w')
 	except IOError, msg:
 	    ifp.close()
-	    self.app.error_dialog(IOError, msg)
+	    self.error_dialog(IOError, msg)
 	    return
 	BUFSIZE = 8*1024
 	while 1:
@@ -352,7 +393,7 @@ class Browser:
 
     def print_command(self):
 	# File/Print...
-	self.app.error_dialog(SystemError,
+	self.error_dialog(SystemError,
 			      "Sorry, printing is not yet supported")
 
     def close_command(self):
@@ -401,7 +442,10 @@ class Browser:
 	self.load(ABOUT_GRAIL)
 
     def grail_home_command(self):
-	self.load(DEFAULT_HOME)
+	self.load(GRAIL_HOME)
+
+    def python_home_command(self):
+	self.load(PYTHON_HOME)
 
     # End of commmands
 
