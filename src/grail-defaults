@@ -63,7 +63,7 @@ C:
 C: Table HTML preferences
 C: these are here for now because tables are still pretty buggy
 C:
-tables--enabled: 0
+tables--enabled: 1
 C:
 C: Applet preferences
 C:
