@@ -894,14 +894,15 @@ class PrintingHTMLParser(HTMLParser):
     def start_a(self, attrs):
 	href = None
 	if attrs.has_key('href'):
-	    from urlparse import urljoin
+	    from urlparse import urljoin, urlparse
 	    baseurl = self.base or self._baseurl or ''
 	    href = urljoin(baseurl, attrs['href'])
 	self.anchor = href
 	if href:
 	    if self._underline_anchors:
 		self.formatter.push_style('u')
-	    if self._footnote_anchors and not self._anchors.has_key(href):
+	    if self._footnote_anchors and not self._anchors.has_key(href) \
+	       and urlparse(href)[0] != 'data':
 		self._anchors[href] = len(self._anchor_sequence) + 1
 		if attrs.has_key('title'):
 		    from SGMLReplacer import replace
