@@ -39,6 +39,7 @@ import urllib
 import tempfile
 import posixpath
 from Tkinter import *
+import tktools
 import GrailPrefs
 import Stylesheet
 from CacheMgr import CacheManager
@@ -110,7 +111,6 @@ def main():
     import SafeTkinter
     SafeTkinter._castrate(app.root.tk)
 
-    import tktools
     tktools.install_keybindings(app.root)
 
     # Make everybody who's still using urllib.urlopen go through the cache
@@ -186,6 +186,64 @@ class SplashScreen:
     def close(self):
 	self.frame.destroy()
 	self.root.withdraw()
+
+
+class LicenseDialog:
+
+    """Display the license dialog at startup.
+
+    This uses the initial Tk widget.  If the user clicks the "Agree"
+    button, this returns normally.  If "Disagree" is clicked,
+    the application is exited right here and this never returns.
+
+    Control over whether to display this dialog is through the
+    preference browser--license-agreed-to; this logic is in the
+    caller, not in the dialog.
+
+    """
+
+    def __init__(self, app):
+	if app.prefs.GetBoolean('browser', 'license-agreed-to'):
+	    return
+	licensefilename = grailutil.which("LICENSE")
+	licensefile = open(licensefilename)
+	licensetext = licensefile.read()
+	licensefile.close()
+	self.root = root = app.root
+	title = "Grail License Dialog"
+	root.title(title)
+	root.iconname(title)
+	top = Frame(root)
+	top.pack(expand=1, fill=BOTH)
+	label = Label(top, text=
+	    "Please read the Grail license below and click Agree or Disagree")
+	label.pack()
+	text, textframe = tktools.make_text_box(top, width=80)
+	text.insert(END, licensetext)
+	text['state'] = DISABLED
+	botframe = Frame(top)
+	botframe.pack(fill=X)
+	agreebutton = Button(botframe,
+			     text="Agree", command=self.agree)
+	agreebutton.pack(side=LEFT)
+	disagreebutton = Button(botframe,
+				text="Disagree", command=self.disagree)
+	disagreebutton.pack(side=RIGHT)
+	self.agreeflag = 0
+	root.mainloop()
+	top.destroy()
+	if self.agreeflag:
+	    app.prefs.Set('browser', 'license-agreed-to', 1)
+	    app.prefs.Save()
+	else:
+	    sys.exit(0)
+
+    def agree(self):
+	self.agreeflag = 1
+	self.root.quit()
+
+    def disagree(self):
+	self.root.quit()
 
 
 class URLReadWrapper:
@@ -267,6 +325,7 @@ class Application:
     def __init__(self, prefs=None):
 	self.root = Tk(className='Grail')
 	self.prefs = prefs or GrailPrefs.AllPreferences()
+	LicenseDialog(self)
 	# The stylesheet must be initted before any Viewers, so it
 	# registers its' prefs callbacks first, hence reloads before the
 	# viewers reconfigure w.r.t. the new styles.
