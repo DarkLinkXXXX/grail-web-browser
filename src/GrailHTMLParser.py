@@ -13,8 +13,9 @@ import formatter
 
 class AppletHTMLParser(htmllib.HTMLParser):
 
-    def __init__(self, viewer):
+    def __init__(self, viewer, reload=0):
 	self.viewer = viewer
+	self.reload = reload
 	self.app = self.viewer.browser.app
 	self.formatter = formatter.AbstractFormatter(self.viewer)
 	htmllib.HTMLParser.__init__(self, self.formatter)
@@ -132,7 +133,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	rexec.reset_urlpath()
 	url = urlparse.urljoin(self.browser.url, src or '.')
 	rexec.set_urlpath(url)
-	if self.browser.reload_applets and rexec.modules.has_key(mod) and \
+	if self.reload and rexec.modules.has_key(mod) and \
 	   mod not in self.loaded:
 	    # XXX Hack, hack
 	    msg, crs = self.viewer.browser.message("Reloading module " + mod)
