@@ -75,8 +75,8 @@ class AbstractFormatter:
 	    self.writer.send_label_data(self.format_counter(format, counter))
 	else:
 	    self.writer.send_label_data(format)
-	self.para_end = self.nospace = self.hard_break = 1
-	self.softspace = 0
+	self.nospace = 1
+	self.softspace = self.hard_break = self.para_end = 0
 
     def format_counter(self, format, counter):
         label = ''
