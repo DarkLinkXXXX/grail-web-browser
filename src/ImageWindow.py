@@ -38,10 +38,13 @@ class ImageWindow(Frame):
 		bg = app.prefs.Get(STYLEGROUP, AHISTPREF)
 	    else:
 		bg = app.prefs.Get(STYLEGROUP, APREF)
+	elif self.map:
+	    bg = app.prefs.Get(STYLEGROUP, APREF)
 	else:
-	    bg = viewer.text['background']
+	    bg = viewer.text['foreground']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
+	self.borderwidth = borderwidth
 	self.label = Label(self, text=self.alt, background=bg, borderwidth=0)
 	self.label.pack(fill=BOTH, expand=1)
 	self.image_loaded = 0
@@ -50,20 +53,18 @@ class ImageWindow(Frame):
 	    self.config(width=width + 2*borderwidth,
 			height=height + 2*borderwidth)
 	if self.url:
-##	    self['background'] ='blue'	# XXX should use style sheet
 	    self.bind('<Enter>', self.enter)
 	    self.bind('<Leave>', self.leave)
 	    if self.ismap:
 		self.label.bind('<Motion>', self.motion)
 	    self.label.bind('<ButtonRelease-1>', self.follow)
 	    self.label.bind('<ButtonRelease-2>', self.follow_new)
-	else:
-	    if self.map:
-		self.bind('<Enter>', self.enter)
-		self.bind('<Leave>', self.leave)
-		self.label.bind('<Motion>', self.motion)
-		self.label.bind('<ButtonRelease-1>', self.follow)
-		self.label.bind('<ButtonRelease-2>', self.follow_new)
+	elif self.map:
+	    self.bind('<Enter>', self.enter)
+	    self.bind('<Leave>', self.leave)
+	    self.label.bind('<Motion>', self.motion)
+	    self.label.bind('<ButtonRelease-1>', self.follow)
+	    self.label.bind('<ButtonRelease-2>', self.follow_new)
 	self.label.bind("<Button-3>", self.button_3_event)
 	self.image = self.context.get_async_image(self.src, reload,
 						  width=width, height=height)
@@ -120,7 +121,7 @@ class ImageWindow(Frame):
 
     def table_geometry(self):
 	import string
-	bw = string.atoi(self['borderwidth'])
+	bw = self.borderwidth
 	if self.image:
 	    w = self.image.width() + 2 * bw
 	    h = self.image.height() + 2 * bw
@@ -131,7 +132,7 @@ class ImageWindow(Frame):
 	return x+w, x+w, y+h
 
     def button_3_event(self, event):
-	url = (not self.ismap) and self.url
+	url, target = self.whichurl(event)
 	imgurl = self.src
 	if imgurl:
 	    imgurl = self.context.get_baseurl(imgurl)
