@@ -284,7 +284,11 @@ class AppletLoader:
         # This is needed to pass a copy of the source to linecace.
         file, filename, info = stuff
         (suff, mode, type) = info
-        import imp, ihooks
+        import imp
+        if type == imp.PKG_DIRECTORY:
+            import ihooks
+            loader = self.get_rexec().loader
+            return ihooks.FancyModuleLoader.load_module(loader, mod, stuff)
         if type == imp.PY_SOURCE:
             import linecache
             lines = file.readlines()
@@ -295,7 +299,7 @@ class AppletLoader:
             m.__file__ = filename
             m.__filename__ = filename
             exec code in m.__dict__
-        elif type == ihooks.BUILTIN_MODULE:
+        elif type == imp.C_BUILTIN:
             m = imp.init_builtin(mod)
         elif type == ihooks.C_EXTENSION:
             m = rexec.load_dynamic(mod, filename, file)
