@@ -25,6 +25,9 @@ class ImageTempFileReader(TempFileReader):
 	'image/jpeg': 'djpeg -gif',
 	'image/x-xbitmap':
 	    'xbmtopbm | ppmtogif -transparent "#FFFFFF" 2>/dev/null',
+	'image/tiff':
+	    """(T=${TMPDIR-/usr/tmp}/@$$.tiff; cat >$T;
+	        tifftopnm $T 2>/dev/null; rm -f $T)""",
 	}
 
     def handle_done(self):
