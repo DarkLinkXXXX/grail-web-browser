@@ -42,7 +42,8 @@ def protocol_access(url, mode, params, data=None):
     sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
     #
     # Check first to see if proxies are enabled
-    manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled', type_name='int')
+    manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled',
+						    type_name='int')
 
     if manual_proxy_enabled:
 	proxy_name = sanitized + "_proxy"
@@ -63,7 +64,8 @@ def protocol_access(url, mode, params, data=None):
 		if next_proxy_name == proxy_name:
 		    proxy = next_proxy
 		    
-	    no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled', type_name='int')
+	    no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled',
+							type_name='int')
 	    if no_proxy_enabled == -1:
 		no_proxy = grailutil.pref_or_getenv('no_proxy')
 	    if no_proxy:
@@ -71,7 +73,8 @@ def protocol_access(url, mode, params, data=None):
 	    else:
 		app.prefs.Set('proxies', 'no_proxy_enabled', 0)
 	else:	
-	    proxy = grailutil.pref_or_getenv(proxy_name, check_ok=VALID_PROXIES)
+	    proxy = grailutil.pref_or_getenv(proxy_name,
+					     check_ok=VALID_PROXIES)
     else:
 	proxy = None
 	
@@ -79,7 +82,8 @@ def protocol_access(url, mode, params, data=None):
 	if not valid_proxy(proxy):
 	    error = 'Invalid proxy: ' + proxy
 	    raise IOError, error
-	no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled', type_name='int')
+	no_proxy_enabled = grailutil.pref_or_getenv('no_proxy_enabled',
+						    type_name='int')
 	if no_proxy_enabled:
 	    no_proxy = grailutil.pref_or_getenv('no_proxy')
 	else:
@@ -143,8 +147,8 @@ def test(url = "http://www.python.org/"):
     api.close()
 
 def proxy_exception(host, list):
-    """Return 1 if host is contained in list or host's suffix matches an entry in list
-    that begins with a leading dot."""
+    """Return 1 if host is contained in list or host's suffix matches
+    an entry in list that begins with a leading dot."""
     for exception in list:
 	if host == exception:
 	    return 1
@@ -156,7 +160,8 @@ def proxy_exception(host, list):
     return 0
 
 def valid_proxy(proxy):
-    """Return 1 if the proxy string looks loke a valid url, for an proxy URL else return 0."""
+    """Return 1 if the proxy string looks like a valid url, for an
+    proxy URL else return 0."""
     import urlparse
     scheme, netloc, url, params, query, fragment = urlparse.urlparse(proxy)
     if scheme != 'http' or params or query or fragment:
