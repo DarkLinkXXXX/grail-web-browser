@@ -60,7 +60,7 @@ class SharedItem:
 	    self.api = None
 	    self.stage = DONE
 	    self.incache = 0
-	    self.reset()
+	    self.reset(reload)
 
 	elif refresh:            ## check freshness
 	    self.cache_api = api
