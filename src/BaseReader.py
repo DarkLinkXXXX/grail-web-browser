@@ -96,10 +96,6 @@ class BaseReader:
     def getapimeta(self):
 	errcode, errmsg, headers = self.api.getmeta()
 	self.callback = self.checkdata
-	if errcode != 200:
-	    self.stop()
-	    self.handle_error(errcode, errmsg, headers)
-	    return
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
 	else:
@@ -129,16 +125,18 @@ class BaseReader:
 
     # Derived classes are expected to override the following methods
 
-    def handle_error(self, errcode, errmsg, headers):
-	# Called after self.stop() has been called
-	pass
-
     def handle_meta(self, errcode, errmsg, headers):
 	# May call self.stop()
-	pass
+	if errcode != 200:
+	    self.stop()
+	    self.handle_error(errcode, errmsg, headers)
 
     def handle_data(self, data):
 	# May call self.stop()
+	pass
+
+    def handle_error(self, errcode, errmsg, headers):
+	# Called after self.stop() has been called
 	pass
 
     def handle_eof(self):

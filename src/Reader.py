@@ -39,10 +39,12 @@ class Reader(BaseReader):
 	self.data = data
 
 	self.save_file = None
+	self.maxrestarts = 10
 
 	self.restart(url)
 
     def restart(self, url):
+	self.maxrestarts = self.maxrestarts - 1
 	self.url = url
 
 	self.viewer = self.last_browser.viewer
@@ -77,18 +79,27 @@ class Reader(BaseReader):
 	if self.save_file:
 	    self.save_file.close()
 	    self.save_file = None
-	else:
-	    if errcode == 204:
-		return
-	    if errcode in (301, 302) and headers.has_key('location'):
-		url = headers['location']
-		self.restart(url)
-		return
 	BaseReader.handle_error(self, errcode, errmsg, headers)
 
     def handle_meta(self, errcode, errmsg, headers):
 	if self.save_file:
+	    if errcode != 200:
+		self.stop()
+		self.handle_error(errcode, errmsg, headers)
 	    return
+
+	if errcode == 204:
+	    self.stop()
+	    return
+
+	if errcode in (301, 302) and headers.has_key('location'):
+	    url = headers['location']
+	    if self.maxrestarts > 0:
+		self.stop()
+		self.restart(url)
+	    return
+
+	# XXX Similar for error 401
 
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
