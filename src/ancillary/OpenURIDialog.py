@@ -31,7 +31,7 @@ class OpenURIDialog:
 	okbtn.pack(side=LEFT)
 	newbtn.pack(side=LEFT, padx='1m')
 	cancelbtn.pack(side=RIGHT)
-	clearbtn.pack(side=RIGHT)
+	clearbtn.pack(side=RIGHT, padx='1m')
 	#
 	tktools.set_transient(self.__frame, master)
 	#
