@@ -57,7 +57,7 @@ class NetscapeHistoryReader(HistoryLineReader):
 	    url = string.strip(fields[0])
 	    timestamp = string.atoi(string.strip(fields[1]))
 	    return (url, title, timestamp or now())
-	except:
+	except (ValueError, IndexError, TypeError):
 	    self._error(line)
 	    return None
 
@@ -69,7 +69,7 @@ class GrailHistoryReader(HistoryLineReader):
 		url, ts, title = GRAIL_RE.group(1, 2, 3)
 		timestamp = string.atoi(string.strip(ts))
 		return url, title, timestamp or now()
-	except:
+	except (ValueError, TypeError):
 	    self._error(line)
 	    return None
 
