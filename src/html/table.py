@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.36 1996/04/17 21:39:13 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.37 1996/04/18 23:10:28 bwarsaw Exp $'
 
 
 import string
@@ -20,6 +20,8 @@ EMPTY = 102
 
 BadMojoError = 'Bad Mojo!  Infinite loop in cell height calculation.'
 
+CELLGEOM_RE = regex.compile('%sx%s\+%s\+%s' % (('\([-+]?[0-9]+\)',) * 4))
+
 
 
 # ----- HTML tag parsing interface
@@ -35,6 +37,7 @@ class TableSubParser:
 	# doesn't know about content model.
 	parser.implied_end_p()
 	parser.formatter.add_line_break()
+	# tosses any dangling text not in a caption or explicit cell
 	parser.save_bgn()
 	# create the table data structure
 	if self._lasttable:
@@ -51,6 +54,7 @@ class TableSubParser:
 	    self._finish_cell(parser)
 	    ti.finish()
 	    parser.formatter.add_line_break()
+	    # tosses any dangling text not in a caption or explicit cell
 	    parser.save_end()
 	    if self._table_stack:
 		self._lasttable = self._table_stack[-1]
@@ -61,6 +65,7 @@ class TableSubParser:
     def start_caption(self, parser, attrs):
 	ti = self._lasttable 
 	if ti:
+	    # tosses any dangling text not in a caption or explicit cell
 	    parser.save_end()
 	    caption = ti.caption = Caption(ti, parser.viewer, attrs)
 	    caption.unfreeze()
@@ -69,6 +74,7 @@ class TableSubParser:
     def end_caption(self, parser):
 	ti = self._lasttable 
 	if ti and ti.caption:
+	    # tosses any dangling text not in a caption or explicit cell
 	    parser.save_bgn()
 	    ti.caption.freeze()
 	    parser.pop_formatter()
@@ -133,6 +139,7 @@ class TableSubParser:
 	    ti.lastcell = cell
 	    cell.unfreeze()
 	    parser.push_formatter(cell.new_formatter())
+	    # tosses any dangling text not in a caption or explicit cell
 	    parser.save_end()
 	    #parser.formatter.push_alignment(cell.attribute('align',
 	    #					   conv=string.lower))
@@ -149,6 +156,7 @@ class TableSubParser:
 	    ti.lastcell.freeze()
 	    ti.lastcell.finish()
 	    ti.lastcell = None
+	    # tosses any dangling text not in a caption or explicit cell
 	    parser.save_bgn()
 	    parser.pop_formatter()
 
@@ -334,7 +342,7 @@ class Table(AttrElem):
 					   conv=conv_stdunits,
 					   default=0)
 	# geometry
- 	self.container = Container(parentviewer.text,
+ 	self.container = Container(master=parentviewer.text,
 				   relief=relief,
 				   borderwidth=borderwidth,
 				   highlightthickness=0,
@@ -393,7 +401,8 @@ class Table(AttrElem):
 
     def _autolayout_1(self):
 	# internal representation of the table as a sparse array
-	self._table = table = rawtable = {}
+	self._table = table = {}
+	rawtable = {}
 	bodies = (self.thead or []) + self.tbodies + (self.tfoot or [])
 	bw = self._borderwidth = grailutil.conv_integer(
 	    self.container['borderwidth'])
@@ -833,8 +842,6 @@ class ContainedText(AttrElem):
 	self._tw.config(highlightthickness=0)
 	self._width = 0
 	self._embedheight = 0
-	# embedded window geometry regex
-	self._re = regex.compile('%sx%s\+%s\+%s' % (('\([-+]?[0-9]+\)',) * 4))
 
     def new_formatter(self):
 	return AbstractFormatter(self._viewer)
@@ -871,9 +878,9 @@ class ContainedText(AttrElem):
 ## 		print 'non-conformant embedded window:', sub.__class__
 ## 		print 'using generic method, which may be incorrect'
 		geom = sub.winfo_geometry()
-		if self._re.search(geom) >= 0:
+		if CELLGEOM_RE.search(geom) >= 0:
 		    [w, h, x, y] = map(grailutil.conv_integer,
-				       self._re.group(1, 2, 3, 4))
+				       CELLGEOM_RE.group(1, 2, 3, 4))
 		min_nonaligned = max(min_nonaligned, w)	# x+w?
 		maxwidth = max(maxwidth, w)             # x+w?
 		embedheight = max(embedheight, h)       # y+h?
