@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.7 1996/03/28 16:42:07 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.8 1996/03/29 01:38:58 bwarsaw Exp $'
 
 
 import string
@@ -134,58 +134,6 @@ class TableSubParser:
 
 
 
-def _get_linecount(tw):
-    return string.atoi(string.splitfields(tw.index(END), '.')[0]) - 1
-
-def _get_widths(tw):
-    width_max = 0
-    charwidth_max = 0
-    border_x = None
-    # get maximum width of cell: the longest line with no line wrapping
-    tw['wrap'] = NONE
-    border_x, y, w, h, b = tw.dlineinfo(1.0)
-    linecnt = _get_linecount(tw) + 1
-    for lineno in range(1, linecnt):
-	index = '%d.0' % lineno
-	tw.see(index)
-	x, y, w, h, b = tw.dlineinfo(index)
-	width_max = max(width_max, w)
-	if lineno > 1:
-	    charwidth = string.atoi(string.splitfields(
-		tw.index('%s - 1 c' % index), '.')[1])
-	    charwidth_max = max(charwidth_max, charwidth)
-    width_max = width_max + (2 * border_x)
-    # get minimum width of cell: longest word
-    tw['wrap'] = WORD
-    contents = tw.get(1.0, END)
-    longest_word = reduce(max, map(len, string.split(contents)), 0) + 1
-    tw['width'] = longest_word
-    width_min = tw.winfo_reqwidth() + (2 * border_x)
-    return charwidth_max, width_min, width_max
-
-def _get_height(tw):
-    linecount = _get_linecount(tw)
-    tw['height'] = linecount
-    tw.update_idletasks()
-    tw.see(1.0)
-    x, border_y, w, h, b = tw.dlineinfo(1.0)
-    loopcnt = 0
-    while 1:
-	loopcnt = loopcnt + 1
-	if loopcnt > 100:
-	    raise 'Loop Badness Detected!'
-	tw.see(1.0)
-	info = tw.dlineinfo('end - 1 c')
-	if info:
-	    break
-	linecount = linecount + 1
-	tw['height'] = linecount
-	tw.update_idletasks()
-    x, y, w, h, b = info
-    return border_y + y + h
-
-
-
 class AttrElem:
     """Base attributed table element.
 
@@ -266,7 +214,7 @@ class Table(AttrElem):
 		    pending_rowspans = pending_rowspans + rowspans - 1
 		rowcount = rowcount + 1
 		colcount = max(colcount, rowcolumns)
-	rowcount = rowcount + pending_rowspans
+## 	rowcount = rowcount + pending_rowspans
 
 	print '# of rows=', rowcount, '# of cols=', colcount
 
@@ -291,12 +239,16 @@ class Table(AttrElem):
 			cell.close()
 		    else:
 			table[(row, col)] = cell
-		    # the cell could span multiple columns
-		    cs = col + 1
-		    for cs in range(cs, cs + cell.colspan - 1):
-			for rs in range(row, row + cell.rowspan):
+		    # the cell could span multiple columns. TBD: yick!
+		    for cs in range(col+1, col + cell.colspan):
+			table[(row, cs)] = OCCUPIED
+			for rs in range(row+1, row + cell.rowspan):
 			    table[(rs, cs)] = OCCUPIED
-		    col = cs
+		    for rs in range(row+1, row + cell.rowspan):
+			table[(rs, col)] = OCCUPIED
+			for cs in range(col+1, col + cell.colspan):
+			    table[(rs, cs)] = OCCUPIED
+		    col = col + 1
 		row = row + 1
 
 	# debugging
@@ -314,7 +266,7 @@ class Table(AttrElem):
 	    print ']'
 	print '==========', id(self)
 
-	# calculate initial colspan=1 cell sizes
+	# calculate column widths
 	cellwidths = [0] * colcount
 	cellheights = [0] * rowcount
 	for col in range(colcount):
@@ -325,19 +277,25 @@ class Table(AttrElem):
 		    # column and occupied cells have already
 		    # contributed to column widths
 		    continue
-		elif cell.colspan > 1:
-		    # cells that span more than one column evenly
-		    # apportion the min/max widths to each of the
-		    # consituent columns (this is how Arena does it as
-		    # per the latest Table HTML spec).
-		    cellwidth = float(cell.width()) / cell.colspan
-		    for col_i in range(col, col + cell.colspan):
-			cellwidths[col_i] = max(cellwidths[col_i], cellwidth)
-		else:
-		    cellwidth = cell.width()
-		    cellheight = cell.height()
-		    cellwidths[col] = max(cellwidths[col], cellwidth)
-		    cellheights[row] = max(cellheights[row], cellheight)
+		# cells that span more than one column evenly
+		# apportion the min/max widths to each of the
+		# consituent columns (this is how Arena does it as per
+		# the latest Table HTML spec).
+		cellwidth = float(cell.width()) / cell.colspan
+		for col_i in range(col, col + cell.colspan):
+		    cellwidths[col_i] = max(cellwidths[col_i], cellwidth)
+
+	# calculate column heights.  this should be done *after*
+	# cellwidth calculations, due to side-effects in the cell
+	# algorithms
+	for row in range(rowcount):
+	    for col in range(colcount):
+		cell = table[(row, col)]
+		if cell in [EMPTY, OCCUPIED]:
+		    continue
+		cellheight = float(cell.height()) / cell.rowspan
+		for row_i in range(row, min(rowcount, row + cell.rowspan)):
+		    cellheights[row_i] = max(cellheights[row_i], cellheight)
 
 	canvaswidth = 0
 	for width in cellwidths:
@@ -358,22 +316,19 @@ class Table(AttrElem):
 	    tallest = 0
 	    for col in range(colcount):
 		cell = table[(row, col)]
-		if cell == OCCUPIED:
-		    continue
-		if cell == EMPTY:
+		if cell in [EMPTY, OCCUPIED]:
 		    xpos = xpos + cellwidths[col]
 		    continue
 		cellwidth = 0
 		cellheight = 0
-		tallest = reduce(max, cellheights)
 		for span in range(col, col + cell.colspan):
 		    cellwidth = cellwidth + cellwidths[span]
-		for span in range(row, row + cell.rowspan):
+		for span in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheight = cellheight + cellheights[span]
 		cell.situate(xdelta=xpos, ydelta=ypos,
 			     width=cellwidth, height=cellheight)
-		xpos = xpos + cellwidth
-	    ypos = ypos + tallest
+		xpos = xpos + cellwidths[col]
+	    ypos = ypos + cellheights[row]
 
 	# if caption aligns bottom, then insert it now.  it needs to
 	# be resized and moved to the proper location.
@@ -412,6 +367,64 @@ class TR(AttrElem):
 	self.cells = []
 
 
+def _get_linecount(tw):
+    return string.atoi(string.splitfields(tw.index(END), '.')[0]) - 1
+
+def _get_widths(tw):
+    width_max = 0
+    charwidth_max = 0
+    border_x = None
+    # get maximum width of cell: the longest line with no line wrapping
+    tw['wrap'] = NONE
+    border_x, y, w, h, b = tw.dlineinfo(1.0)
+    linecnt = _get_linecount(tw) + 1
+    for lineno in range(1, linecnt):
+	index = '%d.0' % lineno
+	tw.see(index)
+	x, y, w, h, b = tw.dlineinfo(index)
+	width_max = max(width_max, w)
+	if lineno > 1:
+	    charwidth = string.atoi(string.splitfields(
+		tw.index('%s - 1 c' % index), '.')[1])
+	    charwidth_max = max(charwidth_max, charwidth)
+    width_max = width_max + (2 * border_x)
+    # get minimum width of cell: longest word
+    tw['wrap'] = WORD
+    contents = tw.get(1.0, END)
+    longest_word = reduce(max, map(len, string.split(contents)), 0) + 1
+    tw['width'] = longest_word
+    width_min = tw.winfo_reqwidth() + (2 * border_x)
+    return charwidth_max, width_min, width_max
+
+def _get_height(tw):
+    linecount = _get_linecount(tw)
+    tw['height'] = linecount
+    tw.update_idletasks()
+    tw.see(1.0)
+    x, border_y, w, h, b = tw.dlineinfo(1.0)
+    loopcnt = 0
+    while 1:
+	# TBD: loopcnt check is probably unnecessary, but I'm not yet
+	# convinced this algorithm always works.
+	loopcnt = loopcnt + 1
+	if loopcnt > 1000:
+	    raise 'Loop Badness Detected!'
+	tw.see(1.0)
+	info = tw.dlineinfo('end - 1 c')
+	if info:
+	    break
+	linecount = linecount + 1
+	tw['height'] = linecount
+	tw.update_idletasks()
+    x, y, w, h, b = info
+    # TBD: this isn't quite right.  We want to add border_y, but
+    # that's not correct for the lower border.  I think we can ask the
+    # textwidget for it's internal border space, but we may need to
+    # add in relief space too.  Close approximation for now...
+    return (2 * border_y) + y + h
+
+
+
 class ContainedText(AttrElem):
     """Base class for a text widget contained as a cell in a canvas.
     Both Captions and Cells are derived from this class.
@@ -423,6 +436,7 @@ class ContainedText(AttrElem):
 	self._container = table.container
 	self._viewer = Viewer(master=table.container,
 			      scrolling=0,
+			      context=parentviewer.context,
 			      stylesheet=parentviewer.stylesheet,
 			      parent=parentviewer)
 	self._fw = self._viewer.frame
@@ -435,12 +449,13 @@ class ContainedText(AttrElem):
 
     def freeze(self): self._viewer.freeze()
     def unfreeze(self): self._viewer.unfreeze()
+    def close(self): self._viewer.close()
 
     def width(self):
 	return self._width		# not useful until after finish()
 
     def height(self):
-	if not self._height:
+	if self._height is None:
 	    self._height = _get_height(self._tw)
 	return self._height
 
@@ -481,6 +496,7 @@ class ContainedText(AttrElem):
 	    self._container.itemconfigure(self._tag, height=height)
 
 
+
 class Caption(ContainedText):
     """A table caption element."""
     def __init__(self, table, parentviewer, attrs):
@@ -507,9 +523,10 @@ class Cell(ContainedText):
 	self.cellpadding = string.atoi(table.attribute('cellpadding') or '')
 	self.rowspan = string.atoi(self.attribute('rowspan') or '1')
 	self.colspan = string.atoi(self.attribute('colspan') or '1')
-
-    def close(self):
-	self._viewer.close()
+	if self.rowspan < 0:
+	    self.rowspan = 1
+	if self.colspan < 0:
+	    self.colspan = 1
 
     def init_style(self):
 	pass
