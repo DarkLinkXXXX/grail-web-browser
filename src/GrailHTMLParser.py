@@ -28,48 +28,30 @@ import urlparse
 import urllib
 import string
 import tktools
+import formatter
 
 
 class AppletHTMLParser(htmllib.HTMLParser):
 
     def __init__(self, viewer):
 	self.viewer = viewer
+	self.formatter = formatter.AbstractFormatter(self.viewer)
+	htmllib.HTMLParser.__init__(self, self.formatter)
 	self.browser = self.viewer.browser
-	self.tags = ()
-	self.anchor = None
-	htmllib.HTMLParser.__init__(self)
+	self.style_stack = []
 
-    def write_data(self, data):
-##	s = `data`
-##	if len(s) > 70: s = s[:30] + '...' + s[-30:]
-##	print self.tags, s
-	self.viewer.add_data(data, self.tags)
-
-    def new_para(self):
-	if self.para:
-	    self.tags = (self.para,)
-	    # XXX This hardcoded test is pathetic
-	    if self.para in ('li1', 'li2', 'li3'):
-		self.handle_data('* ') # XXX Should use real bullets
-	else:
-	    self.tags = ()
-
-    def new_style(self):
-	list = []
-	if self.para: list.append(self.para)
-	if self.styles: list = list + self.styles
-	self.tags = tuple(filter(None, list))
+    # Override HTMLParser internal methods
 
     def anchor_bgn(self, href, name, type):
 	self.anchor = href
-	self.push_style(href and 'a' or None)
-	self.push_style(href and '>' + href or None)
-	self.push_style(name and '#' + name or None)
+	self.formatter.push_style(href and 'a' or None)
+	self.formatter.push_style(href and '>' + href or None)
+	self.formatter.push_style(name and '#' + name or None)
 
     def anchor_end(self):
-	self.pop_style()
-	self.pop_style()
-	self.pop_style()
+	self.formatter.pop_style()
+	self.formatter.pop_style()
+	self.formatter.pop_style()
 	self.anchor = None
 
     def handle_image(self, src, alt):
@@ -77,12 +59,13 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if not image:
 	    self.handle_data(alt)
 	    return
+	self.formatter.add_literal_data('')
 	label = AnchorLabel(self.viewer.text, image=image)
 	if self.anchor:
 	    label.setinfo(self.anchor, self.browser)
-	if self.softspace:
-	    self.handle_literal(' ')
 	self.viewer.add_subwindow(label)
+
+    # New tag: <APP>
 
     def do_app(self, attrs):
 	C, keywords = self.get_class(attrs)
@@ -91,6 +74,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    menuname = keywords['menu']
 	    del keywords['menu']
 	    return self.applet_menu(C, keywords, menuname)
+	self.formatter.add_literal_data('')
 	frame = AppletFrame(self.viewer.text, self)
 	try:
 	    w = apply(C, (frame,), keywords)
@@ -115,14 +99,12 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	browser.user_menus.append(menubutton)
 
     def get_class(self, attrs):
-	mod = None
 	cls = None
 	src = ''
 	reload = 0
 	keywords = {}
 	for a, v in attrs:
-	    if a == 'module': mod = v
-	    elif a == 'class': cls = v
+	    if a == 'class': cls = v
 	    elif a == 'src': src = v
 	    elif a == 'reload': reload = tktools.boolean(v)
 	    else:
@@ -133,6 +115,15 @@ class AppletHTMLParser(htmllib.HTMLParser):
 			try: v = string.atof(v)
 			except string.atof_error: pass
 		keywords[a] = v
+	if not cls:
+	    print "*** APP tag has no CLASS attribute"
+	    return
+	if '.' in cls:
+	    i = string.rfind(cls, '.')
+	    mod = cls[:i]
+	    cls = cls[i+1:]
+	else:
+	    mod = cls
 	try:
 	    return self.get_class_proper(mod, cls, src, reload), keywords
 	except:
@@ -140,16 +131,13 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    return None, keywords
 
     def get_class_proper(self, mod, cls, src, reload):
-	if not (mod or cls):
-	    print "*** No module or class specified"
-	    return None
-	if not mod: mod = cls
-	if not cls: cls = mod
 	rexec = self.browser.app.rexec
 	rexec.reset_urlpath()
 	url = urlparse.urljoin(self.browser.url, src or '.')
 	rexec.set_urlpath(url)
+	msg, crs = self.viewer.browser.message("Loading module " + mod)
 	m = rexec.r_import(mod)
+	self.viewer.browser.message(msg, crs)
 	return getattr(m, cls)
 
     def show_tb(self):

@@ -123,7 +123,7 @@ class Browser:
 	self.message(url, CURSOR_LINK)
 
     def leave(self):
-	self.message()
+	self.message_clear()
 
     def load_from_entry(self, event):
 	self.follow(self.entry.get())
@@ -156,7 +156,7 @@ class Browser:
 	    else:
 		content_type = 'text/plain'
 	if not fp:
-	    self.message()
+	    self.message_clear()
 	    return
 
 	self.url = url
@@ -191,10 +191,10 @@ class Browser:
 
 	fp.close()
 
-	self.title = parser.title or self.url
+	self.title = parser and parser.title or self.url
 	self.root.title('Grail Browser: ' + self.title)
 
-	self.message()
+	self.message_clear()
 
 	if fragment:
 	    self.viewer.scroll_to(fragment)
@@ -214,12 +214,17 @@ class Browser:
 	if not url: return None
 	return self.app.get_image(url)
 
-    def message(self, string = '', cursor = CURSOR_NORMAL):
+    def message(self, string = None, cursor = None):
 	prev = self.msg['text'], self.viewer.get_cursor()
-	self.msg['text'] = string
-	self.viewer.set_cursor(cursor)
+	if string is not None:
+	    self.msg['text'] = string
+	if cursor is not None:
+	    self.viewer.set_cursor(cursor)
 	self.root.update_idletasks()
 	return prev
+
+    def message_clear(self):
+	self.message('', CURSOR_NORMAL)
 
     def on_delete(self):
 	self.close()
@@ -271,15 +276,19 @@ class Browser:
     # End of commmands
 
 
+from formatter import AS_IS
+
+
 class TextParser:
 
     title = ''
 
     def __init__(self, viewer):
 	self.viewer = viewer
+	self.viewer.new_font((AS_IS, AS_IS, AS_IS, 1))
 
     def feed(self, data):
-	self.viewer.add_data(data, 'tt')
+	self.viewer.send_literal_data(data)
 
     def close(self):
 	pass

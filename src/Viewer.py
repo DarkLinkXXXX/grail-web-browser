@@ -3,31 +3,53 @@
 
 from Tkinter import *
 import tktools
+import formatter
+import string
 
 
-class Viewer:
+class Viewer(formatter.AbstractWriter):
 
-    """A viewer is mostly a fancy text widget with a scroll bar."""
+    """A viewer is mostly a fancy text widget with a scroll bar.
+
+    It also doubles as the 'writer' for a Formatter.
+
+    """
 
     def __init__(self, master, browser=None, stylesheet=None):
+	formatter.AbstractWriter.__init__(self)
 	self.master = master
 	self.browser = browser
 	self.stylesheet = stylesheet
 	self.subwindows = []
+	self.rules = []
 	self.create_widgets()
+	self.fonttag = None		# Tag specifying font
+	self.margintag = None		# Tag specifying margin
+	self.marginlevel = 0		# Numeric margin level
+	self.spacingtag = None		# Tag specifying spacing
+	self.addtags = ()		# Additional tags (e.g. anchors)
+	self.tags = ()			# Near-final collection of tags
+	self.literaltags = ()		# Tags for literal text
+	self.flowingtags = ()		# Tags for flowed text
 
     def create_widgets(self):
-	self.text, self.frame = tktools.make_text_box(self.master)
+	self.text, self.frame = tktools.make_text_box(self.master, height=40)
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
 	self.bind_anchors()
 
     def configure_tags(self, stylesheet):
 	self.text.config(stylesheet.default)
-	for tag, cnf in stylesheet.para_styles.items():
+	for tag, cnf in stylesheet.styles.items():
 	    self.text.tag_config(tag, cnf)
-	for tag, cnf in stylesheet.char_styles.items():
-	    self.text.tag_config(tag, cnf)
+	# Configure margin tags
+	for level in range(1, 20):
+	    pix = level*40
+	    self.text.tag_config('margin_%d' % level,
+				 lmargin1=pix, lmargin2=pix)
+	    tabs = "%d right %d left" % (pix-5, pix)
+	    self.text.tag_config('label_%d' % level,
+				 lmargin1=pix-40, tabs=tabs)
 
     def bind_anchors(self):
 	self.text.tag_bind('a', '<Enter>', self.anchor_enter)
@@ -35,18 +57,85 @@ class Viewer:
 	self.text.tag_bind('a', '<ButtonRelease-1>', self.anchor_click)
 
     def clear_reset(self):
-	subwindows = self.subwindows
+	subwindows = self.subwindows + self.rules
 	self.subwindows = []
+	self.rules = []
 	for w in subwindows:
 	    w.destroy()
-	self.text.delete('0.0', 'end')
+	self.text.delete('1.0', 'end')
+
+    def new_tags(self):
+	self.tags = filter(None,
+			   (self.fonttag, self.margintag, self.spacingtag) +
+			   self.addtags)
+	self.literaltags = self.flowingtags = self.tags
+##	print "New tags:", self.tags
+
+    # AbstractWriter methods
+	
+    def new_font(self, font):
+##	print "New font:", font
+	if not font:
+	    self.fonttag = None
+	else:
+	    tag, i, b, tt = font
+	    tag = tag or ''
+	    if tt: tag = tag + '_tt'
+	    if b: tag = tag + '_b'
+	    if i: tag = tag + '_i'
+	    self.fonttag = tag or None
+	self.new_tags()
+
+    def new_margin(self, margin, level):
+##	print "New margin:", margin, level
+	self.marginlevel = level
+	self.margintag = 'margin_%d' % level
+	self.new_tags()
+
+    def new_spacing(self, spacing):
+	self.spacingtag = spacingtag
+	self.new_tags()
+
+    def new_styles(self, styles):
+	self.addtags = styles
+	self.new_tags()
+
+    def send_paragraph(self, blankline):
+	self.text.insert('end', '\n' + '\n'*blankline)
+
+    def send_line_break(self):
+	self.text.insert('end', '\n')
+
+    def send_hor_rule(self):
+	self.text.insert('end', '\n')
+	width = 600			# XXX How to compute?
+	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
+			width=width, height=2)
+	self.rules.append(window)
+	self.text.window_create('end', window=window)
+	self.text.insert('end', '\n')
+
+    def send_label_data(self, data):
+##	print "Label data:", `data`
+	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
+	self.text.insert('end', '\t'+data+'\t', tags)
+
+    def send_flowing_data(self, data):
+##	print "Flowing text:", `data`, self.flowingtags
+	self.text.insert('end', data, self.flowingtags)
+
+    def send_literal_data(self, data):
+##	print "Literal text:", `data`, self.literaltags
+	self.text.insert('end', data, self.literaltags)
+
+    # Viewer's own methods
 
     def anchor_enter(self, event):
 	url = self.find_tag_url() or '???'
 	self.browser.message(url)
 
     def anchor_leave(self, event):
-	self.browser.message()
+	self.browser.message_clear()
 
     def anchor_click(self, event):
 	url = self.find_tag_url()
@@ -68,9 +157,6 @@ class Viewer:
 
     def set_cursor(self, cursor):
 	self.text['cursor'] = cursor
-
-    def add_data(self, data, tags = ()):
-	self.text.insert('end', data, tags)
 
     def scroll_to(self, fragment):
 	r = self.text.tag_nextrange('#' + fragment, '1.0')
@@ -96,7 +182,7 @@ def test():
     f.close()
     root = Tk()
     v = Viewer(root, None)
-    v.add_data(data)
+    v.handle_data(data)
     root.mainloop()
 
 

@@ -34,7 +34,7 @@ if 0:
     import dummies
 
 # Milliseconds between interrupt checks
-KEEPALIVE_TIMER = 100
+KEEPALIVE_TIMER = 1000
 
 
 def main():
@@ -66,6 +66,7 @@ def main():
     if url:
 	app.home = url
     browser.load(app.home)
+    SafeTkinter._castrate(app.root.tk)
     app.go()
 
 
@@ -79,7 +80,6 @@ class Application:
 	self.image_cache = {}
 	self.rexec = AppletRExec(None, 2)
 	self.root = Tk()
-	SafeTkinter._castrate(self.root.tk)
 	self.root.withdraw()
 ##	self.quit_button = Button(self.root, text='Quit', command=self.quit)
 ##	self.quit_button.pack()
@@ -152,19 +152,19 @@ class Application:
 	# Open a URL:
 	# - return (fp, url) if successful
 	# - display dialog and return (None, url) for errors
-##	# - handle erro code 302 (redirect) silently
+	# - handle erro code 302 (redirect) silently
 	try:
 	    fp = urllib.urlopen(url)
 	except IOError, msg:
-##	    if type(msg) == TupleType and len(msg) == 4:
-##		if msg[1] == 302:
-##		    M = msg[3]
-##		    if m.has_key('location'):
-##			url = m['location']
-##			return self.open_url(url)
-##		    elif m.has_key('uri'):
-##			url = m['uri']
-##			return self.open_url(url)
+	    if type(msg) == TupleType and len(msg) == 4:
+		if msg[1] == 302:
+		    m = msg[3]
+		    if m.has_key('location'):
+			url = m['location']
+			return self.open_url(url)
+		    elif m.has_key('uri'):
+			url = m['uri']
+			return self.open_url(url)
 	    self.error_dialog(IOError, msg)
 	    fp = None
 	content_type = None

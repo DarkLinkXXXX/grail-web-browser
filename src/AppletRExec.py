@@ -40,6 +40,8 @@ class AppletRExec(RExec):
 	RExec.__init__(self, hooks, verbose)
 	self.modules['Dialog'] = SafeDialog
 	self.modules['Tkinter'] = SafeTkinter
+	self.save_files()
+	self.set_files()
 
     def set_urlpath(self, url):
 	self.reset_urlpath()
@@ -57,7 +59,7 @@ class AppletRExec(RExec):
 	self.make_types()
 
     def make_socket(self):
-	m = self.copy_except(socket, ())
+	m = self.copy_except(socket, ('fromfd',))
 
     def make_types(self):
 	m = self.copy_except(types, ())

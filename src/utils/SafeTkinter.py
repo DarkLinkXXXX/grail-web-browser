@@ -14,7 +14,9 @@ def _castrate(tk):
     """Remove all Tcl commands that can affect the file system."""
     def rm(name, tk=tk):
 	tk.call('rename', name, '')
+    # Make sure the menu support commands are autoloaded, since we need them
+    tk.eval("auto_load tkMenuInvoke")
     rm('exec')
     rm('cd')
-    rm('open')
+    rm('open') # This is what breaks the menu support commands
     rm('send')
