@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.27 $"
+__version__ = "$Revision: 2.28 $"
 
 import os
 import string
@@ -21,6 +21,16 @@ _grail_app = None
 
 from sgml.utils import *
 from printing.utils import conv_fontsize
+
+
+try:
+    abspath = os.path.abspath
+except AttributeError:
+    # Copied from posixpath in Python 1.5.2.
+    def abspath(path):
+        if not isabs(path):
+            path = join(os.getcwd(), path)
+        return normpath(path)
 
 
 # XXX Unix specific stuff
