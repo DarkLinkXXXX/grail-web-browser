@@ -1,6 +1,6 @@
 """Grail proxy preferences panel."""
 
-__version__ = "$Revision: 1.1 $"
+__version__ = "$Revision: 1.2 $"
 # $Source: /home/john/Code/grail/src/prefpanels/ProxiesPanel.py,v $
 
 # Base class for the dialog:
@@ -36,8 +36,6 @@ class ProxiesPanel(PrefsPanels.Framework):
 
 	#
 	# Set the Boolean vars to FALSE initially
-	self.no_proxy_enabled.set(0)
-	self.manual_proxy_enabled.set(0)
 	self.fb_state.set(0)
 	self.hb_state.set(0)
 	self.nb_state.set(0)
@@ -98,11 +96,22 @@ class ProxiesPanel(PrefsPanels.Framework):
 	#
 	# Set the initial GUI state based on prefs
 	self.register_prefs_UI()
+	self.update_layout()
+
+    def update_layout(self):
+	"""This method gets called by the prefs framework when
+	' Factory Defaults' gets pressed.  It allows updates to the
+	Panel to reflect state changed by the framework."""
+	
 	if grailutil.pref_or_getenv('no_proxy_enabled', type_name='Boolean'):
 	    self.no_proxy_enabled.set(1)
+	else:
+	    self.no_proxy_enabled.set(0)
 	self.no_switch()
 	if grailutil.pref_or_getenv('manual_proxy_enabled', type_name='Boolean'):
 	    self.manual_proxy_enabled.set(1)
+	else:
+	    self.manual_proxy_enabled.set(0)
 	self.manual_switch()
 	self.ftp_entry_toggle()
 	self.http_entry_toggle()
