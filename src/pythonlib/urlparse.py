@@ -18,17 +18,23 @@ uses_fragment = ['ftp', 'hdl', 'http', 'gopher', 'news', 'nntp', 'wais',
 # Characters valid in scheme names
 scheme_chars = string.letters + string.digits + '+-.'
 
+_parse_cache = {}
+
+def clear_cache():
+    global _parse_cache
+    _parse_cache = {}
+
+
 # Parse a URL into 6 components:
 # <scheme>://<netloc>/<path>;<params>?<query>#<fragment>
 # Return a 6-tuple: (scheme, netloc, path, params, query, fragment).
 # Note that we don't break the components up in smaller bits
 # (e.g. netloc is a single string) and we don't expand % escapes.
 def urlparse(url, scheme = '', allow_framents = 1):
-	netloc = ''
-	path = ''
-	params = ''
-	query = ''
-	fragment = ''
+	key = url, scheme, allow_framents
+	if _parse_cache.has_key(key):
+	    return _parse_cache[key]
+	netloc = path = params = query = fragment = ''
 	i = string.find(url, ':')
 	if i > 0:
 		for c in url[:i]:
@@ -54,7 +60,9 @@ def urlparse(url, scheme = '', allow_framents = 1):
 		i = string.find(url, ';')
 		if i >= 0:
 			url, params = url[:i], url[i+1:]
-	return scheme, netloc, url, params, query, fragment
+	tuple = scheme, netloc, url, params, query, fragment
+	_parse_cache[key] = tuple
+	return tuple
 
 # Put a parsed URL back together again.  This may result in a slightly
 # different, but equivalent URL, if the URL that was parsed originally

@@ -126,7 +126,8 @@ class AbstractFormatter:
 	    return string.upper(label)
         return label
 
-    def add_flowing_data(self, data, whitespace=string.whitespace):
+    def add_flowing_data(self, data, whitespace=string.whitespace,
+			 join = join, split = split):
 	if not data: return
 	# The following looks a bit convoluted but is a great improvement over
 	# data = regsub.gsub('[' + string.whitespace + ']+', ' ', data)
