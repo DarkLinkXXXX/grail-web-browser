@@ -340,14 +340,20 @@ class PacketUnpacker(xdrlib.Unpacker):
 		# normal packet, but it may be the start of a continuation
 		if self.debug: print 'Normal Packet'
 		total_length = self.value_length = length_from_body
+		if self.debug: print "length from body =", length_from_body
 		if nopts == 1:
-		    if self.debug: print 'Start of a continuation'
-		    self.value_length = len(self.buf) - self.pos - 16
+		    max_value_length = len(self.buf) - self.pos - 16
+		    if self.value_length > max_value_length:
+			if self.debug:
+			    print 'Start of a continuation:',
+			    print "max value length =", max_value_length
+			self.value_length = max_value_length
 		#
 		# Finally get the value
 		if self.debug: print 'Getting data segment of ' \
 		   + str(self.value_length) + ' bytes'
 	    value = self.unpack_fstring(self.value_length)
+	    if self.debug: print "Got", len(value), "bytes:", `value`
 	    opts.append((opt, value))
 	return opts
 
