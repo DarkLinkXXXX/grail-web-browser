@@ -221,6 +221,7 @@ printing--to-file:		0
 printing--command:		lpr
 printing--underline-anchors:	1
 printing--footnote-anchors:	1
+printing--skip-leading-blank-lines: 0
 # font-size / leading; both in points
 printing--font-size:		10.0 / 10.7
 # top, bottom, left, right; all in points
