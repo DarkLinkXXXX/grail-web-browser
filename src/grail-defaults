@@ -308,3 +308,10 @@ proxies--http_proxy:
 # Sockets per application
 #
 sockets--number: 5
+#
+# ietf: URN resolution templates
+#
+ietf-resolver--document-template:
+    http://info.internet.isi.edu/in-notes/%(type)s/files/%(type)s%(number)s.txt
+ietf-resolver--meeting-template:
+    ftp://ftp.ietf.org/ietf/%(wg)s/%(wg)s-minutes-%(date)s.txt
