@@ -78,8 +78,21 @@ class file_access:
 	if not data:
 	    self.state = DONE
 	return data
-
+	
     def fileno(self):
+	# TODO - Fix sockets under Windows.
+	# We fall back to the polling method of ansyc I/O automatically
+	# for http requests under windows because dup fails for socket
+	# objects and returns -1 to BaseReader which kicks in the
+	# checkapi_regularly form of async I/O (Which is a hack, but it
+	# works :-) For file URLs however, unfortunately the following
+	# small hack is necessary to force the use of checkapi_regularly.
+	# This is all because the current version of sockets for winnt
+	# (Sam Rushings sockets-09-5) *does* support dups for files,
+	# returning a valid new descriptor which, when passed to select,
+	# mysteriously causes the select to block :-( -rmasse
+	if os.name == 'nt':
+	    return -1
 	try:
 	    return self.fp.fileno()
 	except AttributeError:
