@@ -33,6 +33,11 @@ class NullFormatter:
 
 class AbstractFormatter:
 
+    #  Space handling policy:  blank spaces at the boundary between elements
+    #  are handled by the outermost context.  "Literal" data is not checked
+    #  to determine context, so spaces in literal data are handled directly
+    #  in all circumstances.
+
     def __init__(self, writer):
 	self.writer = writer		# Output device
 	self.align = None		# Current alignment
@@ -171,8 +176,9 @@ class AbstractFormatter:
 
     def flush_softspace(self):
 	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = self.parskip = \
+	    self.hard_break = self.para_end = self.parskip = \
 			      self.have_label = self.softspace = 0
+	    self.nospace = 1
 	    self.writer.send_flowing_data(' ')
 
     def push_alignment(self, align):
@@ -195,7 +201,8 @@ class AbstractFormatter:
 
     def push_font(self, (size, i, b, tt)):
 	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.hard_break = self.para_end = self.softspace = 0
+	    self.nospace = 1
 	    self.writer.send_flowing_data(' ')
 	if self.font_stack:
 	    csize, ci, cb, ctt = self.font_stack[-1]
@@ -208,9 +215,6 @@ class AbstractFormatter:
 	self.writer.new_font(font)
 
     def pop_font(self):
-	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
-	    self.writer.send_flowing_data(' ')
 	if self.font_stack:
 	    del self.font_stack[-1]
 	if self.font_stack:
@@ -242,16 +246,14 @@ class AbstractFormatter:
 
     def push_style(self, *styles):
 	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.hard_break = self.para_end = self.softspace = 0
+	    self.nospace = 1
 	    self.writer.send_flowing_data(' ')
 	for style in styles:
 	    self.style_stack.append(style)
 	self.writer.new_styles(tuple(self.style_stack))
 
     def pop_style(self, n=1):
-	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
-	    self.writer.send_flowing_data(' ')
 	del self.style_stack[-n:]
 	self.writer.new_styles(tuple(self.style_stack))
 
