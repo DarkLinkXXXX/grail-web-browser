@@ -19,7 +19,7 @@ if hasattr(HTMLParser, 'do_isindex'):
     del HTMLParser.do_isindex
 
 
-class AppletHTMLParser(HTMLParser):
+class GrailHTMLParser(HTMLParser):
 
     insert_aware_tags = ['param', 'alias', 'applet']
 
