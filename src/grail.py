@@ -89,7 +89,7 @@ def main():
 	app.home = url
     browser.load(app.home)
     SafeTkinter._castrate(app.root.tk)
-    tktools.install_keybindings()
+    tktools.install_keybindings(app.root)
     # Make everybody who's still using urllib.urlopen go through the cache
     urllib.urlopen = app.open_url_simple
     # Add $GRAILDIR/user/ to sys.path
@@ -141,7 +141,7 @@ class SplashScreen:
 	xpos = (screenwidth - reqwidth) / 2
 	ypos = (screenheight - reqheight) / 2
 	self.root.geometry("+%d+%d" % (xpos, ypos))
-	name = 'Grail Splash Screen'
+	name = "Grail"
 	self.root.title(name)
 	self.root.iconname(name)
 	self.root.update_idletasks()
