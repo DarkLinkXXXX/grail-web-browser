@@ -8,7 +8,7 @@ information.
 
 This class is also used to generate new ID values for nodes.
 """
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 import copy
 import nodes                            # sibling
@@ -53,13 +53,13 @@ class Collection:
 
     def get_type_counts(self):
         root = self.get_root()
-        count_map = {"Alias": 0, "Bookmark": 0, "Folder": 0, "Separator": 0}
+        count_map = {}
         queue = root.children()
         while queue:
             node = queue[0]
             del queue[0]
             nodetype = node.get_nodetype()
-            count_map[nodetype] = count_map[nodetype] + 1
+            count_map[nodetype] = count_map.get(nodetype, 0) + 1
             if nodetype == "Folder":
                 queue[len(queue):] = node.children()
         return count_map
