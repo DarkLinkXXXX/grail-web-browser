@@ -52,7 +52,7 @@ class AbstractFormatter:
 	if not self.hard_break:
 	    self.writer.send_line_break()
 	    self.have_label = 0
-	if self.parskip < blankline:
+	if self.parskip < blankline and not self.have_label:
 	    self.writer.send_paragraph(blankline - self.parskip)
 	    self.parskip = blankline
 	    self.have_label = 0
