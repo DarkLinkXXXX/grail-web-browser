@@ -3,10 +3,11 @@ from Tkinter import *
 class ImageWindow(Frame):
 
     def __init__(self, viewer, url, src, alt, usemap, ismap, align,
-		 width, height, borderwidth):  
+		 width, height, borderwidth, target=""):
 	self.viewer = viewer
 	self.context = self.viewer.context
 	self.src, self.alt, self.align = src, alt, align
+	self.target = target
 	### set up mapping is either and server map or a client map
 	if usemap:
 	    self.map = usemap
@@ -83,7 +84,7 @@ class ImageWindow(Frame):
 	    return self.url + "?%d,%d" % (event.x, event.y), ""
 	elif self.map:
 	    return self.map.url(event.x,event.y)
-	return self.url, ""
+	return self.url, self.target
 
     def toggle_loading_image(self, event=None):
 	if self.image:

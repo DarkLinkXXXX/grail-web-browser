@@ -73,6 +73,7 @@ class GrailHTMLParser(HTMLParser):
     def anchor_bgn(self, href, name, type, target=""):
 	self.formatter_stack[-1].flush_softspace()
 	self.anchor = href
+	self.target = target
 	atag = utag = htag = otag = None
 	if href:
 	    atag = 'a'
@@ -89,7 +90,7 @@ class GrailHTMLParser(HTMLParser):
     def anchor_end(self):
 	self.formatter_stack[-1].flush_softspace()
 	self.formatter_stack[-1].pop_style(3)
-	self.anchor = None
+	self.anchor = self.target = None
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
@@ -122,7 +123,7 @@ class GrailHTMLParser(HTMLParser):
 	from ImageWindow import ImageWindow
 	window = ImageWindow(self.viewer, self.anchor, src, alt,
 			     usemap, ismap, align, width, height,
-			     border) 
+			     border, self.target)
 	self.add_subwindow(window)
 
     def add_subwindow(self, w):
