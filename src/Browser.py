@@ -188,6 +188,20 @@ class Browser:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
 
+    def post(self, url, data, ctype):
+	# Post form data
+	method = 'POST'
+	params = {"Content-length": `len(data)`,
+		  "Content-type": ctype,
+		  }
+	self.stop()
+	self.message("Posting to %s" % url, CURSOR_WAIT)
+	try:
+	    Reader(self, url, method, params, 1, 0, 1, data=data)
+	except IOError, msg:
+	    self.error_dialog(IOError, msg)
+	    self.message_clear()
+
     def addreader(self, reader):
 	self.readers.append(reader)
 	self.allowstop()
