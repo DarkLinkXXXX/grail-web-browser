@@ -650,6 +650,21 @@ class HashTable:
 	self.debug = debug
 
 
+    def get_bucket(self, hdl):
+	"""For compatibility with HS Admin API's hash_table.Hash_Table"""
+	
+	slot, weight, ip, udp, tcp, admin, slot2 = self.hash_handle(hdl)
+
+	# We need to combine these hash table classes into one...
+	class bucket_lite:
+	    def __init__(self, weight, ip, udp, tcp, admin):
+		self.ip = ip
+		self.udp_port = udp
+		self.tcp_port = tcp
+		self.admin_port = admin
+
+	return bucket_lite(weight, ip, udp, tcp, admin)
+    
     def hash_handle(self, hdl):
 	"""Hash a handle to a tuple describing a handle server bucket.
 
@@ -883,7 +898,7 @@ def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
 		hashtable = urndata
 		if debug: print "hash table data =", hexstr(hashtable)
 	    else:
-		raise Error("Unknown SERVICE_ID: %s" % urnscheme)		
+		raise Error("Unknown SERVICE_ID: %s" % urnscheme)	
 	else:
 	    if debug: print "type", type, "=", data
     if hashtable:
