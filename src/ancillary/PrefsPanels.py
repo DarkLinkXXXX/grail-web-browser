@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.5 $"
+__version__ = "$Revision: 2.6 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -368,8 +368,9 @@ class PrefsDialogsMenu:
 
 def standalone():
     """Provide standins for Grail objs so we can run outside of Grail."""
-    class fake_app:
+    class fake_browser:
 	def __init__(self, root):
+	    self.app = self
 	    self.prefs = GrailPrefs.AllPreferences()
 	    self.root = root
 	    root.report_callback_exception = self.report_callback_exception
@@ -391,10 +392,9 @@ def standalone():
     prefsbut['menu'] = prefsmenu
     root.pack(side=LEFT)
 
-    app = fake_app(root)
-    pdm = PrefsDialogsMenu(prefsmenu, app)
+    browser = fake_browser(root)
+    pdm = PrefsDialogsMenu(prefsmenu, browser)
     prefsmenu.mainloop()
-    del pdm
 
 if __name__ == "__main__":
     standalone()
