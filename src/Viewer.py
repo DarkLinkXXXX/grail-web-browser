@@ -111,6 +111,13 @@ class Viewer(formatter.AbstractWriter):
 	self.text.config(selectbackground='yellow')
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
+	if self.parent:
+	    link = self.parent.text.tag_config('a', 'foreground')[-1]
+	    vlink = self.parent.text.tag_config('ahist', 'foreground')[-1]
+	    alink = self.parent.text.tag_config('atemp', 'foreground')[-1]
+	    self.text.tag_config('a', foreground=link)
+	    self.text.tag_config('ahist', foreground=vlink)
+	    self.text.tag_config('atemp', foreground=alink)
 	self.configure_tags_fixed()
 	if self.context.viewer is self:
 	    self.text.config(takefocus=1)
@@ -180,8 +187,6 @@ class Viewer(formatter.AbstractWriter):
 	self.unregister_interest(self.resize_interests, func)
 
     def clear_reset(self):
-	if self.stylesheet:
-	    self.configure_tags(self.stylesheet)
 	self._atemp = []
 	for func in self.reset_interests[:]:
 	    func(self)
@@ -197,11 +202,13 @@ class Viewer(formatter.AbstractWriter):
 	    w.destroy()
 	if self.text:
 	    self.unfreeze()
+	    self.text.delete('1.0', END)
+	    self.freeze()
 	    self.text.config(background=self.default_bg,
 			     foreground=self.default_fg)
-	    self.text.delete('1.0', END)
+	    if self.stylesheet:
+		self.configure_tags(self.stylesheet)
 	    self.reset_state()
-	    self.freeze()
 
     def tab_event(self, event):
 	w = self.text.tk_focusNext()
