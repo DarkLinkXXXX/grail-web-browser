@@ -26,6 +26,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
     # Override HTMLParser internal methods
 
     def anchor_bgn(self, href, name, type):
+	self.formatter.flush_softspace()
 	self.anchor = href
 	atag = href and 'a' or None
 	utag = href and '>' + href or None
@@ -37,6 +38,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
+	self.formatter.flush_softspace()
 	self.formatter.pop_style()
 	self.formatter.pop_style()
 	self.formatter.pop_style()
