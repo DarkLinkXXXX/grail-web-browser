@@ -34,11 +34,23 @@ class AppletHTMLParser(HTMLParser):
 	self.insert_active = 0		# Length of insert_stack at activation
 	self.image_maps = {}            # for image maps
 	self.current_map = None
-	self.formatter = formatter.AbstractFormatter(self.viewer)
-	HTMLParser.__init__(self, self.formatter)
+	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
+	HTMLParser.__init__(self, self.formatter_stack[-1])
 
     def close(self):
 	HTMLParser.close(self)
+
+    # manage the formatter stack
+    def get_formatter(self):
+	return self.formatter_stack[-1]
+
+    def push_formatter(self, formatter):
+	self.formatter_stack.append(formatter)
+	self.formatter = formatter	## in base class
+
+    def pop_formatter(self):
+	del self.formatter_stack[-1]
+	self.formatter = self.formatter_stack[-1] ## in base class
 
     # Override HTMLParser internal methods
 
@@ -59,7 +71,7 @@ class AppletHTMLParser(HTMLParser):
 	    HTMLParser.handle_data(self, data)
 
     def anchor_bgn(self, href, name, type, target=""):
-	self.formatter.flush_softspace()
+	self.formatter_stack[-1].flush_softspace()
 	self.anchor = href
 	atag = utag = htag = otag = None
 	if href:
@@ -70,13 +82,13 @@ class AppletHTMLParser(HTMLParser):
 	    if self.app.global_history.inhistory_p(fulluri):
 		atag = 'ahist'
 	ntag = name and '#' + name or None
-	self.formatter.push_style(atag, utag, ntag)
+	self.formatter_stack[-1].push_style(atag, utag, ntag)
 	if utag:
 	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
-	self.formatter.flush_softspace()
-	self.formatter.pop_style(3)
+	self.formatter_stack[-1].flush_softspace()
+	self.formatter_stack[-1].pop_style(3)
 	self.anchor = None
 
     # Duplicated from htmllib.py because we want to have the border attribute
@@ -114,7 +126,7 @@ class AppletHTMLParser(HTMLParser):
 	self.add_subwindow(window)
 
     def add_subwindow(self, w):
-	if self.formatter.nospace:
+	if self.formatter_stack[-1].nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
 	    self.handle_data("\240") # Non-breaking space
@@ -159,10 +171,10 @@ class AppletHTMLParser(HTMLParser):
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
-	self.formatter.push_style('center')
+	self.formatter_stack[-1].push_style('center')
 
     def end_center(self):
-	self.formatter.pop_style()
+	self.formatter_stack[-1].pop_style()
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
