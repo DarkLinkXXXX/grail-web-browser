@@ -1,18 +1,13 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.10 $"
+__version__ = "$Revision: 1.11 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
 import PrefsPanels
 
-import sys, os
-
 from Tkinter import *
-import tktools
-import grailutil
-import tktools
-import string
+
 
 class GeneralPanel(PrefsPanels.Framework):
     """Miscellaneous preferences relating to the browser, startup, and
@@ -35,13 +30,15 @@ class GeneralPanel(PrefsPanels.Framework):
 	# Pack some preferences entries together in a frame - we use the
 	# PrefsEntry 'composite' feature here, to put them together on the
 	# right-hand side of the label:
-	entries_frame = Frame(f, relief=SUNKEN, borderwidth=1)
+	tempfr = Frame(f, borderwidth=1)
+	tempfr.pack(side=LEFT)
+	entries_frame = Frame(tempfr, relief=SUNKEN, borderwidth=1)
 	self.PrefsEntry(entries_frame,
 			"Width:", 'browser', 'default-width', 'int',
-			label_width=6, entry_width=2, composite=1)
+			label_width=6, entry_width=4, composite=1)
 	self.PrefsEntry(entries_frame,
 			"Height:", 'browser', 'default-height', 'int',
-			label_width=7, entry_width=3, composite=1)
+			label_width=7, entry_width=4, composite=1)
 	f.pack(fill=X, side=TOP, pady='1m')
 
 	self.PrefsEntry(frame, 'Max. connections', 'sockets', 'number', 'int',

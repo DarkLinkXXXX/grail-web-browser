@@ -1,18 +1,14 @@
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.5 $"
+__version__ = "$Revision: 1.6 $"
 # $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
 
 # Base class for the panel:
 import PrefsPanels
 
-import sys, os
-
 from Tkinter import *
 import tktools
-import grailutil
-import tktools
-import string
+
 
 class CachePanel(PrefsPanels.Framework):
     """Miscellaneous preferences relating to the browser, startup, and

@@ -1,18 +1,14 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.7 $"
+__version__ = "$Revision: 1.8 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the panel:
 import PrefsPanels
 
-import sys, os
-
 from Tkinter import *
-import tktools
-import grailutil
-import tktools
 import string
+
 
 class StylePanel(PrefsPanels.Framework):
     """Panel for selecting viewer presentation styles."""
