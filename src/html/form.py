@@ -9,10 +9,13 @@ import tktools
 
 # ------ Forms
 
+URLENCODED = "application/x-www-form-urlencoded"
+FORM_DATA = "multipart/form-data"
+
 def start_form(parser, attrs):
     action = ''
     method = ''
-    enctype = ''
+    enctype = URLENCODED
     for a, v in attrs:
 	if a == 'action': action = v
 	if a == 'method': method = v
@@ -184,27 +187,74 @@ class FormInfo:
 	    print "*** Form with <INPUT TYPE=%s> not supported ***" % type
 
     def submit_command(self):
-	query = ''
-	for i in self.inputs:
-	    # unnamed inputs shouldn't get submitted
-	    if not i.name: continue
-	    v = i.get()
-	    if v:
-		if type(v) != type([]):
-		    v = [v]
-		for vv in v:
-		    s = '&' + quote(i.name) + '=' + quote(vv)
-		    query = query + s
-	query = query[1:]
+	enctype = string.lower(self.enctype)
 	method = string.lower(self.method)
-	if method == 'get':
-	    url = self.action + '?' + query
+	data = ''
+	if enctype == URLENCODED:
+	    for i in self.inputs:
+		# unnamed inputs shouldn't get submitted
+		if not i.name: continue
+		v = i.get()
+		if v:
+		    if type(v) != type([]):
+			v = [v]
+		    for vv in v:
+			s = '&' + quote(i.name) + '=' + quote(vv)
+			data = data + s
+	    data = data[1:]
+	elif enctype == FORM_DATA and method == 'post':
+	    ctype, data = self.make_form_data()
+	if method == 'get' and enctype == URLENCODED:
+	    url = self.action + '?' + data
 	    self.viewer.browser.follow(url)
-	elif method == 'post':
-	    self.viewer.browser.post(self.action, query,
-				     "application/x-www-form-urlencoded")
+	elif method == 'post' and enctype in (URLENCODED, FORM_DATA):
+	    if enctype == FORM_DATA:
+		enctype = ctype
+	    params = {"Content-type": enctype}
+	    if enctype == URLENCODED:
+		params["Content-length"] = `len(data)`
+	    self.viewer.browser.post(self.action, data, params)
 	else:
-	    print "*** Form with METHOD=%s not supported ***" % self.method
+	    print "*** Form with METHOD=%s and ENCTYPE=%s not supported ***" % (
+		  self.method, self.enctype)
+
+    def make_form_data(self):
+	import ArrayIO
+	import MimeWriter
+	fp = ArrayIO.ArrayIO()
+	mw = MimeWriter.MimeWriter(fp)
+	mw.startmultipartbody("form-data")
+	for i in self.inputs:
+	    if not i.name: continue
+	    disp = 'form-data; name="%s"' % i.name
+	    v = i.get()
+	    data = None
+	    if i.__class__.__name__ == 'InputFile':
+		try:
+		    f = open(v)
+		    data = f.read()
+		    f.close()
+		except IOError, msg:
+		    print "IOError:", msg
+		else:
+		    disp = disp + '; filename="%s"' % v
+	    sw = mw.nextpart()
+	    sw.addheader("Content-Disposition", disp)
+	    if data is not None:
+		sw.addheader("Content-Length", str(len(data)))
+		body = sw.startbody("text/plain")
+		body.write(data)
+	    else:
+		body = sw.startbody("text/plain")
+		body.write(v)
+	mw.lastpart()
+	fp.seek(0)
+	import rfc822
+	headers = rfc822.Message(fp)
+	ctype = headers['content-type']
+	ctype = string.join(string.split(ctype)) # Get rid of newlines
+	data = fp.read()
+	return ctype, data
 
     def reset_command(self):
 	for i in self.inputs:
@@ -388,6 +438,12 @@ class FormInfo:
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
 			    command=self.fi.reset_command)
+
+    class InputFile(InputText):
+
+	# XXX Should display an entry widget and a "Browse..." button
+
+	pass
 
 
 class Select:
