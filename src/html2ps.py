@@ -1438,7 +1438,8 @@ class PrintingHTMLParser(HTMLParser):
 		except EPSError:
 		    self._image_cache[imageurl] = image = None
 		else:
-		    self._image_cache[imageurl] = image
+		    if len(image.data) < 10240:
+			self._image_cache[imageurl] = image
 	    if image:
 		self.print_image(image, width, height, align)
 	    else:
