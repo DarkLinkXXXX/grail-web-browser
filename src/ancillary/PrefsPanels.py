@@ -1,6 +1,6 @@
 """Framework for implementing GUI dialogs user preference group editing."""
 
-__version__ = "$Revision: 2.1 $"
+__version__ = "$Revision: 2.2 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -225,7 +225,7 @@ class Framework:
     def _poll_modified(self, event=None):
 	"""Check for changes and enable disposition buttons accordingly."""
 	# First, post an update for prompt user feedback:
-	self._widget.update()
+	self._widget.update_idletasks()
 	# Apply and Revert w.r.t. saved settings:
 	if  self._modified_p():
 	    self._applybtn.config(state='normal')
