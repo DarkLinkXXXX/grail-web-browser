@@ -36,6 +36,7 @@ class Viewer(formatter.AbstractWriter):
 		browser = parent.context.browser
 	self.context = context or Context(self, browser)
 	self.prefs = self.context.app.prefs
+	self.size = self.prefs.Get('styles', 'size')
 	self.stylesheet = stylesheet
 	self.name = name
 	self.scrolling = scrolling
@@ -184,14 +185,25 @@ class Viewer(formatter.AbstractWriter):
 
     def configure_tags(self, stylesheet):
 	if self.text:
+	    if not self.parent:
+		new_size = self.prefs.Get('styles', 'size')
+		current_cursor = self.current_cursor
+		self.set_cursor(CURSOR_WAIT)
+
 	    self.text.config(stylesheet.default)
-	    
+
 	    for tag, cnf in stylesheet.styles.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, cnf in stylesheet.history.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, abovetag in stylesheet.priorities.items():
 		self.text.tag_raise(tag, abovetag)
+
+	    if not self.parent:
+		if self.size != new_size:
+		    self.resize_event()
+		    self.size = new_size
+		self.set_cursor(current_cursor)
 
     def configure_tags_fixed(self):
 	# These are used in aligning block-level elements:
@@ -322,7 +334,7 @@ class Viewer(formatter.AbstractWriter):
 	menu.add_command(label="Save Frame As...",
 			 command=self.context.save_document)
 
-    def resize_event(self, event):
+    def resize_event(self, event=None):
 	for func in self.resize_interests:
 	    func(self)
 
