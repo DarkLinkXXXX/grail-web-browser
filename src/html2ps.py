@@ -431,7 +431,18 @@ class PSStream:
 	    self.close_string()
 	yshift = 1.0 * yshift
 	self._linefp.write('0 %f R\n' % yshift)
-	self._yshift.append((self._yshift[-1][0] + yshift, yshift))
+	absshift = self._yshift[-1][0] + yshift
+	self._yshift.append((absshift, yshift))
+	newheight = absshift + self._font.font_size()
+	if self._baseline is None:
+	    self._baseline = max(0.0, newheight)
+	else:
+	    self._baseline = max(self._baseline, newheight)
+	if absshift < 0.0:
+	    if self._descender is None:
+		self._descender = -absshift
+	    else:
+		self._descender = max(self._descender, -absshift)
 
     def pop_yshift(self):
 	if self._linestr:
@@ -729,12 +740,13 @@ class PSWriter(AbstractWriter):
 
     Exported ivars:
     """
-    def __init__(self, ofile, title='', url='', greyscale=0):
+    def __init__(self, ofile, title='', url='', greyscale=0,
+		 varifamily='Times', fixedfamily='Courier'):
 	if not title:
 	    title = url
-	font = PSFont()
+	font = PSFont(varifamily=varifamily, fixedfamily=fixedfamily)
 	font.set_font((10, 'FONTV', '', ''))
-        self.ps = PSStream(font, ofile, title, url, greyscale)
+	self.ps = PSStream(font, ofile, title, url, greyscale)
 	self.ps.start()
 
     def close(self):
@@ -867,11 +879,11 @@ class PrintingHTMLParser(HTMLParser):
 	for anchor, title in self._anchor_sequence:
 	    self.formatter.add_label_data(('[%d]' % count), -1)
 	    if title:
-		#  Set the title in italic, if available:
-		self.formatter.push_font((None, 1, None, None))
+		#  Set the title as a citation:
+		self.start_cite({})
 		self.formatter.add_literal_data(title)
-		self.formatter.pop_font()
-		self.formatter.end_paragraph(1)
+		self.end_cite()
+		self.formatter.add_literal_data(', ')
 	    self.formatter.add_literal_data(anchor)
 	    self.formatter.end_paragraph(1)
 	    count = count + 1
@@ -891,8 +903,10 @@ class PrintingHTMLParser(HTMLParser):
 	    if self._footnote_anchors and not self._anchors.has_key(href):
 		self._anchors[href] = len(self._anchor_sequence) + 1
 		if attrs.has_key('title'):
-		    title = string.strip(attrs['title'])
-		    self._anchor_sequence.append((href, title))
+		    from SGMLReplacer import replace
+		    title = string.strip(replace(attrs['title'],
+						 self.entitydefs))
+		    self._anchor_sequence.append((href, title or None))
 		else:
 		    self._anchor_sequence.append((href, None))
 
@@ -902,7 +916,33 @@ class PrintingHTMLParser(HTMLParser):
 	    if self._underline_anchors:
 		self.formatter.pop_style()
 	    if self._footnote_anchors:
+		yshift = 1.0 * self.formatter.writer.ps._font.font_size()
+		self.formatter.push_font((6, 0, 0, 0))
+		yshift = yshift \
+			 - (1.17 * self.formatter.writer.ps._font.font_size())
+		self.formatter.writer.ps.push_yshift(yshift)
 		self.handle_data('[%d]' % self._anchors[anchor])
+		self.formatter.writer.ps.pop_yshift()
+		self.formatter.pop_font()
+
+    def start_sup(self, attrs):
+	font_size = 1.0 * self.formatter.writer.ps._font.font_size()
+	new_font_size = int(0.8 * font_size)
+	yshift = font_size - (0.9 * new_font_size)
+	self.formatter.writer.ps.push_yshift(yshift)
+	self.formatter.push_font((new_font_size, None, None, None))
+
+    def start_sub(self, attrs):
+	font_size = 1.0 * self.formatter.writer.ps._font.font_size()
+	new_font_size = int(0.8 * font_size)
+	self.formatter.writer.ps.push_yshift(-0.1 * new_font_size)
+	self.formatter.push_font((new_font_size, None, None, None))
+
+    def end_sup(self):
+	self.formatter.pop_font()
+	self.formatter.writer.ps.pop_yshift()
+
+    end_sub = end_sup
 
     def handle_image(self, src, alt, ismap, align, *notused):
 	if self._image_loader:

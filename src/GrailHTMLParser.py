@@ -41,6 +41,8 @@ class GrailHTMLParser(HTMLParser):
 	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
 	HTMLParser.__init__(self, self.formatter_stack[-1])
+	if self.app.prefs.GetBoolean('parsing-html', 'strict'):
+	    self.restrict(0)
 
     def close(self):
 	HTMLParser.close(self)
