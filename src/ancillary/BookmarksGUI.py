@@ -183,25 +183,44 @@ class BookmarksIO:
     def set_format(self, format):
         self.__format = format
 
-    def __choose_reader(self, fp):
+    def __choose_reader(self, fp, what="file"):
         format = bookmarks.get_format(fp)
         if format:
             self.set_format(format)
             parser = bookmarks.get_parser_class(format)(self.filename())
             return bookmarks.BookmarkReader(parser)
         raise bookmarks.BookmarkFormatError(
-            self.filename(), 'unknown or missing bookmarks file')
+            self.filename(), 'unknown or missing bookmarks', what=what)
 
     def __open_file_for_reading(self, filename):
+        import errno
         try:
             fp = open(filename, 'r')
             return fp, self.__choose_reader(fp)
         except IOError, error:
-            raise bookmarks.BookmarkFormatError(self.filename(), error)
+            if error[0] == errno.ENOENT:
+                # 'No such file or directory'
+                raise
+            raise bookmarks.BookmarkFormatError(filename, error)
 
-    def load(self, usedefault=0):
-        filename = self.filename() or DEFAULT_GRAIL_BM_FILE
-        if not usedefault:
+    def __open_url_for_reading(self, url):
+        import urllib
+        try:
+            from cStringIO import StringIO
+        except ImportError:
+            from StringIO import StringIO
+        try:
+            fp = urllib.urlopen(url)
+            sio = StringIO(fp.read())
+            fp.close()
+            return sio, self.__choose_reader(sio)
+        except IOError, error:
+            raise bookmarks.BookmarkFormatError(url, error, what="URL")
+
+    def load(self, usedefault=0, filename=None):
+        req_filename = filename
+        filename = filename or self.filename() or DEFAULT_GRAIL_BM_FILE
+        if not (usedefault or req_filename):
             loader = BMLoadDialog(self.__frame, self.__controller)
             fname, ext = os.path.splitext(filename)
             filename = loader.go(filename, "*" + ext, key="bookmarks")
@@ -243,10 +262,16 @@ class BookmarksIO:
         # load the file
         root = reader = None
         if filename:
-            fp, reader = self.__open_file_for_reading(filename)
+            try:
+                fp, reader = self.__open_file_for_reading(filename)
+            except IOError, error:
+                # only ENOENT is passed through like this
+                fp, reader = self.__open_url_for_reading(filename)
             root = reader.read_file(fp)
             fp.close()
-            self.set_filename(filename)
+            if not req_filename:
+                # only set this if the filename wasn't passed in:
+                self.set_filename(filename)
         return root, reader
 
     def __save_to_file(self, root, filename):
@@ -417,6 +442,11 @@ class BookmarksDialog:
                              command=self._controller.saveas)
         filemenu.add_command(label="Export Selection...",
                              command=self._controller.export)
+        filemenu.add_command(label="Import Bookmarks...",
+                             command=self._controller.importBookmarks,
+                             underline=0, accelerator="Alt-I")
+        self._frame.bind("<Alt-i>", self._controller.importBookmarks)
+        self._frame.bind("<Alt-I>", self._controller.importBookmarks)
         filemenu.add_command(label="Title...",
                              command=self._controller.title_dialog,
                              underline=0, accelerator="Alt-T")
@@ -927,6 +957,30 @@ class BookmarksController(OutlinerController):
         if node:
             self._iomgr.saveas(node, export=1)
 
+    def importBookmarks(self, event=None):
+        # need to get URL or filename here...
+        import OpenURIDialog
+        dialog = OpenURIDialog.OpenURIDialog(
+            self._master, title="Import Bookmarks Dialog", new=0)
+        filename, new = dialog.go()
+        if not filename:
+            return
+        node, reader = self._iomgr.load(filename=filename)
+        if not node:
+            return
+        node.set_add_date(int(time.time()))
+        if not node.title():
+            node.set_title("Imported bookmarks from " + filename)
+        parent, at_end = self.get_insertion_info()
+        self._collection.merge_node(node, parent)
+        if not at_end:
+            parent.insert_child(node, 0)
+        self.root_redisplay()
+        self.set_modflag(1)
+        self.viewer().select_node(node)
+        if self.autodetails.get():
+            self.show_details(node)
+
     # Other commands
 
     def set_listbox(self, listbox): self._listbox = listbox
@@ -1036,39 +1090,43 @@ class BookmarksController(OutlinerController):
 
     def insert_node(self, node):
         addlocation = self.addcurloc.get()
-        if addlocation == NEW_AT_END:
-            # add this node to the end of root's child list.
-            self.root().append_child(node)
-        elif addlocation == NEW_AT_BEG:
-            # add this node to the beginning of root's child list.
-            self.root().insert_child(node, 0)
-        elif addlocation == NEW_AS_CHILD:
-            # if the node is a branch, add the new node to the end of
-            # it's child list.  if it is a leaf, add it as a sibling
-            # of the selected node.
-            snode, selection = self._get_selected_node()
-            # if no node was selected, then just insert it at the top.
-            if not snode:
-                snode = self.root()
-                snode.insert_child(node, 0)
-            else:
-                nodetype = snode.get_nodetype()
-                if nodetype in ("Bookmark", "Separator"):
-                    snode = snode.parent()
-                elif nodetype == "Alias":
-                    if snode.get_refnode().get_nodetype() == "Bookmark":
-                        snode = snode.parent()
-                    else:
-                        # refers to a Folder
-                        snode = snode.get_refnode()
-                # snode is a Folder
-                snode.expand()
-                snode.append_child(node)
-        else: pass
+        parent, at_end = self.get_insertion_parent()
+        if not parent:
+            return
+        if at_end:
+            parent.append_child(node)
+        else:
+            parenr.insert_child(node, 0)
         # scroll the newly added node into view
         self.set_modflag(1)
         self.root_redisplay()
         self.viewer().select_node(node)
+
+    def get_insertion_info(self):
+        """Return folder to insert info, and flag indicating which end."""
+        addlocation = self.addcurloc.get()
+        if addlocation == NEW_AT_END:
+            return self.root(), 1
+        if addlocation == NEW_AT_BEG:
+            return self.root(), 0
+        if addlocation == NEW_AS_CHILD:
+            snode, selection = self._get_selected_node()
+            # if no node was selected, then just insert it at the top.
+            if not snode:
+                return self.root(), 0
+            nodetype = snode.get_nodetype()
+            if nodetype in ("Bookmark", "Separator"):
+                return snode.parent(), 1
+            if nodetype == "Alias":
+                if snode.get_refnode().get_nodetype() == "Bookmark":
+                    return snode.parent(), 1
+                else:
+                    # refers to a Folder
+                    return snode.get_refnode(), 1
+            # snode is a Folder
+            snode.expand()
+            return snode, 1
+        return None, 0
 
     def make_alias(self, event=None):
         node, selection = self._get_selected_node()
