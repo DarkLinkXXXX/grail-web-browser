@@ -456,7 +456,6 @@ class Viewer(formatter.AbstractWriter):
 
     def add_temp_tag(self):
 	list = self.find_tag_ranges()
-	print list
 	if list:
 	    self._atemp = list
 	    for (start, end) in self._atemp:
