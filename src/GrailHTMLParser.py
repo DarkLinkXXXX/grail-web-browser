@@ -283,10 +283,13 @@ class GrailHTMLParser(HTMLParser):
 
     def start_center(self, attrs):
 	self.implied_end_p()
+	self.formatter.add_line_break()
 	self.formatter.push_alignment('center')
 
     def end_center(self):
 	self.formatter.pop_alignment()
+	self.formatter.add_line_break()
+	self.implied_end_p()
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
@@ -498,11 +501,9 @@ class GrailHTMLParser(HTMLParser):
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
 	    formatter.add_flowing_data(' ')
-	    formatter.assert_line_data(0)
 	elif attrs.has_key('src'):
 	    self.do_img(attrs)
 	    formatter.add_flowing_data(' ')
-	    formatter.assert_line_data(0)
 
     def header_end(self, tag, level):
 	formatter = self.formatter
