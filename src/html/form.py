@@ -3,9 +3,13 @@
 XXX TO DO:
 
 - METHOD=POST
-- submit or move between fields on Return in Entry
-- <SELECT>, <OPTION>
 - <TEXTAREA>
+
+XXX less urgent to do:
+
+- pop-up menus in <SELECT>
+- map return to tab if there are multiple text input fields???
+- scrollbars in <SELECT> listboxes
 
 """
 
@@ -44,7 +48,7 @@ def start_select(parser, attrs):
 	if a == 'multiple': multiple = 1
 	if a == 'name': name = v
 	if a == 'size':
-	    try: size = string.atoi(size)
+	    try: size = string.atoi(v)
 	    except: pass
     select_bgn(parser, name, size, multiple)
 
@@ -53,7 +57,7 @@ def end_select(parser):
 
 def do_option(parser, attrs):
     value = ''
-    selected = 1
+    selected = 0
     for a, v in attrs:
 	if a == 'value': value = v
 	if a == 'selected': selected = 1
@@ -134,6 +138,7 @@ class FormInfo:
 	self.viewer = parser.viewer
 	self.inputs = []
 	self.radios = {}
+	self.select = None
 	self.parser.do_p([])
 
     def __del__(self):
@@ -158,8 +163,11 @@ class FormInfo:
 	for i in self.inputs:
 	    v = i.get()
 	    if v:
-		s = '&' + quote(i.name) + '=' + quote(v)
-		query = query + s
+		if type(v) != type([]):
+		    v = [v]
+		for vv in v:
+		    s = '&' + quote(i.name) + '=' + quote(vv)
+		    query = query + s
 	if string.lower(self.method) == 'get':
 	    url = self.action + '?' + query[1:]
 	    self.viewer.browser.follow(url)
@@ -171,13 +179,16 @@ class FormInfo:
 	    i.reset()
 
     def start_select(self, name, size, multiple):
-	pass				# XXX
+	self.select = Select(self, name, size, multiple)
 
     def end_select(self):
-	pass				# XXX
+	if self.select:
+	    self.select.done()
+	    self.select = None
 
     def do_option(self, value, selected):
-	pass				# XXX
+	if self.select:
+	    self.select.do_option(value, selected)
 
     def start_textarea(self, name, rows, cols):
 	self.parser.start_pre([])	# XXX
@@ -233,6 +244,7 @@ class FormInfo:
 
 	def setup(self):
 	    self.w = Entry(self.viewer.text)
+	    self.w.bind('<Return>', self.return_event)
 	    if self.size:
 		self.w['width'] = self.size
 	    if self.show:
@@ -244,6 +256,9 @@ class FormInfo:
 
 	def get(self):
 	    return self.w.get()
+
+	def return_event(self, event):
+	    self.fi.submit_command()
 
     class InputPassword(InputText):
 
@@ -280,6 +295,8 @@ class FormInfo:
 				 value=self.value)
 
 	def reset(self):
+	    if self.first:
+		self.var.set('')
 	    if self.checked:
 		self.var.set(self.value)
 
@@ -309,6 +326,65 @@ class FormInfo:
 	    self.w = Button(self.viewer.text,
 			    text=self.value,
 			    command=self.fi.reset_command)
+
+
+class Select:
+
+    def __init__(self, fi, name, size, multiple):
+	self.fi = fi
+	self.viewer = fi.viewer
+	self.parser = fi.parser
+	self.name = name
+	self.size = size
+	self.multiple = multiple
+	self.option = None
+	self.options = []
+	self.parser.save_bgn()
+
+    def done(self):
+	self.end_option()
+	size = self.size or 4
+	size = min(len(self.options), size)
+	size = max(1, size)
+	self.w = Listbox(self.viewer.text, height=size, exportselection=0)
+	if self.multiple:
+	    self.w['selectmode'] = 'extended'
+	for v, s, t in self.options:
+	    self.w.insert(END, t)
+	self.reset()
+	self.fi.inputs.append(self)
+	self.parser.add_subwindow(self.w)
+
+    def reset(self):
+	self.w.select_clear(0, END)
+	any = 0
+	for i in range(len(self.options)):
+	    v, s, t = self.options[i]
+	    if s:
+		self.w.select_set(i)
+		any = 1
+	if not any and self.options:
+	    self.w.select_set(0)
+
+    def get(self):
+	list = []
+	for i in range(len(self.options)):
+	    v, s, t = self.options[i]
+	    if self.w.select_includes(i):
+		list.append(v or t)
+	return list
+
+    def do_option(self, value, selected):
+	self.end_option()
+	self.parser.save_bgn()
+	self.option = (value, selected)
+
+    def end_option(self):
+	text = self.parser.save_end()
+	if self.option:
+	    value, selected = self.option
+	    self.option = None
+	    self.options.append((value, selected, text))
 
 
 def quote(s):
