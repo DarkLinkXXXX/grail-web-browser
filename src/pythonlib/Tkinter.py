@@ -1229,6 +1229,9 @@ class Text(Widget):
 		return self.tk.call(self._w, 'index', index)
 	def insert(self, index, chars, *args):
 		apply(self.tk.call, (self._w, 'insert', index, chars)+args)
+	def mark_gravity(self, markName, direction=None):
+		return apply(self.tk.call,
+			     (self._w, 'mark', 'gravity', markName, direction))
 	def mark_names(self):
 		return self.tk.splitlist(self.tk.call(
 			self._w, 'mark', 'names'))
