@@ -24,7 +24,7 @@ if __name__ == '__main__':
     script_dir = os.path.join(os.getcwd(), script_dir)
     script_dir = os.path.normpath(script_dir)
 
-    for path in 'pythonlib', script_dir:
+    for path in 'pythonlib', 'sgml_lex', script_dir:
 	sys.path.insert(0, os.path.join(script_dir, path))
 
 
@@ -1050,7 +1050,7 @@ def main():
     logfile = None
     title = ''
     url = ''
-    ignore_anchors = 1
+    footnote_anchors = 1
     underline_anchors = 0
     try:
 	options, argv = getopt.getopt(sys.argv[1:], 'hdlaU:u:t:')
@@ -1059,7 +1059,7 @@ def main():
 	help = 1
     for opt, arg in options:
 	if opt == '-h': help = 1
-	elif opt == '-a': ignore_anchors = 0
+	elif opt == '-a': footnote_anchors = 0
 	elif opt == '-d': DEBUG = 1
 	elif opt == '-l': logfile = arg
 	elif opt == '-t': title = arg
@@ -1103,7 +1103,7 @@ def main():
     f = AbstractFormatter(w)
     p = PrintingHTMLParser(f, baseurl=url,
 			   underline_anchors=underline_anchors,
-			   ignore_anchors=ignore_anchors)
+			   footnote_anchors=footnote_anchors)
     p.feed(infp.read())
     p.close()
     w.close()
