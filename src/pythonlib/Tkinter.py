@@ -1,5 +1,7 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
+__version__ = "$Revision: 2.30 $"
+
 try:
 	# See if modern _tkinter is present
 	import _tkinter
@@ -640,9 +642,10 @@ class Pack:
 		Pack.config({key: value})
 	def forget(self):
 		self.tk.call('pack', 'forget', self._w)
-	def newinfo(self):
+	pack_forget = forget
+	def info(self):
 		words = self.tk.splitlist(
-			self.tk.call('pack', 'newinfo', self._w))
+			self.tk.call('pack', 'info', self._w))
 		dict = {}
 		for i in range(0, len(words), 2):
 			key = words[i][1:]
@@ -651,7 +654,7 @@ class Pack:
 				value = self._nametowidget(value)
 			dict[key] = value
 		return dict
-	info = newinfo
+	pack_info = info
 	_noarg_ = ['_noarg_']
 	def propagate(self, flag=_noarg_):
 		if flag is Pack._noarg_:
@@ -659,10 +662,12 @@ class Pack:
 				'pack', 'propagate', self._w))
 		else:
 			self.tk.call('pack', 'propagate', self._w, flag)
+	pack_propagate = propagate
 	def slaves(self):
 		return map(self._nametowidget,
 			   self.tk.splitlist(
 				   self.tk.call('pack', 'slaves', self._w)))
+	pack_slaves = slaves
 
 class Place:
 	def config(self, cnf={}, **kw):
@@ -679,15 +684,85 @@ class Place:
 		Place.config({key: value})
 	def forget(self):
 		self.tk.call('place', 'forget', self._w)
+	place_forget = forget
 	def info(self):
 		return self.tk.call('place', 'info', self._w)
+	place_info = info
 	def slaves(self):
 		return map(self._nametowidget,
 			   self.tk.splitlist(
 				   self.tk.call(
 					   'place', 'slaves', self._w)))
+	place_slaves = slaves
 
-class Widget(Misc, Pack, Place):
+class Grid:
+	# Thanks to Masa Yoshikawa (yosikawa@isi.edu)
+	def config(self, cnf={}, **kw):
+		apply(self.tk.call, 
+		      ('grid', 'configure', self._w) 
+		      + self._options(cnf, kw))
+	grid = config
+	def __setitem__(self, key, value):
+		Grid.config({key: value})
+	def bbox(self, column, row):
+		return self._getints(
+			self.tk.call(
+				'grid', 'bbox', self._w, column, row)) or None
+	grid_bbox = bbox
+	def columnconfigure(self, index, *args):
+		res = apply(self.tk.call, 
+			      ('grid', 'columnconfigure', self._w) 
+			      + args)
+		if args == ['minsize']:
+			return self._getint(res) or None
+		elif args == ['wieght']:
+			return self._getdouble(res) or None
+	def forget(self):
+		self.tk.call('grid', 'forget', self._w)
+	grid_forget = forget
+	def info(self):
+		words = self.tk.splitlist(
+			self.tk.call('grid', 'info', self._w))
+		dict = {}
+		for i in range(0, len(words), 2):
+			key = words[i][1:]
+			value = words[i+1]
+			if value[0] == '.':
+				value = self._nametowidget(value)
+			dict[key] = value
+		return dict
+	grid_info = info
+	def location(self, x, y):
+		return self._getints(
+			self.tk.call(
+				'grid', 'location', self._w, x, y)) or None
+	_noarg_ = ['_noarg_']
+	def propagate(self, flag=_noarg_):
+		if flag is Grid._noarg_:
+			return self._getboolean(self.tk.call(
+				'grid', 'propagate', self._w))
+		else:
+			self.tk.call('grid', 'propagate', self._w, flag)
+	grid_propagate = propagate
+	def rowconfigure(self, index, *args):
+		res = apply(self.tk.call, 
+			      ('grid', 'rowconfigure', self._w) 
+			      + args)
+		if args == ['minsize']:
+			return self._getint(res) or None
+		elif args == ['wieght']:
+			return self._getdouble(res) or None
+	def size(self):
+		return self._getints(
+			self.tk.call('grid', 'size', self._w)) or None
+	def slaves(self, *args):
+		return map(self._nametowidget,
+			   self.tk.splitlist(
+				   apply(self.tk.call,
+					 ('grid', 'slaves', self._w) + args)))
+	grid_slaves = slaves
+
+class Widget(Misc, Pack, Place, Grid):
 	def _setup(self, master, cnf):
 		global _default_root
 		if not master:
