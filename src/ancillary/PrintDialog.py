@@ -41,8 +41,9 @@ class PrintDialog:
 	self.url = url
 	self.title = title
 	self.master = self.browser.root
-	self.root = Toplevel(self.master)
-	self.root.title("Print Dialog")
+	self.root = tktools.make_toplevel(self.master,
+					  title="Print Dialog")
+	self.root.iconname("Print Dialog")
 	self.cmd_entry, dummyframe = tktools.make_form_entry(
 	    self.root, "Print command:")
 	self.cmd_entry.delete('0', END)
@@ -75,6 +76,9 @@ class PrintDialog:
 
 	self.cmd_entry.bind('<Return>', self.return_event)
 	self.file_entry.bind('<Return>', self.return_event)
+
+	tktools.set_transient(self.root, self.master)
+
 	self.check_command()
 
 	self.root.grab_set()
