@@ -81,7 +81,7 @@ def main():
         try: import ilu_tk
         except ImportError: pass
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'd:g:i',
+        opts, args = getopt.getopt(sys.argv[1:], 'd:g:iq',
                                    ['display=', 'geometry=', 'noimages'])
         if len(args) > 1:
             raise getopt.error, "too many arguments"
@@ -92,8 +92,8 @@ def main():
         sys.exit(2)
 
     geometry = prefs.Get('browser', 'initial-geometry')
-
     display = None
+    user_init = 1
 
     for o, a in opts:
         if o in ('-i', '--noimages'):
@@ -102,6 +102,8 @@ def main():
             geometry = a
         if o in ('-d', '--display'):
             display = a
+        if o == "-q":
+            user_init = 0
     if args:
         url = grailutil.complete_url(args[0])
     else:
@@ -136,10 +138,11 @@ def main():
 
     # Import user's grail startup file, defined as
     # $GRAILDIR/user/grailrc.py if it exists.
-    try: import grailrc
-    except ImportError: pass
-    except:
-        app.exception_dialog('during import of startup file')
+    if user_init:
+        try: import grailrc
+        except ImportError: pass
+        except:
+            app.exception_dialog('during import of startup file')
 
     # Load the initial page (command line argument or from preferences)
     from Browser import Browser
