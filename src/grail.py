@@ -177,11 +177,20 @@ class Application:
 	else:
 	    return None
 
-    def get_image(self, url, force=0):
-	if not url or not self.load_images and not force:
-	    return None
-	if self.image_cache.has_key(url):
+    def get_cached_image(self, url):
+	if url and self.image_cache.has_key(url):
 	    return self.image_cache[url]
+	else:
+	    return None
+
+    def get_image(self, url, force=0):
+	if not url:
+	    return None
+	if not force:
+	    if self.image_cache.has_key(url):
+		return self.image_cache[url]
+	    if not self.load_images:
+		return None
 	# XXX Ought to complete this asynchronously
 	try:
 	    api = self.open_url(url, 'GET', {})
@@ -220,7 +229,7 @@ class Application:
 	    f = None
 	    try:
 		image = Image(imgtype, file=tfn)
-	    except:
+	    except TclError:
 		print '***', url, 'does not appear to be of type', imgtype
 		return None
 	    self.image_cache[url] = image
