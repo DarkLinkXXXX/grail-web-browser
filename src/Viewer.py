@@ -32,6 +32,7 @@ class Viewer(formatter.AbstractWriter):
 	self.literaltags = ()		# Tags for literal text
 	self.flowingtags = ()		# Tags for flowed text
 	self.freeze()
+	self.text.bind('<Configure>', self.resize_event)
 
     def create_widgets(self, height):
 	self.text, self.frame = tktools.make_text_box(self.master,
@@ -69,6 +70,13 @@ class Viewer(formatter.AbstractWriter):
 	self.unfreeze()
 	self.text.delete('1.0', END)
 	self.freeze()
+
+    def resize_event(self, event):
+	# Needl to reconfigure all the horizontal rools :-(
+	if self.rules:
+	    width = self.rule_width()
+	    for rule in self.rules:
+		rule['width'] = width
 
     def unfreeze(self):
 	self.text['state'] = NORMAL
@@ -121,12 +129,16 @@ class Viewer(formatter.AbstractWriter):
 
     def send_hor_rule(self):
 	self.text.insert(END, '\n')
-	width = 600			# XXX How to compute?
+	width = self.rule_width()
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
 			width=width, height=0)
 	self.rules.append(window)
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
+
+    def rule_width(self):
+	width = self.text.winfo_width() - 16
+	return width
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
