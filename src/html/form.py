@@ -151,7 +151,8 @@ class FormInfo:
 	self.radios = {}
 	self.select = None
 	self.textarea = None
-	self.parser.start_p({})
+	self.parser.implied_end_p()
+	self.parser.formatter.end_paragraph(1)
 	# gather cached form data if we've been to this page before
 	formdata_list = self.context.get_formdata()
 	if formdata_list and len(formdata_list) > len(parser.forms):
@@ -173,7 +174,7 @@ class FormInfo:
 
     def done(self):			# Called for </FORM>
 	if self.parser:
-	    self.parser.start_p({})
+	    self.parser.formatter.end_paragraph(0)
 	self.parser = None
 	# only restore the form data if it matches, as best as can be
 	# determined, the current layout of the form.  Otherwise, just
