@@ -77,7 +77,11 @@ following policies:
   is loaded even if the package was loaded only in order to create a
   stub for a sub-package: if `import P.Q.R' is the first reference to
   P, and P has a submodule __init__, P.__init__ is loaded before P.Q
-  is even searched.
+  is even searched.  All attributes defined in the __init__ module are
+  installed into the package module, except those with leading
+  underscores in their name.  The lone exception is that the __doc__
+  attribute from the __init_ module becomes the docstring for the
+  package too.
 
 Caveats:
 
@@ -392,3 +396,5 @@ def testproper():
 
 if __name__ == '__main__':
     test()
+else:
+    install()
