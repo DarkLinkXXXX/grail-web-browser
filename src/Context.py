@@ -50,6 +50,19 @@ class Context:
 	self.next_status_update = None	# ID of next scheduled status update
 	self.show_source = 0
 	self.applet_group = None
+	self.notifications = []		# callbacks when no readers left
+
+    def register_notification(self, callback):
+	if callback not in self.notifications:
+	    self.notifications.append(callback)
+
+    def unregister_notification(self, callback):
+	if callback in self.notifications:
+	    self.notifications.remove(callback)
+
+    def notify(self):
+	for callback in self.notifications:
+	    callback(self)
 
     def clear_reset(self):
 	self.viewer.clear_reset()
@@ -478,6 +491,7 @@ class Context:
 	    if self.source:
 		self.source.remove_temp_tag()
 		self.source = None
+	    self.notify()
 	self.new_reader_status()
 
     def busy(self):
