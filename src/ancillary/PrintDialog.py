@@ -30,7 +30,6 @@ be assumed, giving the option to cancel.
 
 """
 
-
 from Cursors import CURSOR_WAIT
 from Tkinter import *
 import os
@@ -50,8 +49,10 @@ imageflag = 0
 greyscaleflag = 0
 underflag = 1
 footnoteflag = 1
-leading = 0.7
-fontsize = None
+fontsize = 10.0
+leading = 10.7
+papersize = ""
+orientation = ""
 
 global_prefs = None
 
@@ -61,6 +62,8 @@ def update_options(prefs=None):
     """
     global printcmd, printfile, fileflag, imageflag, greyscaleflag
     global underflag, footnoteflag, global_prefs, leading, fontsize
+    global papersize, orientation
+    from html2ps import parse_fontsize
     #
     prefs = prefs or global_prefs
     if prefs:
@@ -73,8 +76,10 @@ def update_options(prefs=None):
     printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
     footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP, 'footnote-anchors')
     underflag = prefs.GetBoolean(PRINT_PREFGROUP, 'underline-anchors')
-    leading = prefs.GetFloat(PRINT_PREFGROUP, 'leading')
-    fontsize = prefs.GetFloat(PRINT_PREFGROUP, 'base-font-size')
+    fontsize, leading = parse_fontsize(
+	prefs.Get(PRINT_PREFGROUP, 'font-size'))
+    papersize = prefs.Get(PRINT_PREFGROUP, 'paper-size')
+    orientation = prefs.Get(PRINT_PREFGROUP, 'orientation')
     if not printcmd:
 	printcmd = PRINTCMD
 
@@ -84,6 +89,11 @@ def PrintDialog(context, url, title):
 	infp = context.app.open_url_simple(url)
     except IOError, msg:
 	context.error_dialog(IOError, msg)
+	return
+    import html2ps
+    if not html2ps.standard_header_template:
+	context.app.error_dialog("Missing file",
+				 "header.ps missing from the source directory")
 	return
     try:
 	ctype = infp.info()['content-type']
@@ -167,6 +177,7 @@ class RealPrintDialog:
 
 	global printcmd
 	self.context = context
+	self.baseurl = context.get_baseurl()
 	prefs = context.app.prefs
 	if not prefs:
 	    printcmd = PRINTCMD
@@ -182,55 +193,82 @@ class RealPrintDialog:
 					  title="Print Dialog",
 					  class_="PrintDialog")
 	self.root.iconname("Print Dialog")
+	# do this early in case we're debugging:
+	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
+	self.root.bind("<Alt-w>", self.cancel_event)
+	self.root.bind("<Alt-W>", self.cancel_event)
+
 	fr, top, botframe = tktools.make_double_frame(self.root)
-	self.cmd_entry, dummyframe = tktools.make_form_entry(
-	    top, "Print command:")
-	self.cmd_entry.insert(END, printcmd)
 
 	#  Print to file controls:
-	self.midframe = Frame(top)
-	self.midframe.pack(side=TOP, fill=X)
+	generalfr = tktools.make_group_frame(
+	    top, "general", "General options:", fill=X)
 
-	self.checked = IntVar(self.root)
-	self.checked.set(fileflag)
-	self.file_check = Checkbutton(self.midframe,
-				      text = "Print to file:",
+	self.cmd_entry, dummyframe = tktools.make_form_entry(
+	    generalfr, "Print command:")
+	self.cmd_entry.insert(END, printcmd)
+	self.printtofile = IntVar(self.root)
+	self.printtofile.set(fileflag)
+	fr = Frame(generalfr)
+	fr.pack(fill=X)
+	self.file_check = Checkbutton(fr, text = "Print to file:",
 				      command = self.check_command,
-				      variable = self.checked)
+				      variable = self.printtofile)
 	self.file_check.pack(side=LEFT)
-	self.file_entry = Entry(self.midframe)
+	self.file_entry = Entry(fr)
 	self.file_entry.pack(side=RIGHT, fill=X)
 	self.file_entry.insert(END, printfile)
 
+	# page orientation
+	Frame(generalfr, height=2).pack()
+	fr = Frame(generalfr)
+	fr.pack(fill=X)
+	self.orientation = StringVar(top)
+	self.orientation.set(string.capitalize(orientation))
+	import html2ps
+	opts = html2ps.paper_rotations.keys()
+	opts.sort()
+	opts = tuple(map(string.capitalize, opts))
+	Label(fr, text="Orientation: ", width=13, anchor=E).pack(side=LEFT)
+	Frame(fr, width=3).pack(side=LEFT)
+	menu = apply(OptionMenu, (fr, self.orientation) + opts)
+	width = reduce(max, map(len, opts), 6)
+	menu.config(anchor=W, highlightthickness=0, width=width)
+	menu.pack(expand=1, fill=NONE, anchor=W, side=LEFT)
+	Frame(generalfr, height=2).pack()
+	# font size
+	fr = Frame(generalfr)
+	fr.pack(fill=X)
+	self.fontsize = StringVar(top)
+	if fontsize == leading:
+	    self.fontsize.set(`fontsize`)
+	else:
+	    self.fontsize.set("%s / %s" % (fontsize, leading))
+	Label(fr, text="Font size: ", width=13, anchor=E).pack(side=LEFT)
+	Frame(fr, width=3).pack(side=LEFT)
+	e = Entry(fr, textvariable=self.fontsize, width=12)
+	e.pack(side=LEFT)
+	e.bind('<Return>', self.return_event)
+
+	if self.ctype == "text/html":
+	    Frame(top, height=8).pack()
+	htmlfr = tktools.make_group_frame(
+	    top, "html", "HTML options:", fill=X)
+
 	#  Image printing controls:
 	self.imgchecked = self.add_html_checkbox(
-	    top, "Print images", imageflag)
+	    htmlfr, "Print images", imageflag)
 	self.greychecked = self.add_html_checkbox(
-	    top, "Reduce images to greyscale", greyscaleflag)
+	    htmlfr, "Reduce images to greyscale", greyscaleflag)
 
 	#  Anchor-handling selections:
 	self.footnotechecked = self.add_html_checkbox(
-	    top, "Footnotes for anchors", footnoteflag)
+	    htmlfr, "Footnotes for anchors", footnoteflag)
 	self.underchecked = self.add_html_checkbox(
-	    top, "Underline anchors", underflag)
+	    htmlfr, "Underline anchors", underflag)
 
 	if self.ctype != "text/html":
-	    Frame(top, height=8).pack()
-
-	fr = Frame(top)
-	fr.pack(fill=X)
-	self.fontsize = DoubleVar(top)
-	self.fontsize.set(fontsize)
-	Label(fr, text="Base font size:").pack(side=LEFT)
-	e = Entry(fr, textvariable=self.fontsize, width=5)
-	e.pack(side=LEFT)
-	e.bind('<Return>', self.return_event)
-	self.leading = DoubleVar(top)
-	self.leading.set(leading)
-	Label(fr, text="Leading:").pack(side=LEFT)
-	e = Entry(fr, textvariable=self.leading, width=5)
-	e.pack(side=LEFT)
-	e.bind('<Return>', self.return_event)
+	    htmlfr.forget()
 
 	#  Command buttons:
 	ok_button = Button(botframe, text="OK",
@@ -241,30 +279,25 @@ class RealPrintDialog:
 	cancel_button.pack(side=RIGHT)
 	tktools.unify_button_widths(ok_button, cancel_button)
 
-	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
-	self.root.bind("<Alt-w>", self.cancel_event)
-	self.root.bind("<Alt-W>", self.cancel_event)
-
 	self.cmd_entry.bind('<Return>', self.return_event)
 	self.file_entry.bind('<Return>', self.return_event)
 
 	tktools.set_transient(self.root, self.master)
-
 	self.check_command()
-	self.root.grab_set()
 
     def add_html_checkbox(self, root, description, value):
 	var = BooleanVar(root)
 	var.set(value)
 	if self.ctype == "text/html":
-	    Checkbutton(root, text=description, variable=var).pack(anchor=W)
+	    Checkbutton(root, text=description, variable=var, anchor=W
+			).pack(anchor=W, fill=X)
 	return var
 
     def return_event(self, event):
 	self.ok_command()
 	
     def check_command(self):
-	if self.checked.get():
+	if self.printtofile.get():
 	    self.file_entry['state'] = NORMAL
 	    self.cmd_entry['state'] = DISABLED
 	    self.file_entry.focus_set()
@@ -274,7 +307,7 @@ class RealPrintDialog:
 	    self.cmd_entry.focus_set()
 
     def ok_command(self):
-	if self.checked.get():
+	if self.printtofile.get():
 	    filename = self.file_entry.get()
 	    if not filename:
 		self.context.error_dialog("No file",
@@ -314,7 +347,7 @@ class RealPrintDialog:
 		cmd = string.joinfields(cmd_parts, tempname)
 		sts = os.system(cmd)
 		os.unlink(tempname)
-	    except NameError:
+	    except NameError:		# expected on tempname except on NT
 		pass
 	if sts:
 	    self.context.error_dialog("Exit",
@@ -329,23 +362,29 @@ class RealPrintDialog:
 
     def print_to_fp(self, fp):
 	# do the printing
-	from html2ps import PSWriter, PrintingHTMLParser
-	from html2ps import disallow_anchor_footnotes
+	global fontsize, leading, orientation
+	from html2ps import PSWriter, PrintingHTMLParser, PaperInfo
+	from html2ps import disallow_anchor_footnotes, parse_fontsize
 
-	w = PSWriter(fp, self.title, self.url)
+	paper = None
+	orientation = string.lower(self.orientation.get())
+	if orientation or papersize:
+	    paper = PaperInfo(papersize or "letter")
+	    if orientation:
+		paper.rotate(orientation)
+	fontsize, leading = parse_fontsize(self.fontsize.get())
+	w = PSWriter(fp, self.title, self.url,
+		     fontsize=fontsize, leading=leading, paper=paper)
 	if self.ctype == 'text/html':
 	    imgloader = (self.imgchecked.get() and self.image_loader) or None
 	    grey = self.greychecked.get()
-	    fontsize = self.fontsize.get()
-	    leading = self.leading.get()
-	    p = PrintingHTMLParser(w, baseurl=self.context.baseurl(),
+	    p = PrintingHTMLParser(w, baseurl=self.baseurl,
 				   image_loader=imgloader, greyscale=grey,
-				   underline_anchors=self.underchecked.get(),
-				   leading=leading, fontsize=fontsize)
+				   underline_anchors=self.underchecked.get())
 	    if not self.footnotechecked.get():
 		p.add_anchor_transform(disallow_anchor_footnotes)
 	    p.iconpath = self.context.app.iconpath
-	elif self.ctype == 'text/plain':
+	else:
 	    p = PrintingTextParser(w)
 	p.feed(self.infp.read())
 	self.infp.close()
@@ -354,21 +393,23 @@ class RealPrintDialog:
 
     def goaway(self):
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
-	global underflag, footnoteflag, leading, fontsize
+	global underflag, footnoteflag, leading, fontsize, papersize
+	global orientation
+	from html2ps import parse_fontsize
+	#
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
-	fileflag = self.checked.get()
+	fileflag = self.printtofile.get()
 	footnoteflag = self.footnotechecked.get()
 	greyscaleflag = self.greychecked.get()
 	imageflag = self.imgchecked.get()
 	underflag = self.underchecked.get()
-	fontsize = self.fontsize.get()
-	leading = self.leading.get()
+	fontsize, leading = parse_fontsize(self.fontsize.get())
+	orientation = self.orientation.get()
 	self.root.destroy()
 
     def image_loader(self, url):
-	"""Image loader for the PrintingHTMLParser instance.
-	"""
+	"""Image loader for the PrintingHTMLParser instance."""
 	#  This needs a lot of work for efficiency and connectivity
 	#  with the rest of grail.
 	from urllib import urlopen
