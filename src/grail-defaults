@@ -21,6 +21,7 @@ browser--load-initial-page:	1
 C: Empty initial geometry implies manual placement with most window managers:
 browser--initial-geometry:
 browser--show-splash:		1
+browser--smooth-scroll-hack:	0
 C:
 C: Presentation defaults
 C:
