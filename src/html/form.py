@@ -632,7 +632,7 @@ class Select:
 	for v, s, t in self.options:
 	    if s: any = 1
 	    wid = max(wid, len(t))
-	if not any:
+	if not any and not self.multiple:
 	    v, s, t = self.options[0]
 	    self.options[0] = v, 1, t
 	size = self.size
