@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.18 1996/04/04 21:07:14 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.19 1996/04/05 15:25:58 bwarsaw Exp $'
 
 
 import string
@@ -423,8 +423,8 @@ class Table(AttrElem):
 	if self.Awidth is None:
 	    suggestedwidth = viewerwidth
 	# units in screen pixels
-	elif type(self.Awidth) == IntType:
-	    newwidth = self.Awidth
+	elif type(self.Awidth) in [IntType, FloatType]:
+	    suggestedwidth = self.Awidth
 	# other standard units
 	elif type(self.Awidth) == TupleType:
 	    if self.Awidth[1] == '%':
@@ -432,6 +432,10 @@ class Table(AttrElem):
 	    # other standard units are not currently supported
 	    else:
 		suggestedwidth = veiwerwidth
+	else:
+	    print 'Internal inconsistency.  Awidth=', self.Awidth, \
+		  type(self.Awidth)
+	    suggestedwidth = viewerwidth
 	
 	# now we need to adjust for the available space (i.e. parent
 	# viewer's width).  The Table spec outlines three cases...
@@ -522,6 +526,7 @@ class Table(AttrElem):
 
     def _reset(self, viewer):
 	print '_reset:', viewer
+	self.container.forget()
 
     def _resize(self, viewer):
 	print '_resize:', viewer
@@ -594,7 +599,8 @@ def _get_height(tw):
 	# convinced this algorithm always works.
 	loopcnt = loopcnt + 1
 	if loopcnt > 100:
-	    raise 'Infinite table cell height loop detected!  Bad Mojo!'
+	    print 'Bad Mojo!  Infinite loop in cell height calculation.'
+	    return 50
 	linecount = linecount + 1
 	tw['height'] = linecount
 	tw.update_idletasks()
