@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -58,11 +58,10 @@ SGMLError = 'SGMLLexer.SGMLError'
 
 # SGML lexer base class -- find tags and call handler functions.
 # Usage: p = SGMLLexer(); p.feed(data); ...; p.close().
-# The data
-# between tags is passed to the parser by calling self.handle_data()
-# with some data as argument (the data may be split up in arbutrary
-# chunks).  Entity references are passed by calling
-# self.handle_entityref() with the entity reference as argument.
+# The data between tags is passed to the parser by calling
+# self.lex_data() with some data as argument (the data may be split up
+# in arbutrary chunks).  Entity references are passed by calling
+# self.lex_entityref() with the entity reference as argument.
 
 
 class SGMLLexerBase:
@@ -185,6 +184,7 @@ class SGMLLexerBase:
 class SGMLLexer(SGMLLexerBase):
     if _sgmllex:
 	def __init__(self):
+	    print "Connolly's parser"
 	    self.reset()
 
 	def feed(self, data):
@@ -203,8 +203,9 @@ class SGMLLexer(SGMLLexerBase):
 				      self._lex_aux,
 				      self._lex_err)
 
-	def restrict(self, strict):
-	    return self._l.restrict(strict)
+	def restrict(self, constrain):
+	    self._l.compat(constrain)
+	    return self._l.restrict(constrain)
 
 	#def line(self):
 	#    """Retrieves the current line number of the lexer object.
@@ -225,7 +226,7 @@ class SGMLLexer(SGMLLexerBase):
 	def _lex_got_endtag(self, tagname):
 	    self.lex_endtag(tagname[2:])
 
-	def _lex_got_startttag(self, name, attributes):
+	def _lex_got_starttag(self, name, attributes):
 	    self.lex_starttag(name[1:], attributes)
 
 	def _lex_aux(self, types, strings):
@@ -247,6 +248,10 @@ class SGMLLexer(SGMLLexerBase):
     else:				# sgmllex not available
 
 	def __init__(self):
+	    print "Guido's parser"
+	    self.reset()
+
+	def reset(self):
 	    self.rawdata = ''
 	    self.stack = []
 	    self.lasttag = '???'
@@ -267,9 +272,9 @@ class SGMLLexer(SGMLLexerBase):
 	    self._normfunc = (norm and string.lower) or (lambda s: s)
 	    return prev
 
-	def restrict(self, strict):
-	    prev = self._strict
-	    self._strict = (strict and 1) or 0
+	def restrict(self, constrain):
+	    prev = not self._strict
+	    self._strict = not ((constrain and 1) or 0)
 	    return prev
 
 	# Internal -- handle data as far as reasonable.  May leave state
@@ -326,12 +331,21 @@ class SGMLLexer(SGMLLexerBase):
 			continue
 		    k = special.match(rawdata, i)
 		    if k >= 0:
-			#  Markup declaration:
-			if self.literal:
-			    self.lex_data(rawdata[i])
-			    i = i+1
-			    continue
-			i = i+k
+			if self._strict:
+			    if rawdata[i+2] in string.letters:
+				k = self.parse_declaration(i)
+				if k > -1:
+				    i = k
+			    else:
+				self.lex_data('<!')
+				i = i + 2
+			else:
+			    #  Pretend it's a arkup declaration:
+			    if self.literal:
+				self.lex_data(rawdata[i])
+				i = i+1
+				continue
+			    i = i+k
 			continue
 		elif rawdata[i] == '&':
 		    charref = (self._strict and legalcharref) or simplecharref
@@ -410,15 +424,15 @@ class SGMLLexer(SGMLLexerBase):
 	    rawdata = self.rawdata
 	    if shorttagopen.match(rawdata, i) >= 0:
 		# SGML shorthand: <tag/data/ == <tag>data</tag>
-		# XXX Can data contain &... (entity or char refs)?
+		# XXX Can data contain &... (entity or char refs)? ... yes
 		# XXX Can data contain < or > (tag characters)?
 		# XXX Can there be whitespace before the first /?
 		j = shorttag.match(rawdata, i)
 		if j < 0:
 		    return -1
 		tag, data = shorttag.group(1, 2)
-		tag = self._normfunc(tag)
-		self.finish_shorttag(tag, data)
+		self.lex_starttag(self._normfunc(tag), {})
+		self.lex_data(data)
 		k = i+j
 		if rawdata[k-1] == '<':
 		    k = k-1
@@ -428,32 +442,32 @@ class SGMLLexer(SGMLLexerBase):
 	    if j < 0:
 		return -1
 	    # Now parse the data between i+1 and j into a tag and attrs
-	    attrs = []
+	    attrs = {}
 	    if rawdata[i:i+2] == '<>':
-		# SGML shorthand: <> == <last open tag seen>
+		#  Semantics of the empty tag are handled by lex_starttag():
 		if self._strict:
-		    k = j
-		    tag = self._normfunc(self.lasttag)
+		    self.lex_starttag('', {})
+		    return i + 2
 		else:
 		    self.lex_data(rawdata[i])
 		    return i + 1
-	    else:
-		k = tagfind.match(rawdata, i+1)
-		if k < 0:
-		    raise RuntimeError, 'unexpected call to parse_starttag'
-		k = i+1+k
-		tag = self._normfunc(rawdata[i+1:k])
-		self.lasttag = tag
+
+	    k = tagfind.match(rawdata, i+1)
+	    if k < 0:
+		raise RuntimeError, 'unexpected call to parse_starttag'
+	    k = i+1+k
+	    tag = self._normfunc(rawdata[i+1:k])
+	    #self.lasttag = tag
 	    while k < j:
 		l = attrfind.match(rawdata, k)
 		if l < 0: break
 		attrname, rest, attrvalue = attrfind.group(1, 2, 3)
 		if not rest:
 		    attrvalue = None	# was:  = attrname
-		elif attrvalue[:1] == '\'' == attrvalue[-1:] or \
-		     attrvalue[:1] == '"' == attrvalue[-1:]:
+		elif attrvalue[:1] == LITA == attrvalue[-1:] or \
+		     attrvalue[:1] == LIT == attrvalue[-1:]:
 		    attrvalue = attrvalue[1:-1]
-		attrs.append((self._normfunc(attrname), attrvalue))
+		attrs[self._normfunc(attrname)] = attrvalue
 		k = k + l
 	    if rawdata[j] == '>':
 		j = j+1
@@ -466,7 +480,7 @@ class SGMLLexer(SGMLLexerBase):
 	    j = endbracket.search(rawdata, i+1)
 	    if j < 0:
 		return -1
-	    if j == i + len(ETAGO):
+	    if j == i + 2:
 		ch = rawdata[j]
 		if ch == STAGO:
 		    if self._strict:
@@ -478,7 +492,7 @@ class SGMLLexer(SGMLLexerBase):
 		elif ch == TAGC:
 		    if self._strict:
 			self.lex_endtag('')
-			return i + len(ETAGO + TAGC)
+			return i + 3
 		    else:
 			self.lex_data(rawdata[i])
 			return i + 1
@@ -487,6 +501,36 @@ class SGMLLexer(SGMLLexerBase):
 		j = j+1
 	    self.lex_endtag(tag)
 	    return j
+
+	def parse_declaration(self, i):
+	    rawdata = self.rawdata
+	    #  Markup declaration, possibly illegal:
+	    strs = []
+	    i = i + 2
+	    k = md_name.match(rawdata, i)
+	    strs.append(self._normfunc(md_name.group(1)))
+	    i = i + k
+	    while k > 0:
+		k = md_name.match(rawdata, i)
+		if k > 0:
+		    strs.append(self._normfunc(md_name.group(1)))
+		    i = i + k
+		    continue
+		k = md_string.match(rawdata, i)
+		if k > 0:
+		    strs.append(md_string.group(1)[1:-1])
+		    i = i + k
+		    continue
+		k = md_comment.match(rawdata, i)
+		if k > 0:
+		    strs.append(md_comment.group(1))
+		    i = i + k
+		    continue
+	    k = string.find(rawdata, '>', i)
+	    if k >= 0:
+		i = k + 1
+	    self.lex_declaration(strs)
+	    return i
 
 
 if not _sgmllex:
@@ -504,12 +548,22 @@ if not _sgmllex:
     processinginstruction = regex.compile('<\?\([^>]*\)' + PIC)
 
     starttagopen = regex.compile(STAGO + '[>a-zA-Z]')
-    shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*' + NET)
-    shorttag = regex.compile(STAGO +
-			     '\([a-zA-Z][a-zA-Z0-9.-]*\)/\([^/]*\)' + NET)
+    shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*[ \t\n\r]*'
+				 + NET)
+    shorttag = regex.compile(STAGO + '\([a-zA-Z][a-zA-Z0-9.-]*\)[ \t\n\r]*'
+			     + NET + '\([^/]*\)' + NET)
     endtagopen = regex.compile(ETAGO + '[<>a-zA-Z]')
     endbracket = regex.compile('[<>]')
     special = regex.compile(MDO + '[^>]*' + MDC)
+    markupdeclaration = regex.compile(MDO +
+				      '\(\([-.a-zA-Z0-9]+\|'
+				      + LIT + '[^"]*' + LIT + '\|'
+				      + LITA + "[^']*" + LITA + '\|'
+				      + COM + '\([^-]\|-[^-]\)*' + COM
+				      + '\)[ \t\n\r]*\)*' + MDC)
+    md_name = regex.compile('\([-.a-zA-Z0-9]+\)[ \n\t\r]*')
+    md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)[ \n\t\r]*')
+    md_comment = regex.compile('\(--\([^-]\|-[^-]\)*--\)[ \t\n\r]*')
     commentopen = regex.compile(MDO + COM)
     legalcomment = regex.compile(MDO + '\(\(' + COM + '\([^-]\|-[^-]\)*'
 				 + COM + '[ \t\n]*\)*\)' + MDC)
