@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.24 $"
+__version__ = "$Revision: 2.25 $"
 
 import os
 
@@ -12,6 +12,10 @@ import os
 # grailutil.get_grailroot()
 _grail_root = None
 _grail_app = None
+
+
+from printing.utils import conv_fontsize
+
 
 # XXX Unix specific stuff
 # XXX (Actually it limps along just fine for Macintosh, too)
@@ -193,29 +197,6 @@ def conv_normwhitespace(val):
 
 def conv_exists(val):
     return 1
-
-
-def conv_fontsize(spec):
-    """Parse a font size with an optional leading specification.
-
-    spec
-        should be a string representing a real number or a pair of real
-        numbers separated by a forward slash.  Whitespace is ignored.
-
-    This function returns a tuple of the fontsize and leading.  If the
-    leading is not specified by `spec', the leading will be the same as
-    the font size.
-
-    """
-    if '/' in spec:
-        spec = string.splitfields(spec, '/')
-        if len(spec) != 2:
-            raise ValueError, "illegal font size specification"
-    else:
-        spec = [spec, spec]
-    spec = map(string.atof, map(string.strip, spec))
-    return tuple(spec)
-
 
 def conv_mimetype(type):
     """Convert MIME media type specifications to tuples of
