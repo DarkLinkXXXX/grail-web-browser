@@ -487,7 +487,7 @@ class GrailHTMLParser(HTMLParser):
     # Heading support for dingbats (iconic entities):
 
     def header_bgn(self, tag, level, attrs):
-	self.close_paragraph()
+	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
 	formatter = self.formatter
         formatter.end_paragraph(1)
 	align = extract_keyword('align', attrs, conv=string.lower)
