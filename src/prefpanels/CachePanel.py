@@ -1,6 +1,6 @@
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.2 $"
+__version__ = "$Revision: 1.3 $"
 # $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
 
 # Base class for the dialog:
@@ -64,8 +64,6 @@ class CachePanel(PrefsDialogs.Framework):
 
     def CreateLayout(self, name, frame):
 
-	from __main__ import app
-
 	# size plus clear buttons
 	top_frame = Frame(frame)
 	f = Frame(top_frame)
@@ -79,11 +77,11 @@ class CachePanel(PrefsDialogs.Framework):
 	f.pack(side=LEFT)
 
 	clear = Button(top_frame,
-		       text="Clear cache now",
-		       command=app.url_cache.disk.erase_cache)
+		       text="Erase cache now",
+		       command=self.app.url_cache.disk.erase_cache)
 	repair = Button(top_frame,
 			text="Repair cache",
-			command=app.url_cache.disk.erase_unlogged_files)
+			command=self.app.url_cache.disk.erase_unlogged_files)
 
 	repair.pack(side=RIGHT)
 	clear.pack(side=RIGHT)
