@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.1 1995/09/19 14:34:26 bwarsaw Exp $
+$Id: html2ps.py,v 2.2 1995/09/19 15:00:51 bwarsaw Exp $
 """
 
 
@@ -22,8 +22,8 @@ from formatter import *
 
 
 # debugging
-RECT_DEBUG = 1
-DEBUG = 1
+RECT_DEBUG = 0
+DEBUG = 0
 
 def _debug(text):
     if DEBUG:
@@ -546,6 +546,7 @@ class PSQueue:
 		nq.push_vtab(HR_TOP_MARGIN)
 		nq.push_horiz_rule()
 		nq.push_vtab(HR_BOT_MARGIN)
+		nq.push_hard_newline(1)
 		mark = nq.mark()
 		xpos = 0.0
 	    elif tag == MARGIN:
@@ -791,6 +792,7 @@ class PSWriter(AbstractWriter):
 	    self.ps.push_hard_newline()
 
     def send_line_break(self):
+	self.ps.push_hard_newline()
 	self.ps.push_hard_newline()
 
     def send_hor_rule(self):
