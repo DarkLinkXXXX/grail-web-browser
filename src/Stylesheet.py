@@ -42,7 +42,7 @@ class Stylesheet:
         fonts = self.prefs.GetGroup('styles-fonts')
         massaged = []
         for ((g, c), v) in fonts:
-            massaged.append((g, c), v % fparms_dict)
+            massaged.append(((g, c), v % fparms_dict))
         self.dictify_group(massaged)
 
     def __getattr__(self, composite):
