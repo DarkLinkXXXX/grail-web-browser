@@ -154,6 +154,14 @@ class Misc:
 		name = self.tk.call('focus')
 		if name == 'none': return None
 		return self._nametowidget(name)
+	def tk_focusNext(self):
+		name = self.tk.call('tk_focusNext', self._w)
+		if not name: return None
+		return self._nametowidget(name)
+	def tk_focusPrev(self):
+		name = self.tk.call('tk_focusPrev', self._w)
+		if not name: return None
+		return self._nametowidget(name)
 	def after(self, ms, func=None, *args):
 		if not func:
 			# I'd rather use time.sleep(ms*0.001)
