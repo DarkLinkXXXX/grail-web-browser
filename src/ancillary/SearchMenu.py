@@ -58,13 +58,15 @@ class SearchDialog:
 	tktools.set_transient(self._root, rootwin, rely=0.0)
 
     def create_widgets(self):
+	f = Frame(self._root)
+	f.pack(padx='1m', pady='1m', fill=X)
 	self.pat_entry, self.pat_frame = \
-			tktools.make_form_entry(self._root, "Find string:")
+			tktools.make_form_entry(f, "Find string:")
 	self.pat_entry['exportselection'] = 0
 	self.pat_entry.bind('<Return>', self.return_event)
 	self.pat_entry.focus_set()
 
-	self.mid_frame = Frame(self._root)
+	self.mid_frame = Frame(f)
 	self.mid_frame.pack(fill=X)
 
 	self.regexp_var = BooleanVar()
@@ -84,18 +86,22 @@ class SearchDialog:
 						 variable=self.backwards_var)
 	self.backwards_checkbutton.pack(side=RIGHT)
 
+	fr = Frame(self._root, relief=SUNKEN, height=3, borderwidth=1)
+	fr.pack(expand=1, fill=X)
+
 	self.bot_frame = Frame(self._root)
 	self.bot_frame.pack(fill=X)
 
-	self.search_button = Button(self.bot_frame, text="Search",
+	self.search_button = Button(self.bot_frame, text="Search", width=12,
+
 				    command=self.search_command)
-	self.search_button.pack(side=LEFT)
+	self.search_button.pack(side=LEFT, padx='1m', pady='1m')
 	self.search_close_button = Button(self.bot_frame, text="Search+Close",
 					  command=self.search_close_command)
 	self.search_close_button.pack(side=LEFT, expand=1) # Center
-	self.close_button = Button(self.bot_frame, text="Close",
+	self.close_button = Button(self.bot_frame, text="Close", width=12,
 				   command=self.close_command)
-	self.close_button.pack(side=RIGHT)
+	self.close_button.pack(side=RIGHT, padx='1m')
 
 	self._root.protocol('WM_DELETE_WINDOW', self.close_command)
 	self._root.bind("<Alt-w>", self.close_event)
