@@ -97,11 +97,10 @@ def main():
     prefs.AddGroupCallback('browser', load_images_vis_prefs)
 
     browser = Browser(app.root, app, geometry=geometry)
-    if sys.platform != 'mac':
-	if url:
-	    browser.context.load(url)
-	else:
-	    browser.home_command()
+    if url:
+	browser.context.load(url)
+    elif prefs.GetBoolean('browser', 'load-initial-page'):
+	browser.home_command()
     SafeTkinter._castrate(app.root.tk)
     tktools.install_keybindings(app.root)
     # Make everybody who's still using urllib.urlopen go through the cache
