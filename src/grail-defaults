@@ -20,6 +20,7 @@ browser--show-logo:		1
 browser--load-initial-page:	1
 C: Empty initial geometry implies manual placement with most window managers:
 browser--initial-geometry:	
+browser--show-splash:		1
 C:
 C: Presentation defaults
 C:

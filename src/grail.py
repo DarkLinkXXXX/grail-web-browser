@@ -126,30 +126,36 @@ class SplashScreen:
     This uses the initial Tk widget.
     It goes away after 10 seconds.
 
+    If the preference "browser--show-splash" is false, the splash
+    screen is not drawn.
+
     """
 
-    def __init__(self, root):
-	self.root = root
-	self.frame = Frame(self.root)
-	self.frame.pack()
-	fullname = os.path.join(grail_root, BIGLOGO)
-	self.image = PhotoImage(file=fullname)
-	self.label = Label(self.frame, image=self.image)
-	self.label.pack()
-	self.message = Label(self.frame, text=NOTICE)
-	self.message.pack()
-	screenwidth = self.root.winfo_screenwidth()
-	screenheight = self.root.winfo_screenheight()
-	reqwidth = self.image.width()
-	reqheight = self.image.height()
-	xpos = (screenwidth - reqwidth) / 2
-	ypos = (screenheight - reqheight) / 2
-	self.root.geometry("+%d+%d" % (xpos, ypos))
+    def __init__(self, app):
+	self.root = app.root
 	name = "Grail"
 	self.root.title(name)
 	self.root.iconname(name)
-	self.root.update_idletasks()
-	self.root.after(10000, self.close)
+	if app.prefs.GetBoolean('browser', 'show-splash'):
+	    self.frame = Frame(self.root)
+	    self.frame.pack()
+	    fullname = os.path.join(grail_root, BIGLOGO)
+	    self.image = PhotoImage(file=fullname)
+	    self.label = Label(self.frame, image=self.image)
+	    self.label.pack()
+	    self.message = Label(self.frame, text=NOTICE)
+	    self.message.pack()
+	    screenwidth = self.root.winfo_screenwidth()
+	    screenheight = self.root.winfo_screenheight()
+	    reqwidth = self.image.width()
+	    reqheight = self.image.height()
+	    xpos = (screenwidth - reqwidth) / 2
+	    ypos = (screenheight - reqheight) / 2
+	    self.root.geometry("+%d+%d" % (xpos, ypos))
+	    self.root.after(10000, self.close)
+	    self.root.update_idletasks()
+	else:
+	    self.root.withdraw()
 
     def close(self):
 	self.frame.destroy()
@@ -196,7 +202,7 @@ class Application:
     def __init__(self, prefs=None):
 	self.root = Tk(className='Grail')
 	self.prefs = prefs or GrailPrefs.AllPreferences()
-	self.splash = SplashScreen(self.root)
+	self.splash = SplashScreen(self)
 	self.load_images = 1		# Overridden by cmd line or pref.
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
