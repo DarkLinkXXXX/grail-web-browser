@@ -21,20 +21,29 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1):
     """
 
     frame = Frame(parent)
-    frame.pack(fill='both', expand=1)
+    frame.pack(fill=BOTH, expand=1)
 
     if vbar:
-	vbar = Scrollbar(frame)
-	vbar.pack(fill='y', side='right')
+	if not hbar:
+	    vbar = Scrollbar(frame)
+	    vbar.pack(fill=Y, side=RIGHT)
+	else:
+	    vbarframe = Frame(frame, borderwidth=0)
+	    vbarframe.pack(fill=Y, side=RIGHT)
+	    vbar = Scrollbar(vbarframe)
+	    vbar.pack(expand=1, fill=Y, side=TOP)
+	    sbwidth = vbar.winfo_reqwidth()
+	    corner = Frame(vbarframe, width=sbwidth, height=sbwidth)
+	    corner.pack(side=BOTTOM)
 
     if hbar:
 	hbar = Scrollbar(frame, orient=HORIZONTAL)
-	hbar.pack(fill='x', side='bottom')
+	hbar.pack(fill=X, side=BOTTOM)
 
-    text = Text(frame, wrap='word')
+    text = Text(frame, wrap=WORD)
     if width: text.config(width=width)
     if height: text.config(height=height)
-    text.pack(expand=1, fill='both', side='left')
+    text.pack(expand=1, fill=BOTH, side=LEFT)
 
     if vbar:
 	text['yscrollcommand'] = (vbar, 'set')
@@ -57,20 +66,20 @@ def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
     """
 
     frame = Frame(parent)
-    frame.pack(fill='both', expand=1)
+    frame.pack(fill=BOTH, expand=1)
 
     if vbar:
 	vbar = Scrollbar(frame)
-	vbar.pack(fill='y', side='right')
+	vbar.pack(fill=Y, side=RIGHT)
 
     if hbar:
 	hbar = Scrollbar(frame, orient=HORIZONTAL)
-	hbar.pack(fill='x', side='bottom')
+	hbar.pack(fill=X, side=BOTTOM)
 
     listbox = Listbox(frame)
     if width: listbox.config(width=width)
     if height: listbox.config(height=height)
-    listbox.pack(expand=expand, fill=fill, side='left')
+    listbox.pack(expand=expand, fill=fill, side=LEFT)
 
     if vbar:
 	listbox['yscrollcommand'] = (vbar, 'set')
@@ -97,13 +106,13 @@ def make_form_entry(parent, label):
     """
 
     frame = Frame(parent)
-    frame.pack(fill='x')
+    frame.pack(fill=X)
 
     label = Label(frame, text=label)
-    label.pack(side='left')
+    label.pack(side=LEFT)
 
-    entry = Entry(frame, relief='sunken', border= 2)
-    entry.pack(side='left', fill='x', expand=1)
+    entry = Entry(frame, relief=SUNKEN, border= 2)
+    entry.pack(side=LEFT, fill=X, expand=1)
 
     return entry, frame
 
@@ -136,7 +145,7 @@ def test():
 	s = boolean(entry.get()) and '\nyes' or '\nno'
 	text.insert('end', s)
     entry.bind('<Return>', enter)
-    entry.insert('end', flatten(sys.argv))
+    entry.insert(END, flatten(sys.argv))
     root.mainloop()
 
 
