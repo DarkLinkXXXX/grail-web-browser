@@ -570,8 +570,8 @@ class Browser:
 	    self.root.bell()
 	    return
 	# TBD: debugging
-	elif page <> self._page:
-	    raise 'Internal Insanity', '%s <> %s' % (page, self._page)
+#	elif page <> self._page:
+#	    raise 'Internal Insanity', '%s <> %s' % (page, self._page)
 	self.load(page.url(), new=0, reload=1)
 
     def forward_command(self, event=None):
