@@ -157,13 +157,6 @@ class SharedItem:
 		    self.datamap[offset] = len(self.data) - 1
 		self.datalen = self.datalen + l
 
-	if self.datamap.has_key(offset):
-	    showoffset = self.datamap[offset]
-	else:
-	    showoffset = -1
-	print "getdata(%05d,%05d) -> datalen = %05d, id = %03d" \
-	      % (offset, maxbytes, self.datalen, showoffset)
-
 	try:
 	    # the common case
 	    chunk = self.data[self.datamap[offset]]
@@ -308,7 +301,6 @@ class SharedAPI:
     def getdata(self, maxbytes):
 	assert(self.stage == DATA)
 	data = self.item.getdata(self.offset, maxbytes)
-	print "api(%05d) @ %05d. got %05d bytes" % (maxbytes, self.offset, len(data))
 	self.offset = self.offset + len(data)
 	if not data:
 	    self.close()
