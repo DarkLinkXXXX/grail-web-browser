@@ -398,7 +398,8 @@ class BrowserDummy(Dummy):
 
 class ContextDummy(Dummy):
 
-    ok_names = ['get_baseurl', 'load', 'follow', 'message', 'get_async_image']
+    ok_names = ['get_baseurl', 'load', 'follow', 'message',
+		'get_async_image', 'set_local_api']
 
 ##    def get_async_image(self, src):
 ##	return Bastion(self.real.get_async_image(src))
