@@ -32,7 +32,7 @@ class AppletLoader:
 
     def __init__(self, parser, name=None, classid=None,
 		 code=None, codebase=None,
-		 width=None, height=None, vspace=None, hspace=None,
+		 width=None, height=None, vspace=0, hspace=0,
 		 align=None,
 		 menu=None, reload=0):
 	"""Store the essential data (from the app or applet tag)"""
@@ -186,7 +186,8 @@ class AppletLoader:
 	    frame = AppletFrame(text, self, background=bg)
 	    if self.width: frame.config(width=self.width)
 	    if self.height: frame.config(height=self.height)
-	    self.parser.add_subwindow(frame)
+	    self.parser.add_subwindow(frame,
+				      hspace=self.hspace, vspace=self.vspace)
 	    parent = frame
 	return parent			#  FLD:  made to work in either case
 
