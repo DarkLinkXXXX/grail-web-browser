@@ -85,7 +85,7 @@ class PILGifParser(pil_interface):
 		try:
 		    sys.stdout = sys.stderr
 		    print "Error decoding image:"
-		    print sys.exc_type + ":", sys.exc_value
+		    print str(sys.exc_type) + ":", sys.exc_value
 		finally:
 		    sys.stdout = stdout
 	if self.broken:
