@@ -308,6 +308,11 @@ class Viewer(formatter.AbstractWriter):
 	self.text['state'] = DISABLED
 	self.text.update_idletasks()
 
+    def flush(self):
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
+
     def new_tags(self):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
