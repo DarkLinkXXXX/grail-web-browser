@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.36 $"
+__version__ = "$Revision: 2.37 $"
 
 import sys, os
 import imp
@@ -13,8 +13,8 @@ if __name__ == "__main__":
     grail_root = '..'
     sys.path = [grail_root, '../utils', '../pythonlib'] + sys.path
 
-import GrailPrefs
-from GrailPrefs import typify
+import grailbase.GrailPrefs
+typify = grailbase.GrailPrefs.typify
 
 import urlparse
 from Tkinter import *
@@ -632,7 +632,7 @@ def standalone():
         def __init__(self, root):
             self.app = self
             self.app.browsers = []
-            self.prefs = GrailPrefs.AllPreferences()
+            self.prefs = grailbase.GrailPrefs.AllPreferences()
             self.root = root
             root.report_callback_exception = self.report_callback_exception
         def report_callback_exception(self, e, v, tb):
