@@ -97,6 +97,10 @@ class SearchDialog:
 				   command=self.close_command)
 	self.close_button.pack(side=RIGHT)
 
+	self._root.protocol('WM_DELETE_WINDOW', self.close_command)
+	self._root.bind("<Alt-w>", self.close_event)
+	self._root.bind("<Alt-W>", self.close_event)
+
     def return_event(self, event):
 	self.search_close_command()
 
@@ -106,6 +110,9 @@ class SearchDialog:
     def search_close_command(self):
 	if not self.search():
 	    return
+	self.close_command()
+
+    def close_event(self, event):
 	self.close_command()
 
     def close_command(self):
