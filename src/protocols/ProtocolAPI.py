@@ -33,6 +33,19 @@ import grailutil
 # list of valid scheme environment variables for proxies
 VALID_PROXIES = ('http_proxy', 'ftp_proxy')
 
+def protocol_joiner(scheme):
+    scheme = string.lower(scheme)
+    sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
+    modname = sanitized + "API"
+    from __main__ import app
+    m = app.find_extension('protocols', modname)
+    if m:
+	try:
+	    return getattr(m, scheme + '_join')
+	except AttributeError:
+	    pass
+    return None
+
 def protocol_access(url, mode, params, data=None):
     from __main__ import app
     scheme, resturl = splittype(url)

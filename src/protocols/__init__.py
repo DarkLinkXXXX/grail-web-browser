@@ -13,9 +13,13 @@ protocol_access(url, mode, params, data=None)
 	returns the protocol scheme object for the scheme specified in
 	the URL.
 
+protocol_joiner(scheme)
+	return a function to implement relative URL joining according
+	to the scheme; or None if no such function exist.
+
 """
 
 import ProtocolAPI
 
-for name in ['protocol_access', '__doc__']:
+for name in ['protocol_access', 'protocol_joiner', '__doc__']:
     setattr(__, name, getattr(ProtocolAPI, name))
