@@ -101,6 +101,7 @@ class Stylesheet:
 	    if len(fields) == 1:
 		# terminal:
 		d[f] = fields[0]
+		break
 	    elif d.has_key(f):
 		d = d[f]
 	    else:
