@@ -462,6 +462,7 @@ class Viewer(formatter.AbstractWriter):
     # AbstractWriter methods
 
     def new_alignment(self, align):
+## 	print "New alignment:", align
 	if align == 'left': align = None
 	self.align = align
 	self.new_tags()
@@ -487,6 +488,16 @@ class Viewer(formatter.AbstractWriter):
 		return tag
 	    self.configure_fonttag(tag)
 	return tag or None
+
+    def get_font(self, spec=None):
+	tag = self.fonttag
+	if spec:
+	    tag = self.make_fonttag(spec)
+	if tag:
+	    font = self.text.tag_cget(tag, '-font')
+	else:
+	    font = self.text["font"]
+	return font
 
     def new_margin(self, margin, level):
 ##	print "New margin:", margin, level
@@ -578,15 +589,23 @@ class Viewer(formatter.AbstractWriter):
 
     # Viewer's own methods
 
+    SHOW_TITLES = 0
     def anchor_enter(self, event):
 	url, target = self.split_target(self.find_tag_url())
-	url = url or "???"
-	if not target:
-	    target = self.context.get_target()
-	if target:
-	    message = "%s in %s" % (url, target)
-	else:
-	    message = url
+	message = ''
+	if self.SHOW_TITLES and url:
+	    absurl = self.context.get_baseurl(url)
+	    title, when = self.context.app.global_history.lookup_url(absurl)
+	    if title:
+		message = string.join(string.split(title))
+	if not message:
+	    url = url or "???"
+	    if not target:
+		target = self.context.get_target()
+	    if target:
+		message = "%s in %s" % (url, target)
+	    else:
+		message = url
 	self.enter_message(message)
 
     def enter_message(self, message):
@@ -808,7 +827,7 @@ class ViewerMenu:
     __have_image = 0
     __link_url = None
     __image_url = None
-    __image_file = None
+    __image_file = ""
     __image_prev = None
 
     def __init__(self, master, viewer):
@@ -858,10 +877,13 @@ class ViewerMenu:
 	self.__link_url = url or None
 
     def set_image_url(self, url):
-	self.__image_url = url or None
+	self.__image_url = url or ""
 	url = self.__context.get_baseurl(url)
-	from posixpath import basename
-	self.__image_file = basename(urlparse(url)[2])
+	if len(url) < 5 or string.lower(url[:5]) != "data:":
+	    from posixpath import basename
+	    self.__image_file = basename(urlparse(url)[2])
+	else:
+	    self.__image_file = ""
 
     def __add_image_items(self):
 	self.__have_image = 1
