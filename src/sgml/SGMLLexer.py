@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.17 $"
+__version__ = "$Revision: 1.18 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -237,10 +237,7 @@ class SGMLLexer(SGMLLexerBase):
 	    self.lex_namedcharref(name[2:], terminator)
 
 	def _lex_got_endtag(self, tagname):
-	    if self.nomoretags:
-		self.lex_data('</%s>' % tagname)
-	    else:
-		self.lex_endtag(tagname[2:])
+	    self.lex_endtag(tagname[2:])
 
 	def _lex_got_starttag(self, name, attributes):
 	    if attributes:
