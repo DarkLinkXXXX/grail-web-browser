@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.9 1995/09/14 19:43:54 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.10 1995/09/14 19:50:27 bwarsaw Exp $"
 
 import sys
 import string
@@ -513,7 +513,8 @@ class PSQueue:
 	    elif tag == VERT_TAB:
 		if ypos - info < -PAGE_HEIGHT:
 		    self._end_page()
-		    self._start_page()
+		    self._start_page(self.curpage)
+		    self.curpage = self.curpage + 1
 		    ypos = 0.0
 		else:
 		    ypos = ypos - info
