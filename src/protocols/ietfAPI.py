@@ -1,7 +1,7 @@
 """Handler for ietf: URNs.  These are defined in the Internet draft
 draft-ietf-urn-ietf-07.txt (work in progress).
 """
-__version__ = '$Revision: 2.2 $'
+__version__ = '$Revision: 2.3 $'
 
 import grailutil
 import nullAPI
@@ -15,7 +15,6 @@ PREF_GROUP = "ietf-resolver"
 
 def ietf_access(resturl, method, params):
     urn = convert_to_url(resturl)
-    print "%s ==> %s" % (resturl, urn)
     return ProtocolAPI.protocol_access(urn, "GET", {})
 
 
