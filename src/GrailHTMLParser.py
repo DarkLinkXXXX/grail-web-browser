@@ -39,7 +39,7 @@ class GrailHTMLParser(HTMLParser):
 
     object_aware_tags = ['param', 'alias', 'applet', 'script', 'object']
 
-    def __init__(self, viewer, reload=0, autonumber=None):
+    def __init__(self, viewer, reload=0):
 	#urlparse.clear_cache()
 	self.viewer = viewer
 	self.reload = reload
@@ -53,13 +53,9 @@ class GrailHTMLParser(HTMLParser):
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
-	if autonumber is None:
-	    if self.app.prefs.GetBoolean('parsing-html', 'autonumber-headers'):
-		self.autonumber = 1
 	if not _inited:
 	    init_module(self.app.prefs)
-	HTMLParser.__init__(self, self.formatter_stack[-1],
-			    autonumber=autonumber)
+	HTMLParser.__init__(self, self.formatter_stack[-1])
 	# Hackery so reload status can be reset when all applets are loaded
 	self.reload1 = self.reload and AppletLoader.set_reload(self.context)
 	if self.reload1:
@@ -610,6 +606,7 @@ class GrailHTMLParser(HTMLParser):
 	    if type(img) is TupleType:
 		s, tag = img
 		if tag:
+		    tag = (self.formatter.writer.fonttag or '') + tag
 		    self.formatter.push_style(tag)
 		    self.handle_data(s)
 		    self.formatter.pop_style()
