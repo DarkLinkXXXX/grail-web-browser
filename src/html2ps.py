@@ -14,7 +14,8 @@ AbstractWriter, called PSWriter, that supports this high level
 interface as appropriate for PostScript generation.
 
 Note that this module can be run as a standalone script for command
-line conversion of HTML files to PostScript.
+line conversion of HTML files to PostScript.  Use the '-h' option to
+see information about all too many command-line options.
 
 """
 
@@ -48,7 +49,7 @@ import StringIO
 import regsub
 import urlparse
 from types import StringType, TupleType
-from HTMLParser import HTMLParser
+from HTMLParser import HTMLParser, NullObject
 from formatter import AbstractFormatter, AbstractWriter, AS_IS
 import fonts
 
@@ -113,6 +114,8 @@ font_sizes = {
     'h6': 1.0
     }
 
+SIZE_STEP = 0.2
+
 
 # Page layout and other contants.  Some of this stuff is carried over
 # from HTML-PSformat.c and perhaps no longer relevent
@@ -137,19 +140,34 @@ PARAGRAPH_SEPARATION = 1.0		# * base-font-size
 # distance after a label tag in points
 LABEL_TAB = 6.0
 
+# Use this as a final scaling factor for images to compensate for the
+# difference between screen pixels and printer's points.  Set to None
+# to just ignore.  Each screen direction is considered separately.  In
+# Grail, these are updated from the printing dialog constructor.  The
+# default values are based on a Sun 20" 1152 x 900 pixel display.
+#
+PIXEL_SIZE_ADJUST_VERT = 0.8128
+PIXEL_SIZE_ADJUST_HORIZ = 0.8125
+
 
 class PaperInfo:
-    def __init__(self, arg):
-	if type(arg) is type(''):
-	    arg = paper_sizes[arg]
-	paperwidth, paperheight, name = arg
+    TabStop = inch_to_pt(0.5)
+
+    def __init__(self, size, rotation=None, margins=None):
+	if type(size) is type(''):
+	    size = paper_sizes[size]
+	paperwidth, paperheight, name = size
 	self.PaperHeight = paperheight	# cannonical
 	self.PaperWidth = paperwidth	# cannonical
 	self.PaperName = name
 	self.Rotation = 0.0
-	self.TabStop = inch_to_pt(0.5)
-	inch = inch_to_pt(1.0)
-	self.set_margins((inch, inch, inch, inch)) # cannonical
+	if rotation:
+	    self.rotate(rotation)
+	if margins:
+	    self.set_margins(margins)
+	else:
+	    inch = inch_to_pt(1.0)
+	    self.set_margins((inch, inch, inch, inch))
 
     def rotate(self, angle):
 	if type(angle) is type(''):
@@ -196,6 +214,7 @@ class PaperInfo:
 	print "RightMargin  =", self.RightMargin
 	print "HeaderPos    =", self.HeaderPos
 	print "FooterPos    =", self.FooterPos
+	print "TabStop      =", self.TabStop
 
 
 paper_sizes = {
@@ -388,7 +407,8 @@ class PSFont:
 	    if type(tuple_sz) is type(1.0):
 		return tuple_sz
 	    return font_sizes[tuple_sz] * self.base_size
-	except KeyError: return self.base_size
+	except KeyError:
+	    return self.base_size
 
 
 class EPSImage:
@@ -402,50 +422,39 @@ class EPSImage:
 	self.__width = distance(ll_x, ur_x)
 	self.__height = distance(ll_y, ur_y)
 
-    def set_maxsize(self, xmax, ymax):
-	"""Scale the image to fit within xmax by ymax points.
+    def reset(self):
+	self.__xscale = self.__yscale = 1.0
 
-	The resulting scale factor may be equal to or less than the
-	current scale, but will be no larger.
-	"""
-	scale = min(self.__xscale, self.__yscale)
-	self.set_size(xmax, ymax)
-	scale = min(scale, self.__xscale, self.__yscale)
-	self.__xscale = self.__yscale = scale
-
-    def set_size(self, xmax, ymax):
-	"""Scale image to be as large as possible within xmax by ymax points.
-
-	The resulting scale factor may be greater than 1.0.
-	"""
-	scale = (1.0 * xmax) / self.__width
-	if (scale * self.__height) > ymax:
-	    scale = (1.0 * ymax) / self.__height
-	self.__xscale = self.__yscale = scale
-
-    def set_scale(self, xscale=1.0, yscale=None):
-	"""Set the scaling factor."""
-	if yscale is None:
-	    yscale = xscale
-	self.__xscale = 1.0 * xscale
-	self.__yscale = 1.0 * yscale
-
-    def height(self):
-	return self.__height * self.__yscale
-
-    def width(self):
-	return self.__width * self.__xscale
+    def restrict(self, width=None, height=None):
+	w, h = self.get_size()		# current size
+	rf = 1.0			# reduction factor
+	if width and width < w:
+	    rf = width / w
+	if height and height < h:
+	    rf = min(rf, height / h)
+	self.__yscale = self.__yscale * rf
+	self.__xscale = self.__xscale * rf
 
     def get_scale(self):
 	return self.__xscale, self.__yscale
 
-    def xscale(self):
-	"""Returns the current horizontal scale factor."""
-	return self.__xscale
+    def get_size(self):
+	return (self.__width * self.__xscale), \
+	       (self.__height * self.__yscale)
 
-    def yscale(self):
-	"""Returns the current vertical scale factor."""
-	return self.__yscale
+    def set_size(self, width, height):
+	self.__xscale = float(width) / self.__width
+	self.__yscale = float(height) / self.__height
+
+    def set_width(self, width):
+	aspect = self.__yscale / self.__xscale
+	self.__xscale = float(width) / self.__width
+	self.__yscale = self.__xscale * aspect
+
+    def set_height(self, height):
+	aspect = self.__xscale / self.__yscale
+	self.__yscale = float(height) / self.__height
+	self.__xscale = self.__yscale * aspect
 
 
 def cook(string):
@@ -453,7 +462,6 @@ def cook(string):
 
 
 class PSStream:
-    _pageno = 1
     _margin = 0.0
     _rmargin = 0.0
     _leading = 0.0			# "external" leading == between lines
@@ -462,7 +470,7 @@ class PSStream:
     _render = 'S'			# S == normal string, U == underline
     _prev_render = _render
 
-    # current line state
+    # current line state; we really need some good comments about these....
     _space_width = 0.0
     _baseline = None
     _descender = 0.0
@@ -474,7 +482,6 @@ class PSStream:
     def __init__(self, psfont, ofp, title='', url='', paper=None):
 	self._paper = paper or PaperInfo("letter")
 	self._font = psfont
-	self._base_font_size = psfont.font_size()
 	self._ofp = ofp
 	self.set_title(title)
 	# strip any fragment identifiers from the url, and pre-cook:
@@ -484,21 +491,29 @@ class PSStream:
 	self._linestr = []
 	self._yshift = [(0.0, 0.0)]	# vertical baseline shift w/in line
 	self._linefp = StringIO.StringIO()
+	self._base_font_size = self.get_fontsize()
 
-    _title_list = None
+    __pageno = 1
+    def get_pageno(self):
+	return self.__pageno
+
+    def set_pageno(self, pageno):
+	self.__pageno = pageno
+
+    __titles = None
     def set_title(self, title):
 	# replace all whitespace sequences with a single space
 	title = string.join(string.split(title))
-	if self._title_list is None:
-	    self._title_list = [title]
+	if self.__titles is None:
+	    self.__titles = [title]
 	else:
-	    self._title_list.append(title)
+	    self.__titles.append(title)
 
     def get_title(self):
-	return self._title_list[0]
+	return self.__titles[0]
 
     def prune_titles(self):
-	del self._title_list[:-1]
+	del self.__titles[:-1]
 
     def start(self):
 	# print document preamble
@@ -515,7 +530,7 @@ class PSStream:
 	    for dfv in docfonts.values(): print dfv,
 	    print
 	    # spew out the contents of the header PostScript file
-	    print standard_header_template
+	    print get_systemheader()
 	    # define the fonts
 	    print "/scalfac", self._font.points_per_pixel, "D"
 	    for docfont in docfonts.keys():
@@ -541,16 +556,17 @@ class PSStream:
 	    for name, local, utc in map(None, names, local, utc):
 		print "/Gr%s %s D /GrUTC%s %s D" % (name, local, name, utc)
 	    # add per-user customization:
-	    user_template, filename = get_userheader()
+	    user_template = get_userheader()
 	    if user_template:
-		print "%%\n%% This is custom header material loaded from"
-		print "%%", filename
 		print user_template
 	    print "%%EndProlog"
 	finally:
 	    sys.stdout = oldstdout
 	self.print_page_preamble()
-	self.push_font_change(None)	# ???
+	self.push_font_change(None)	# ??? why ???
+
+    def get_fontsize(self):
+	return self._font.font_size()
 
     def get_pageheight(self):
 	return self._paper.ImageHeight
@@ -566,55 +582,62 @@ class PSStream:
 	self._leading = max(0.0, value - self._base_font_size)
 
     def push_eps(self, img, align=None):
-	"""Insert encapsulated postscript in stream.
-	"""
+	"""Insert encapsulated postscript in stream."""
 	if self._linestr:
 	    self.close_string()
 	if align not in ('absmiddle', 'baseline', 'middle', 'texttop', 'top'):
 	    align = 'bottom'
 
-	# Determine base scaling factor and dimensions:
+	# constrain image size to fit on page:
 	pagewidth = self.get_pagewidth()
-	img.set_maxsize(pagewidth, self.get_pageheight())
+	img.restrict(width=pagewidth, height=self.get_pageheight())
+	width, height = img.get_size()
+	if PIXEL_SIZE_ADJUST_VERT:
+	    img.restrict(height=height * PIXEL_SIZE_ADJUST_VERT)
+	if PIXEL_SIZE_ADJUST_HORIZ:
+	    img.restrict(width=width * PIXEL_SIZE_ADJUST_HORIZ)
 
-	extra = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
+	extra = PROTECT_DESCENDERS_MULTIPLIER * self.get_fontsize()
 	above_portion, below_portion, vshift = 0.5, 0.5, 0.0
 	if align == 'absmiddle':
-	    vshift = self._font.font_size() / 2.0
+	    vshift = self.get_fontsize() / 2.0
 	elif align in ('bottom', 'baseline'):
 	    above_portion, below_portion = 1.0, 0.0
 	elif align != 'middle':
-	    # ALIGN == 'top' || ALIGN == 'texttop'
+	    # ALIGN in 'top', 'texttop'
 	    above_portion, below_portion, extra = 0.0, 1.0, 0.0
-	    vshift = self._font.font_size()
+	    vshift = self.get_fontsize()
 
-	height = img.height()
-	width = img.width()
+	width, height = img.get_size()
 	above = above_portion * height
 	below = (below_portion * height) - vshift
 
 	# Check space available:
-	if width > pagewidth - self._xpos:
+	if width > (pagewidth - self._xpos):
 	    self.close_line()
 	# Update page availability info:
+	imgshift = above + self._yshift[-1][0] + vshift + extra
 	if self._baseline is None:
-	    self._baseline = above + self._yshift[-1][0] + vshift + extra
+	    self._baseline = imgshift
 	else:
-	    self._baseline = max(self._baseline,
-				 above + self._yshift[-1][0] + vshift + extra)
+	    self._baseline = max(self._baseline, imgshift)
 	self._descender = max(self._descender, below - self._yshift[-1][0])
 	self._xpos = self._xpos + width
 	ll_x, ll_y, ur_x, ur_y = img.bbox
 	#
+	xscale, yscale = img.get_scale()
 	oldstdout = sys.stdout
 	try:
 	    sys.stdout = self._linefp
-	    #  Translate & scale for image origin:
+	    # Translate & scale for image origin (maybe should add
+	    # some cropping?  just assuming image is reasonable):
 	    print 'gsave\n currentpoint %s sub translate %s %s scale' \
-		  % (below, img.xscale(), img.yscale())
+		  % (below, xscale, yscale)
 	    if ll_x or ll_y:
 		#  Have to translate again to make image happy:
 		print ' %d %d translate' % (-ll_x, -ll_y)
+	    if img.data[-1] == '\n':
+		img.data = img.data[:-1]
 	    print img.data
 	    #  Restore context, move to right of image:
 	    print 'grestore', width, '0 R'
@@ -630,7 +653,7 @@ class PSStream:
 	if not self._font.fontobjs.has_key(font):
 	    self._font.fontobjs[font] = fonts.font_from_name(font)
 	fontobj = self._font.fontobjs[font]
-	size = self._font.font_size()
+	size = self.get_fontsize()
 	width = fontobj.text_width(size, s)
 	if self._xpos + width > self.get_pagewidth():
 	    self.close_line()
@@ -664,7 +687,7 @@ class PSStream:
 	self._linefp.write('0 %s R\n' % yshift)
 	absshift = self._yshift[-1][0] + yshift
 	self._yshift.append((absshift, yshift))
-	newheight = absshift + self._font.font_size()
+	newheight = absshift + self.get_fontsize()
 	if self._baseline is None:
 	    self._baseline = max(0.0, newheight)
 	else:
@@ -688,7 +711,7 @@ class PSStream:
 	try:
 	    sys.stdout = self._ofp
 	    print "%%Trailer"
-	    print "%%Pages:", self._pageno
+	    print "%%Pages:", self.get_pageno()
 	    print "%%EOF"
 	finally:
 	    sys.stdout = oldstdout
@@ -697,12 +720,12 @@ class PSStream:
 	if self._linestr:
 	    self.close_string()
 	if self._baseline is None and self._xpos != 0.0:
-	    self._baseline = self._font.font_size() \
+	    self._baseline = self.get_fontsize() \
 			     + max(0.0, self._yshift[-1][0])
 	psfontname, size = self._font.set_font(font)
 	self._linefp.write('%s %s SF\n' % (psfontname, size))
 	self._space_width = self._font.text_width(' ')
-	newfontsize = self._font.font_size() + max(0.0, self._yshift[-1][0])
+	newfontsize = self.get_fontsize() + max(0.0, self._yshift[-1][0])
 	if self._baseline is None:
 	    self._baseline = newfontsize
 	else:
@@ -725,7 +748,7 @@ class PSStream:
 	if align is not None:
 	    self.push_alignment(align)
 	self._baseline = HR_TOP_MARGIN + height
-	descent = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
+	descent = PROTECT_DESCENDERS_MULTIPLIER * self.get_fontsize()
 	self._vtab = max(self._vtab, descent)
 	self._descender = HR_BOT_MARGIN
 	pagewidth = self.get_pagewidth()
@@ -778,24 +801,22 @@ class PSStream:
 	    string, font = bullet
 	    cooked = cook(string)
 	    self._linefp.write('gsave\n CR %s %d SF\n'
-			       % (font, self._font.font_size()))
+			       % (font, self.get_fontsize()))
 	    self._linefp.write(' (%s) dup\n' % cooked)
 	    self._linefp.write(' stringwidth pop -%s E sub 0 R S\ngrestore\n'
 			       % LABEL_TAB)
 	else:
 	    #  This had better be an EPSImage object!
 	    max_width = self._paper.TabStop - LABEL_TAB
-	    bullet.set_scale()
-	    bullet.set_maxsize(max_width, self._font.font_size())
-	    width = bullet.width()
-	    height = bullet.height()
+	    bullet.restrict(height=0.9 * self.get_fontsize())
+	    width, height = bullet.get_size()
 	    distance = width + LABEL_TAB
+	    xscale, yscale = bullet.get_scale()
 	    #  Locate new origin:
-	    vshift = (self._font.font_size() - height) / 2.0
+	    vshift = (self.get_fontsize() - height) / 2.0
 	    self._linefp.write("gsave\n CR -%s %s R currentpoint translate "
 			       "%s %s scale\n"
-			       % (distance, vshift,
-				  bullet.xscale(), bullet.yscale()))
+			       % (distance, vshift, xscale, yscale))
 	    ll_x, ll_y, ur_x, ur_y = bullet.bbox
 	    if ll_x or ll_y:
 		#  Have to translate again to make image happy:
@@ -926,10 +947,11 @@ class PSStream:
 	try:
 	    sys.stdout = self._ofp
 	    # write the structure page convention
-	    print '%%Page:', self._pageno, self._pageno
+	    pageno = self.get_pageno()
+	    print '%%Page:', pageno, pageno
 	    print '%%BeginPageProlog'
 	    psfontname, size = self._font.get_font()
-	    print "save", self._margin, psfontname, size, self._pageno, "NP"
+	    print "save", self._margin, psfontname, size, pageno, "NP"
 	    print '%%EndPageProlog'
 	    if RECT_DEBUG:
 		print 'gsave', 0, 0, "M"
@@ -943,28 +965,19 @@ class PSStream:
     def print_page_postamble(self):
 	title = ''
 	url = self._url_cooked
-	if self._pageno != 1:
+	if self.get_pageno() != 1:
 	    title = cook(self.get_title())
 	self.prune_titles()
 	stdout = sys.stdout
-	self._ofp.write("(%s)\n(%s)\n%d EP\n" % (url, title, self._pageno))
-
-    def print_page_break(self):
-	# will the line we're about to write fit on the current page?
-	linesz = self._baseline + self._descender + self._vtab
-## 	_debug('ypos= %f, linesz= %f, diff= %f, PH= %f' %
-## 	       (self._ypos, linesz, (self._ypos - linesz),
-## 		-self._paper.ImageHeight))
-	self._ypos = self._ypos - linesz
-	if (self._ypos - linesz) <= -self._paper.ImageHeight:
-	    self.push_page_break()
+	self._ofp.write("(%s)\n(%s)\n%d EP\n"
+			% (url, title, self.get_pageno()))
 
     def push_page_break(self):
 	# self._baseline could be None
 	linesz = (self._baseline or 0.0) + self._descender + self._vtab
 	self._ypos = self._ypos - linesz
 	self.print_page_postamble()
-	self._pageno = self._pageno + 1
+	self.set_pageno(self.get_pageno() + 1)
 	self.print_page_preamble()
 	self._ypos = -linesz
 	self._vtab = self._leading
@@ -977,14 +990,21 @@ class PSStream:
 	baseline = self._baseline
 	yshift = self._yshift[-1][0]
 	if baseline is None:
-	    baseline = self._font.font_size() + max(yshift, 0.0)
+	    baseline = self.get_fontsize() + max(yshift, 0.0)
 	    self._baseline = baseline
 	if not self._linefp.getvalue():
 	    if self._ypos:
 		self._vtab = self._vtab + baseline
 	    return
 	# do we need to break the page?
-	self.print_page_break()
+	# will the line we're about to write fit on the current page?
+	linesz = self._baseline + self._descender + self._vtab
+## 	_debug('ypos= %f, linesz= %f, diff= %f, PH= %f' %
+## 	       (self._ypos, linesz, (self._ypos - linesz),
+## 		-self._paper.ImageHeight))
+	self._ypos = self._ypos - linesz
+	if self._ypos <= -self._paper.ImageHeight:
+	    self.push_page_break()
 	distance = baseline + self._vtab
 	if self._align == ALIGN_CENTER:
 	    offset = (self.get_pagewidth() - self._xpos) / 2
@@ -1235,8 +1255,8 @@ class PrintingHTMLParser(HTMLParser):
 
     def do_base(self, attrs):
 	HTMLParser.do_base(self, attrs)
-	if self.base and not self._baseurl:
-	    self.formatter.writer.ps._url = self.base
+## 	if self.base and not self._baseurl:
+## 	    self.formatter.writer.ps._url = self.base
 
     def _footnote_anchor(self, href, attrs):
 	if self._anchor_xforms:
@@ -1249,16 +1269,23 @@ class PrintingHTMLParser(HTMLParser):
 	    href = disallow_data_scheme(href, attrs)
 	return href
 
+    FOOTNOTE_DIV_ATTRIBUTES = {'align': 'left'}
+    FOOTNOTE_LIST_ATTRIBUTES = {'type': '1.', 'compact': 'compact'}
+    FOOTNOTE_INDICATOR_FORMAT = "[%d]"
+    FOOTNOTE_HEADER = "URLs referenced in this document:"
+
     def _formatAnchorList(self):
+	import copy
 	baseurl = self.base or self._baseurl or ''
 	self.close_paragraph()
 	self.formatter.end_paragraph(1)
 	self.do_hr({})
-	self.start_p({'align':'left'})
-	self.handle_data('URLs referenced in this document:')
+	self.start_div(copy.copy(self.FOOTNOTE_DIV_ATTRIBUTES))
+	self.start_p({})
+	self.handle_data(self.FOOTNOTE_HEADER)
 	self.end_p()
 	self.start_small({})
-	self.start_ol({'type':'[1]', 'compact':'compact'})
+	self.start_ol(copy.copy(self.FOOTNOTE_LIST_ATTRIBUTES))
 	for anchor, title in self._anchor_sequence:
 	    self.do_li({})
 	    if title:
@@ -1270,6 +1297,7 @@ class PrintingHTMLParser(HTMLParser):
 	    self.handle_data(anchor)
 	self.end_ol()
 	self.end_small()
+	self.end_div()
 
     _inanchor = 0
     def start_a(self, attrs):
@@ -1299,48 +1327,97 @@ class PrintingHTMLParser(HTMLParser):
 	    self.formatter.pop_style()
 	if self.anchor:
 	    anchor, self.anchor = self.anchor, None
-	    old_size = self.formatter.writer.ps._font.font_size()
-	    self.start_small({})
-	    self.start_small({})
-	    new_size = self.formatter.writer.ps._font.font_size()
-	    yshift = old_size - (1.1 * new_size)
+	    old_size = self.formatter.writer.ps.get_fontsize()
+	    self.start_small({}, steps=2)
+	    new_size = self.formatter.writer.ps.get_fontsize()
+	    yshift = old_size - ((1.0 + SIZE_STEP / 2) * new_size)
 	    self.formatter.push_font((AS_IS, 0, 0, 0))
 	    self.formatter.writer.ps.push_yshift(yshift)
-	    self.handle_data('[%d]' % self._anchors[anchor])
+	    self.handle_data(self.FOOTNOTE_INDICATOR_FORMAT
+			     % self._anchors[anchor])
 	    self.formatter.writer.ps.pop_yshift()
 	    self.formatter.pop_font()
 	    self.end_small()
-	    self.end_small()
+
+    __fontsize = None
+    def start_font(self, attrs):
+	# very simple: only supports SIZE="...."
+	if self.__fontsize is None:
+	    self.__fontsize = [3]
+	size = None
+	spec = grailutil.extract_keyword('size', attrs,
+					 conv=grailutil.conv_normstring)
+	nsize = self.__fontsize[-1]
+	op, diff = self.parse_fontsize(spec)
+	if not diff:
+	    self.formatter.push_font((AS_IS, AS_IS, AS_IS, AS_IS))
+	else:
+	    if op == "-":
+		nsize = self.__fontsize[-1] - diff
+		self.start_small({}, steps=diff)
+	    else:
+		nsize = self.__fontsize[-1] + diff
+		self.start_big({}, steps=diff)
+	self.__fontsize.append(nsize)
+
+    def parse_fontsize(self, spec):
+	if not spec:
+	    return "+", 0
+	op = ""
+	if spec[0] in "-+":
+	    op = spec[0]
+	    spec = spec[1:]
+	try:
+	    spec = string.atoi(spec)
+	except ValueError:
+	    return "+", 0
+	if op:
+	    return op, spec
+	if spec < self.__fontsize[-1]:
+	    diff = self.__fontsize[-1] - spec
+	    return "-", diff
+	diff = spec - self.__fontsize[-1]
+	return "+", diff
+
+    def end_font(self):
+	del self.__fontsize[-1]
+	self.formatter.pop_font()
 
     def end_title(self):
 	HTMLParser.end_title(self)
 	self.formatter.writer.ps.set_title(self.title)
 	self.formatter.writer.ps.prune_titles()
 
-    def start_small(self, attrs):
-	font_size = 0.8 * self.formatter.writer.ps._font.font_size()
+    def start_small(self, attrs, steps=1):
+	font_size = self.formatter.writer.ps.get_fontsize()
+	while steps > 0:
+	    steps = steps - 1
+	    font_size = (1.0 - SIZE_STEP) * font_size
 	self.formatter.push_font((font_size, None, None, None))
 
     def end_small(self):
 	self.formatter.pop_font()
 
-    def start_big(self, attrs):
-	font_size = 1.2 * self.formatter.writer.ps._font.font_size()
+    def start_big(self, attrs, steps=1):
+	font_size = self.formatter.writer.ps.get_fontsize()
+	while steps > 0:
+	    steps = steps - 1
+	    font_size = (1.0 + SIZE_STEP) * font_size
 	self.formatter.push_font((font_size, None, None, None))
 
     end_big = end_small
 
     def start_sup(self, attrs):
-	font_size = self.formatter.writer.ps._font.font_size()
+	font_size = self.formatter.writer.ps.get_fontsize()
 	self.start_small(attrs)
-	new_font_size = self.formatter.writer.ps._font.font_size()
-	yshift = font_size - (0.9 * new_font_size)
+	new_font_size = self.formatter.writer.ps.get_fontsize()
+	yshift = font_size - ((1.0 - SIZE_STEP / 2) * new_font_size)
 	self.formatter.writer.ps.push_yshift(yshift)
 
     def start_sub(self, attrs):
 	self.start_small(attrs)
-	new_font_size = self.formatter.writer.ps._font.font_size()
-	self.formatter.writer.ps.push_yshift(-0.1 * new_font_size)
+	new_font_size = self.formatter.writer.ps.get_fontsize()
+	self.formatter.writer.ps.push_yshift(-(SIZE_STEP / 2) * new_font_size)
 
     def end_sup(self):
 	self.formatter.writer.ps.pop_yshift()
@@ -1348,7 +1425,8 @@ class PrintingHTMLParser(HTMLParser):
 
     end_sub = end_sup
 
-    def handle_image(self, src, alt, ismap, align, *notused):
+    def handle_image(self, src, alt, ismap, align, width,
+		     height, border=2, *args, **kw):
 	if self._image_loader:
 	    imageurl = urlparse.urljoin(self._baseurl, src)
 	    if self._image_cache.has_key(imageurl):
@@ -1360,15 +1438,41 @@ class PrintingHTMLParser(HTMLParser):
 		    self._image_cache[imageurl] = image = None
 		else:
 		    self._image_cache[imageurl] = image
-	    if not image:
+	    if image:
+		self.print_image(image, width, height, align)
+	    else:
 		#  previous load resulted in failure:
 		self.handle_data(alt)
-	    else:
-		align = string.lower(align)
-		self.formatter.writer.send_eps_data(image, align)
-		self.formatter.assert_line_data()
 	else:
 	    self.handle_data(alt)
+
+    def print_image(self, image, width, height, align=None):
+	image.reset()			# restart scaling calculations
+	if width and height:
+	    image.set_size(width, height)
+	elif width:
+	    image.set_width(width)
+	elif height:
+	    image.set_height(height)
+	self.formatter.writer.send_eps_data(image, string.lower(align or ''))
+	self.formatter.assert_line_data()
+
+    def get_object_handlers(self):
+	return (eps_handler,)
+
+    def load_eps_object(self, imageurl):
+	# load EPS data from an application/postscript resource
+	try:
+	    image = self._image_loader(imageurl)
+	except:
+	    return None
+	if not image:
+	    return None
+	lines = string.splitfields(image, '\n')
+	try: lines.remove('showpage')
+	except: pass			# o.k. if not found
+	bbox = load_bounding_box(lines)
+	return EPSImage(string.joinfields(lines, '\n'), bbox)
 
     def header_bgn(self, tag, level, attrs):
 	HTMLParser.header_bgn(self, tag, level, attrs)
@@ -1379,6 +1483,32 @@ class PrintingHTMLParser(HTMLParser):
 	elif attrs.has_key('src'):
 	    self.do_img(attrs)
 	    self.formatter.add_flowing_data(' ')
+
+    __dedented_numbers = 0
+    def header_number(self, tag, level, attrs):
+	if self.autonumber is None:
+	    if attrs.has_key('seqnum') or attrs.has_key('skip'):
+		self.autonumber = 1
+	self.headernumber.incr(level, attrs)
+	if self.autonumber:
+	    if self.__dedented_numbers:
+		self.formatter.writer.send_label_data(
+		    self.headernumber.string(level))
+	    else:
+		self.formatter.add_flowing_data(
+		    self.headernumber.string(level))
+
+    def lex_pi(self, stuff):
+	fields = string.split(string.lower(stuff))
+	if fields == ['grail', 'dedent', 'header', 'numbers']:
+	    self.__dedented_numbers = 1
+	    self.formatter.push_margin('pi')
+	elif fields == ['grail', 'undent', 'header', 'numbers']:
+	    self.__dedented_numbers = 0
+	    self.formatter.pop_margin()
+	elif fields == ['grail', 'page', 'break']:
+	    self.formatter.add_line_break()
+	    self.formatter.writer.ps.push_page_break()
 
     # List attribute extensions:
 
@@ -1408,12 +1538,18 @@ class PrintingHTMLParser(HTMLParser):
 					  listtype = listtype)
 
     def unknown_entityref(self, entname, terminator):
+	if entname == "nbsp":
+	    if self.strict_p():
+		self.handle_data(' ')
+	    else:
+		self.nbsp_magic()
+	    return
 	dingbat = self.load_dingbat(entname)
 	if type(dingbat) is TupleType:
 	    apply(self.formatter.writer.ps.push_font_string, dingbat)
 	    self.formatter.assert_line_data()
 	elif dingbat:
-	    dingbat.set_size(self.formatter.writer.ps._font.font_size(),
+	    dingbat.restrict(0.9 * self.formatter.writer.ps.get_fontsize(),
 			     self.formatter.writer.ps.get_pagewidth())
 	    self.formatter.writer.send_eps_data(dingbat, 'absmiddle')
 	    self.formatter.assert_line_data()
@@ -1425,12 +1561,15 @@ class PrintingHTMLParser(HTMLParser):
 					#		  | (string, font)
 					#		  | None
 
-    fontdingbats = { 'disc': ('\x6c', 'ZapfDingbats'),
-		     'circle': ('\x6d', 'ZapfDingbats'),
-		     'square': ('\x6f', 'ZapfDingbats'),
-		     'sp': (' ', None),
-		     'thinsp': ('\240', None),
-		     'endash': ('-', None)
+    fontdingbats = {'disc': ('\x6c', 'ZapfDingbats'),
+		    'circle': ('\x6d', 'ZapfDingbats'),
+		    'square': ('\x6f', 'ZapfDingbats'),
+		    'sp': (' ', None),
+		    'thinsp': ('\240', None),
+		    'endash': ('-', None),
+		    'ndash': ('-', None),
+		    'emdash': ('--', None),
+		    'mdash': ('--', None),
 		    }
 
     def load_dingbat(self, entname):
@@ -1507,6 +1646,80 @@ class PrintingHTMLParser(HTMLParser):
 	return load_image_file(img_fn, self._greyscale)
 
 
+def eps_handler(parser, attrs):
+    """<OBJECT> handler for Encapsulated PostScript."""
+    data = grailutil.extract_keyword('data', attrs)
+    if not data:
+	return None
+    type = grailutil.extract_keyword('type', attrs,
+				     conv=grailutil.conv_normstring)
+    type, typeopts = parse_mimetype(type)
+    image = None
+    if type == "application/postscript" \
+       or (len(data) > 4 and data[-4:] == ".eps"):
+	if typeopts.has_key("level"):
+	    try:
+		level = string.atoi(typeopts["level"])
+	    except ValueError:
+		return
+	    if level > 1 and parser._greyscale:
+		return
+	# this is Encapsulated PostScript; use it.
+	if not parser._image_loader:
+	    return
+	imageurl = urlparse.urljoin(parser._baseurl, data)
+	if parser._image_cache.has_key(imageurl):
+	    image = parser._image_cache[imageurl]
+	else:
+	    try:
+		image = parser.load_eps_object(imageurl)
+	    except:
+		image = None
+	    if image:
+		parser._image_cache[imageurl] = image
+	if image:
+	    width = grailutil.extract_keyword(
+		'width', attrs, conv=grailutil.conv_integer)
+	    height = grailutil.extract_keyword(
+		'height', attrs, conv=grailutil.conv_integer)
+	    parser.print_image(image, width, height)
+    return NullObject()
+
+
+def parse_mimetype(type):
+    if not type:
+	return None, {}
+    if ';' in type:
+	i = string.index(type, ';')
+	opts = parse_mimetypeoptions(type[i + 1:])
+	type = type[:i]
+    else:
+	opts = {}
+    fields = string.splitfields(string.lower(type), '/')
+    type = string.joinfields(fields, '/')
+    return type, opts
+
+
+def parse_mimetypeoptions(options):
+    opts = {}
+    options = string.strip(options)
+    while options:
+	if '=' in options:
+	    pos = string.find(options, '=')
+	    name = string.lower(string.strip(options[:pos]))
+	    value = string.strip(options[pos + 1:])
+	    options = ''
+	    if ';' in value:
+		pos = string.find(value, ';')
+		options = string.strip(value[pos + 1:])
+		value = string.strip(value[:pos])
+	    if name:
+		opts[name] = value
+	else:
+	    options = ''
+    return opts
+
+
 def load_image_file(img_fn, greyscale):
     """Generate EPS and the bounding box for an image stored in a file.
 
@@ -1569,8 +1782,8 @@ def load_image_pil(img_fn, greyscale, eps_fn):
 	    im = im.convert("L")
 	im.save(eps_fn, "EPS")
     except:
-	stdout = sys.stdout
 	e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+	stdout = sys.stdout
 	try:
 	    sys.stdout = sys.stderr
 	    traceback.print_exc()
@@ -1648,12 +1861,17 @@ def image_loader(url):
     # with the rest of Grail, but works O.K. if there aren't many images
     # or if blocking can be tolerated.
     #
+    # Some sites don't handle this very well, including www.microsoft.com,
+    # which returns HTTP 406 errors when html2ps is used as a script
+    # (406 = "No acceptable objects were found").
+    #
     from urllib import urlopen
     try:
 	imgfp = urlopen(url)
     except IOError, msg:
 	return None
-    return imgfp.read()
+    data = imgfp.read()
+    return data
 
 
 # These functions and classes are "filters" which can be used as anchor
@@ -1688,7 +1906,7 @@ class disallow_self_reference:
 
 
 def main():
-    global DEBUG, logfile
+    global DEBUG, logfile, USERHEADER_FILENAME
     import getopt
     import os
     help = None
@@ -1697,6 +1915,8 @@ def main():
     paper = None
     title = ''
     url = ''
+    strict = 0
+    tabstop = None
     #
     #  load preferences
     #
@@ -1711,9 +1931,10 @@ def main():
     orientation = prefs['orientation']
     greyscale = string.atoi(prefs['greyscale'])
     images = string.atoi(prefs['images'])
+    USERHEADER_FILENAME = prefs['user-header']
     #
     try:
-	options, argv = getopt.getopt(sys.argv[1:], 'hdlaUu:t:s:p:o:')
+	options, argv = getopt.getopt(sys.argv[1:], 'hdcaUl:u:t:sp:o:f:T:')
     except getopt.error, err:
 	error = 1
 	help = 1
@@ -1729,8 +1950,10 @@ def main():
 	elif opt == '-t': title = arg
 	elif opt == '-u': url = arg
 	elif opt == '-U': underline_anchors = not underline_anchors
-	elif opt == '-c': greyscale = 0
+	elif opt == '-c': greyscale = not greyscale
 	elif opt == '-p': paper = PaperInfo(arg)
+	elif opt == '-s': strict = not strict
+	elif opt == '-T': tabstop = string.atof(arg)
     if help:
 	stdout = sys.stderr
 	progname = os.path.basename(sys.argv[0])
@@ -1739,14 +1962,21 @@ def main():
 	    print 'Usage:', progname, '[options] [file-or-url]'
 	    print '    -u: URL for footer'
 	    print '    -t: title for header'
-	    print '    -a: disable anchor footnotes'
-	    print '    -U: disable anchor underlining'
+	    print '    -a: disable anchor footnotes (default is %s)' \
+		  % onoff(footnote_anchors)
+	    print '    -U: disable anchor underlining (default is %s)' \
+		  % onoff(underline_anchors)
 	    print '    -o: orientation; portrait, landscape, or seascape'
-	    print '    -p: paper size; letter, legal, a4, etc.'
+	    print '    -p: paper size; letter, legal, a4, etc.',
+	    print '(default is letter)'
 	    print '    -f: font size, in points (default is %s/%s)' \
 		  % (fontsize, leading)
 	    print '    -d: turn on debugging'
 	    print '    -l: logfile for debugging, otherwise stderr'
+	    print '    -s: toggle "advanced" SGML recognition (default is %s)'\
+		  % onoff(strict)
+	    print '    -T: size of tab stop in points (default is %s)' \
+		  % PaperInfo.TabStop
 	    print '    -h: this help message'
 	    print '[file]: file to convert, otherwise from stdin'
 	finally:
@@ -1781,6 +2011,11 @@ def main():
 	outfp = sys.stdout
     if not paper:
 	paper = PaperInfo(prefs['paper-size'])
+    _debug("tabstop = %s" % tabstop)
+    if tabstop and tabstop > 0:
+	paper.TabStop = tabstop
+    if DEBUG:
+	paper.dump()
     if orientation:
 	try:
 	    paper.rotate(orientation)
@@ -1794,6 +2029,8 @@ def main():
     p = PrintingHTMLParser(w, baseurl=url, greyscale=greyscale,
 			   underline_anchors=underline_anchors,
 			   image_loader=(images and image_loader or None))
+    if strict:
+	p.restrict(0)
     if not footnote_anchors:
 	p.add_anchor_transform(disallow_anchor_footnotes)
     elif url:
@@ -1801,6 +2038,10 @@ def main():
     p.feed(infp.read())
     p.close()
     w.close()
+
+
+def onoff(bool):
+    return bool and "ON" or "OFF"
 
 
 def parse_fontsize(spec):
@@ -1844,6 +2085,38 @@ def load_prefs(filename, dict):
     return dict
     
 
+# Load the PostScript prologue:
+def get_systemheader():
+    fn = grailutil.which(
+	"header.ps", (script_dir, grailutil.getgraildir()))
+    if fn and os.path.exists(fn):
+	return open(fn).read()
+    return "%%\%%  System header %s not found!\n%%" % fn
+
+
+USERHEADER_FILENAME = "custom.ps"
+USERHEADER_INFO = """\
+%%
+%% This is custom header material was loaded from:
+%%	%s
+%%
+"""
+
+# Allow the user to provide supplemental prologue material:
+def get_userheader():
+    headers = string.split(USERHEADER_FILENAME)
+    if not headers:
+	return '', None
+    template = ''
+    graildir = grailutil.getgraildir()
+    for fn in headers:
+	fn = os.path.join(graildir, fn)
+	if os.path.exists(fn):
+	    template = template + (USERHEADER_INFO % fn) + open(fn).read()
+	    if template and template[-1] != '\n':
+		template = template + '\n'
+    return template
+
 
 # This PostScript causes the printer to use the named printer tray
 # if possible, otherwise it simply proceeds in error.
@@ -1866,24 +2139,6 @@ setup_template = """%%%%BeginSetup
 %%%%EndSetup
 """
 
-# Load the PostScript prologue:
-standard_header_file = grailutil.which(
-    "header.ps", (script_dir, grailutil.getgraildir()))
-if standard_header_file and os.path.exists(standard_header_file):
-    standard_header_template = open(standard_header_file).read()
-else:
-    standard_header_template = None
-
-# Allow the user to provide supplemental prologue material:
-def get_userheader():
-    fn = os.path.join(grailutil.getgraildir(), "custom.ps")
-    if os.path.exists(fn):
-	template = open(fn).read()
-    else:
-	template = ''
-    return template, fn
-
-
 
 if __name__ == '__main__':
 ##    import profile
@@ -1896,4 +2151,7 @@ if __name__ == '__main__':
 ##	p.sort_stats('cumulative').print_stats(25)
 ##    finally:
 ##	sys.stdout = oldstdout
-    main()
+    try:
+	main()
+    except KeyboardInterrupt:
+	sys.exit(1)
