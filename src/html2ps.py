@@ -8,11 +8,6 @@ AbstractWriter, called PSWriter, that supports this high level
 interface as appropriate for PostScript generation.
 """
 
-__version__ = """
-$Id: html2ps.py,v 2.7 1995/09/27 23:28:24 bwarsaw Exp $
-"""
-
-
 import sys
 import string
 import StringIO
@@ -686,7 +681,7 @@ class PSQueue:
 	    sys.stdout = self.ofile
 	    print 'save', 0, PAGE_TAB, "M"
 	    print "FONTVI 12 SF"
-	    print "(Page", self.curpage, ") S restore"
+	    print "(Page", self.curpage, ") C restore"
 	    print "showpage"
 	finally:
 	    sys.stdout = stdout
@@ -719,6 +714,7 @@ class PSQueue:
 	    print "/xmargin", LEFT_MARGIN, "D"
 	    print "/topmargin", TOP_MARGIN, "D"
 	    print "/indentmargin", 0.0, "D"
+	    print "/pagewidth", PAGE_WIDTH, "D"
 	    print "/scalfac", self.font.points_per_pixel, "D"
 	    print "%%EndProlog"
 	finally:
@@ -933,6 +929,7 @@ save
 /M {moveto} D
 /S {show} D
 %/S {dup show ( ) show stringwidth pop 20 string cvs show} D
+/C {dup stringwidth pop pagewidth sub 2 div 0 rmoveto show} D
 /R {rmoveto} D
 /L {lineto} D
 /RL {rlineto} D
