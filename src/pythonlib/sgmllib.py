@@ -14,9 +14,15 @@ import string
 
 # Regular expressions used for parsing
 
-incomplete = regex.compile('[&<].')
-entityref = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\);?')
-charref = regex.compile('&#\([0-9]+\);?')
+interesting = regex.compile('[&<]')
+incomplete = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\|#[0-9]*\)?\|'
+			   '<\([a-zA-Z][^<>]*\|'
+			      '/\([a-zA-Z][^<>]*\)?\|'
+			      '![^<>]*\)?')
+
+entityref = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\)[^a-zA-Z0-9]')
+charref = regex.compile('&#\([0-9]+\)[^0-9]')
+
 starttagopen = regex.compile('<[>a-zA-Z]')
 shorttagopen = regex.compile('<[a-zA-Z][a-zA-Z0-9]*/')
 shorttag = regex.compile('<\([a-zA-Z][a-zA-Z0-9]*\)/\([^/]*\)/')
@@ -90,7 +96,7 @@ class SGMLParser:
 		self.handle_data(rawdata[i:n])
 		i = n
 		break
-	    j = incomplete.search(rawdata, i)
+	    j = interesting.search(rawdata, i)
 	    if j < 0: j = n
 	    if i < j: self.handle_data(rawdata[i:j])
 	    i = j
@@ -132,7 +138,7 @@ class SGMLParser:
 		k = charref.match(rawdata, i)
 		if k >= 0:
 		    k = i+k
-		    if k == n and rawdata[n-1] != ';' and not end: break
+		    if rawdata[k-1] != ';': k = k-1
 		    name = charref.group(1)
 		    self.handle_charref(name)
 		    i = k
@@ -140,7 +146,7 @@ class SGMLParser:
 		k = entityref.match(rawdata, i)
 		if k >= 0:
 		    k = i+k
-		    if k == n and rawdata[n-1] != ';' and not end: break
+		    if rawdata[k-1] != ';': k = k-1
 		    name = entityref.group(1)
 		    self.handle_entityref(name)
 		    i = k
@@ -150,9 +156,12 @@ class SGMLParser:
 	    # We get here only if incomplete matches but
 	    # nothing else
 	    k = incomplete.match(rawdata, i)
-	    if k < 0: raise RuntimeError, 'no incomplete match ??'
+	    if k < 0:
+		self.handle_data(rawdata[i])
+		i = i+1
+		continue
 	    j = i+k
-	    if j == n or rawdata[i:i+2] == '<!':
+	    if j == n:
 		break # Really incomplete
 	    self.handle_data(rawdata[i:j])
 	    i = j
@@ -348,32 +357,53 @@ class SGMLParser:
 
 class TestSGMLParser(SGMLParser):
 
+    def __init__(self, verbose=0):
+	self.testdata = ""
+	SGMLParser.__init__(self, verbose)
+
     def handle_data(self, data):
-	r = repr(data)
-	if len(r) > 72:
-	    r = r[:35] + '...' + r[-35:]
-	print 'data:', r
+	self.testdata = self.testdata + data
+	if len(`self.testdata`) >= 70:
+	    self.flush()
+
+    def flush(self):
+	data = self.testdata
+	if data:
+	    self.testdata = ""
+	    print 'data:', `data`
 
     def handle_comment(self, data):
-	r = repr(data)
+	self.flush()
+	r = `data`
 	if len(r) > 68:
 	    r = r[:32] + '...' + r[-32:]
 	print 'comment:', r
 
     def unknown_starttag(self, tag, attrs):
-	print 'start tag: <' + tag,
-	for name, value in attrs:
-	    print name + '=' + '"' + value + '"',
-	print '>'
+	self.flush()
+	if not attrs:
+	    print 'start tag: <' + tag + '>'
+	else:
+	    print 'start tag: <' + tag,
+	    for name, value in attrs:
+		print name + '=' + '"' + value + '"',
+	    print '>'
 
     def unknown_endtag(self, tag):
+	self.flush()
 	print 'end tag: </' + tag + '>'
 
     def unknown_entityref(self, ref):
+	self.flush()
 	print '*** unknown entity ref: &' + ref + ';'
 
     def unknown_charref(self, ref):
+	self.flush()
 	print '*** unknown char ref: &#' + ref + ';'
+
+    def close(self):
+	SGMLParser.close(self)
+	self.flush()
 
 
 def test(args = None):
@@ -407,7 +437,9 @@ def test(args = None):
 	f.close()
 
     x = klass()
-    x.feed(data)
+    for c in data:
+	x.feed(c)
+    x.close()
 
 
 if __name__ == '__main__':
