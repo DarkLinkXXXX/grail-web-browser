@@ -18,10 +18,10 @@ dialog:
 	- a Cancel button
 
 The last state (print command, check box, filename, options) is saved in
-a global settings variable.
+a global settings variable managed by the printing.settings module.
 
 When OK is activated, the HTML or text file is read using urllib.urlopen()
-and the html2ps.PSWriter class is used to generate the PostScript.
+and the PSWriter class is used to generate the PostScript.
 
 When Cancel is actiavted, the dialog state is still saved.
 
@@ -35,8 +35,10 @@ be assumed, giving the option to cancel.
 
 from Cursors import CURSOR_WAIT
 from Tkinter import *
-import html2ps
+import grailutil
 import os
+import printing.paper
+import printing.settings
 import Reader
 import string
 import sys
@@ -55,70 +57,6 @@ def get_scaling_adjustments(w):
     return result
 
 
-class PrintSettings:
-    """Store the current preference settings."""
-
-    GROUP = 'printing'
-    PRINTCMD = "lpr"			# Default print command
-
-    printcmd = None
-    printfile = ""
-    fileflag = 0
-    imageflag = 0
-    greyscaleflag = 0
-    underflag = 1
-    footnoteflag = 1
-    fontsize = 10.0
-    leading = 10.7
-    papersize = "letter"
-    orientation = ""
-    margins = None
-    strip_blanks = 1
-    strict_parsing = 0
-
-    def __init__(self, prefs):
-	"""Load settings and register an interest in updates."""
-	self.__prefs = prefs
-	if prefs:
-	    self.update()
-	    prefs.AddGroupCallback(self.GROUP, self.update)
-	    prefs.AddGroupCallback('parsing-html', self.update)
-
-    def update(self):
-	"""Load / reload settings from preferences subsystem."""
-	prefs = self.__prefs
-	#
-	self.imageflag = prefs.GetBoolean(self.GROUP, 'images')
-	self.fileflag = prefs.GetBoolean(self.GROUP, 'to-file')
-	self.greyscaleflag = prefs.GetBoolean(self.GROUP, 'greyscale')
-	self.footnoteflag = prefs.GetBoolean(self.GROUP, 'footnote-anchors')
-	self.underflag = prefs.GetBoolean(self.GROUP, 'underline-anchors')
-	self.set_fontsize(prefs.Get(self.GROUP, 'font-size'))
-	self.papersize = prefs.Get(self.GROUP, 'paper-size')
-	self.orientation = prefs.Get(self.GROUP, 'orientation')
-	self.strip_blanks = prefs.GetBoolean(
-	    self.GROUP, 'skip-leading-blank-lines')
-	self.strict_parsing = prefs.GetBoolean('parsing-html', 'strict')
-	#
-	margins = prefs.Get(self.GROUP, 'margins')
-	if margins:
-	    margins = tuple(map(string.atoi, string.split(margins)))
-	    self.margins = margins
-	printcmd = prefs.Get(self.GROUP, 'command')
-	if not printcmd:
-	    printcmd = self.PRINTCMD
-	self.printcmd = printcmd
-
-    def set_fontsize(self, spec):
-	"""Set font size and leading based on specification string."""
-	self.fontsize, self.leading = html2ps.parse_fontsize(spec)
-
-    def get_fontspec(self):
-	if self.fontsize == self.leading:
-	    return `self.fontsize`
-	return "%s / %s" % (self.fontsize, self.leading)
-
-
 def PrintDialog(context, url, title):
     try:
 	infp = context.app.open_url_simple(url)
@@ -130,16 +68,11 @@ def PrintDialog(context, url, title):
     except KeyError:
 	MaybePrintDialog(context, url, title, infp)
 	return
-
-    if ";" in ctype:
-	pos = string.index(ctype, ";")
-	ctype, ctype_params = string.strip(ctype[:pos]), \
-			      string.strip(ctype[pos + 1:])
-    types = string.splitfields(ctype, '/')
-    if types and types[0] == 'text':
-	if types[1] != 'html':
-	    ctype = 'text/plain'
-    if ctype not in ('text/html', 'text/plain'):
+    ctype, ctype_params = grailutil.conv_mimetype(ctype)
+    [type, subtype] = string.splitfields(ctype, '/')
+    if type == 'text' and subtype != 'html':
+	ctype = 'text/plain'
+    if ctype not in ('text/html', 'text/plain', 'application/postscript'):
 	context.error_dialog("Unprintable document",
 			     "This document cannot be printed.")
 	return
@@ -201,20 +134,18 @@ plain text if you elect to continue."""
 class RealPrintDialog:
 
     def __init__(self, context, url, title, infp, ctype):
+	import tktools
+	#
 	self.infp = infp
 	self.ctype = ctype
 	self.context = context
 	self.baseurl = context.get_baseurl()
 	self.prefs = context.app.prefs
-
-	global settings
-	try:
-	    x = settings		# NameError first time
-	except NameError:
-	    settings = PrintSettings(context.app.prefs)
+	self.settings = printing.settings.get_settings(context.app.prefs)
+	settings = self.settings
+	#
 	self.title = title
 	self.master = self.context.root
-	import tktools
 	self.root = tktools.make_toplevel(self.master,
 					  title="Print Dialog",
 					  class_="PrintDialog")
@@ -223,10 +154,6 @@ class RealPrintDialog:
 	self.root.bind("<Alt-w>", self.cancel_event)
 	self.root.bind("<Alt-W>", self.cancel_event)
 	self.cursor_widgets = [self.root]
-	#
-	adjust = get_scaling_adjustments(self.root)
-	html2ps.PIXEL_SIZE_ADJUST_HORIZ = adjust[0]
-	html2ps.PIXEL_SIZE_ADJUST_VERT = adjust[1]
 
 	fr, top, botframe = tktools.make_double_frame(self.root)
 
@@ -251,31 +178,32 @@ class RealPrintDialog:
 	self.file_entry.insert(END, settings.printfile)
 	self.add_entry(self.file_entry)
 
-	# page orientation
-	Frame(generalfr, height=2).pack()
-	fr = Frame(generalfr)
-	fr.pack(fill=X)
-	self.orientation = StringVar(top)
-	self.orientation.set(string.capitalize(settings.orientation))
-	opts = html2ps.paper_rotations.keys()
-	opts.sort()
-	opts = tuple(map(string.capitalize, opts))
-	Label(fr, text="Orientation: ", width=13, anchor=E).pack(side=LEFT)
-	Frame(fr, width=3).pack(side=LEFT)
-	menu = apply(OptionMenu, (fr, self.orientation) + opts)
-	width = reduce(max, map(len, opts), 6)
-	menu.config(anchor=W, highlightthickness=0, width=width)
-	menu.pack(expand=1, fill=NONE, anchor=W, side=LEFT)
-	Frame(generalfr, height=2).pack()
-	# font size
-	fr = Frame(generalfr)
-	fr.pack(fill=X)
-	Label(fr, text="Font size: ", width=13, anchor=E).pack(side=LEFT)
-	Frame(fr, width=3).pack(side=LEFT)
-	e = self.fontsize = Entry(fr, width=12)
-	e.insert(END, settings.get_fontspec())
-	e.pack(side=LEFT)
-	self.add_entry(e)
+	if self.ctype != "application/postscript":
+	    # page orientation
+	    Frame(generalfr, height=2).pack()
+	    fr = Frame(generalfr)
+	    fr.pack(fill=X)
+	    self.orientation = StringVar(top)
+	    self.orientation.set(string.capitalize(settings.orientation))
+	    opts = printing.paper.paper_rotations.keys()
+	    opts.sort()
+	    opts = tuple(map(string.capitalize, opts))
+	    Label(fr, text="Orientation: ", width=13, anchor=E).pack(side=LEFT)
+	    Frame(fr, width=3).pack(side=LEFT)
+	    menu = apply(OptionMenu, (fr, self.orientation) + opts)
+	    width = reduce(max, map(len, opts), 6)
+	    menu.config(anchor=W, highlightthickness=0, width=width)
+	    menu.pack(expand=1, fill=NONE, anchor=W, side=LEFT)
+	    Frame(generalfr, height=2).pack()
+	    # font size
+	    fr = Frame(generalfr)
+	    fr.pack(fill=X)
+	    Label(fr, text="Font size: ", width=13, anchor=E).pack(side=LEFT)
+	    Frame(fr, width=3).pack(side=LEFT)
+	    e = self.fontsize = Entry(fr, width=12)
+	    e.insert(END, settings.get_fontspec())
+	    e.pack(side=LEFT)
+	    self.add_entry(e)
 
 	Frame(top, height=8).pack()
 	if self.ctype == "text/html":
@@ -285,19 +213,22 @@ class RealPrintDialog:
 	    self.imgchecked = self.new_checkbox(
 		htmlfr, "Print images", settings.imageflag)
 	    self.greychecked = self.new_checkbox(
-		htmlfr, "Reduce images to greyscale", settings.greyscaleflag)
+		htmlfr, "Reduce images to greyscale", settings.greyscale)
 	    #  Anchor-handling selections:
 	    self.footnotechecked = self.new_checkbox(
 		htmlfr, "Footnotes for anchors", settings.footnoteflag)
 	    self.underchecked = self.new_checkbox(
 		htmlfr, "Underline anchors", settings.underflag)
-	else:
+	elif self.ctype == "text/plain":
 	    textfr = tktools.make_group_frame(
 		top, "textoptions", "Text options:", fill=X)
 	    #  The titleentry widget is used to set the title for text/plain
-	    #  documents; the title is printed in the page headers.
+	    #  documents; the title is printed in the page headers and
+	    #  possibly on an accounting page if your site uses them.
 	    self.titleentry, dummyframe = tktools.make_form_entry(
 		textfr, "Title:")
+	    if self.title:
+		self.titleentry.insert(END, self.title)
 	    self.add_entry(self.titleentry)
 	    Frame(textfr, height=4).pack()
 	    self.strip_blanks = self.new_checkbox(
@@ -400,46 +331,51 @@ class RealPrintDialog:
 
     def print_to_fp(self, fp):
 	# do the printing
+	from printing import paper
+	from printing import PSWriter
+	#
 	self.update_settings()
-	html2ps.USERHEADER_FILENAME = self.prefs.Get(
-	    settings.GROUP, 'user-header')
-	paper = html2ps.PaperInfo(settings.papersize)
-	paper.rotate(settings.orientation)
-	if settings.margins:
-	    paper.set_margins(settings.margins)
-	w = html2ps.PSWriter(fp, self.title, self.baseurl, paper=paper,
-			     fontsize=settings.fontsize,
-			     leading=settings.leading)
+	if self.ctype == "application/postscript":
+	    fp.write(self.infp.read())
+	    self.infp.close()
+	    return
+	apply(self.settings.set_scaling, get_scaling_adjustments(self.root))
+	paper = paper.PaperInfo(self.settings.papersize,
+					 margins=self.settings.margins,
+					 rotation=self.settings.orientation)
+	fontsize, leading = self.settings.get_fontsize()
+	w = PSWriter.PSWriter(fp, self.title, self.baseurl, paper=paper,
+			      fontsize=fontsize, leading=leading)
 	if self.ctype == 'text/html':
-	    imgloader = (settings.imageflag and html2ps.image_loader) or None
-	    p = html2ps.PrintingHTMLParser(
-		w, baseurl=self.baseurl, image_loader=imgloader,
-		greyscale=settings.greyscaleflag,
-		underline_anchors=settings.underflag,
-		strict=settings.strict_parsing)
-	    if not settings.footnoteflag:
-		p.add_anchor_transform(html2ps.disallow_anchor_footnotes)
+	    from printing import PSParser
+	    if self.settings.imageflag:
+		import printing.utils
+		imgloader = printing.utils.image_loader
 	    else:
-		p.add_anchor_transform(
-		    html2ps.disallow_self_reference(self.baseurl))
-	    p.iconpath = self.context.app.iconpath
+		imgloader = None
+	    p = PSParser.PrintingHTMLParser(
+		w, self.settings, self.context,
+		baseurl=self.baseurl, image_loader=imgloader)
 	else:
 	    p = PrintingTextParser(w, title=self.titleentry.get(),
-				   strip_blanks=settings.strip_blanks)
+				   strip_blanks=self.settings.strip_blanks)
 	p.feed(self.infp.read())
 	self.infp.close()
 	p.close()
 	w.close()
 
     def update_settings(self):
+	settings = self.settings
 	settings.printcmd = self.cmd_entry.get()
 	settings.printfile = self.file_entry.get()
 	settings.fileflag = self.printtofile.get()
+	if self.ctype == "application/postscript":
+	    return
 	settings.set_fontsize(self.fontsize.get())
 	settings.orientation = string.lower(self.orientation.get())
 	if self.ctype == "text/html":
 	    settings.footnoteflag = self.footnotechecked.get()
-	    settings.greyscaleflag = self.greychecked.get()
+	    settings.greyscale = self.greychecked.get()
 	    settings.imageflag = self.imgchecked.get()
 	    settings.underflag = self.underchecked.get()
 	else:
