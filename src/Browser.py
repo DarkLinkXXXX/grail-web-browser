@@ -14,7 +14,6 @@ from Tkinter import *
 import tktools
 
 from Viewer import Viewer
-from Cursors import *
 
 
 LOGO_IMAGES = "logo:"
