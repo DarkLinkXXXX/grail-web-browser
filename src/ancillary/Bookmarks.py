@@ -233,7 +233,8 @@ class NetscapeBookmarkHTMLParser(htmllib.HTMLParser):
 
     def ddpop(self, bl=0):
 	if len(self._state) > 0 and self._state[-1] == 'dd':
-	    self._prevleaf.set_description(self._buffer)
+	    if self._prevleaf:
+		self._prevleaf.set_description(self._buffer)
 	    del self._state[-1]
 	else:
 	    htmllib.HTMLParser.ddpop(self, bl)
