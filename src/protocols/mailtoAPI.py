@@ -2,49 +2,15 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-"""mailto: URI scheme handler.
+"""mailto: URI scheme handler."""
 
-This implementation supports the extended mailto: url scheme described in
-ftp://ds.internic.net/internet-drafts/draft-hoffman-mailto-url-01.txt.  This
-document is a work in progress, but reflects a generalization of common
-practice in Web user agents.
-"""
-
-from Tkinter import *
-import tktools
-import os
-import sys
-import time
-import string
-import cgi
 import grailutil
-import rfc822
-from urlparse import urlparse, urlunparse
 
-from __main__ import GRAILVERSION
 from nullAPI import null_access
-from Context import LAST_CONTEXT
+
+from MailDialog import MailDialog
 
 
-# Python 1.4 has a new, very useful function!
-if hasattr(string, 'capwords'):
-    capwords = string.capwords
-else:
-    # the python implementation of Python 1.4's string.capwords()
-    def capwords(str, sep=None):
-	cappedwords = []
-	if sep is None:
-	    words = string.split(str)
-	else:
-	    words = string.splitfields(str, sep)
-	for word in words:
-	    cappedwords.append(string.upper(word[0]) + string.lower(word[1:]))
-	if sep is None:
-	    return string.join(cappedwords)
-	else:
-	    return string.joinfields(cappedwords, sep)
-
-
 class mailto_access(null_access):
 
     def __init__(self, url, method, params, data=None):
@@ -53,127 +19,3 @@ class mailto_access(null_access):
 	# non-None.  In that case, initialize the dialog with the data
 	# contents
 	toplevel = MailDialog(grailutil.get_grailapp().root, url, data)
-
-if os.sys.platform[:3] == 'sco': 
-    # Use MMDF instead of sendmail
-    SENDMAIL = "/usr/mmdf/bin/submit -mtlrxto,cc\'*\'s"
-    # submit needs a Date: field or it will not include it
-    TEMPLATE ="""\
-To: %(to)s
-Date: %(date)s
-Subject: %(subject)s
-MIME-Version: 1.0
-Content-Type: %(ctype)s
-X-Mailer: %(mailer)s
-X-URL: %(url)s
-"""
-else:
-    SENDMAIL = "/usr/lib/sendmail -t" # XXX
-    TEMPLATE ="""\
-To: %(to)s
-Subject: %(subject)s
-MIME-Version: 1.0
-Content-Type: %(ctype)s
-X-Mailer: %(mailer)s
-X-URL: %(url)s
-"""
-
-DISALLOWED_HEADERS = ['from', 'appearantly-to', 'bcc', 'content-length',
-		      'content-type', 'mime-version', 'to',
-		      'content-transfer-encoding', 'x-mailer', 'x-url']
-
-
-class MailDialog:
-
-    template = TEMPLATE
-
-    def __init__(self, master, address, data):
-	# query semantics may be used to identify header field values
-	scheme, netloc, path, params, query, fragment = urlparse(address)
-	address = urlunparse((scheme, netloc, path, '', '', ''))
-	headers = cgi.parse_qs(query)
-	# create widgets
-	self.master = master
-	self.root = tktools.make_toplevel(self.master,
-					  title="Mail Dialog")
-	self.root.protocol("WM_DELETE_WINDOW", self.cancel_command)
-	self.root.bind("<Alt-w>", self.cancel_command)
-	self.root.bind("<Alt-W>", self.cancel_command)
-	fr, top, botframe = tktools.make_double_frame(self.root)
-	self.text, fr = tktools.make_text_box(top, 80, 24)
-	self.text.tag_config('SUSPICIOUS_HEADER', foreground='red')
-	self.send_button = Button(botframe,
-				  text="Send",
-				  command=self.send_command)
-	self.send_button.pack(side=LEFT)
-	self.cancel_button = Button(botframe,
-				    text="Cancel",
-				    command=self.cancel_command)
-	self.cancel_button.pack(side=RIGHT)
-	tktools.unify_button_widths(self.send_button, self.cancel_button)
-	variables = {
-	    'to':	address,
-	    'date':	time.ctime(time.time()),
-	    'subject':	data and 'Form posted from Grail' or '',
-	    'mailer':	GRAILVERSION,
-	    'ctype':    data and 'application/x-www-form-urlencoded' \
-	                      or """text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit""",
-	    'url':	LAST_CONTEXT and LAST_CONTEXT.get_baseurl() or ''
-	    }
-	# move default set of query'd headers into variables
-	for header, vlist in headers.items():
-	    header = string.lower(header)
-	    if variables.has_key(header) and header != 'body':
-		if header not in DISALLOWED_HEADERS:
-		    variables[header] = vlist[0] # throw away duplicates
-		del headers[header]
-	self.text.insert(END, self.template % variables)
-	# insert URL-based extra headers
-	for header, vlist in headers.items():
-	    header = string.lower(header)
-	    if header != 'body' and header not in DISALLOWED_HEADERS:
-		value = vlist[0]		# throw away duplicates
-		s = '%s: %s\n' % (capwords(header, '-'), value)
-		if header == 'keywords':
-		    self.text.insert(END, s)
-		else:
-		    self.text.insert(END, s, "SUSPICIOUS_HEADER")
-	# insert user-specified extra headers
-	for header, value in self.get_user_headers().items():
-	    s = '%s: %s\n' % (capwords(header, '-'), value)
-	    self.text.insert(END, s)
-	# insert newline
-	self.text.insert(END, '\n', ())
-	# insert data
-	if data:
-	    self.text.insert(END, data)
-	elif headers.has_key('body'):
-	    self.text.insert(END, headers['body'][0] + '\n')
-	self.text.focus_set()
-
-    def get_user_headers(self):
-	fn = os.path.join(grailutil.getgraildir(), "mail-headers")
-	d = {}
-	if os.path.isfile(fn):
-	    msg = rfc822.Message(open(fn))
-	    for k, v in msg.items():
-		d[k] = v
-	return d
-
-    def send_command(self):
-	message = self.text.get("1.0", END)
-	if message:
-	    self.root['cursor'] = 'watch'
-	    self.text['cursor'] = 'watch'
-	    self.root.update_idletasks()
-	    if message[-1] != '\n': message = message + '\n'
-	    p = os.popen(SENDMAIL, 'w')
-	    p.write(message)
-	    sts = p.close()
-	    if sts:
-		print "*** Sendmail exit status", sts, "***"
-	self.root.destroy()
-
-    def cancel_command(self, event=None):
-	self.root.destroy()
