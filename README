@@ -1,9 +1,9 @@
-GRAIL 0.3b1
+GRAIL 0.3b2
 ===========
 
-This is the first beta version of Grail 0.3.  It should run on most
-Unix systems, provided you have Python 1.3 with Tcl/Tk 7.4/4.0.  It is
-only distributed in source form.
+This is the second, and hopefully last beta version of Grail 0.3.  It
+should run on most Unix systems, provided you have Python 1.3 with
+Tcl/Tk 7.4/4.0.  It is only distributed in source form.
 
 **********************************************************************
 * This is a beta release -- you can expect some problems, and we are *
@@ -39,6 +39,10 @@ directory.
 
 Installation
 ------------
+
+*** Note: don't install Grail 0.3b2 on top of Grail 0.3b1.  Use a
+fresh, new, clean directory.  If you ignore this advice, subtle bugs
+will arise!
 
 There are three steps to take before you can use Grail:
 
