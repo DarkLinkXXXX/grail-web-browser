@@ -17,6 +17,11 @@ import StringIO
 import regsub
 from formatter import *
 
+import ni
+ni.install()
+import fonts
+#ni.uninstall()
+
 
 
 # debugging
@@ -39,7 +44,7 @@ def _debug(text):
 # modifier, make sure it includes a leading dash.  Other modifiers
 # should not include the dash.
 
-fonts = {
+fontdefs = {
     'Times':            (None, '-Roman', 'Bold', 'Italic'),
     'Helvetica':        (None, '',       'Bold', 'Oblique'),
     'NewCenturySchlbk': (None, '-Roman', 'Bold', 'Italic'),
@@ -168,10 +173,10 @@ class PSFont:
 	self.points_per_pixel = 72.0 / 72.0
 
 	# calculate document fonts
-	if not fonts.has_key(self.vfamily): self.vfamily = 'Helvetica'
-	if not fonts.has_key(self.ffamily): self.ffamily = 'Courier'
-	vrealname, vreg, vbold, vitalic = fonts[self.vfamily]
-	frealname, freg, fbold, fitalic = fonts[self.ffamily]
+	if not fontdefs.has_key(self.vfamily): self.vfamily = 'Helvetica'
+	if not fontdefs.has_key(self.ffamily): self.ffamily = 'Courier'
+	vrealname, vreg, vbold, vitalic = fontdefs[self.vfamily]
+	frealname, freg, fbold, fitalic = fontdefs[self.ffamily]
 	# fonts may be mapped to other fonts
 	if not vrealname: vrealname = self.vfamily
 	if not frealname: frealname = self.ffamily
@@ -230,10 +235,8 @@ class PSFont:
 
 	# make sure the font object is instantiated
 	if not self.fontobjs.has_key(fontnickname):
-	    modulename = 'PSFont_' + \
-			 regsub.gsub('-', '_', self.docfonts[fontnickname])
-	    module = __import__(modulename)
-	    self.fontobjs[fontnickname] = module.font
+	    psfontname = self.docfonts[fontnickname]
+	    self.fontobjs[fontnickname] = fonts.font_from_name(psfontname)
 	self.tw_func = self.fontobjs[fontnickname].text_width
 
 	# return the PostScript font definition and the size in points
@@ -664,9 +667,12 @@ def main():
 	try: sys.stderr = open(logfile, 'a')
 	except IOError: sys.stderr = stderr
     # crack open the input file, or stdin
-    infile = argv[0]
-    if argv: infp = open(infile, 'r')
-    else: infp = sys.stdin
+    if argv:
+	infile = argv[0]
+	infp = open(infile, 'r')
+    else:
+	infile = None
+	infp = sys.stdin
     # create the parsers
     w = PSWriter(sys.stdout, None, url=infile or '')
     f = AbstractFormatter(w)
