@@ -3,7 +3,8 @@
 XXX To do
 
 - what if CacheItem.reset() fails?
-- need to implement freshness check (needs some user prefs too)
+- implement freshness check (needs some user prefs too)
+- flush old cache items
 - persistent cache
 - probably need an interface to get the raw CacheItem instead of the
   CacheAPI instance, for the history list (which wants stuff cached
@@ -124,14 +125,16 @@ class CacheItem:
 	    self.reset()
 
     def fresh(self):
-	return 1
+	return self.stage is not DONE or self.complete
 
     def reset(self):
+	print "reset() for", self.url
 	self.api = ProtocolAPI.protocol_access(self.url,
 					       self.mode, self.params)
 	self.meta = None
 	self.data = ''
 	self.stage = META
+	self.complete = 0
 
     def pollmeta(self):
 	if self.stage == META:
@@ -169,6 +172,7 @@ class CacheItem:
 	    buf = self.api.getdata(maxbytes)
 	    if not buf:
 		self.finish()
+		self.complete = 1
 	    else:
 		self.data = self.data + buf
 	return self.data[offset:offset+maxbytes]
