@@ -7,6 +7,7 @@ import urllib
 import urlparse
 from Tkinter import *
 from BaseReader import BaseReader
+from Bastion import Bastion
 
 
 # Pattern for valid CODE attribute; group(2) extracts module name
@@ -280,32 +281,152 @@ class ModuleReader(BaseReader):
 	apploader.load_it_now()
 
 
+
+class Dummy:
+    """Base for dummy classes that wrap around Grail objects.
+
+    Ordinary bastions are not enough because there are some methods
+    that return existing or new objects that need to be bastionized.
+
+    Thus there are now two layers around each object before it is
+    passed to the applet: Bastion -> Dummy -> RealObject.
+
+    In order to make the overhead palatable, the bastions are shared
+    within an applet group, but in order to keep applet groups
+    compartmentalized, there is a bastion per applet group.
+
+    """
+
+    ok_names = []
+
+    def __init__(self, real):
+	self.real = real
+
+    def __getattr__(self, name):
+	if name in self.ok_names:
+	    attr = getattr(self.real, name)
+	    setattr(self, name, attr)
+	    return attr
+	else:
+	    raise AttributeError, name	# Attribute not allowed
+
+class AppDummy(Dummy):
+
+    ok_names = ['get_cache_keys']
+
+class BrowserDummy(Dummy):
+
+    ok_names = ['load', 'message', 'valid', 'get_async_image',
+		'reload_command']
+
+    def __init__(self, real, key):
+	self.real = real
+	self.key = key
+
+    def new_command(self):
+	return BrowserBastion(self.real.new_command(), self.key)
+
+    def clone_command(self):
+	return BrowserBastion(self.real.clone_command(), self.key)
+
+##    def get_async_image(self, src):
+##	# For 0.2 ImageLoopItem only
+##	return Bastion(self.real.get_async_image(src))
+
+class ContextDummy(Dummy):
+
+    ok_names = ['get_baseurl', 'load', 'follow', 'message', 'get_async_image']
+
+##    def get_async_image(self, src):
+##	return Bastion(self.real.get_async_image(src))
+
+class ParserDummy(Dummy):
+
+    ok_names = []
+
+class ViewerDummy(Dummy):
+
+    ok_names = []
+
+
+def AppBastion(real, key):
+    try:
+	return real._bastions[key]
+    except KeyError:
+	pass
+    except AttributeError:
+	real._bastions = {}
+    real._bastions[key] = bastion = Bastion(AppDummy(real))
+    return bastion
+
+def BrowserBastion(real, key):
+    try:
+	return real._bastions[key]
+    except KeyError:
+	pass
+    except AttributeError:
+	real._bastions = {}
+    # Add .context instance variable to help certain applets
+    real._bastions[key] = bastion = Bastion(BrowserDummy(real, key))
+    bastion.context = ContextBastion(real.context, key)
+    return bastion
+
+def ContextBastion(real, key):
+    try:
+	return real._bastions[key]
+    except KeyError:
+	pass
+    except AttributeError:
+	real._bastions = {}
+    real._bastions[key] = bastion = Bastion(ContextDummy(real))
+    return bastion
+
+def ParserBastion(real, key):
+    try:
+	return real._bastions[key]
+    except KeyError:
+	pass
+    except AttributeError:
+	real._bastions = {}
+    real._bastions[key] = bastion = Bastion(ParserDummy(real))
+    return bastion
+
+def ViewerBastion(real, key):
+    try:
+	return real._bastions[key]
+    except KeyError:
+	pass
+    except AttributeError:
+	real._bastions = {}
+    real._bastions[key] = bastion = Bastion(ViewerDummy(real))
+    # Add the text instance variable since it is referenced by some demos.
+    # Need a special filter, too!
+    def filter(name):
+	return name[0] != '_' or name in ('__getitem__',
+					  '__setitem__',
+					  '__str__')
+    bastion.text = Bastion(real.text, filter=filter)
+    return bastion
+
+
 class AppletMagic:
 
     def __init__(self, loader):
 	self.grail_parser = self.grail_viewer = self.grail_context = \
 			    self.grail_browser = self.grail_app = None
 	if loader:
-	    from Bastion import Bastion
-	    if loader.parser:
-		self.grail_parser = Bastion(loader.parser)
-	    if loader.viewer:
-		self.grail_viewer = Bastion(loader.viewer)
-		# Add the text widget since it is referenced by some demos.
-		# Need a special filter, too!
-		def filter(name):
-		    return name[0] != '_' or name in ('__getitem__',
-						      '__setitem__',
-						      '__str__')
-		self.grail_viewer.text = Bastion(loader.viewer.text,
-						 filter=filter)
 	    context = loader.context
 	    if context:
-		self.grail_context = Bastion(context)
+		key = context.applet_group
+		if loader.parser:
+		    self.grail_parser = ParserBastion(loader.parser, key)
+		if loader.viewer:
+		    self.grail_viewer = ViewerBastion(loader.viewer, key)
+		self.grail_context = ContextBastion(context, key)
 		if context.browser:
-		    self.grail_browser = Bastion(context.browser)
+		    self.grail_browser = BrowserBastion(context.browser, key)
 		if context.app:
-		    self.grail_app = Bastion(context.app)
+		    self.grail_app = AppBastion(context.app, key)
 
 
 class AppletFrame(Frame, AppletMagic):
