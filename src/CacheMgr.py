@@ -127,8 +127,8 @@ class CacheManager:
 	(scheme, netloc, path, parm, query, frag) = \
 		 urlparse.urlparse(item.url)
 
-	# don't cache logos
-	if scheme == 'logo': 
+	# don't cache logos or local files
+	if scheme == 'logo' or scheme == 'file': 
 	    # is there a better place for this, since it gets called
 	    # so often?
 	    return 0
