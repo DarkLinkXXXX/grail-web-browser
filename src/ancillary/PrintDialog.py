@@ -28,6 +28,7 @@ from Tkinter import *
 import tktools
 import os
 import string
+import Reader
 
 PRINT_PREFGROUP = 'printing'
 PRINTCMD = "lpr"			# Default print command
@@ -41,6 +42,7 @@ imageflag = 0
 greyscaleflag = 0
 underflag = 1
 footnoteflag = 1
+leading = 0.7
 
 global_prefs = None
 
@@ -49,7 +51,7 @@ def update_options(prefs=None):
     """Load/reload preferences.
     """
     global printcmd, printfile, fileflag, imageflag, greyscaleflag
-    global underflag, footnoteflag, global_prefs
+    global underflag, footnoteflag, global_prefs, leading
     #
     prefs = prefs or global_prefs
     if prefs:
@@ -62,6 +64,7 @@ def update_options(prefs=None):
     printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
     footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP, 'footnote-anchors')
     underflag = prefs.GetBoolean(PRINT_PREFGROUP, 'underline-anchors')
+    leading = prefs.GetFloat(PRINT_PREFGROUP, 'leading')
     if not printcmd:
 	printcmd = PRINTCMD
 
@@ -90,8 +93,7 @@ class PrintDialog:
 				 "This document cannot be printed.")
 	    return
 
-	global printcmd, printfile, fileflag, imageflag, greyscaleflag
-	global underflag, footnoteflag
+	global printcmd
 	self.context = context
 	prefs = context.app.prefs
 	if not prefs:
@@ -108,7 +110,6 @@ class PrintDialog:
 	self.root.iconname("Print Dialog")
 	self.cmd_entry, dummyframe = tktools.make_form_entry(
 	    self.root, "Print command:")
-	self.cmd_entry.delete('0', END)
 	self.cmd_entry.insert(END, printcmd)
 
 	#  Print to file controls:
@@ -118,52 +119,42 @@ class PrintDialog:
 	self.checked = IntVar(self.root)
 	self.checked.set(fileflag)
 	self.file_check = Checkbutton(self.midframe,
-				      command=self.check_command,
-				      variable=self.checked)
+				      text = "Print to file:",
+				      command = self.check_command,
+				      variable = self.checked)
 	self.file_check.pack(side=LEFT)
-	self.file_entry, dummyframe = tktools.make_form_entry(
-	    self.midframe, "Print to file:")
-	self.file_entry.pack(side=RIGHT)
-	self.file_entry.delete('0', END)
+	self.file_entry = Entry(self.midframe)
+	self.file_entry.pack(side=RIGHT, fill=X)
 	self.file_entry.insert(END, printfile)
 
 	#  Image printing controls:
-	imgframe = Frame(self.root)
-	imgframe.pack(fill = X)
 	self.imgchecked = IntVar(self.root)
 	self.imgchecked.set(imageflag)
-	self.image_check = Checkbutton(imgframe,
+	self.image_check = Checkbutton(self.root, text = "Print images",
 				       variable = self.imgchecked)
-	self.image_check.pack(side = LEFT)
-	Label(imgframe, text = 'Print images').pack(side = LEFT)
+	self.image_check.pack(anchor=W)
 
-	greyframe = Frame(self.root)
-	greyframe.pack(fill = X)
 	self.greychecked = IntVar(self.root)
 	self.greychecked.set(greyscaleflag)
-	self.grey_check = Checkbutton(greyframe,
+	self.grey_check = Checkbutton(self.root,
+				      text='Reduce images to greyscale',
 				      variable = self.greychecked)
-	self.grey_check.pack(side = LEFT)
-	Label(greyframe, text = 'Reduce images to greyscale').pack(side = LEFT)
+	self.grey_check.pack(anchor=W)
 
 	#  Anchor-handling selections:
-	fnframe = Frame(self.root)
-	fnframe.pack(fill = X)
 	self.footnotechecked = IntVar(self.root)
 	self.footnotechecked.set(footnoteflag)
-	self.footnote_check = Checkbutton(fnframe,
+	self.footnote_check = Checkbutton(self.root,
+					  text = "Footnotes for anchors",
 					  variable = self.footnotechecked)
-	self.footnote_check.pack(side = LEFT)
-	Label(fnframe, text = 'Footnotes for anchors').pack(side = LEFT)
+	self.footnote_check.pack(anchor=W)
 
-	underframe = Frame(self.root)
-	underframe.pack(fill = X)
 	self.underchecked = IntVar(self.root)
 	self.underchecked.set(underflag)
-	self.under_check = Checkbutton(underframe,
+	self.under_check = Checkbutton(self.root,
+				       text = "Underline anchors",
 				       variable = self.underchecked)
-	self.under_check.pack(side = LEFT)
-	Label(underframe, text = 'Underline anchors').pack(side = LEFT)
+	self.under_check.pack(anchor=W)
 
 	#  Command buttons:
 	fr = Frame(self.root, relief = SUNKEN, height = 4, borderwidth = 2)
@@ -269,14 +260,14 @@ class PrintDialog:
 	    grey = self.greychecked.get()
 	    p = PrintingHTMLParser(w, baseurl = self.context.baseurl(),
 				   image_loader = imgloader, greyscale = grey,
-				   underline_anchors = self.underchecked.get())
+				   underline_anchors = self.underchecked.get(),
+				   leading = leading)
 	    if not self.footnotechecked.get():
 		p.add_anchor_transform(disallow_anchor_footnotes)
-	    from GrailHTMLParser import GrailHTMLParser
+	    from GrailHTMLParser import GrailHTMLParser	## ???
 	    p.iconpath = self.context.app.iconpath
 	elif self.ctype == 'text/plain':
-	    from Reader import TextParser
-	    p = TextParser(w)
+	    p = PrintingTextParser(w)
 	p.feed(self.infp.read())
 	self.infp.close()
 	p.close()
@@ -284,7 +275,7 @@ class PrintDialog:
 
     def goaway(self):
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
-	global underflag, footnoteflag
+	global underflag, footnoteflag, leading
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
@@ -307,3 +298,13 @@ class PrintDialog:
 	    return None
 	data = imgfp.read()
 	return data
+
+
+class PrintingTextParser(Reader.TextParser):
+    def feed(self, data):
+	strings = string.splitfields(data, "\f")
+	if strings:
+	    self.viewer.send_literal_data(strings[0])
+	    for s in strings[1:]:
+		self.viewer.ps.push_page_break()
+		self.viewer.send_literal_data(s)
