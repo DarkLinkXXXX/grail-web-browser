@@ -111,7 +111,6 @@ class BaseAsyncImage:
 	except IOError, msg:
 	    self.show_bad()
 	    return
-	self.show_busy()
 	cached_file, content_type = api.tk_img_access()
 	if cached_file \
 	   and ImageTempFileReader.image_filters.has_key(content_type) \
@@ -119,6 +118,7 @@ class BaseAsyncImage:
 	    api.close()
 	    self.set_file(cached_file)
 	else:
+	    self.show_busy()
 	    # even if the item is in the cache, use the ImageTempFile
 	    # to handle the proper type coercion
 	    self.reader = ImageTempFileReader(self.context, api, self)
@@ -130,6 +130,7 @@ class BaseAsyncImage:
 	self.show_bad()
 
     def set_file(self, filename):
+	self.blank()
 	self.do_color_magic()
 	try:
 	    self['file'] = filename
@@ -158,16 +159,18 @@ class BaseAsyncImage:
 	    return 'idle'
 
     def show_bad(self):
+	self.blank()
 	try:
 	    self['file'] = grailutil.which("icons/sadsmiley.gif") or ""
 	except TclError:
-	    self.blank()
+	    pass
 
     def show_busy(self):
+	self.blank()
 	try:
 	    self['file'] = grailutil.which("icons/image.gif") or ""
 	except TclError:
-	    self.blank()
+	    pass
 
 
 class TkAsyncImage(BaseAsyncImage, TkPhotoImage):
@@ -254,6 +257,7 @@ class PILAsyncImageSupport(BaseAsyncImage):
 		im = im.resize((self.__width, self.__height))
 	# This appears to be absolutely necessary, but I'm not sure why....
 	self._PhotoImage__size = im.size
+	self.blank()
 	self.paste(im)
 	w, h = im.size
 	self.image['width'] = w
