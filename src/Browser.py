@@ -180,8 +180,7 @@ class Browser:
 	    params['.reload'] = 1
 	try:
 	    if self.app:
-		# XXX Shouldn't this go via app.open_url?
-		api = self.app.url_cache.open(url, 'GET', params)
+		api = self.app.open_url(url, 'GET', params)
 	    else:
 		api = ProtocolAPI.protocol_access(url, 'GET', params)
 	except IOError, msg:
