@@ -45,9 +45,29 @@ LISTING_TRAILER = """</PRE>
 </BODY>
 """
 
-LISTING_PATTERN = """\
-^\([-a-z][-a-z][-a-z][-a-z][-a-z][-a-z][-a-z][-a-z][-a-z][-a-z]\)\
-\([ \t]+.*[ \t]+\)\([^ \t]+\)$"""
+# pattern catches file names with embedded spaces and correctly chops
+# off symbolic links.  assumption is anything after `yyyy' or `hh:mm'
+# field and before optional `-> symlink' field is the name of the file
+LISTING_PATTERN = (
+    "^\("				# group 1
+        "[-a-z]"			# file type
+	"[-a-z][-a-z][-a-z]"		# owner rwx
+	"[-a-z][-a-z][-a-z]"		# group rwx
+	"[-a-z][-a-z][-a-z]"		# world rwx
+    "\)"				# end group 1
+    "\("				# group 2
+        "[ \t]+.*[ \t]+"		# links, owner, grp, sz, mnth, day
+	"[0-9][0-9]:?[0-9][0-9]"	# year or hh:mm
+	"[ \t]+"			# spaces
+    "\)"				# end group 2
+    "\("				# group 3
+        "\([^-]\|-[^>]\)+"		# lots of chars, but not symlink
+    "\)"				# end group 3
+    "\("				# optional group 5
+        "[ \t]+->.*"			# spaces followed by symlink 
+    "\)?"				# end optional group 5
+    "$"					# end of string
+    )
 
 
 ftpcache = {}				# XXX Ouch!  A global!
@@ -193,7 +213,7 @@ class ftp_access:
 		line = self.escape(line) + '\n'
 		data = data + line
 		continue
-	    mode, middle, name = prog.group(1, 2, 3)
+	    mode, middle, name, symlink = prog.group(1, 2, 3, 5)
 	    rawname = name
 	    [mode, middle, name] = map(self.escape, [mode, middle, name])
 	    href = urljoin(self.url, quote(rawname))
@@ -202,8 +222,9 @@ class ftp_access:
 		    name = name + '/'
 		if href[-1:] != '/':
 		    href = href + '/'
-	    line = '%s%s<A HREF="%s">%s</A>\n' % (
-		mode, middle, self.escape(href), name)
+	    line = '%s%s<A HREF="%s">%s</A>%s\n' % (
+		mode, middle, self.escape(href), name,
+		(symlink and symlink or ''))
 	    data = data + line
 	if self.lines == [None]:
 	    data = data + self.listing_trailer
