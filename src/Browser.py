@@ -23,7 +23,7 @@ TITLE_PREFIX = "Grail: "
 # If we have an icon file, replace tktools.make_toplevel so that it gets
 # set up as the icon, otherwise don't do anything magic.
 #
-_mydir = os.path.dirname(os.path.abspath(__file__))
+_mydir = os.path.dirname(grailutil.abspath(__file__))
 _iconxbm_file = grailutil.which(
     'icon.xbm', (_mydir, os.path.join(_mydir, "data")))
 if _iconxbm_file:

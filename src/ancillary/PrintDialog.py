@@ -41,8 +41,8 @@ import sys
 import tktools
 
 
-USER_DATA_DIR = os.path.normpath(
-    os.path.abspath(os.path.join(grailutil.getgraildir(), "data")))
+USER_DATA_DIR = grailutil.abspath(
+    os.path.join(grailutil.getgraildir(), "data"))
 
 
 def get_scaling_adjustments(w):
