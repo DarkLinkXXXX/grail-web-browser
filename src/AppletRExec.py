@@ -38,8 +38,12 @@ class AppletRHooks(RHooks):
 	    raise IOError, "Can't open URL for writing"
 	app = self.rexec.app
 	if not app:
+	    # Fall back for test mode
 	    return urllib.urlopen(p)
-	api = self.rexec.app.open_url(p, 'GET', {})
+	# Always specify reload since modules are already cached --
+	# when we get here it must either be the first time for
+	# this module or the user has requested to reload the page.
+	api = self.rexec.app.open_url(p, 'GET', {}, reload=1)
 	errcode, errmsg, params = api.getmeta()
 	if errcode != 200:
 	    api.close()
@@ -132,13 +136,13 @@ class AppletRExec(RExec):
 	    return
 	m = self.copy_except(al, ())
  
-
     def make_socket(self):
 	try:
 	    import socket
 	except ImportError:
 	    return
 	m = self.copy_except(socket, ('fromfd',))
+
     def make_sunaudiodev(self):
 	try:
 	    import sunaudiodev
@@ -161,7 +165,3 @@ class AppletRExec(RExec):
 	if head != tempdir:
 	    raise IOError, "only files in %s are writable" % tempdir
 	return open(os.path.join(tempdir, tail), mode, buf)
-
-    # This is temporary until it is part of the library
-    def r_unload(self, m):
-        return self.importer.unload(m)
