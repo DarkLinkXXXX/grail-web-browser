@@ -59,17 +59,26 @@ class Browser:
     def create_widgets(self, height):
 	self.root = Toplevel(self.master)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
+	self.topframe = Frame(self.root)
+	self.topframe.pack(expand=1, fill=X)
 	self.menubar = self.create_menubar()
 	self.urlbar = self.create_urlbar()
 	self.statusbar = self.create_statusbar()
 	self.viewer = Viewer(self.root, self, DefaultStylesheet, height)
+
+    def create_logo(self):
+	self.logo = Frame(self.topframe, width=75, height=75,
+			  background="#880000",
+			  relief=RAISED,
+			  borderwidth=4)
+	self.logo.pack(side=LEFT, padx=5, pady=5)
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
 	# Also create the Stop button (which lives in the menu)
 
 	# Create menu bar
-	self.mbar = Frame(self.root,
+	self.mbar = Frame(self.topframe,
 			  relief=RAISED,
 			  borderwidth=2)
 	self.mbar.pack(fill=X)
@@ -153,12 +162,13 @@ class Browser:
 			  command=self.python_home_command)
 
     def create_urlbar(self):
-	self.entry, self.topframe = tktools.make_form_entry(self.root, "URL:")
+	self.entry, self.entryframe = \
+		    tktools.make_form_entry(self.topframe, "URL:")
 	self.entry.bind('<Return>', self.load_from_entry)
 
     def create_statusbar(self):
-	self.msg_frame = Frame(self.root, height=20)
-	self.msg_frame.pack(fill=X)
+	self.msg_frame = Frame(self.topframe, height=20)
+	self.msg_frame.pack(fill=X, side=BOTTOM)
 	self.msg_frame.propagate(OFF)
 	self.msg = Label(self.msg_frame, anchor=W, font=FONT_MESSAGE)
 	self.msg.pack(fill=X, in_=self.msg_frame)
