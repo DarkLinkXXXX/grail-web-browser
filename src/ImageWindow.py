@@ -14,7 +14,7 @@ class ImageWindow(Frame):
     image_loaded = 0
 
     def __init__(self, viewer, url, src, alt, usemap, ismap, align,
-                 width, height, borderwidth, target="", reload):
+                 width, height, borderwidth, target="", reload=0):
         self.viewer = viewer
         self.context = self.viewer.context
         self.src, self.alt, self.align = src, alt, align
