@@ -31,13 +31,13 @@ presentation--message-font:
 # Viewer stylesheets:
 #
 # System will revert to this style if a bad one is selected:
-styles--default-size: basic
+styles--default-size: medium
 styles--default-type: helvetica
 # Identify current one:
-styles--size: basic
+styles--size: medium
 styles--type: helvetica
 # Size ranges:
-styles--all-sizes: basic small big
+styles--all-sizes: tiny small medium large 
 # Font types:
 # (To include another font, add an entry to the types and include a
 #  'styles--<font>-italic' entry designating the char for the italic stroke,
@@ -52,15 +52,18 @@ styles--size-names:
 	default h1_b h2_b h3_b h4_b h5_b h6_b
 	_b  _i  _b_i _tt _tt_i _tt_b _tt_b_i
 # Font size values, corresponding to the tag names:
-styles--basic-sizes:
-	12      18   14   12   10   10   10
-	12  12  12   12  12    12    12
-styles--small-sizes:
+styles--tiny-sizes:
 	10      17   12   10   8    8    8    10  10    10    10
 	10  10  10   10  10    10    10
-styles--big-sizes:
-	14      20   17   14   12   12   12   14  14    14    14 
+styles--small-sizes:
+	12      17   14   12   10   10   10
+	12  12  12   12  12    12    12
+styles--medium-sizes:
+	14      18   17   14   12   12   12   14  14    14    14 
 	14  14  14   14  14    14    14
+styles--large-sizes:
+	17      25   20   17   14   14   14   17  17    17    18 
+	17  17  17   17  17    17    17
 #
 # Styles shared among sheets:
 # Style Anchors:
