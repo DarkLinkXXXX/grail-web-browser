@@ -7,6 +7,7 @@ import time
 import ht_time
 import grailutil
 import regex
+import traceback
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
@@ -61,13 +62,22 @@ class CacheManager:
 	self.set_freshness_test()
 	self.app.prefs.AddGroupCallback('disk-cache', self.update_prefs)
 
+	# check preferences
+	bool = self.app.prefs.GetInt('disk-cache', 'checkpoint')
+	if bool:
+	    self.app.register_on_exit(lambda save=self.save_cache_state:save())
+
+    def save_cache_state(self):
+	for cache in self.caches:
+	    cache._checkpoint_metadata()
+
     def update_prefs(self):
 	self.set_freshness_test()
 	size = self.caches[0].size = self.app.prefs.GetInt('disk-cache',
 							   'size') \
 							   * 1024
 	new_dir = self.app.prefs.Get('disk-cache', 'directory')
-	if new_dir != self.disk.directory:
+	if new_dir != self.disk.pref_dir:
 	    self.disk._checkpoint_metadata()
 	    self.reset_disk_cache(size, new_dir)
 
@@ -487,6 +497,7 @@ class DiskCache:
     def __init__(self, manager, size, directory):
 	self.max_size = size
 	self.size = 0
+	self.pref_dir = directory
 	if hasattr(os.path, 'expanduser'):
 		directory = os.path.expanduser(directory)
 	if not os.path.isabs(directory):
@@ -504,12 +515,6 @@ class DiskCache:
 	grailutil.establish_dir(self.directory)
 	self._read_metadata()
 	self._reinit_log()
-
-	# check preferences
-	bool = self.manager.app.prefs.GetInt('disk-cache', 'checkpoint')
-	if bool:
-	    self.manager.app.register_on_exit(lambda self=self: \
-					      self._checkpoint_metadata())
 
     log_version = "1.2"
 
