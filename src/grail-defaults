@@ -32,18 +32,18 @@ presentation--message-font:
 #
 # System will revert to this style if a bad one is selected:
 styles--default-size: medium
-styles--default-type: helvetica
+styles--default-family: helvetica
 # Identify current one:
 styles--size: medium
-styles--type: helvetica
+styles--family: helvetica
 # Size ranges:
 styles--all-sizes: tiny small medium large huge
-# Font types:
-# (To include another font, add an entry to the types and include a
+# Font families:
+# (To include another font, add an entry to all-families and include a
 #  'styles--<font>-italic' entry designating the char for the italic stroke,
 #  eg "i" for times and "o" for helvetica and courier.)
-styles--all-types: helvetica times courier
-# Font style oblique designator, according to font type:
+styles--all-families: helvetica times courier
+# Font style oblique designator, according to font family:
 styles--times-italic: i
 styles--helvetica-italic: o
 styles--courier-italic: o
@@ -68,8 +68,7 @@ styles--huge-sizes:
 	25      34   20   25   20   20   20   25  25    25    25
 	25  25  25   25  25    25    25
 #
-# Styles shared among sheets:
-# Style Anchors:
+# Anchors:
 styles-common--styles-a-foreground: #0000EE
 styles-common--styles-a-underline: 1
 # Preformatted text:
@@ -77,6 +76,8 @@ styles-common--styles-pre-wrap: none
 # Centered text:
 styles-common--styles-center-justify: center
 # History Anchors:
+styles-common--history-a-foreground: #551A8B
+styles-common--history-a-underline: 1
 styles-common--history-ahist-foreground: #551A8B
 styles-common--history-ahist-underline: 1
 styles-common--history-atemp-foreground: #FF0000
@@ -90,27 +91,27 @@ styles-common--priorities-atemp: ahist
 # Every style should have a 'valid' component, particularly if it has nothing
 # else - empty styles are invalid.
 styles-fonts--default-font:
-	-*-%(type)s-medium-r-normal-*-%(default)d-*-*-*-*-*-*
+	-*-%(family)s-medium-r-normal-*-%(default)d-*-*-*-*-*-*
 styles-fonts--styles-h1_b-font:
-	-*-%(type)s-bold-r-normal-*-%(h1_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(h1_b)d-*-*-*-*-*-*
 styles-fonts--styles-h1_b-underline: 0
 styles-fonts--styles-h2_b-font:
-	-*-%(type)s-bold-r-normal-*-%(h2_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(h2_b)d-*-*-*-*-*-*
 styles-fonts--styles-h3_b-font:
-	-*-%(type)s-bold-r-normal-*-%(h3_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(h3_b)d-*-*-*-*-*-*
 styles-fonts--styles-h4_b-font:
-	-*-%(type)s-bold-r-normal-*-%(h4_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(h4_b)d-*-*-*-*-*-*
 styles-fonts--styles-h5_b-font:
-	-*-%(type)s-bold-r-normal-*-%(h5_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(h5_b)d-*-*-*-*-*-*
 styles-fonts--styles-h6_b-font:
-	-*-%(type)s-bold-r-normal-*-%(h6_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(h6_b)d-*-*-*-*-*-*
 # Normal fonts
 styles-fonts--styles-_i-font:
-	-*-%(type)s-medium-%(italic)s-normal-*-%(_i)d-*-*-*-*-*-*
+	-*-%(family)s-medium-%(italic)s-normal-*-%(_i)d-*-*-*-*-*-*
 styles-fonts--styles-_b-font:
-	-*-%(type)s-bold-r-normal-*-%(_b)d-*-*-*-*-*-*
+	-*-%(family)s-bold-r-normal-*-%(_b)d-*-*-*-*-*-*
 styles-fonts--styles-_b_i-font:
-	-*-%(type)s-bold-%(italic)s-normal-*-%(_b_i)d-*-*-*-*-*-*
+	-*-%(family)s-bold-%(italic)s-normal-*-%(_b_i)d-*-*-*-*-*-*
 # Typewriter fonts
 styles-fonts--styles-_tt-font:
 	-*-courier-medium-r-normal-*-%(_tt)d-*-*-*-*-*-*
