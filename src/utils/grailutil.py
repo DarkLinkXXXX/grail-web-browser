@@ -1,11 +1,12 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.9 $"
+__version__ = "$Revision: 2.10 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
 
 # XXX Unix specific stuff
+# XXX (Actually it limps along just find for Macintosh, too)
 
 def getgraildir():
     return getenv("GRAILDIR") or os.path.join(gethome(), ".grail")
@@ -45,17 +46,12 @@ def establish_dir(dir):
     Returns 1 if successful, 0 otherwise."""
     if os.path.isdir(dir):
 	return 1
+    head, tail = os.path.split(dir)
+    if not establish_dir(head):
+	return 0
     try:
-	if os.path.islink(dir):
-	    curdir = os.path.getcwd()
-	    os.chdir(dir)
-	    os.chdir(curdir)
-	    return 1
-	elif os.path.exists(dir):
-	    return 0
-	else:
-	    os.mkdir(dir, 0755)
-	    return 1
+	os.mkdir(dir, 0777)
+	return 1
     except os.error:
 	return 0
 
