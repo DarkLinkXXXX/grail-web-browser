@@ -14,6 +14,7 @@ import os
 import protocols
 import time
 import ht_time
+import grailutil
 
 CacheMiss = 'Cache Miss'
 CacheEmpty = 'Cache Empty'
@@ -313,20 +314,22 @@ class DiskCache:
 	self.log = None
 	self.checkpoint = 0
 
+	grailutil.establish_dir(self.directory)
 	self._read_metadata()
 	self._reinit_log()
-	
+
     def _read_metadata(self):
 	###
 	### this trashes all the data about what is LRU
 	###
 
+	logpath = os.path.join(self.directory, 'LOG')
 	try:
-	    log = open(self.directory + '/LOG')
+	    log = open(logpath)
 	except IOError:
 	    # if we can't open the LOG, assume an empty cache
 	    # should probably set up thread to erase directory?
-	    log = open(self.directory + '/LOG', 'w')
+	    log = open(logpath, 'w')
 	    log.close()
 	    return
 	for line in log.readlines():
@@ -350,15 +353,18 @@ class DiskCache:
     def _checkpoint_metadata(self):
 	if self.log:
 	    self.log.close()
-	newlog = open(self.directory + '/CHECKPOINT', 'w')
+	newpath = os.path.join(self.directory, 'CHECKPOINT')
+	newlog = open(newpath, 'w')
 	for entry in self.items.keys():
 	    newlog.write(self.items[entry].unparse())
 	newlog.close()
-	os.rename(self.directory + '/CHECKPOINT', self.directory + '/LOG')
+	logpath = os.path.join(self.directory, 'LOG')
+	os.rename(newpath, logpath)
 	self._reinit_log()
 
     def _reinit_log(self):
-	self.log = open(self.directory + '/LOG', 'a')
+	logpath = os.path.join(self.directory, 'LOG')
+	self.log = open(logpath, 'a')
 
     def log_entry(self,entry,delete=0):
 	self.log.write(entry.unparse(delete))
@@ -419,8 +425,8 @@ class DiskCache:
 	return newitem
 
     def get_file_path(self,key):
-	filename = regsub.gsub('\/','_',key)
-	path = self.directory + '/' + filename
+	filename = regsub.gsub(os.sep,'_',key)
+	path = os.path.join(self.directory, filename)
 	return path
 
     def make_file(self,object):
