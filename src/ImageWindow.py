@@ -24,7 +24,7 @@ class ImageWindow(Frame):
 	bg = viewer.text['background']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
-	self.label = Label(self, text=self.alt, background=bg)
+	self.label = Label(self, text=self.alt, background=bg, borderwidth=0)
 	self.label.pack(fill=BOTH, expand=1)
 	self.image_loaded = 0
 	if width > 0 and height > 0:
