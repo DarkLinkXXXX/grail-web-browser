@@ -117,7 +117,7 @@ class Viewer(formatter.AbstractWriter):
 	self._atemp = []
 	self.current_index = None
 	self.popup_menu = None
-	self.status = StringVar()
+	self.status = StringVar(self.master)
 	self.linkinfo = ""
 	if self.context.viewer is self:
 	    self.frame.bind('<Enter>', self.enter_frame)

@@ -489,7 +489,7 @@ class Browser:
 				       backwards_flag and '0' or '1')
 	except TclError:
 	    index = '1.0'
-	length = IntVar()
+	length = IntVar(textwidget)
 	hitlength = None
 	hit = textwidget.search(pattern, index, count=length,
 				nocase=not case_flag,
