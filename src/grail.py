@@ -50,6 +50,12 @@ if 0:
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 200
 
+# Location of logo image for spash screen
+BIGLOGO = "biglogo.gif"
+
+# Notice displayed underneath the big logo
+NOTICE = "Copyright \251 1995 Corporation for National Research Initiatives"
+
 
 def main():
     try:
@@ -83,6 +89,43 @@ def main():
     # Make everybody who's still using urllib.urlopen go through the cache
     urllib.urlopen = app.open_url_simple
     app.go()
+
+
+class SplashScreen:
+
+    """Display splash screen at startup.
+
+    This uses the initial Tk widget.
+    It goes away after 10 seconds.
+
+    """
+
+    def __init__(self, root):
+	self.root = root
+	self.frame = Frame(self.root)
+	self.frame.pack()
+	for dir in sys.path:
+	    fullname = os.path.join(dir, BIGLOGO)
+	    try:
+		f = open(fullname)
+	    except IOError:
+		pass
+	    else:
+		f.close()
+		break
+	else:
+	    fullname = BIGLOGO
+	self.image = PhotoImage(file=fullname)
+	self.label = Label(self.frame, image=self.image)
+	self.label.pack()
+	self.message = Message(self.frame, text=NOTICE, aspect=500)
+	self.message.pack()
+	self.root.update_idletasks()
+	self.root.after(10000, self.close)
+
+    def close(self):
+	self.frame.destroy()
+	self.root.withdraw()
 
 
 class URLReadWrapper:
@@ -123,6 +166,8 @@ class Application:
     """The application class represents a group of browser windows."""
 
     def __init__(self):
+	self.root = Tk()
+	self.splash = SplashScreen(self.root)
 	self.load_images = 1
 	self.home = DEFAULT_HOME
 	self.url_cache = Cache()
@@ -138,9 +183,7 @@ class Application:
 	for key, value in self.suffixes_map.items():
 	    if not s.has_key(key): s[key] = value
 	self.suffixes_map = s
-	self.root = Tk()
 	self.root.report_callback_exception = self.report_callback_exception
-	self.root.withdraw()
 	self.keep_alive()
 	self.on_exit_methods = []
 	self.browsers = []
