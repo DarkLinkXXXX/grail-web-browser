@@ -20,7 +20,7 @@ NoTempDirectoryFoundError = 'NoTempDirectoryFoundError'
 
 def gettempdir():
     global tempdir
-    attempdirs = ['/usr/tmp', '/tmp', os.getcwd()]
+    attempdirs = ['/usr/tmp', '/tmp', os.getcwd(), os.curdir]
     if os.environ.has_key('TMPDIR'):
 	attempdirs.insert(0, os.environ['TMPDIR'])
     testfile = gettempprefix() + '-*-writetest-*-'
