@@ -9,6 +9,7 @@ import os
 import string
 import sys
 import time
+import posix
 
 
 InGrail_p = __name__ != '__main__'
@@ -28,8 +29,9 @@ try:
     file = os.environ['GRAIL_BOOKMARKS_FILE']
     file = os.path.expanduser(file)
     if file:
-	DEFAULT_GRAIL_BM_FILE = file
 	BOOKMARKS_FILES.insert(0, file)
+	if file <> DEFAULT_NETSCAPE_BM_FILE:
+	    DEFAULT_GRAIL_BM_FILE = file
 except KeyError:
     pass
 
@@ -48,7 +50,6 @@ def username():
     try: name = os.environ['NAME']
     except KeyError:
 	import pwd
-	import posix
 	name = pwd.getpwuid(posix.getuid())[4]
     return name
 
@@ -374,6 +375,7 @@ class BookmarksIO:
     def set_filename(self, filename): self._filename = filename
 
     def _choose_reader_writer(self, fp):
+	parser = writer = None
 	try:
 	    import regex
 	    line1 = fp.readline()
@@ -387,8 +389,7 @@ class BookmarksIO:
 	    fp.seek(0)
 	# sanity checking
 	if not parser or not writer:
-	    raise BookmarkFormatError, \
-		  'unknown bookmark file format for file %s' % filename
+	    raise BookmarkFormatError, 'unknown or missing bookmarks file'
 	# create the reader
 	reader = HTMLBookmarkReader(parser)
 	return (reader, writer)
@@ -418,6 +419,7 @@ class BookmarksIO:
 	return (root, reader, writer)
 
     def _save_to_file_with_writer(self, writer, root, filename=None):
+	posix.rename(filename, filename+'.bak')
 	fp = open(filename, 'w')
 	writer.write_tree(root, fp)
 
@@ -436,7 +438,7 @@ class BookmarksIO:
 
 class IOErrorDialog:
     def __init__(self, master, where, errmsg):
-	msg = 'Bookmark file error encountered during %s:' % where
+	msg = 'Bookmark file error encountered %s:' % where
 	self._frame = Toplevel(master)
 	self._frame.title(msg)
 	label = Label(self._frame, text=msg)
@@ -564,13 +566,13 @@ class BookmarksDialog:
 	propsmenu.add_separator()
 	propsmenu.add_radiobutton(label='Add Current Appends to File',
 				  variable=self._controller.addcurloc,
-				  value=1)
+				  value=NEW_AT_END)
 	propsmenu.add_radiobutton(label='Add Current Prepends to File',
 				  variable=self._controller.addcurloc,
-				  value=2)
-	propsmenu.add_radiobutton(label='Add Current As Child of Selection',
+				  value=NEW_AT_BEG)
+	propsmenu.add_radiobutton(label='Add Current As Child or Sibling',
 				  variable=self._controller.addcurloc,
-				  value=3)
+				  value=NEW_AS_CHILD)
 	propsbtn.config(menu=propsmenu)
 	# edit menu
 	editbtn = Menubutton(self._menubar, text="Edit")
@@ -706,7 +708,7 @@ class BookmarksDialog:
 	try:
 	    self._controller.load()
 	except (IOError, BookmarkFormatError), errmsg:
-	    IOErrorDialog(self._frame, 'loading', errmsg)
+	    IOErrorDialog(self._frame, 'during loading', errmsg)
 
     def show(self):
 	self._frame.deiconify()
@@ -980,12 +982,15 @@ class BookmarksController(OutlinerController):
 	    # add this node to the beginning of root's child list.
 	    self.root().insert_child(node, 0)
 	elif addlocation == NEW_AS_CHILD:
-	    # add this node to the end of the selected node's list of
-	    # children, making sure the selected node is expanded.
+	    # if the node is a branch, add the new node to the end of
+	    # it's child list.  if it is a leaf, add it as a sibling
+	    # of the selected node.
 	    snode, selection = self._get_selected_node()
+	    if snode.leaf_p():
+		snode = snode.parent()
 	    if not snode: snode = self.root()
 	    else: snode.expand()
-	    snode.insert_child(node, 0)
+	    snode.append_child(node)
 	else: pass
 	# scroll the newly added node into view
 	self.set_modflag(True)
