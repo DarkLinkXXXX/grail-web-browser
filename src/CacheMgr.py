@@ -251,10 +251,14 @@ class CacheManager:
 
     def fresh_periodic(self,entry,max_age):
 	"""Refresh it max_age seconds have passed since it was loaded."""
-	age = time.time() - entry.date.get_secs()
-	if age > max_age:
-	    return 0
-	return 1
+	try:
+	    age = time.time() - entry.date.get_secs()
+	    if age > max_age:
+		return 0
+	    return 1
+	except AttributeError:
+	    # if you don't tell me the date, I don't tell you it's stale
+	    return 1
 
     def url2key(self, url, mode, params):
 	"""Normalize a URL for use as a caching key.
@@ -469,8 +473,12 @@ class DiskCache:
 	grailutil.establish_dir(self.directory)
 	self._read_metadata()
 	self._reinit_log()
-	self.manager.app.register_on_exit(lambda self=self: \
-					  self._checkpoint_metadata())
+
+	# check preferences
+	bool = self.manager.app.prefs.GetInt('disk-cache', 'checkpoint')
+	if bool:
+	    self.manager.app.register_on_exit(lambda self=self: \
+					      self._checkpoint_metadata())
 
     log_version = "1.2"
 
@@ -830,7 +838,7 @@ class HTTime:
 	if any:
 	    if type(any) == type(''):
 		str = any
-	    elif type(any) == type(1):
+	    elif type(any) in [type(1), type(.1)]:
 		secs = any
 	if str and str != '':
 	    self.str = str
