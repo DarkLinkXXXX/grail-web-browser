@@ -53,17 +53,17 @@ styles--size-names:
 	_b  _i  _b_i _tt _tt_i _tt_b _tt_b_i
 # Font size values, corresponding to the tag names:
 styles--tiny-sizes:
-	10      17   12   10   8    8    8    10  10    10    10
+	10      18   12   10   8    8    8    10  10    10    10
 	10  10  10   10  10    10    10
 styles--small-sizes:
-	12      17   14   12   10   10   10
+	12      18   14   12   10   10   10
 	12  12  12   12  12    12    12
 styles--medium-sizes:
-	14      18   17   14   12   12   12   14  14    14    14 
+	14      18   18   14   12   12   12   14  14    14    14 
 	14  14  14   14  14    14    14
 styles--large-sizes:
-	17      25   20   17   14   14   14   17  17    17    17
-	17  17  17   17  17    17    17
+	18      25   20   18   14   14   14   18  18    18    18
+	18  18  18   18  18    18    18
 styles--huge-sizes:
 	25      34   20   25   20   20   20   25  25    25    25
 	25  25  25   25  25    25    25
