@@ -5,7 +5,7 @@ attributes: parse, embed, add_options, and update_options.  The first two
 are used as handlers for supporting the MIME type as primary and embeded
 resources.  The last two are (currently) only used for printing.
 """
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 
 
 import extloader
@@ -36,6 +36,20 @@ class MIMETypeExtension:
         self.__load_attr(mod, "embed_" + modname, "embed")
         self.__load_attr(mod, "add_options")
         self.__load_attr(mod, "update_settings")
+
+    def __repr__(self):
+        classname = self.__class__.__name__
+        modulename = self.__class__.__module__
+        if self.parse and self.embed:
+            flags = " [displayable, embeddable]"
+        elif self.embed:
+            flags = " [embeddable]"
+        elif self.parse:
+            flags = " [displayable]"
+        else:
+            # not very useful, now is it?
+            flags = ""
+        return "<%s.%s for %s%s>" % (modulename, classname, self.type, flags)
 
     def __load_attr(self, mod, name, as=None):
         as = as or name
