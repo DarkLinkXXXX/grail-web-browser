@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.29 1996/04/11 16:15:12 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.30 1996/04/11 16:45:11 bwarsaw Exp $'
 
 
 import string
@@ -120,11 +120,9 @@ class TableSubParser:
 	    parser.push_formatter(cell.new_formatter())
 	    cell.init_style()
 	    # create a new object to hold the attributes
-	    if not ti.lastbody:
+	    if not ti.lastbody or not ti.lastbody.trows:
 		self.do_tr(parser, {})
-	    rows = ti.lastbody.trows
-	    if rows:
-		rows[-1].cells.append(cell)
+	    ti.lastbody.trows[-1].cells.append(cell)
 
     def _finish_cell(self, parser):
 	# implicit finish of an open table cell
@@ -557,6 +555,8 @@ class Table(AttrElem):
 	# if caption aligns top, then insert it now.  it doesn't need
 	# to be moved, just resized
 	if self.caption and self.caption.align <> 'bottom':
+	    if canvaswidth < 0:
+		canvaswidth = self.parentviewer.rule_width()
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
@@ -583,6 +583,8 @@ class Table(AttrElem):
 	# if caption aligns bottom, then insert it now.  it needs to
 	# be resized and moved to the proper location.
 	if self.caption and self.caption.align == 'bottom':
+	    if canvaswidth < 0:
+		canvaswidth = self.parentviewer.rule_width()
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
