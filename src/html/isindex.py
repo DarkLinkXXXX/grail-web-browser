@@ -11,7 +11,8 @@ def do_isindex(parser, attrs):
 	prompt = "This is a searchable index. Enter search keywords:"
 
     IndexWidget(parser, prompt,
-		(attrs.has_key('href') and attrs['href']) or None)
+		(attrs.has_key('href') and attrs['href']
+		 or parser.context.get_baseurl()))
 
 
 class IndexWidget:
