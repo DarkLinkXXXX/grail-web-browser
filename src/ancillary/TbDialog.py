@@ -11,8 +11,8 @@ class TracebackDialog:
 	self.exc = exc
 	self.val = val
 	self.tb = tb
-	self.root = Toplevel(self.master)
-	self.root.title("Traceback Dialog")
+	self.root = tktools.make_toplevel(self.master,
+					  title="Traceback Dialog")
 	self.close_button = Button(self.root,
 				   text="Close",
 				   command=self.close_command)
