@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.30 1996/04/11 16:45:11 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.31 1996/04/11 21:25:20 bwarsaw Exp $'
 
 
 import string
@@ -30,6 +30,7 @@ class TableSubParser:
 	self._table_stack = []
 
     def start_table(self, parser, attrs):
+	parser.implied_end_p()
 	# create the table data structure
 	if self._lasttable:
 	    self._table_stack.append(self._lasttable)
@@ -675,7 +676,7 @@ def _get_widths(tw):
     contents = tw.get(1.0, END)
     longest_word = reduce(max, map(len, string.split(contents)), 0)
     tw['width'] = longest_word + 1
-    width_min = tw.winfo_width() + (2 * border_x)
+    width_min = tw.winfo_reqwidth() + (2 * border_x)
     return float(width_min), float(width_max)
 
 def _get_height(tw):
