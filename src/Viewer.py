@@ -803,6 +803,7 @@ class ViewerMenu:
 		self.__add_link_items()
 	    if need_image:
 		self.__add_image_items()
+	    self.__menu.update_idletasks()
 	self.__menu.tk_popup(x, y)
 
     def set_link_url(self, url):
