@@ -318,6 +318,7 @@ def make_group_frame(master, name=None, label=None, fill=Y,
 	Label(outer, text=label, font=font, anchor=W).pack(fill=X)
     inner = Frame(master, borderwidth='1m', name=name)
     inner.pack(expand=1, fill=BOTH, in_=outer)
+    inner.forget = outer.forget
     return inner
 
 
