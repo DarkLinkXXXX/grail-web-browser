@@ -19,18 +19,32 @@ GLOBAL_HISTORY = None
 
 
 
-class NetscapeHistoryReader:
-    def parse_line(self, line):
-	link, timestamp = tuple(string.split(line))
-	return link, link, string.atoi(timestamp)
+class HistoryLineReader:
+    def _error(self, line):
+	sys.stderr.write('WARNING: ignoring ill-formed history file line:\n')
+	sys.stderr.write('WARNING: %s\n' % line)
 
-class GrailHistoryReader:
+class NetscapeHistoryReader(HistoryLineReader):
     def parse_line(self, line):
-	link = timestamp = title = None
-	if GRAIL_RE.match(line) >= 0:
-	    link, timestamp, title = GRAIL_RE.group(1, 2, 3)
-	if not title: title = link
-	return link, title, string.atoi(timestamp)
+	link, timestamp = ''
+	try:
+	    link, timestamp = tuple(string.splitfields(line, '\t'))
+	    return link, link, string.atoi(timestamp)
+	except:
+	    self._error(line)
+	    return None, None, None
+
+class GrailHistoryReader(HistoryLineReader):
+    def parse_line(self, line):
+	link = timestamp = title = ''
+	try:
+	    if GRAIL_RE.match(line) >= 0:
+		link, timestamp, title = GRAIL_RE.group(1, 2, 3)
+	    if not title: title = link
+	    return link, title, string.atoi(timestamp)
+	except:
+	    self._error(line)
+	    return None, None, None
 
 class HistoryReader:
     def read_file(self, fp, histobj):
@@ -47,7 +61,10 @@ class HistoryReader:
 	    return
 	while line:
 	    line = fp.readline()
-	    if line: ghist.append(linereader.parse_line(line))
+	    if line:
+		link, title, timestamp = linereader.parse_line(line)
+		if link and title and timestamp:
+		    ghist.append((link, title, timestamp))
 	# now mass update the history object
 	histobj.mass_append(ghist)
 
