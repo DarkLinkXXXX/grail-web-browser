@@ -50,6 +50,9 @@ class AppletRHooks(RHooks):
 	    raise IOError, errmsg
 	return PseudoFile(api)
 
+    def get_suffixes(self):
+	return [('.py', 'r', 1)]
+
 
 class PseudoFile:
 
