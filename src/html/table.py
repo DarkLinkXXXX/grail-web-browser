@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.40 1996/05/01 16:46:09 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.41 1996/05/06 15:57:08 bwarsaw Exp $'
 
 
 import string
@@ -112,7 +112,7 @@ class TableSubParser:
 	ti = self._lasttable 
 	if ti: ti.bodies.append(self._do_body(parser))
 
-    def do_tr(self, parser, attrs):
+    def start_tr(self, parser, attrs):
 	self._finish_cell(parser)
 	ti = self._lasttable 
 	if ti:
@@ -122,6 +122,12 @@ class TableSubParser:
 		ti.lastbody = HeadFootBody()
 		ti.tbodies.append(ti.lastbody)
 	    ti.lastbody.trows.append(tr)
+	    ti.lastbody.lastrow = tr
+
+    def end_tr(self, parser):
+	ti = self._lasttable
+	if ti and ti.lastbody:
+	    ti.lastbody.lastrow = None
 
     def _do_cell(self, parser, attrs, header=None):
 	ti = self._lasttable 
@@ -129,8 +135,8 @@ class TableSubParser:
 	    # finish any previously opened cell
 	    self._finish_cell(parser)
 	    # create a new object to hold the attributes
-	    if not ti.lastbody or not ti.lastbody.trows:
-		self.do_tr(parser, {})
+	    if not ti.lastbody or not ti.lastbody.lastrow:
+		self.start_tr(parser, {})
 	    # create a new formatter for the cell, made from a new subviewer
 	    if header:
 		cell = THCell(ti, parser, attrs)
@@ -144,7 +150,7 @@ class TableSubParser:
 	    #parser.formatter.push_alignment(cell.attribute('align',
 	    #					   conv=string.lower))
 	    cell.init_style()
-	    ti.lastbody.trows[-1].cells.append(cell)
+	    ti.lastbody.lastrow.cells.append(cell)
 
     def _finish_cell(self, parser):
 	# implicit finish of an open table cell
@@ -437,23 +443,6 @@ class Table(AttrElem):
 	    colcount = max(colcount, col)
 	rowcount = rowcount + 1
 	colcount = colcount + 1
-
-## 	print '==========', id(self)
-## 	for row in range(rowcount):
-## 	    print '[', 
-## 	    for col in range(colcount):
-## 		if not rawtable.has_key((row, col)):
-## 		    print '<EMPTY>',
-## 		    continue
-## 		element = table[(row, col)]
-## 		if element == EMPTY:
-## 		    print 'EMPTY', 
-## 		elif element == OCCUPIED:
-## 		    print 'OCCUPIED',
-## 		else:
-## 		    print element,
-## 	    print ']'
-## 	print '==========', id(self)
 
 	# calculate pruning mask
 	rowprune = [0] * rowcount
