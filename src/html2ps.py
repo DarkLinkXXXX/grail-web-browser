@@ -8,12 +8,29 @@ HTMLParser class scans the HTML stream, generating high-level calls to
 an AbstractWriter object.  This module defines a class derived from
 AbstractWriter, called PSWriter, that supports this high level
 interface as appropriate for PostScript generation.
+
+Note that this module can be run as a standalone script for command
+line conversion of HTML files to PostScript.
+
 """
 
-# must import ni first!  no harm if it's imported twice
-import ni
 import sys
 import os
+
+# TBD: we have to do some path munging based on where you invoke this
+# script.  this sucks.
+if __name__ == '__main__':
+    script_dir = os.path.dirname(sys.argv[0])
+    script_dir = os.path.join(os.getcwd(), script_dir)
+    script_dir = os.path.normpath(script_dir)
+
+    for path in 'pythonlib', script_dir:
+	sys.path.insert(0, os.path.join(script_dir, path))
+
+    import ni
+
+
+# standard imports as part of Grail or as standalone
 import string
 import StringIO
 import regsub
@@ -29,6 +46,8 @@ DEBUG = 0
 
 def _debug(text):
     if DEBUG:
+	if text[-1] <> '\n':
+	    text = text + '\n'
 	sys.stderr.write(text)
 	sys.stderr.flush()
 
@@ -107,7 +126,7 @@ TOP_MARGIN = inch_to_pt(10)
 BOT_MARGIN = inch_to_pt(0.5)
 LEFT_MARGIN = inch_to_pt(1.0)		# was 0.75
 RIGHT_MARGIN = inch_to_pt(1.0)		# was 1.0
-PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN)
+PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN) # 648
 PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 
 # horizontal rule spacing, in points
@@ -266,11 +285,12 @@ class PSStream:
 	# current line state
 	self._space_width = 0.0
 	self._linestr = []
-	self._tallest = 0.0
+	self._baseline = 0.0
+	self._descender = 0.0
 	self._xpos = 0.0
 	self._ypos = 0.0
-	self._vtab = 0.0
-	self._linedata = StringIO.StringIO()
+	self._vtab = 0.0		# extra vertical tab before the line
+	self._linefp = StringIO.StringIO()
 	self._inliteral_p = None
 	self._render = 'S'		# S == normal string, U == underline
 
@@ -323,10 +343,10 @@ class PSStream:
     def push_font_change(self, font):
 	if self._linestr:
 	    self.close_string()
-	self._tallest = max(self._tallest, self._font.font_size())
+	self._baseline = max(self._baseline, self._font.font_size())
 	psfontname, size = self._font.set_font(font)
 	self._space_width = self._font.text_width(' ')
-	self._linedata.write('%s %d SF\n' % (psfontname, size))
+	self._linefp.write('%s %d SF\n' % (psfontname, size))
 
     def push_space(self, spaces=1):
 	# spaces at the beginning of a line are thrown away, unless we
@@ -342,43 +362,35 @@ class PSStream:
 	    sys.stdout = self._ofp
 	    print '0 -%f R' % HR_TOP_MARGIN
 	    print '%f HR' % PAGE_WIDTH
-	    print 'NL'
+	    print 'CR'
 	    print '0 -%f R' % HR_BOT_MARGIN
 	finally:
 	    sys.stdout = oldstdout
 
     def push_margin(self, level):
-	self.close_line()
+	if self._linestr:
+	    self.close_string()
 	distance = level * TAB_STOP
 	self._margin = distance
 	self._ofp.write('/indentmargin %f D\n' % distance)
-	self._ofp.write('NL\n')
+	self._ofp.write('CR\n')
 
     def push_label(self, bullet):
-	if bullet is not None:
-	    distance = self._font.text_width(bullet) + LABEL_TAB
-	    self._ofp.write('gsave NL -%f 0 R\n' % distance)
-	else:
-	    ypos = self._ypos
-	    self.close_line()
-	    self._ypos = ypos
-	    self._ofp.write('grestore\n')
+	if self._linestr:
+	    self.close_string()
+	distance = self._font.text_width(bullet) + LABEL_TAB
+	self._linefp.write('gsave CR -%f 0 R (%s) S grestore\n' %
+			   (distance, bullet))
 
     def push_hard_newline(self, blanklines=1):
 	self.close_line()
-	self._ofp.write('NL\n')
 	if self._inliteral_p:
 	    blanklines = blanklines - 1
 	if blanklines > 0:
-	    # TBD: should we use self._tallest here?  Doesn't look so
-	    # good if we do.
-	    vtab = 10.0 * 1.1 * blanklines
-	    self._ofp.write('0 -%f R\n' % vtab)
-	    self._ypos = self._ypos - vtab
-
-    def push_vtab(self, distance):
-	self.close_line()
-	self._vtab = self._vtab + distance
+	    vtab = self._font.font_size() * blanklines
+## 	    _debug('bl= %d, vtab= %f, self._vtab= %f' %
+## 		   (blanklines, vtab, self._vtab))
+	    self._vtab = self._vtab + vtab
 
     def push_underline(self, flag):
 	render = flag and 'U' or 'S'
@@ -387,7 +399,7 @@ class PSStream:
 	self._render = render
 
     def push_literal(self, flag):
-        if self._linestr:
+        if self._inliteral_p <> flag and self._linestr:
 	    self.close_string()
 	self._inliteral_p = flag
 
@@ -414,14 +426,15 @@ class PSStream:
 		# current line width is > 75% of the page width, and
 		# the current text is smaller than the page width,
 		# then just break the line at the last space.
-		elif linestr[-1][-1] in [' ', '\t'] and \
+		elif len(linestr) and len(linestr[-1]) and \
+		     linestr[-1][-1] in [' ', '\t'] and \
 		     xpos + margin > PAGE_WIDTH * 0.75 and \
 		     width < PAGE_WIDTH:
 		    #
 		    # first output the current line data
 		    #
 		    self.close_line(linestr=linestr)
-		    self._ofp.write('NL\n')
+##		    self._ofp.write('CR\n')
 		    # close_line() touches these, but we're using a
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
@@ -435,7 +448,7 @@ class PSStream:
 		# single line.
 		else:
 		    self.close_line(linestr=linestr)
-		    self._ofp.write('NL\n')
+##		    self._ofp.write('CR\n')
 		    # close_line() touches these, but we're using a
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
@@ -452,7 +465,7 @@ class PSStream:
 			# local variable cache, which must be updated.
 			xpos = 0.0
 			linestr = []
-			self._ofp.write('NL\n')
+##			self._ofp.write('CR\n')
 			word = word[chars_on_line:]
 			width = self._font.text_width(word)
 		    linestr.append(word)
@@ -477,7 +490,7 @@ class PSStream:
 	# undo effects of local variable cache
 	self._xpos = xpos
 	self._linestr = linestr
-    
+
     def print_page_preamble(self):
 	oldstdout = sys.stdout
 	try:
@@ -485,7 +498,7 @@ class PSStream:
 	    # write the structure page convention
 	    print '%%Page:', self._pageno, self._pageno
 	    print 'NP'
-	    print '0 0 M NL'
+	    print '0 0 M CR'
 	    if RECT_DEBUG:
 		print 'gsave', 0, 0, "M"
 		print PAGE_WIDTH, 0, "RL"
@@ -508,38 +521,46 @@ class PSStream:
 	finally:
 	    sys.stdout = stdout
 
-    def print_page_break(self, ypos=None):
-	if ypos is None:
-	    ypos = self._ypos
-	# check to see if we're at the end of the page
+    def print_page_break(self):
+	# will the line we're about to write fit on the current page?
+	linesz = self._baseline + self._descender + self._vtab
+##	_debug('ypos= %f, linesz= %f, diff= %f, PH= %f' %
+##	       (self._ypos, linesz, (self._ypos - linesz), -PAGE_HEIGHT))
+	self._ypos = self._ypos - linesz
 	if self._ypos <= -PAGE_HEIGHT:
 	    self.print_page_postamble()
 	    self._pageno = self._pageno + 1
 	    self.print_page_preamble()
-	    ypos = 0.0
-	return ypos
+	    self._ypos = 0.0
+	    self._vtab = 0.0
 	
     def close_line(self, linestr=None):
-	if linestr is None: linestr = self._linestr
+	if linestr is None:
+	    linestr = self._linestr
+##	print 'ypos=', self._ypos, 'vtab=', self._vtab, 'linestr:', linestr
 	if linestr:
 	    self.close_string(linestr)
-	if self._linedata.tell() > 0:
-	    self._ypos = self.print_page_break(self._ypos - self._vtab)
-	    self._ofp.write('0 -%f R\n' % self._vtab)
-	    self._ofp.write(self._linedata.getvalue())
-	    self._linedata = StringIO.StringIO()
-	    self._xpos = 0.0
-	    self._tallest = self._font.font_size()
-	    self._vtab = self._tallest
+	# do we need to break the page?
+	self.print_page_break()
+	self._ofp.write('CR 0 %f R\n' % -(self._baseline + self._vtab))
+	self._ofp.write(self._linefp.getvalue())
+	if self._descender > 0:
+	    self._ofp.write('0 %f R\n' % -self._descender)
+	# reset cache
+	self._linefp = StringIO.StringIO()
+	self._xpos = 0.0
+	self._vtab = 0.0
+	self._baseline = self._font.font_size()
 
     def close_string(self, linestr=None):
-	if linestr is None: linestr = self._linestr
+	if linestr is None:
+	    linestr = self._linestr
 	contiguous = string.joinfields(linestr, '')
 	# handle quoted characters
 	cooked = regsub.gsub(QUOTE_re, '\\\\\\1', contiguous)
 	# TBD: handle ISO encodings
 	pass
-	self._linedata.write('(%s) %s\n' % (cooked, self._render))
+	self._linefp.write('(%s) %s\n' % (cooked, self._render))
 	self._linestr = []
 
 
@@ -572,30 +593,50 @@ class PSWriter(AbstractWriter):
         self.ps = PSStream(font, ofile, title, url)
 	self.ps.start()
 
-    def close(self): self.ps.push_end()
-    def new_font(self, font): self.ps.push_font_change(font)
-    def new_margin(self, margin, level): self.ps.push_margin(level)
+    def close(self):
+##	_debug('close')
+	self.ps.push_end()
+
+    def new_font(self, font):
+##	_debug('new_font: %s' % `font`)
+	self.ps.push_font_change(font)
+
+    def new_margin(self, margin, level):
+##	_debug('new_margin: margin=%s, level=%s' % (margin, level))
+	self.ps.push_margin(level)
+
     def new_spacing(self, spacing): raise RuntimeError
 
 	# semantics of STYLES is a tuple of single char strings.
 	# Right now the only styles we support are lower case 'u' for
 	# underline.
-    def new_styles(self, styles): self.ps.push_underline('u' in styles)
+    def new_styles(self, styles):
+##	_debug('new_styles: %s' % styles)
+	self.ps.push_underline('u' in styles)
 
-    def send_paragraph(self, blankline): self.ps.push_hard_newline(blankline)
-    def send_line_break(self): self.ps.push_hard_newline()
-    def send_hor_rule(self): self.ps.push_horiz_rule()
+    def send_paragraph(self, blankline):
+##	_debug('send_paragraph: %s' % blankline)
+	self.ps.push_hard_newline(blankline)
+
+    def send_line_break(self):
+##	_debug('send_line_break')
+	self.ps.push_hard_newline()
+
+    def send_hor_rule(self):
+##	_debug('send_hor_rule')
+	self.ps.push_horiz_rule()
 
     def send_label_data(self, data):
+##	_debug('send_label_data: %s' % data)
 	self.ps.push_label(data)
-	self.ps.push_string(data)
-	self.ps.push_label(None)
 
     def send_flowing_data(self, data):
+##	_debug('send_flowing_data: %s' % data)
 	self.ps.push_literal(0)
 	self.ps.push_string(data)
 
     def send_literal_data(self, data):
+##	_debug('send_literal_data: %s' % data)
 	self.ps.push_literal(1)
 	self.ps.push_string(data)
 
@@ -606,23 +647,30 @@ def main():
     help = None
     error = 0
     logfile = None
+    title = ''
+    url = ''
     try:
-	options, argv = getopt.getopt(sys.argv[1:], 'hdl:')
+	options, argv = getopt.getopt(sys.argv[1:], 'hdl:u:t:')
     except getopt.error:
 	error = 1
 	help = 1
     for opt, arg in options:
 	if opt == '-h': help = 1
 	elif opt == '-d': DEBUG = 1
-	elif opt == 'l': logfile = arg
+	elif opt == '-l': logfile = arg
+	elif opt == '-t': title = arg
+	elif opt == '-u': url = arg
     if help:
 	stdout = sys.stderr
 	try:
 	    sys.stdout = sys.stderr
-	    print 'Usage:', sys.argv[0], '[-h] [-d] [-l logfile] [file]'
-	    print '    -h: this help message'
+	    print 'Usage:', sys.argv[0], \
+		  '[-u url] [-t title] [-h] [-d] [-l logfile] [file]'
+	    print '    -u: URL for footer'
+	    print '    -t: title for header'
 	    print '    -d: turn on debugging'
 	    print '    -l: logfile for debugging, otherwise stderr'
+	    print '    -h: this help message'
 	    print '[file]: file to convert, otherwise from stdin'
 	finally:
 	    sys.stdout = stdout
@@ -636,11 +684,15 @@ def main():
     if argv:
 	infile = argv[0]
 	infp = open(infile, 'r')
+	outfile = os.path.splitext(infile)[0] + '.ps'
+	print 'Outputting PostScript to', outfile
+	outfp = open(outfile, 'w')
     else:
 	infile = None
 	infp = sys.stdin
+	outfp = sys.stdout
     # create the parsers
-    w = PSWriter(sys.stdout, None, url=infile or '')
+    w = PSWriter(outfp, title or None, url or infile or '')
     f = AbstractFormatter(w)
     # We don't want to be dependent on Grail, but we do want to use it
     # if it's around.  Only current difference is that links are
@@ -675,7 +727,7 @@ save
 /R {rmoveto} D
 /L {lineto} D
 /RL {rlineto} D
-/NL {indentmargin currentpoint E pop M} D
+/CR {indentmargin currentpoint E pop M} D
 /SQ {newpath 0 0 M 0 1 L 1 1 L 1 0 L closepath} D
 /C {dup stringwidth pop pagewidth exch sub 2 div 0 R S} D
 /EDGE {0 currentpoint E pop M dup stringwidth pop pagewidth exch sub 0 R S} D
