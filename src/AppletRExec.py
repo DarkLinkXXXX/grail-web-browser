@@ -139,7 +139,7 @@ class AppletRExec(RExec):
 	# Don't give applets the real SystemExit, since it exits Grail!
 	self.modules['__builtin__'].SystemExit = "SystemExit"
 
-    # XXX The path manipulations below are not portable to the Mac
+    # XXX The path manipulations below are not portable to the Mac or PC
 
     def set_urlpath(self, url):
 	self.reset_urlpath()
@@ -267,8 +267,9 @@ class OSSurrogate:
 	self.rexec = rexec
 	self.app = rexec.app
 	self.appletsdir = os.path.join(self.app.graildir, "applets")
-	self.home = os.path.join(self.appletsdir,
-				 group2dirname(self.rexec.appletgroup))
+	self.home = os.path.normcase(
+	    os.path.join(self.appletsdir,
+			 group2dirname(self.rexec.appletgroup)))
 	self.home_made = 0
 	self.pwd = self.home
 	# Self environ is public
@@ -398,7 +399,7 @@ def group2dirname(group):
     """
     import regsub, md5
     sum = md5.new(group).digest()
-    path = regsub.gsub('[:/]+', '_', group)
+    path = regsub.gsub('[:/\\]+', '_', group)
     if len(path) > 15:
 	path = path[:7] + '_' + path[-7:]
     path = path + hexstring(sum[:8])
