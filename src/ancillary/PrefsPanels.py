@@ -1,9 +1,9 @@
-"""Framework for implementing GUI dialogs for editing of user preferences.
+"""Framework for implementing GUI panel dialogs for user preference editing.
 
-Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
-~user/.grail/prefpanels/*prefs.py."""
+Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
+~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.12 $"
+__version__ = "$Revision: 2.13 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -24,31 +24,34 @@ import string, regex, regsub
 from types import StringType
 
 
-DIALOG_CLASS_NAME_SUFFIX = 'Panel'
+PANEL_CLASS_NAME_SUFFIX = 'Panel'
 
 from __main__ import grail_root
 
 # User's panels dir should come after sys, so user's takes precedence.
-dialogs_dirs = [os.path.join(grail_root, 'prefspanels'),
+panels_dirs = [os.path.join(grail_root, 'prefspanels'),
 		os.path.expanduser("~/.grail/prefspanels")]
 
-modname_matcher = regex.compile("^\(.*\)prefs.py[c]?$")
+modname_matcher = regex.compile("^\(.*\)Panel.py[c]?$")
 
 # Framework
 
 class Framework:
-    """Skeleton for building preferences dialogs via inheritance.
+    """Skeleton for building preference panels via inheritance.
 
     The framework provides general controls, like save/revert/resume, and a
     mechanism for associating the User Interface elements with preferences,
     so the preferences are systematically revised when the changes are
     committed.
 
-    To build a preferences dialog:
+    See 'htdocs/info/extending/prefs-panels.html' for most up-to-date
+    instructions.
 
-     - Create a class which inherit from this one, and is named with the
-       concatenation of the dialog name and "Panel", eg "GeneralPanel".
-     - Implement dialog-specific layout by overriding the .CreateLayout()
+    To build a preferences panel:
+
+     - Create a class inheriting from this one, named with the
+       concatenation of the panel name and "Panel", eg "GeneralPanel".
+     - Implement panel-specific layout by overriding the .CreateLayout()
        method.
        - Within .CreateLayout, use the self.RegisterUI() to couple the
          widget (or whatever user interface element) with the corresponding
@@ -57,7 +60,7 @@ class Framework:
        - There are also some convenient routines for making widgets, eg
          self.PrefsCheckButton().
 
-    Your dialog will be included in the Preferences menu bar pulldown, and
+    Your panel will be included in the Preferences menu bar pulldown, and
     will be posted when its entry is selected."""
 
     def __init__(self, name, app):
@@ -87,7 +90,7 @@ class Framework:
 
 	Preference is specified by group and component.  Type is used for
 	choice of preference-get funcs.  uiget and uiset should be routines
-	that obtain and impose values on the dialog widget representing the
+	that obtain and impose values on the panel widget representing the
 	preference.  (.widget_set_func() is useful for producing the uiset
 	func for many tkinter widgets.)"""
 
@@ -186,7 +189,7 @@ class Framework:
 	return v.set
 
     def post(self, browser):
-	"""Called from menu interface to engage dialog."""
+	"""Called from menu interface to engage panel."""
 
 	if not self.widget:
 	    self.create_widget()
@@ -258,7 +261,7 @@ class Framework:
 
     # Operational commands:
     def set_widgets(self, factory=0):
-	"""Initialize dialog widgets with preference db values.
+	"""Initialize panel widgets with preference db values.
 
 	Optional FACTORY true means use system defaults for values."""
 	prefsgetter = getattr(self.app.prefs, 'GetTyped')
@@ -271,11 +274,11 @@ class Framework:
 	self.poll_modified()
 
     def done_cmd(self, event=None):
-	"""Conclude dialog: commit and withdraw it."""
+	"""Conclude panel: commit and withdraw it."""
 	self.apply_cmd(close=1)
 
     def apply_cmd(self, event=None, close=0):
-	"""Apply settings from dialog to preferences."""
+	"""Apply settings from panel to preferences."""
 	self.widget.update_idletasks()
 
 	prefsset = self.app.prefs.Set
@@ -298,7 +301,7 @@ class Framework:
 	return 1
 
     def factory_defaults_cmd(self):
-	"""Reinit dialog widgets with system-defaults preference db values."""
+	"""Reinit panel widgets with system-defaults preference db values."""
 	self.set_widgets(factory=1)
 	self.poll_modified()
 
@@ -320,7 +323,7 @@ class Framework:
 	# Zeroing the entry for the module will force an import, which
 	# will force a reload if the code has been modified.
 	self.hide()
-	self.app.prefs_dialogs.load(self.name, reloading=1)
+	self.app.prefs_panels.load(self.name, reloading=1)
 
     # State mechanisms.
 
@@ -365,25 +368,25 @@ class Framework:
 
 # Setup
 
-class PrefsDialogsMenu:
-    """Setup prefs dialogs and populate the browser menu."""
+class PrefsPanelsMenu:
+    """Setup prefs panels and populate the browser menu."""
 
     def __init__(self, menu, browser):
 	self.browser = browser
 	self.app = browser.app
 	self.menu = menu
-	if hasattr(self.app, 'prefs_dialogs'):
-	    self.dialogs = self.app.prefs_dialogs.dialogs
+	if hasattr(self.app, 'prefs_panels'):
+	    self.panels = self.app.prefs_panels.panels
 	else:
-	    self.dialogs = {}
-	    self.app.prefs_dialogs = self
-	    for (nm, clnm, modnm, moddir) in self.discover_dialog_modules():
-		if not self.dialogs.has_key(nm):
+	    self.panels = {}
+	    self.app.prefs_panels = self
+	    for (nm, clnm, modnm, moddir) in self.discover_panel_modules():
+		if not self.panels.has_key(nm):
 		    # [module name, class name, directory, instance]
-		    self.dialogs[nm] = [modnm, clnm, moddir, None]
+		    self.panels[nm] = [modnm, clnm, moddir, None]
 	raworder = self.app.prefs.Get('preferences', 'panel-order')
 	order = string.split(raworder)
-	keys = self.dialogs.keys()
+	keys = self.panels.keys()
 	ordered = []
 	for name in order:
 	    if name in keys:
@@ -397,10 +400,10 @@ class PrefsDialogsMenu:
 	    # ... which will be used to call the real posting routine:
 	    menu.add_command(label=name, command=poster)
 
-    def discover_dialog_modules(self):
-	"""Identify candidate dialogs.
+    def discover_panel_modules(self):
+	"""Identify candidate panels.
 
-	Return list of tuples describing found dialog modules: (name,
+	Return list of tuples describing found panel modules: (name,
 	modname, moddir).
 
 	Candidate modules must end in 'prefs.py' or 'prefs.pyc'.  The name
@@ -409,7 +412,7 @@ class PrefsDialogsMenu:
 
 	For multiple panels with the same name, the last one found is used."""
 	got = {}
-	for dir in dialogs_dirs:
+	for dir in panels_dirs:
 	    entries = []
 	    try:
 		entries = os.listdir(dir)
@@ -425,8 +428,8 @@ class PrefsDialogsMenu:
 	return got.values()
 		    
     def do_post(self, name):
-	"""Expose the dialog, creating it if necessary."""
-	entry = self.dialogs[name]
+	"""Expose the panel, creating it if necessary."""
+	entry = self.panels[name]
 	if entry[3]:
 	    # Already loaded:
 	    entry[3].post(self.browser)
@@ -436,10 +439,10 @@ class PrefsDialogsMenu:
 		self.do_post(name)
 
     def load(self, name, reloading=0):
-	"""Import the dialog module and init the instance.
+	"""Import the panel module and init the instance.
 
 	Returns 1 if successful, None otherwise."""
-	entry = self.dialogs[name]
+	entry = self.panels[name]
 	try:
 	    sys.path.insert(0, entry[2])
 	    try:
@@ -448,12 +451,12 @@ class PrefsDialogsMenu:
 		if reload:
 		    reload(mod)
 		class_name = (regsub.gsub(" ", "", name)
-			      + DIALOG_CLASS_NAME_SUFFIX)
+			      + PANEL_CLASS_NAME_SUFFIX)
 		# Instantiate it:
 		entry[3] = getattr(mod, class_name)(name, self.app)
 		return 1
 	    except:
-		# Whatever may go wrong in import or dialog post
+		# Whatever may go wrong in import or panel post
 		e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
 		self.app.root.report_callback_exception(e, v, tb)
 		return None
@@ -494,7 +497,7 @@ def standalone():
     root.pack(side=LEFT)
 
     browser = fake_browser(root)
-    pdm = PrefsDialogsMenu(prefsmenu, browser)
+    pdm = PrefsPanelsMenu(prefsmenu, browser)
     prefsmenu.mainloop()
 
 if __name__ == "__main__":
