@@ -6,6 +6,7 @@ import string
 from Tkinter import *
 import urllib
 import tktools
+import ImageWindow
 
 # ------ Forms
 
@@ -199,11 +200,20 @@ class FormInfo:
 	    if not i.name: continue
 	    v = i.get()
 	    if v:
-		if type(v) != type([]):
-		    v = [v]
-		for vv in v:
-		    s = '&' + quote(i.name) + '=' + quote(vv)
+		### images need to return two different values
+		### there doesn't seem to be an easy & elegant way to
+		###do this
+		if type(v) == type(()):
+		    s = '&' + quote(i.name + '.x') + '=' + quote(str(v[0]))
 		    data = data + s
+		    s = '&' + quote(i.name + '.y') + '=' + quote(str(v[1]))
+		    data = data + s
+		else:
+		    if type(v) != type([]):
+			v = [v]
+		    for vv in v:
+			s = '&' + quote(i.name) + '=' + quote(vv)
+			data = data + s
 	return data[1:]
 
     def make_form_data(self):
@@ -427,6 +437,35 @@ class FormInfo:
 
 	def get(self):
 	    return self.value
+
+    class InputImage(Input):
+
+	value = "Image"
+	src = None
+	alt = '(image)'
+	width = 0
+	height = 0
+	border = 2
+	align = ''
+	value = (None,None)
+
+	def setup(self):
+	    self.getopt('alt')
+	    self.getopt('src')
+	    self.getopt('width')
+	    self.getopt('height')
+	    self.getopt('border')
+	    self.w = InputImageWindow(self.viewer, self.src, self.alt,
+				      self.align, self.width,
+				      self.height, self.border,
+				      self.set_value_and_submit)
+
+	def get(self):
+	    return self.value
+
+	def set_value_and_submit(self, event):
+	    self.value = (event.x, event.y)
+	    self.fi.submit_command()
 
     class InputSubmit(Input):
 
@@ -653,3 +692,48 @@ def quote(s):
     w = string.splitfields(s, ' ')
     w = map(urllib.quote, w)
     return string.joinfields(w, '+')
+
+
+class InputImageWindow(Frame):
+    """A simple image window that never is an imagemap.
+
+    This is mostly a stripped-down version of ImageWindow used for the
+    <IMG> tag. I'm assuming that class can't be gotten at here. Am I
+    right? 
+
+    The last argument is a function to bind ButtonRelease-{1,3} to.
+    """
+
+    def __init__(self, viewer,
+		 src, alt, align, width, height, borderwidth, bind_func):
+	self.viewer = viewer
+	self.context = self.viewer.context
+	self.src, self.alt, self.align = src, alt, align
+	bg = viewer.text['background']
+	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
+		       background=bg)
+	self.label = Label(self, text=self.alt, background=bg)
+	self.label.pack(fill=BOTH, expand=1)
+	self.pack()
+	self.image_loaded = 0
+	if width > 0 and height > 0:
+	    self.propagate(0)
+	    self.config(width=width + 2*borderwidth,
+			height=height + 2*borderwidth)
+	self.label.bind('<ButtonRelease-1>', bind_func)
+	self.label.bind('<ButtonRelease-3>', bind_func)
+	self.image = self.context.get_async_image(self.src)
+	if self.image:
+	    self.label['image'] = self.image
+
+    # may be able to delete this
+    def toggle_loading_image(self, event=None):
+	if self.image:
+	    if hasattr(self.image, 'get_load_status'):
+		status = self.image.get_load_status()
+		if status == 'loading':
+		    self.image.stop_loading()
+		else:
+		    self.image.start_loading(reload=1)
+	else:
+	    print "[no image]"
