@@ -109,8 +109,11 @@ class Browser:
 	self.helpmenu = Menu(self.helpbutton)
 	self.helpbutton['menu'] = self.helpmenu
 
-	self.helpmenu.add('command', label='About Grail...',
+	self.helpmenu.add('command', label='About Grail',
 			  command=self.about_command)
+	self.helpmenu.add('separator')
+	self.helpmenu.add('command', label='Grail Home Page',
+			  command=self.grail_home_command)
 
     def create_urlbar(self):
 	self.entry, self.topframe = tktools.make_form_entry(self.root, 'URL:')
@@ -293,6 +296,9 @@ class Browser:
 
     def about_command(self):
 	self.load(ABOUT_GRAIL)
+
+    def grail_home_command(self):
+	self.load(DEFAULT_HOME)
 
     # End of commmands
 
