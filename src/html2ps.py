@@ -1038,7 +1038,7 @@ class PrintingHTMLParser(HTMLParser):
 	self.formatter.add_flowing_data('URLs referenced in this document:')
 	self.end_p()
 	self.formatter.push_font((8, None, None, None))
-	self.start_ul({'type':'[1]', 'compact':None})
+	self.start_ol({'type':'[1]', 'compact':None})
 	for anchor, title in self._anchor_sequence:
 	    self.do_li({})
 	    if title:
@@ -1048,7 +1048,7 @@ class PrintingHTMLParser(HTMLParser):
 		self.end_cite()
 		self.formatter.add_flowing_data(', ')
 	    self.formatter.add_literal_data(anchor)
-	self.end_ul()
+	self.end_ol()
 	self.formatter.pop_font()
 
     def start_a(self, attrs):
