@@ -16,11 +16,9 @@ import string
 import tktools
 import formatter
 import Viewer
-from HTMLParser import HTMLParser, HeaderNumber
+from HTMLParser import HTMLParser, HeaderNumber, NullObject
 import grailutil
 from grailutil import extract_attribute, extract_keyword
-
-URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase']
 
 # Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
@@ -47,15 +45,10 @@ class GrailHTMLParser(HTMLParser):
 	self.context = self.viewer.context
 	self.app = self.context.app
 	self.load_dingbat = self.app.load_dingbat
-	self.style_stack = []
 	self.loaded = []
-	self.object_stack = []
-	self.suppress_output = 0	# Length of object_stack at activation
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = []
-	# references to this are on the critical path, so make them faster
-	self.object_aware_tags = self.object_aware_tags
 	self.push_formatter(formatter.AbstractFormatter(self.viewer))
 	if not _inited:
 	    _inited = 1
@@ -87,33 +80,6 @@ class GrailHTMLParser(HTMLParser):
 	if refresh:
 	    DynamicReloader(self.context, refresh)
 
-    # Manage the object_stack
-
-    def push_object(self, tag):
-	self.object_stack.append(tag)
-	return self.suppress_output
-
-    def set_suppress(self):
-	self.suppress_output = len(self.object_stack)
-	self.set_data_handler(self.handle_data_noop)
-
-    def handle_data_noop(self, data):
-	pass
-
-    def pop_object(self):
-	if self.suppress_output == len(self.object_stack):
-	    self.suppress_output = 0
-	    if self.nofill:
-		handler = self.formatter.add_literal_data
-	    else:
-		handler = self.formatter.add_flowing_data
-	    self.set_data_handler(handler)
-	    r = 1
-	else:
-	    r = 0
-	del self.object_stack[-1]
-	return r
-
     # manage the formatter stack
     def get_formatter(self):
 	return self.formatter_stack[-1]
@@ -138,23 +104,9 @@ class GrailHTMLParser(HTMLParser):
     # Override HTMLParser internal methods
 
     def handle_starttag(self, tag, method, attrs):
-	if self.suppress_output and tag not in self.object_aware_tags:
-	    return
-	for k in URL_VALUED_ATTRIBUTES:
-	    if attrs.has_key(k) and attrs[k]:
-		attrs[k] = string.joinfields(string.split(attrs[k]), '')
-	method(attrs)
+	HTMLParser.handle_starttag(self, tag, method, attrs)
 	if attrs.has_key('id'):
 	    self.register_id(attrs['id'])
-
-    def handle_endtag(self, tag, method):
-	if self.suppress_output and tag not in self.object_aware_tags:
-	    return
-	method()
-
-    def handle_data_nohead(self, data):
-	if not self.suppress_output:
-	    HTMLParser.handle_data_nohead(self, data)
 
     def register_id(self, id):
 	if self._ids.has_key(id):
@@ -252,8 +204,8 @@ class GrailHTMLParser(HTMLParser):
 	    # so things like indents and centering work
 	    self.viewer.prepare_for_insertion()
 	self.viewer.add_subwindow(w, align=align)
-	if hspace or vspace:
-	    self.viewer.text.window_config(w, padx=hspace, pady=vspace)
+## 	if hspace or vspace:
+## 	    self.viewer.text.window_config(w, padx=hspace, pady=vspace)
 	self.formatter.assert_line_data()
 
     # Extend tag: </TITLE>
@@ -475,42 +427,10 @@ class GrailHTMLParser(HTMLParser):
     # New tag: <APPLET>
 
     def start_applet(self, attrs):
-	if self.push_object('applet'):
-	    return
-	# See http://www.javasoft.com/people/avh/applet.html for DTD
-	extract = extract_keyword
-	width = extract('width', attrs, conv=string.atoi)
-	height = extract('height', attrs, conv=string.atoi)
-	menu = extract('menu', attrs)
-	code = extract('code', attrs)
-	name = extract('name', attrs)
-	codebase = extract('codebase', attrs)
-	align = extract('align', attrs, 'baseline')
-	vspace = extract('vspace', attrs, 0, conv=string.atoi)
-	hspace = extract('hspace', attrs, 0, conv=string.atoi)
-	import AppletLoader
-	apploader = AppletLoader.AppletLoader(
-	    self, width=width, height=height,
-	    menu=menu, name=name, code=code, codebase=codebase,
-	    vspace=vspace, hspace=hspace, align=align, reload=self.reload1)
-	if apploader.feasible():
-	    self.apploader = apploader
-	    self.set_suppress()
-	else:
-	    apploader.close()
+	self.start_object(attrs, 'applet')
 
     def end_applet(self):
-	if self.pop_object():
-	    self.apploader.go_for_it()
-
-    # New tag: <PARAM>
-
-    def do_param(self, attrs):
-	if 0 < self.suppress_output == len(self.object_stack):
-	    name = extract_keyword('name', attrs)
-	    value = extract_keyword('value', attrs)
-	    if name is not None and value is not None:
-		self.apploader.set_param(name, value)
+	self.end_object()
 
     # New tag: <APP> (for Grail 0.2 compatibility)
 
@@ -546,44 +466,10 @@ class GrailHTMLParser(HTMLParser):
 	    mod = cls
 	return mod, cls, src
 
-    # New tag: <OBJECT> -- W3C proposal for <APPLET>/<IMG>/... merger.
+    # Object handlers for applets:
 
-    def start_object(self, attrs):
-	if self.push_object('object'):
-	    return
-	extract = extract_keyword
-	width = extract('width', attrs, conv=string.atoi)
-	height = extract('height', attrs, conv=string.atoi)
-	menu = extract('menu', attrs)
-	classid = extract('classid', attrs)
-	codebase = extract('codebase', attrs)
-	align = extract('align', attrs, 'baseline')
-	vspace = extract('vspace', attrs, 0, conv=string.atoi)
-	hspace = extract('hspace', attrs, 0, conv=string.atoi)
-	import AppletLoader
-	apploader = AppletLoader.AppletLoader(
-	    self, width=width, height=height, menu=menu,
-	    classid=classid, codebase=codebase,
-	    vspace=vspace, hspace=hspace, align=align, reload=self.reload1)
-	if apploader.feasible():
-	    self.apploader = apploader
-	    self.set_suppress()
-	else:
-	    apploader.close()
-
-    def end_object(self):
-	if self.pop_object():
-	    self.apploader.go_for_it()
-
-    # New tag: <SCRIPT> -- ignore anything inside it
-
-    def start_script(self, attrs):
-	if self.push_object('script'):
-	    return
-	self.set_suppress()
-
-    def end_script(self):
-	self.pop_object()
+    def get_object_handlers(self):
+	return (applet_handler,)
 
     # Heading support for dingbats (iconic entities):
 
@@ -656,9 +542,8 @@ class GrailHTMLParser(HTMLParser):
     def unknown_starttag(self, tag, attrs):
 	# Look up the function first, so it has a chance to update
 	# the list of object aware tags
-	if self.suppress_output:
-	    if tag not in self.object_aware_tags:
-		return
+	if self.suppress_output and tag not in self.object_aware_tags:
+	    return
 	function, as_dict, has_end = self.app.find_html_start_extension(tag)
 	if function or tag in self.UNIMPLEMENTED_CONTAINERS:
 	    id = attrs.has_key('id') and attrs['id'] or None
@@ -676,9 +561,8 @@ class GrailHTMLParser(HTMLParser):
 	    self.badhtml = 1
 
     def unknown_endtag(self, tag):
-	if self.suppress_output:
-	    if tag not in self.object_aware_tags:
-		return
+	if self.suppress_output and tag not in self.object_aware_tags:
+	    return
 	function = self.app.find_html_end_extension(tag)
 	if function:
 	    function(self)
@@ -693,12 +577,20 @@ class GrailHTMLParser(HTMLParser):
     def unknown_entityref(self, entname, terminator):
 	if self.suppress_output:
 	    return
+	self.inhead = 0
+	if entname == "nbsp":
+	    if self.strict_p():
+		self.handle_data(' ')
+	    else:
+		self.nbsp_magic()
+	    return
 	img = self.load_dingbat(entname)
 	if img:
 	    if type(img) is TupleType:
 		s, tag = img
 		if tag:
 		    tag = (self.formatter.writer.fonttag or '') + tag
+		    self.viewer.configure_fonttag(tag)
 		    self.formatter.push_style(tag)
 		    self.handle_data(s)
 		    self.formatter.pop_style()
@@ -721,10 +613,45 @@ class GrailHTMLParser(HTMLParser):
 		    label.bind("<Button-3>", thunk.button_3_event)
 		    label.bind("<Enter>", thunk.enter)
 		    label.bind("<Leave>", thunk.leave)
-	    self.inhead = 0
 	else:
-	    #  Could not load image, allow parent class to handle:
+	    # Could not load dingbat, allow parent class to handle:
 	    HTMLParser.unknown_entityref(self, entname, terminator)
+
+
+def applet_handler(parser, attrs):
+    """<OBJECT> Handler for Python applets."""
+    extract = extract_keyword
+    width = extract('width', attrs, conv=string.atoi)
+    height = extract('height', attrs, conv=string.atoi)
+    menu = extract('menu', attrs)
+    classid = extract('classid', attrs)
+    codebase = extract('codebase', attrs)
+    align = extract('align', attrs, 'baseline')
+    vspace = extract('vspace', attrs, 0, conv=string.atoi)
+    hspace = extract('hspace', attrs, 0, conv=string.atoi)
+    import AppletLoader
+    apploader = AppletLoader.AppletLoader(
+	parser, width=width, height=height, menu=menu,
+	classid=classid, codebase=codebase,
+	vspace=vspace, hspace=hspace, align=align, reload=parser.reload1)
+    if apploader.feasible():
+	return AppletObject(apploader)
+    else:
+	apploader.close()
+    return None
+
+
+class AppletObject(NullObject):
+    """Object for use with <OBJECT> / <PARAM> elements."""
+
+    def __init__(self, apploader):
+	self.__apploader = apploader
+
+    def param(self, name, value):
+	self.__apploader.set_param(name, value)
+
+    def end(self):
+	self.__apploader.go_for_it()
 
 
 class IconicEntityLinker:
