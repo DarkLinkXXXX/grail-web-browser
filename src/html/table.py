@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.4 1996/03/27 18:37:43 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.5 1996/03/27 23:01:15 bwarsaw Exp $'
 
 
 import string
@@ -136,42 +136,57 @@ class TableSubParser:
 
 
 
+def _get_linecount(tw):
+    return string.atoi(string.splitfields(tw.index(END), '.')[0]) - 1
+
 def _get_widths(tw):
     width_max = 0
+    charwidth_max = 0
     border_x = None
     # get maximum width of cell: the longest line with no line wrapping
     tw['wrap'] = NONE
     border_x, y, w, h, b = tw.dlineinfo(1.0)
-    linecnt = string.atoi(string.splitfields(tw.index(END), '.')[0])
+    linecnt = _get_linecount(tw) + 1
     for lineno in range(1, linecnt):
 	index = '%d.0' % lineno
 	tw.see(index)
 	x, y, w, h, b = tw.dlineinfo(index)
 	width_max = max(width_max, w)
+	if lineno > 1:
+	    charwidth = string.atoi(string.splitfields(
+		tw.index('%s - 1 c' % index), '.')[1])
+	    charwidth_max = max(charwidth_max, charwidth)
     width_max = width_max + (2 * border_x)
     # get minimum width of cell: longest word
     tw['wrap'] = WORD
     contents = tw.get(1.0, END)
     longest_word = reduce(max, map(len, string.split(contents)), 0) + 1
     tw['width'] = longest_word
-    width_min = tw.winfo_reqwidth() #+ (2 * border_x)
-    return width_min, width_max
+    width_min = tw.winfo_reqwidth() + (2 * border_x)
+    return charwidth_max, width_min, width_max
 
 def _get_height(tw):
-    linecount = string.atoi(string.splitfields(tw.index(END), '.')[0])
+    linecount = _get_linecount(tw)
+##     print tw.get(1.0, 'end - 1 c'), '[%d]:' % linecount,
+##     print 'width=', tw['width'], tw.master['width'],
     tw['height'] = linecount
     tw.update_idletasks()
     tw.see(1.0)
     x, border_y, w, h, b = tw.dlineinfo(1.0)
     loopcnt = 0
     while 1:
+## 	print 'loopcnt=', loopcnt,
 	loopcnt = loopcnt + 1
 	if loopcnt > 100:
 	    raise 'Loop Badness Detected!'
+	tw.see(1.0)
+## 	print '<%s>' % tw.index('end - 1 c'),
 	info = tw.dlineinfo('end - 1 c')
 	if info:
+## 	    print
 	    break
 	linecount = linecount + 1
+## 	print 'linecount=', linecount
 	tw['height'] = linecount
 	tw.update_idletasks()
     x, y, w, h, b = info
@@ -383,14 +398,14 @@ class Caption(AttrElem):
 
     def finish(self):
 	fw, tw = self.viewer.frame, self.viewer.text
-	print self._align
+## 	print self._align
 	if self._align == 'bottom':
-	    fw.pack(before=self._packmaster, fill=BOTH, expand=YES)
-	else:
 	    fw.pack(after=self._packmaster, fill=BOTH, expand=YES)
+	else:
+	    fw.pack(before=self._packmaster, fill=BOTH, expand=YES)
 	# get widths and heights.  note the width must be set before
 	# the true height can be calculated.
-	wmin, wmax = _get_widths(tw)
+	cmax, wmin, wmax = _get_widths(tw)
 	fw['width'] = wmax
 	h = _get_height(tw)
 	fw['height'] = h
@@ -456,7 +471,9 @@ class Cell(AttrElem):
     def __repr__(self):
 	return '"%s"' % self.viewer.text.get(1.0, END)[:-1]
 
-    def width(self): return self._width
+    def width(self):
+	return self._width
+
     def height(self):
 	if self._height is None:
 	    self._height = _get_height(self.viewer.text)
@@ -466,13 +483,14 @@ class Cell(AttrElem):
 
     def finish(self):
 	if self.layout == AUTOLAYOUT:
-	    tw = self.viewer.text
+	    fw, tw = self.viewer.text, self.viewer.text
 	    # set the cellpadding
 	    padding = string.atoi(self._cellpadding or '')
 	    tw['padx'] = padding
 	    # get the cell's widths
-	    self.min_nonaligned, self._width = _get_widths(tw)
-	    self.viewer.frame['width'] = self._width
+	    cmax, self.min_nonaligned, self._width = _get_widths(tw)
+	    fw.propagate(0)
+	    fw['width'] = self._width
 	    # now take into account all embedded subwindows
 	    for sw in self.viewer.subwindows:
 		self.min_nonaligned = max(self.min_nonaligned, sw['width'])
@@ -481,13 +499,14 @@ class Cell(AttrElem):
 	    # can do without forcing an update_idletasks() and causing
 	    # fireworks.  Later, situate() will be called to do the
 	    # final sizing and positioning of the cell.
-	    tw['height'] = tw.index('end - 1 c')
+	    tw['height'] = _get_linecount(tw) + 1
 
     def situate(self, x, y, w, h):
-	self.viewer.frame.config(width=w, height=h)
+	fw = self.viewer.frame
+	fw.propagate(1)
+	fw.config(width=w, height=h)
 	self._container.create_window(x, y,
-				      window=self.viewer.frame,
-				      anchor=NW,
+				      window=fw, anchor=NW,
 				      width=w, height=h)
 	self._width = w
 	self._height = h
