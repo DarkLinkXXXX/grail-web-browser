@@ -5,6 +5,7 @@
 from FileReader import TempFileReader
 from Tkinter import *
 import grailutil
+import os
 import string
 
 TkPhotoImage = PhotoImage
@@ -161,14 +162,16 @@ class BaseAsyncImage:
     def show_bad(self):
         self.blank()
         try:
-            self['file'] = grailutil.which("icons/sadsmiley.gif") or ""
+            self['file'] = grailutil.which(
+                os.path.join("icons", "sadsmiley.gif")) or ""
         except TclError:
             pass
 
     def show_busy(self):
         self.blank()
         try:
-            self['file'] = grailutil.which("icons/image.gif") or ""
+            self['file'] = grailutil.which(
+                os.path.join("icons", "image.gif")) or ""
         except TclError:
             pass
 
