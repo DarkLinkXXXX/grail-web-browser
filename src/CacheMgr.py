@@ -8,8 +8,6 @@ import protocols
 import time
 import ht_time
 import grailutil
-import regsub
-import pickle
 import posix
 import regex
 
@@ -71,11 +69,14 @@ class CacheManager:
 	if fresh_type == 'per session':
 	    self.fresh_p = lambda key, self=self: \
 			   self.fresh_every_session(self.items[key])
+	    self.session_freshen = []
 	elif fresh_type == 'periodic':
 	    self.fresh_p = lambda key, self=self, t=fresh_rate: \
 			   self.fresh_periodic(self.items[key],t)  
 	elif fresh_type == 'never':
 	    self.fresh_p = lambda x: 1
+	else: #         == 'always'
+	    self.fresh_p = lambda x: 0
 
     def open(self, url, mode, params, reload=0, data=None):
 	"""Opens a URL and returns a protocol API for it.
@@ -134,10 +135,8 @@ class CacheManager:
     def open_post(self, key, url, mode, params, reload, data):
 	"""Open a URL with a POST request. Do not cache."""
 	key = self.url2key(url, mode, params)
-	temp = self.activate(CacheItem(url, mode, params, None, key,
+	return self.activate(CacheItem(url, mode, params, None, key,
 				       data))
-	print "open_post = ", temp
-	return temp
 
     def activate(self,item):
 	"""Adds a CacheItem to the shared object list and returns CacheAPI.
@@ -175,11 +174,12 @@ class CacheManager:
 	else:
 	    return None
 
-    def touch(self,key):
+    def touch(self,key=None,url=None):
 	"""Calls touch() method of CacheEntry object."""
-
-	assert(self.items.has_key(key))
-	self.items[key].touch()
+	if url:
+	    key = self.url2key(url,'GET',{})
+	if key and self.items.has_key(key):
+	    self.items[key].touch()
 
     def expire(self,key):
 	"""Should not be used."""
@@ -255,10 +255,14 @@ class CacheManager:
 	return 1
 
     def fresh_every_session(self,entry):
-	"""Not implemented: Refresh the page once per session"""
+	"""Refresh the page once per session"""
+	if not entry.key in self.session_freshen:
+	    self.session_freshen.append(entry.key)
+	    return 0
 	return 1
 
     def fresh_periodic(self,entry,max_age):
+	"""Refresh it max_age seconds have passed since it was loaded."""
 	age = time.time() - entry.date.get_secs()
 	if age > max_age:
 	    return 0
@@ -351,10 +355,47 @@ class DiskCacheEntry:
 	    self.expires = None
 	self.type = ctype
 
+    string_date = regex.compile('^[A-Za-z]')
+
+    def parse(self,parsed_rep):
+        """Reads transaction log entry.
+         """
+ 	vars = string.splitfields(parsed_rep,'\t')
+        self.key = vars[0]
+        self.url = vars[1]
+	self.path = vars[2]
+        self.size = string.atoi(vars[3])
+        self.type = vars[7]
+	self.date = None
+	self.lastmod = None
+	self.expires = None
+	for tup in [(vars[4], 'date'), (vars[5], 'lastmod'),
+		     (vars[6], 'expires')]:
+	    self.parse_assign(tup[0],tup[1])
+	
+    def parse_assign(self,rep,var):
+	if rep == 'None':
+	    setattr(self,var,None)
+	elif self.string_date.match(rep) == 1:
+	    setattr(self,var,HTTime(str=rep))
+	else:
+	    setattr(self,var,HTTime(secs=int(string.atof(rep))))
+ 
+    def unparse(self):
+        """Return entry for transaction log.
+        """
+	if not hasattr(self, 'path'):
+	    self.path = ''
+	string = reduce(lambda x,y: str(x) + '\t' + str(y), \
+		 [self.key, self.url, self.path, self.size,
+		  self.date, self.lastmod, self.expires, self.type])
+	return string
+
     def __getstate__(self):
 	"""Don't pickel a pointer to the cache."""
 	return { 'key'    : self.key,
 		 'url'    : self.url,
+		 'path'   : self.path,
 		 'size'   : self.size,
 		 'date'   : self.date,
 		 'lastmod': self.lastmod,
@@ -373,9 +414,8 @@ class DiskCacheEntry:
 	    if self.expires and self.expires.get_secs() < time.time():
 		# we need to refresh the page; can we just reload?
 		raise CacheItemExpired, self.cache
-	self.cache.get(self.key)
-	api = disk_cache_access(self.cache.get_file_path(self.key),
-				self.type, self.date, self.size)
+	self.cache.get(self.key) 
+	api = disk_cache_access(self.path, self.type, self.date, self.size)
 	return api
 
     def touch(self):
@@ -430,6 +470,7 @@ class DiskCache:
 	self.log = None
 	self.checkpoint = 0
 	self.expires = []
+	self.types = {}
 
 	grailutil.establish_dir(self.directory)
 	self._read_metadata()
@@ -437,7 +478,7 @@ class DiskCache:
 	self.manager.app.register_on_exit(lambda self=self: \
 					  self._checkpoint_metadata())
 
-    log_version = "1.0"
+    log_version = "1.1"
 
     def _read_metadata(self):
 	"""Read the transaction log from the cache directory.
@@ -459,33 +500,38 @@ class DiskCache:
 	    log.close()
 	    return
 
-	try:
-	    while 1:
-		(kind, entry) = pickle.load(log)
-		if kind == 1: # delete
-		    if self.items.has_key(entry.key):
-			del self.items[entry.key]
-			del self.manager.items[entry.key]
-			self.use_order.remove(entry.key)
-			self.size = self.size - entry.size
-			assert(not entry.key in self.use_order)
-		elif kind == 0:
-		    if not self.items.has_key(entry.key):
-			self.use_order.append(entry.key)
-		    entry.cache = self
-		    self.items[entry.key] = entry
-		    self.manager.items[entry.key] = entry
-		    self.size = self.size + entry.size
-		elif kind == 2:
-		    # how expensive is this?
-		    self.use_order.remove(entry)
-		    self.use_order.append(entry)
-		elif kind == 3:
-		    assert(entry == self.log_version)
-	except EOFError:
-	    # all done
-	    pass
-#	self._checkpoint_metadata()
+	for line in log.readlines():
+	    log_entry = [line[0:1], line[2:-1]]
+	    # guess we could also try:
+	    # kind=line[0:1], entry=[2:]
+	    kind = log_entry[0]
+	    if kind == '1': # delete
+		key = log_entry[1]
+		if self.items.has_key(key):
+		    del self.items[key]
+		    del self.manager.items[key]
+		    self.use_order.remove(key)
+		    self.size = self.size - entry.size
+		    assert(not key in self.use_order)
+	    elif kind == '0':
+		newentry = DiskCacheEntry(self)
+		newentry.parse(log_entry[1])
+		if not self.items.has_key(newentry.key):
+		    self.use_order.append(newentry.key)
+		newentry.cache = self
+		self.items[newentry.key] = newentry
+		self.manager.items[newentry.key] = newentry
+		self.size = self.size + newentry.size
+	    elif kind == '2':
+		# how expensive is this?
+		key = log_entry[1]
+		self.use_order.remove(key)
+		self.use_order.append(key)
+	    elif kind == '3':
+		if log_entry[1] != self.log_version:
+		    print "You should delete your cache and start over."
+		    print "We've upgraded to a new and improved log!"
+		assert(log_entry[1] == self.log_version)
 
     def _checkpoint_metadata(self):
 	"""Checkpoint the transaction log.
@@ -495,30 +541,39 @@ class DiskCache:
 	"""
 	if self.log:
 	    self.log.close()
-	newpath = os.path.join(self.directory, 'CHECKPOINT')
-	newlog = open(newpath, 'w')
-	pickle.dump((3,self.log_version), newlog)
-	for key in self.use_order:
-	    pickle.dump((0,self.items[key]), newlog)
-	newlog.close()
-	logpath = os.path.join(self.directory, 'LOG')
-	os.rename(newpath, logpath)
-	self._reinit_log()
+	try:
+	    newpath = os.path.join(self.directory, 'CHECKPOINT')
+	    newlog = open(newpath, 'w')
+	    newlog.write('3\0' + self.log_version + '\n')
+	    for key in self.use_order:
+		self.log_entry(self.items[key],alt_log=newlog)
+	    newlog.close()
+	    logpath = os.path.join(self.directory, 'LOG')
+	    os.rename(newpath, logpath)
+	except:
+	    print "exception during checkpoint"
 
     def _reinit_log(self):
 	"""Open the log for writing new transactions."""
 	logpath = os.path.join(self.directory, 'LOG')
 	self.log = open(logpath, 'a')
 
-    def log_entry(self,entry,delete=0):
+    def log_entry(self,entry,delete=0,alt_log=None):
 	"""Write to the log adds and evictions."""
-	pickle.dump((delete,entry), self.log)
-	self.log.flush()
+	if alt_log:
+	    dest = alt_log
+	else:
+	    dest = self.log
+	if delete:
+	    dest.write('1\0' + entry.key + '\n')
+	else:
+	    dest.write('0\0' + entry.unparse() + '\n')
+	dest.flush()
 
     def log_use_order(self,key):
 	"""Write to the log changes in use_order."""
 	if self.items.has_key(key):
-	    pickle.dump((2,key), self.log)
+	    self.log.write('2\0' + key + '\n')
 	    # should we flush() here? probably...
 	    self.log.flush()
 
@@ -540,7 +595,6 @@ class DiskCache:
 	size = len(object.data)
 
 	self.make_space(size)
-	self.make_file(object)
 
 	newitem = DiskCacheEntry(self)
 	if headers.has_key('date'):
@@ -569,6 +623,7 @@ class DiskCache:
 	newitem.fill(object.key, object.url, size, date, lastmod,
 		     expires, ctype)
 
+	self.make_file(newitem,object)
 	self.log_entry(newitem)
 
 	self.items[object.key] = newitem
@@ -583,16 +638,26 @@ class DiskCache:
 
     clean_path = regex.compile('[^A-Za-z0-9\-]')
 
-    def get_file_path(self,key):
-	"""Turn cache key into cache path."""
-	#filename = regsub.gsub(os.sep,'_',key)
-	filename = regsub.gsub(self.clean_path, '_', key)
+    def get_file_path(self,object):
+	"""Invent a filename for a new cache entry."""
+	filename = 'spam' + str(time.time()) + self.get_suffix(object.type)
 	path = os.path.join(self.directory, filename)
 	return path
 
-    def make_file(self,object):
+    def get_suffix(self,type):
+	if self.types.has_key(type):
+	    return self.types[type]
+	else:
+	    for suf, stype in self.manager.app.suffixes_map.items():
+		if type == stype:
+		    self.types[type] = suf
+		    return suf
+	return ''
+
+    def make_file(self,entry,object):
 	"""Write the object's data to disk."""
-	path = self.get_file_path(object.key)
+	path = self.get_file_path(entry)
+	entry.path = path
 	try:
 	    f = open(path, 'w')
 	    f.write(object.data)
@@ -659,7 +724,7 @@ class DiskCache:
 	if key in self.expires:
 	    self.expires.remove(key)
 	try:
-	    os.unlink(self.get_file_path(key))
+	    os.unlink(evictee.path)
 	except (posix.error, IOError), err:
 	    print "error deleteing %s from cache: %s" % (key, err)
 	self.log_entry(evictee,1) # 1 indicates delete entry
@@ -674,11 +739,12 @@ class disk_cache_access:
 			 'date' : date,
 			 'content-length' : str(len) }
 	self.filename = filename
-	### what about IO errors
 	try:
 	    self.fp = open(filename)
 	except IOError, err:
 	    print "io error opening %s: %s" % (filename, err)
+	    # propogate error through
+	    raise IOError, err
 	self.stage = DATA
 
     def pollmeta(self):
@@ -755,8 +821,8 @@ class HTTime:
     
     def __repr__(self):
 	if self.secs:
-	    return repr(self.secs)
+	    return str(self.secs)
 	elif self.str:
-	    return '\'' + self.str + '\''
+	    return self.str
 	else:
-	    return '\'\''
+	    return str(None)
