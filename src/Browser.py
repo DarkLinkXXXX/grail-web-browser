@@ -346,14 +346,11 @@ class Browser:
 	    self.message_clear()
 	    self.viewer.remove_temp_tag()
 
-    def post(self, url, data, ctype):
-	self.save_page_state()
+    def post(self, url, data="", params={}):
 	# Post form data
+	self.save_page_state()
 	url = urlparse.urljoin(self._baseurl, url)
 	method = 'POST'
-	params = {"Content-length": `len(data)`,
-		  "Content-type": ctype,
-		  }
 	self.stop()
 	self.message("Posting to %s" % url, CURSOR_WAIT)
 	try: self.read_page(url, method, params, 1, 0, 1, data=data)
