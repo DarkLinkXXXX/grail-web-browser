@@ -89,11 +89,16 @@ class AppletHTMLParser(htmllib.HTMLParser):
 		'link': None, 'vlink': None, 'alink': None}
 	for name, value in attrs:
 	    dict[name] = value
-	text = self.viewer.text
-	if dict['bgcolor']:
-	    text.config(background=dict['bgcolor'])
-	if dict['text']:
-	    text.config(foreground=dict['text'])
+	self.configcolor('background', dict['bgcolor'])
+	self.configcolor('foreground', dict['text'])
+
+    def configcolor(self, option, color):
+	if not color: return
+	if color[0] != '#': color = '#' + color
+	try:
+	    self.viewer.text[option] = color
+	except TclError, msg:
+	    pass			# Ignore the error
 
     # New tag: <CENTER> (for Amy)
 
