@@ -179,8 +179,8 @@ class Browser:
     def load(self, url, method='GET', params={},
 	     new=1, show_source=0, reload=0):
 	# Start loading a new URL into the window
-	self.stop("Stopped.")
-	self.message("Loading %s" % url)
+	self.stop()
+	self.message("Loading %s" % url, CURSOR_WAIT)
 	try:
 	    Reader(self, url, method, params,
 		   new, show_source, reload)
@@ -197,6 +197,7 @@ class Browser:
 	    self.readers.remove(reader)
 	if not self.readers:
 	    self.clearstop()
+	    self.message("Done.")
 
     def busy(self):
 	return not not self.readers
@@ -214,7 +215,7 @@ class Browser:
     def clearstop(self):
 	self.stopbutton['state'] = DISABLED
 
-    def stop(self, msg):
+    def stop(self):
 	for reader in self.readers[:]:
 	    reader.kill()
 
@@ -294,14 +295,15 @@ class Browser:
 	self.close()
 
     def close(self):
-	self.stop("Closed.")
+	self.stop()
 	self.root.destroy()
 	if self.app: self.app.maybe_quit()
 
     # Stop command
 
     def stop_command(self):
-	self.stop("Stopped.")
+	self.stop()
+	self.message("Stopped.")
 
     # File menu commands
 
