@@ -11,6 +11,8 @@
 landmarks--home-page:
 # Default home page if home-page is empty:
 landmarks--default-home-page:	grail:about.html
+# Help pages root (used by preferences dialogs)
+landmarks--grail-help-root:	http://grail.cnri.reston.va.us/grail/
 #
 # Browser defaults
 #
