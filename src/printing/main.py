@@ -250,7 +250,7 @@ def run(app):
         for url in xform.get_subdocs():
             xform.set_basedoc(url)
             while p.sgml_parser.get_depth():
-                p.lex_endtag(p.sgml_parser.get_stack()[0])
+                p.sgml_parser.lex_endtag(p.sgml_parser.get_stack()[0])
             try:
                 infp, fn = open_source(url)
             except IOError, err:
