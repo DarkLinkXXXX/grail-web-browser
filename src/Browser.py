@@ -67,6 +67,9 @@ class Browser:
 	else: self.history = History.History(app)
 	self.create_widgets(width=width, height=height, geometry=geometry)
 	self.history_dialog = None
+	# icon set up
+	self.root.iconname('Grail')
+	self.root.iconbitmap('@icon.xbm')
 
     def _window_title(self, title):
 	# some window managers don't automatically set the iconname to
