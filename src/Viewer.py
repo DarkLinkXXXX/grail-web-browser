@@ -212,7 +212,7 @@ class Viewer(formatter.AbstractWriter):
 	    from __main__ import app
 	    import urlparse
 	    b = Browser(self.master, app)
-	    b.load(urlparse.urljoin(self.browser.url, url))
+	    b.load(urlparse.urljoin(self.browser.baseurl(), url))
 	    self.remove_temp_tag(histify=1)
 
     def add_temp_tag(self):
