@@ -1,6 +1,6 @@
 """Wrapper for the PSStream to support the standard AbstractWriter interface.
 """
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 #  $Source: /home/john/Code/grail/src/printing/PSWriter.py,v $
 
 import formatter
@@ -154,6 +154,3 @@ class PSWriter(formatter.AbstractWriter):
                 pos = pos + 1
         self.__detab_pos = pos
         return string.joinfields(s, '')
-
-#
-#  end of file
