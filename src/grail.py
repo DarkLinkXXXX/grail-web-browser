@@ -225,6 +225,7 @@ class Application:
 	self.keep_alive()
 	self.browsers = []
 	self.iostatuspanel = None
+	self.in_exception_dialog = None
 
     def register_on_exit(self, method):
 	self.on_exit_methods.append(method)
@@ -399,6 +400,12 @@ class Application:
 	self.exc_dialog("in a callback function", exc, val, tb, root)
 
     def exc_dialog(self, message, exc, val, tb, root=None):
+	if self.in_exception_dialog:
+	    print
+	    print "*** Recursive exception", message
+	    traceback.print_exception(exc, val, tb)
+	    return
+	self.in_exception_dialog = 1
 	def f(s=self, m=message, e=exc, v=val, t=tb, root=root):
 	    s._exc_dialog(m, e, v, t, root)
 	if TkVersion >= 4.1:
@@ -418,6 +425,7 @@ class Application:
 				default=0,
 				strings=("OK", "Show traceback"),
 				)
+	self.in_exception_dialog = 0
 	if dlg.num == 1:
 	    self.traceback_dialog(exc, val, tb)
 
