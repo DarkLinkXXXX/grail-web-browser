@@ -135,7 +135,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.config(padx=10, cursor=self.current_cursor)
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
-	self.text.config(selectbackground='yellow')
+	self.text.config(selectbackground='yellow', insertwidth=0)
 	self.configure_styles()
 	if self.parent:
 	    link = self.parent.text.tag_config('a', 'foreground')[-1]
@@ -394,7 +394,7 @@ class Viewer(formatter.AbstractWriter):
 	self.new_tags()
 
     def send_paragraph(self, blankline):
-	self.pendingdata = self.pendingdata + ('\n' * (blankline + 1))
+	self.pendingdata = self.pendingdata + ('\n' * blankline)
 ##	self.text.update_idletasks()
 
     def send_line_break(self):
@@ -408,10 +408,11 @@ class Viewer(formatter.AbstractWriter):
 	    width = min(width, abswidth)
 	elif percentwidth:
 	    width = min(width, int(percentwidth * width))
+	bgcolor = self.text['background']
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
 			width=width, height=max((height or 0) - 2, 0),
-			background=self.text['background'],
-			highlightbackground=self.text['background'])
+			background=bgcolor, highlightbackground=bgcolor,
+			highlightthickness=0)
 	window._width = abswidth	# store for resizing
 	window._percent = percentwidth
 	self.rules.append(window)
@@ -423,7 +424,7 @@ class Viewer(formatter.AbstractWriter):
 
     def rule_width(self):
 	return (self.text.winfo_width()
-		- 16 - 2*string.atoi(self.text['padx'])
+		- 12 - 2*string.atoi(self.text['padx'])
 		- self.marginlevel*INDENTATION_WIDTH
 		- ((('blockquote' in self.addtags) and 1 or 0)
 		   *INDENTATION_WIDTH))
