@@ -2,6 +2,8 @@ import regex
 import regsub
 import string
 import sys
+from string import split, join
+from types import StringType
 
 
 AS_IS = None
@@ -62,27 +64,27 @@ class AbstractFormatter:
 	self.para_end = self.softspace = 0
 
     def add_label_data(self, format, counter):
-	self.writer.send_label_data(self.format_counter(format, counter))
+	if type(format) is StringType:
+	    self.writer.send_label_data(self.format_counter(format, counter))
+	else:
+	    self.writer.send_label_data(format)
 	self.para_end = self.nospace = self.hard_break = 1
 	self.softspace = 0
 
     def format_counter(self, format, counter):
-	if type(format) is not type(''):
-	    return format
         label = ''
         for c in format:
             try:
                 if c == '1':
-		    c = '%d' % counter
+		    label = label + ('%d' % counter)
                 elif c in 'aA':
 		    if counter > 0:
-			c = self.format_letter(c, counter)
+			label = label + self.format_letter(c, counter)
                 elif c in 'iI':
 		    if counter > 0:
-			c = self.format_roman(c, counter)
+			label = label + self.format_roman(c, counter)
             except:
-                pass
-            label = label + c
+                label = label + c
         return label
 
     def format_letter(self, case, counter):
@@ -96,15 +98,14 @@ class AbstractFormatter:
     def format_roman(self, case, counter):
         ones = ['i', 'x', 'c', 'm']
         fives = ['v', 'l', 'd']
-        label = ''
-        index = 0
+        label, index = '', 0
 	# This will die of IndexError when counter is too big
         while counter > 0:
             counter, x = divmod(counter, 10)
             if x == 9:
-                s = ones[index] + ones[index+1]
+                label = ones[index] + ones[index+1] + label
             elif x == 4:
-                s = ones[index] + fives[index]
+                label = ones[index] + fives[index] + label
             else:
                 if x >= 5:
                     s = fives[index]
@@ -112,29 +113,33 @@ class AbstractFormatter:
                 else:
                     s = ''
                 s = s + ones[index]*x
-            label = s + label
+		label = s + label
             index = index + 1
-        if case == 'I': label = string.upper(label)
+        if case == 'I':
+	    return string.upper(label)
         return label
 
-    def add_flowing_data(self, data):
+    def add_flowing_data(self, data, whitespace=string.whitespace):
 	if not data: return
 	# The following looks a bit convoluted but is a great improvement over
 	# data = regsub.gsub('[' + string.whitespace + ']+', ' ', data)
-	prespace = data[0] in string.whitespace
-	postspace = data[-1] in string.whitespace
-	data = string.join(string.split(data))
+	prespace = data[:1] in whitespace
+	postspace = data[-1:] in whitespace
+	data = join(split(data))
 	if self.nospace and prespace:
 	    if not data: return
 	    prespace = 0
 	elif self.softspace:
 	    prespace = 1
+	    data = ' ' + data
+	elif prespace:
+	    data = ' ' + data
 	self.hard_break = self.nospace = self.para_end = 0
 	self.softspace = postspace
-	if prespace: data = ' ' + data
 	self.writer.send_flowing_data(data)
 
     def add_literal_data(self, data):
+	if not data: return
 	#  Caller is expected to cause flush_softspace() if needed.
 	self.hard_break = data[-1:] == '\n'
 	self.nospace = self.para_end = self.softspace = 0
@@ -146,7 +151,9 @@ class AbstractFormatter:
 	    self.writer.send_flowing_data(' ')
 
     def push_font(self, (size, i, b, tt)):
-	self.flush_softspace()
+	if self.softspace:
+	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.writer.send_flowing_data(' ')
 	if self.font_stack:
 	    csize, ci, cb, ctt = self.font_stack[-1]
 	    if size is AS_IS: size = csize
@@ -158,7 +165,9 @@ class AbstractFormatter:
 	self.writer.new_font(font)
 
     def pop_font(self):
-	self.flush_softspace()
+	if self.softspace:
+	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.writer.send_flowing_data(' ')
 	if self.font_stack:
 	    del self.font_stack[-1]
 	if self.font_stack:
@@ -185,19 +194,38 @@ class AbstractFormatter:
 	self.writer.new_spacing(spacing)
 
     def push_style(self, *styles):
-	self.flush_softspace()
+	if self.softspace:
+	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.writer.send_flowing_data(' ')
 	for style in styles:
 	    self.style_stack.append(style)
 	self.writer.new_styles(tuple(self.style_stack))
 
     def pop_style(self, n=1):
-	self.flush_softspace()
+	if self.softspace:
+	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.writer.send_flowing_data(' ')
 	del self.style_stack[-n:]
 	self.writer.new_styles(tuple(self.style_stack))
 
     def assert_line_data(self, flag=1):
 	self.nospace = not flag
 	self.hard_break = self.para_end = 0
+
+
+class NullWriter:
+    """Minimal writer interface to use in testing.
+    """
+    def new_font(self, font): pass
+    def new_margin(self, margin, level): pass
+    def new_spacing(self, spacing): pass
+    def new_styles(self, styles): pass
+    def send_paragraph(self, blankline): pass
+    def send_line_break(self): pass
+    def send_hor_rule(self): pass
+    def send_label_data(self, data): pass
+    def send_flowing_data(self, data): pass
+    def send_literal_data(self, data): pass
 
 
 class AbstractWriter:
