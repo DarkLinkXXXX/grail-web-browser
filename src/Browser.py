@@ -60,7 +60,7 @@ class Browser:
 	self.root = Toplevel(self.master)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
 	self.topframe = Frame(self.root)
-	self.topframe.pack(expand=1, fill=X)
+	self.topframe.pack(fill=X)
 	self.create_logo()
 	self.create_menubar()
 	self.create_urlbar()
