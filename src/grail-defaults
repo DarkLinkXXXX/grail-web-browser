@@ -1,6 +1,5 @@
-C: Comments in this file start with the string "Comment: " in col 1.
-C: Anything below the first blank line in the file is discarded.
-C: Lines designating preference name/value pairs look like:
+C: For format info, see the GrailPrefs.py module docstring.
+C:
 landmarks--grail-home-page:	http://monty.cnri.reston.va.us/grail-0.2/
 C: Empty home page, for user to set in their own preferences file:
 landmarks--home-page:
@@ -11,9 +10,6 @@ landmarks--about-grail-page:	http://monty.cnri.reston.va.us/grail-0.2/about/
 browser--default-height:	40
 browser--default-width:		80
 browser--load-images:		1
-C:
-C: Note that values can begin on the subsequent line, just so long as
-C: they look like header-continuation lines, ie they have white space prefix:
 presentation--message-font:
 	-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*
 C:
