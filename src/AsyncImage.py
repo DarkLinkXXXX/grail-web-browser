@@ -197,7 +197,7 @@ class PILAsyncImageSupport(BaseAsyncImage):
 	#
 	self.setup(context, url, reload)
 	self.image = TkPhotoImage()
-	self._PhotoImage__tk = self.image
+	self._PhotoImage__photo = self.image
 	# Make sure these are integers
 	self.__width = width or 0
 	self.__height = height or 0
