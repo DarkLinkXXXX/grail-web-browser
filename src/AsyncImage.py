@@ -3,6 +3,29 @@ from Tkinter import *
 import grailutil
 import string
 
+TkPhotoImage = PhotoImage
+
+# Determine if the Python Imaging Library is available.
+#
+# Note that "import Image" is not sufficient to test the availability of
+# the image loading capability.  Image can be imported without _imaging
+# and still supports identification of file types.
+#
+try:
+    import _imaging
+except ImportError:
+    use_pil = 0
+    class PILPhotoImage:
+	pass
+else:
+    import Image
+    import ImageDraw
+    import ImageTk
+    ATTEMPT_TRANSPARENCY = 0
+    PILPhotoImage = ImageTk.PhotoImage
+    use_pil = 1
+
+
 class ImageTempFileReader(TempFileReader):
 
     def __init__(self, context, api, image):
@@ -17,7 +40,7 @@ class ImageTempFileReader(TempFileReader):
 		ctype = headers['content-type']
 	    except KeyError:
 		return # Hope for the best
-	    if self.image_filters.has_key(ctype):
+	    if self.image_filters.has_key(ctype) and not use_pil:
 		self.set_pipeline(self.image_filters[ctype])
 
     # List of image type filters
@@ -69,10 +92,11 @@ class ImageTempFileReader(TempFileReader):
 	    pass
 
 
-class AsyncImage(PhotoImage):
 
-    def __init__(self, context, url, reload=0, **kw):
-	apply(PhotoImage.__init__, (self,), kw)
+
+class BaseAsyncImage:
+
+    def setup(self, context, url, reload):
 	self.context = context
 	self.url = url
 	self.reader = None
@@ -121,14 +145,17 @@ class AsyncImage(PhotoImage):
 	self.show_bad()
 
     def set_file(self, filename):
-	self.context.root.tk.setvar("TRANSPARENT_GIF_COLOR",
-				    self.context.viewer.text["background"])
+	self.do_color_magic()
 	try:
 	    self['file'] = filename
 	except TclError:
 	    self.show_bad()
 	else:
 	    self.loaded = 1
+
+    def do_color_magic(self):
+	self.context.root.tk.setvar("TRANSPARENT_GIF_COLOR",
+				    self.context.viewer.text["background"])
 
     def set_error(self, errcode, errmsg, headers):
 	self.loaded = 0
@@ -156,3 +183,145 @@ class AsyncImage(PhotoImage):
 	    self['file'] = grailutil.which("icons/image.gif") or ""
 	except TclError:
 	    self.blank()
+
+
+class TkAsyncImage(BaseAsyncImage, TkPhotoImage):
+
+    def __init__(self, context, url, reload=0, width=None, height=None, **kw):
+	apply(TkPhotoImage.__init__, (self,), kw)
+	self.setup(context, url, reload)
+
+    def get_cache_key(self):
+	return self.url, 0, 0
+
+
+class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
+
+    __width = 0
+    __height = 0
+
+    def __init__(self, context, url, reload=0, width=None, height=None, **kw):
+	#
+	# Fake out the ImageTk.PhotoImage.__init__() since we don't have
+	# the needed info yet:
+	#
+	self.setup(context, url, reload)
+	self.image = TkPhotoImage()
+	self._PhotoImage__tk = self.image
+	# Make sure these are integers >= 0
+	if width and height:
+	    self.__width = width
+	    self.__height = height
+
+    def blank(self):
+	self.image.blank()
+
+    def get_cache_key(self):
+	# Note that two different cache keys may be generated for an image
+	# depending on how they are specified.  In particular, the keys
+	# (URL, 0, 0) and (URL, WIDTH, HEIGHT) may be generated for the same
+	# real image (not Image object) if WIDTH and HEIGHT are the default
+	# dimensions of the image and the image is specified both with and
+	# without size hints.  This still generates no more than two distinct
+	# keys for otherwise identical image objects.
+	#
+	return self.url, self.__width, self.__height
+
+    def set_file(self, filename):
+	try:
+	    im = Image.open(filename)
+	    im.load()			# force loading to catch IOError
+	except (IOError, ValueError):
+	    # either of these may occur during decoding...
+	    return self.show_bad()
+	format = im.format
+	real_mode = im.mode
+	real_size = im.size
+	# this transparency stuff should be greatly simplified on the next
+	# release of PIL....
+	# handle transparent GIFs:
+	if im.format == "GIF" \
+	   and im.info["version"] != "GIF87a" \
+	   and im.info.has_key("background") \
+	   and ATTEMPT_TRANSPARENCY:
+	    r, g, b = self.context.viewer.text.winfo_rgb(
+		self.context.viewer.text["background"])
+	    r = r / 255			# convert these to 8-bit versions
+	    g = g / 255
+	    b = b / 255
+	    im = transp_gif_to_rgb(im, (r, g, b))
+	#
+	if self.__width:
+	    w, h = im.size
+	    if w != self.__width or h != self.__height:
+		im = im.resize((self.__width, self.__height))
+	mode = real_mode = im.mode
+	if mode not in ('1', 'L'):
+	    mode = 'RGB'
+	self._PhotoImage__mode = mode
+	self._PhotoImage__size = im.size
+	self.do_color_magic()
+	self.paste(im)
+	w, h = im.size
+	self.image['width'] = w
+	self.image['height'] = h
+
+    def width(self):
+	return self.__width
+
+    def height(self):
+	return self.__height
+
+    def __setitem__(self, key, value):
+	if key == "file":
+	    self.do_color_magic()
+	self.image[key] = value
+
+
+def transp_gif_to_rgb(im, (r, g, b)):
+    """Translate a P-mode GIF with transparency to an RGB image. 
+
+    im
+	The GIF image.
+
+    (r, g, b)
+	The RGB-value to use for the transparent areas.  These should be
+	8 bits for each band.
+    """
+    # This is really quite slow.
+    bg = im.info["background"]
+    # Maybe we can use a palette manipulation?
+##     print "========"
+##     print im.palette
+##     xxx, pal = im.palette
+##     newcol = chr(r) + chr(g) + chr(b)
+##     pal = pal[: bg*3] + newcol + pal[bg*3 + 3 :]
+##     print (xxx, pal)
+##     im.palatte = (xxx, pal)
+##     print im.palette
+##     return im.convert("RGB")
+    #
+    rgbimg = Image.new("RGB", im.size, (r<<24 | g <<16 | b<<8))
+    mask = Image.new("1", im.size)
+    drawing = ImageDraw.ImageDraw(mask)
+    getpixel = im.getpixel
+    point = drawing.point
+    yrange = range(im.size[1])
+    ylength = im.size[1]
+    for x in range(im.size[0]):
+	for pos in map(None, [x]*ylength, yrange):
+	    if getpixel(pos) != bg:
+		point(pos)
+    rgbimg.paste(im, None, mask)
+    return rgbimg
+
+
+AsyncImage = TkAsyncImage
+if use_pil:
+    def AsyncImage(context, url, reload=0, **kw):
+	global AsyncImage
+	if context.app.prefs.GetBoolean("browser", "enable-pil"):
+	    AsyncImage = PILAsyncImage
+	else:
+	    AsyncImage = TkAsyncImage
+	return apply(AsyncImage, (context, url, reload), kw)

@@ -61,7 +61,8 @@ class ImageWindow(Frame):
 		self.label.bind('<ButtonRelease-1>', self.follow)
 		self.label.bind('<ButtonRelease-2>', self.follow_new)
 	self.label.bind("<Button-3>", self.button_3_event)
-	self.image = self.context.get_async_image(self.src, reload)
+	self.image = self.context.get_async_image(self.src, reload,
+						  width=width, height=height)
 	if self.image:
 	    self.label['image'] = self.image
 

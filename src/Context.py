@@ -282,7 +282,7 @@ class Context:
 		image = None
 	return image
 
-    def get_async_image(self, src, reload=0):
+    def get_async_image(self, src, reload=0, width=0, height=0):
 	# check out the request
 	if not src: return None
 	url = self.get_baseurl(src)
@@ -290,7 +290,7 @@ class Context:
 	if not self.app.load_images: return None
 
 	# try loading from the cache
-	image = self.app.get_cached_image(url)
+	image = self.app.get_cached_image((url, width, height))
 	if image and (not reload or image.is_reloading()):
 	    if not image.loaded:
 		image.start_loading(self)
@@ -299,11 +299,12 @@ class Context:
         # it's not in the cache.
 	from AsyncImage import AsyncImage
 	try:
-	    image = AsyncImage(self, url, reload)
+	    image = AsyncImage(self, url, reload, width=width, height=height)
 	except IOError, msg:
 	    image = None
 	if image:
-	    self.app.set_cached_image(url, image, self.viewer)
+	    self.app.set_cached_image(
+		image.get_cache_key(), image, self.viewer)
 	    if self.app.load_images:
 		image.start_loading(self)
 	return image
