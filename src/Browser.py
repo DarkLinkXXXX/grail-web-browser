@@ -68,9 +68,15 @@ class Browser:
 	self.create_widgets(width=width, height=height, geometry=geometry)
 	self.history_dialog = None
 
+    def _window_title(self, title):
+	# some window managers don't automatically set the iconname to
+	# the window title.  force this.
+	self.root.title(title)
+	self.root.iconname(title)
+
     def create_widgets(self, width, height, geometry):
-	self.root = Toplevel(self.master)
-	self.root.title("Grail: New Browser")
+	self.root = Toplevel(self.master, class_='Grail', name='grail')
+	self._window_title("Grail: New Browser")
 	if geometry:
 	    self.root.geometry(geometry)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
@@ -340,13 +346,13 @@ class Browser:
 	self.title = self.url
 	self.user_menus[:] = []
 	self.set_entry(self.url)
-	self.root.title(TITLE_PREFIX + self.title)
+	self._window_title(TITLE_PREFIX + self.title)
 	self.viewer.clear_reset()
 	self.set_history(new)
 
     def set_title(self, title):
 	self.title = title
-	self.root.title(TITLE_PREFIX + self.title)
+	self._window_title(TITLE_PREFIX + self.title)
 	self.set_history(0)
 
     def set_history(self, new):
