@@ -570,10 +570,13 @@ class HTMLParser(SGMLParser):
 	    # dying a horrible death.
 	    self.lex_starttag('dl', {})
 	    self.badhtml = 1
-        if self.list_stack and self.list_stack[-1][0] == 'dd':
-	    del self.list_stack[-1]
-	    self.list_trim_stack()
-	    self.formatter.pop_margin()
+        if self.list_stack:
+	    if self.list_stack[-1][0] == 'dd':
+		del self.list_stack[-1]
+		self.list_trim_stack()
+		self.formatter.pop_margin()
+	    elif self.list_stack[-1][0] == 'dl':
+		self.list_trim_stack()
 
     def list_trim_stack(self):
 	if not self.list_stack:
