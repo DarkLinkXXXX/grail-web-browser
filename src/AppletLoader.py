@@ -439,7 +439,7 @@ def BrowserBastion(real, key):
     bastion.context = ContextBastion(real.context, key)
     bastion.app = AppBastion(real.app, key)
     # 0.2 compatibility:
-    bastion.viewer = AppBastion(real.context.viewer, key)
+    bastion.viewer = ViewerBastion(real.context.viewer, key)
     return bastion
 
 def ContextBastion(real, key):
