@@ -61,19 +61,24 @@ class BookmarkNode(OutlinerNode):
     """
 
     def __init__(self, title='', uri_string = '',
-		 add_date=time.time(), last_visited=time.time(),
+		 add_date=None, last_visited=None,
 		 description=''):
 	OutlinerNode.__init__(self)
 	self._title = title
 	self._uri = uri_string
 	self._desc = description
-	self._add_date = add_date
-	self._visited = last_visited
+	if add_date: self._add_date = add_date
+	else: self._add_date = time.time()
+	if last_visited: self._visited = last_visited
+	else: self._visited = time.time()
 	self._islink_p = not not uri_string
 	self._isseparator_p = False
+	if uri_string or last_visited: self._leaf_p = True
+	else: self._leaf_p = False
 
     def __repr__(self):
-	return OutlinerNode.__repr__(self) + ' ' + self._title
+	return OutlinerNode.__repr__(self) + ' ' + self.title()
+    def leaf_p(self): return self._leaf_p
 
     def title(self): return self._title
     def uri(self): return self._uri
@@ -81,19 +86,25 @@ class BookmarkNode(OutlinerNode):
     def last_visited(self): return self._visited
     def description(self): return self._desc
     def islink_p(self): return self._islink_p
-
     def isseparator_p(self): return self._isseparator_p
+
     def set_separator(self):
 	self._isseparator_p = True
+	self._leaf_p = True
 	self._title = '------------------------------'
 
     def set_title(self, title=''): self._title = title
     def set_add_date(self, add_date=time.time()): self._add_date = add_date
-    def set_last_visited(self, lastv): self._visited = lastv
+    def set_last_visited(self, lastv):
+	self._visited = lastv
+	self._leaf_p = True
+
     def set_description(self, description=''): self._desc = description
     def set_uri(self, uri_string=''):
 	self._uri = uri_string
-	self._islink_p = True
+	if uri_string:
+	    self._islink_p = True
+	    self._leaf_p = True
 
 
 
@@ -363,15 +374,14 @@ class BookmarksIO:
 	writer.write_tree(root, fp)
 
     def save(self, writer, root):
-	if not self._filename:
-	    self._filename = DEFAULT_GRAIL_BM_FILE
-	    self.saveas(writer, root)
-	else:
-	    self._save_to_file_with_writer(writer, root, self._filename)
+	if not self._filename: self.saveas(writer, root)
+	else: self._save_to_file_with_writer(writer, root, self._filename)
 
     def saveas(self, writer, root):
+	if not self._filename: filename = DEFAULT_GRAIL_BM_FILE
+	else: filename = self._filename
 	saver = BMSaveDialog(self._frame, self._controller)
-	savefile = saver.go(self._filename, '*.html')
+	savefile = saver.go(filename, '*.html')
 	if savefile:
 	    self._save_to_file_with_writer(writer, root, savefile)
 	    self._filename = savefile
@@ -558,8 +568,10 @@ class BookmarksDialog:
 			     command=self._controller.insert_header)
 	editmenu.add_command(label='Insert Entry',
 			     command=self._controller.insert_entry)
+	editmenu.add_separator()
 	editmenu.add_command(label='Remove Entry',
 			     command=self._controller.remove_entry)
+	editmenu.add_separator()
 	editmenu.add_command(label='Shift Entry Left',
 			     command=self._controller.shift_left)
 	editmenu.add_command(label='Shift Entry Right',
@@ -854,6 +866,9 @@ class BookmarksController:
 
     def load(self):
 	self._root, reader, self._writer = self._iomgr.load()
+	if not self._root and not reader and not self._writer:
+	    # load dialog was cancelled
+	    return
 	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 	if self._listbox:
 	    self._listbox.delete(0, 'end')
@@ -947,11 +962,7 @@ class BookmarksController:
     def hide(self, event=None): self._dialog.hide()
     def quit(self, event=None): sys.exit(0)
 
-    def insert_separator(self, event=None):
-	node, selection = self._get_selected_node()
-	if not node: return
-	newnode = BookmarkNode()
-	newnode.set_separator()
+    def _insert_at_node(self, node, newnode):
 	if node.leaf_p():
 	    parent = node.parent()
 	    children = parent.children()
@@ -963,14 +974,50 @@ class BookmarksController:
 	    # header, the node is added as the header's first child.
 	    # If the header is collapsed, it is first expanded.
 	    if not node.expanded_p(): self._expand_node(node)
-	    parent = node.parent()
-	    parent.insert_child(newnode, 0)
+	    node.insert_child(newnode, 0)
 	if self._viewer:
 	    self._viewer.insert_nodes(node.index(), [newnode])
 
-    def insert_header(self, event=None): pass
-    def insert_entry(self, event=None): pass
-    def remove_entry(self, event=None): pass
+    def insert_separator(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	newnode = BookmarkNode()
+	newnode.set_separator()
+	self._insert_at_node(node, newnode)
+	frame = Toplevel(self._frame)
+	self._details[id(newnode)] = DetailsDialog(frame, newnode, self)
+
+    def insert_header(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	newnode = BookmarkNode('<Category>')
+	self._insert_at_node(node, newnode)
+
+    def insert_entry(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	newnode = BookmarkNode('<Entry>', '  ')
+	self._insert_at_node(node, newnode)
+	details = self._details[id(newnode)] = \
+		  DetailsDialog(Toplevel(self._frame), newnode, self)
+
+    def remove_entry(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	# if it's a branch, collapse it, making it easier to delete
+	# from the viewer
+	if not node.leaf_p(): self._collapse_node(node)
+	parent = node.parent()
+	rmnode = parent.del_child(node)
+	if rmnode:
+	    rmnode.close()
+	    if self._viewer:
+		self._viewer.delete_nodes(rmnode.index(), rmnode.index())
+		# its possible we deleted the last child of the parent
+		# node, if so, update that node's view
+		if parent.leaf_p():
+		    self._viewer.update_node(parent)
+
     def shift_left(self, event=None): pass
     def shift_right(self, event=None): pass
     def shift_up(self, event=None): pass
