@@ -29,17 +29,16 @@ TITLE_PREFIX = "Grail: "
 # set up as the icon, otherwise don't do anything magic.
 #
 _iconxbm_file = grailutil.which('icon.xbm')
-def make_toplevel(*args, **kw):
-    w = apply(tktools_make_toplevel, args, kw)
-    # icon set up
-    try: w.iconbitmap('@' + _iconxbm_file)
-    except TclError: pass
-    return w
-
 if _iconxbm_file:
+    def make_toplevel(*args, **kw):
+	w = apply(tktools_make_toplevel, args, kw)
+	# icon set up
+	try: w.iconbitmap('@' + _iconxbm_file)
+	except TclError: pass
+	return w
+    #
     tktools_make_toplevel = tktools.make_toplevel
     tktools.make_toplevel = make_toplevel
-
 
 
 class Browser:
@@ -91,198 +90,146 @@ class Browser:
 	    self.logo_init()
 
     def create_logo(self):
-	self.logo = Button(self.topframe,
-			   text="Stop",
+	self.logo = Button(self.root, name="logo",
 			   command=self.stop_command,
 			   state=DISABLED)
-	self.logo.pack(side=LEFT, fill=BOTH, padx=10, pady=10)
+	self.logo.pack(side=LEFT, fill=BOTH, padx=10, pady=10,
+		       in_=self.topframe)
 	self.root.bind("<Alt-period>", self.stop_command)
 	self.logo_animate = 0
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
-	# Also create the Stop button (which lives in the menu)
 
 	# Create menu bar
-	self.mbar = Frame(self.topframe,
-			  relief=RAISED,
-			  borderwidth=2)
-	self.mbar.pack(fill=X)
+	self.mbar = Frame(self.root, name="menubar", class_="Menubar")
+	self.mbar.pack(fill=X, in_=self.topframe)
 
 	# Create File menu
-	self.filebutton = Menubutton(self.mbar, text="File")
-	self.filebutton.pack(side=LEFT)
-
-	self.filemenu = Menu(self.filebutton)
-	self.filebutton['menu'] = self.filemenu
-
-	self.filemenu.add_command(label="New Window",
-			  command=self.new_command,
-			  underline=0, accelerator="Alt-N")
-	self.root.bind("<Alt-n>", self.new_command)
-	self.root.bind("<Alt-N>", self.new_command)
-	self.filemenu.add_command(label="Clone Current Window",
-			  command=self.clone_command,
-			  underline=0, accelerator="Alt-K")
-	self.root.bind("<Alt-k>", self.clone_command)
-	self.root.bind("<Alt-K>", self.clone_command)
-	self.filemenu.add_command(label="View Source",
-			  command=self.view_source_command,
-			  underline=0, accelerator="Alt-V")
-	self.root.bind("<Alt-v>", self.view_source_command)
-	self.root.bind("<Alt-V>", self.view_source_command)
-	self.filemenu.add_command(label='Open Location...',
-				  command=self.open_uri_command,
-				  underline=5, accelerator='Alt-L')
-	self.root.bind('<Alt-l>', self.open_uri_command)
-	self.root.bind('<Alt-L>', self.open_uri_command)
-	self.filemenu.add_command(label='Open File...',
-				  underline=0, accelerator='Alt-O',
-				  command=self.open_file_command)
-	self.root.bind('<Alt-o>', self.open_file_command)
-	self.root.bind('<Alt-O>', self.open_file_command)
-	self.filemenu.add_command(label='Open Selection',
-				  underline=6, accelerator='Alt-E',
-				  command=self.open_selection_command)
-	self.root.bind('<Alt-e>', self.open_selection_command)
-	self.root.bind('<Alt-E>', self.open_selection_command)
-	self.filemenu.add_separator()
-	self.filemenu.add_command(label="Save As...",
-			  command=self.save_as_command,
-			  underline=0, accelerator="Alt-S")
-	self.root.bind("<Alt-s>", self.save_as_command)
-	self.root.bind("<Alt-S>", self.save_as_command)
-	self.filemenu.add_command(label="Print...",
-			  command=self.print_command,
-			  underline=0, accelerator="Alt-P")
-	self.root.bind("<Alt-p>", self.print_command)
-	self.root.bind("<Alt-P>", self.print_command)
-	import DocumentInfo
-	cmd = DocumentInfo.DocumentInfoCommand(self)
-	self.filemenu.add_command(label="Document Info...", command=cmd,
-				  accelerator="Alt-D", underline=0)
-	self.root.bind("<Alt-d>", cmd)
-	self.root.bind("<Alt-D>", cmd)
-	self.filemenu.add_separator()
-	self.filemenu.add_command(label="I/O Status Panel...",
-				  command=self.iostatus_command,
-				  underline=0, accelerator="Alt-I")
-	self.root.bind("<Alt-i>", self.iostatus_command)
-	self.root.bind("<Alt-I>", self.iostatus_command)
-	self.filemenu.add_separator()
-	self.filemenu.add_command(label="Close",
-			  command=self.close_command,
-			  underline=0, accelerator="Alt-W")
-	self.root.bind("<Alt-w>", self.close_command) # Macintosh origins...
-	self.root.bind("<Alt-W>", self.close_command) # Macintosh origins...
-	self.filemenu.add_command(label="Quit",
-			  command=self.quit_command,
-			  underline=0, accelerator="Alt-Q")
-	self.root.bind("<Alt-q>", self.quit_command)
-	self.root.bind("<Alt-Q>", self.quit_command)
-
-	self.histbutton = Menubutton(self.mbar, text="Go")
-	self.histbutton.pack(side=LEFT)
-
-	self.histmenu = Menu(self.histbutton)
-	self.histbutton['menu'] = self.histmenu
-
-	self.histmenu.add_command(label="Back",
-			  command=self.back_command,
-			  underline=0, accelerator="Alt-Left")
-	self.root.bind("<Alt-Left>", self.back_command)
-	self.histmenu.add_command(label="Reload",
-			  command=self.reload_command,
-			  underline=0, accelerator="Alt-R")
-	self.root.bind("<Alt-r>", self.reload_command)
-	self.root.bind("<Alt-R>", self.reload_command)
-	self.histmenu.add_command(label="Forward",
-			  command=self.forward_command,
-			  underline=0, accelerator="Alt-Right")
-	self.root.bind("<Alt-Right>", self.forward_command)
-	self.histmenu.add_separator()
-	self.histmenu.add_command(label='History...',
-				  command=self.show_history_command,
-				  underline=0, accelerator="Alt-H")
-	self.root.bind("<Alt-h>", self.show_history_command)
-	self.root.bind("<Alt-H>", self.show_history_command)
-	self.histmenu.add_command(label="Home",
-			  command=self.home_command)
-
-	# Create the Search menu
-
-	self.searchbutton = Menubutton(self.mbar, text="Search")
-	self.searchbutton.pack(side=LEFT)
-
-	self.searchmenu = Menu(self.searchbutton)
-	self.searchbutton['menu'] = self.searchmenu
-	self.searchmenu.grail_browser = self # Applet compatibility
-	import SearchMenu
-	SearchMenu.SearchMenu(self.searchmenu, self.root, self)
-
-	# Create the Bookmarks menu
-
-	self.bookmarksbutton = Menubutton(self.mbar, text="Bookmarks")
-	self.bookmarksbutton.pack(side=LEFT)
-
-	self.bookmarksmenu = Menu(self.bookmarksbutton)
-	self.bookmarksbutton['menu'] = self.bookmarksmenu
-	self.bookmarksmenu.grail_browser = self # Applet compatibility
-	import Bookmarks
-	self.bookmarksmenu_menu = Bookmarks.BookmarksMenu(self.bookmarksmenu)
-
-	# Create the Preferences menu
-
-	self.preferencesbutton = Menubutton(self.mbar, text="Preferences")
-	self.preferencesbutton.pack(side=LEFT)
-
-	self.preferencesmenu = Menu(self.preferencesbutton)
-	self.preferencesbutton['menu'] = self.preferencesmenu
-	from PrefsPanels import PrefsPanelsMenu
-	PrefsPanelsMenu(self.preferencesmenu, self)
+	self.create_menu("file")
+	self.create_menu("go")
+	self.histmenu = self.gomenu	# backward compatibility for Ping
+	self.create_menu("search")
+	self.create_menu("bookmarks")
+	self.create_menu("preferences")
 
 	# List of user menus (reset on page load)
 	self.user_menus = []
 
-	# Create Help menu (on far right)
-	raw = self.app.prefs.Get('browser', 'help-menu')
-	lines = filter(None, map(string.strip, string.split(raw, '\n')))
-	if not lines:
+	if self.get_helpspec():
+	    self.create_menu("help", side=RIGHT)
+
+    def create_menu(self, name, side=LEFT):
+	button = Menubutton(self.mbar, name=name)
+	button.pack(side=side)
+	menu = Menu(button, name='menu')
+	button['menu'] = menu
+	setattr(self, name + "menu", menu)
+	getattr(self, "create_menu_" + name)(menu)
+
+    def _menucmd(self, menu, label, accelerator, command):
+	if not accelerator:
+	    menu.add_command(label=label, command=command)
 	    return
+	underline = None
+	if len(accelerator) == 1:
+	    # do a lot to determine the underline position
+	    underline = string.find(label, accelerator)
+	    if underline == -1:
+		accelerator = string.lower(accelerator)
+		underline = string.find(label, accelerator)
+		if underline == -1:
+		    underline = None
+		accelerator = string.upper(accelerator)
+	menu.add_command(label=label, command=command, underline=underline,
+			 accelerator="Alt-" + accelerator)
+	self.root.bind("<Alt-%s>" % accelerator, command)
+	if len(accelerator) == 1:
+	    self.root.bind("<Alt-%s>" % string.lower(accelerator), command)
 
-	self.helpbutton = Menubutton(self.mbar, text="Help", name='help')
-	self.helpbutton.pack(side=RIGHT)
+    def create_menu_file(self, menu):
+	self._menucmd(menu, "New Window", "N", self.new_command)
+	self._menucmd(menu, "Clone Current Window", "K", self.clone_command)
+	self._menucmd(menu, "View Source", "V", self.view_source_command)
+	self._menucmd(menu, 'Open Location...', "L", self.open_uri_command)
+	self._menucmd(menu, 'Open File...', "O", self.open_file_command)
+	self._menucmd(menu, 'Open Selection', "E",
+		      self.open_selection_command)
+	menu.add_separator()
+	self._menucmd(menu, "Save As...", "S", self.save_as_command)
+	self._menucmd(menu, "Print...", "P", self.print_command)
+	import DocumentInfo
+	self._menucmd(menu, "Document Info...", "D",
+		      DocumentInfo.DocumentInfoCommand(self))
+	menu.add_separator()
+	self._menucmd(menu, "I/O Status Panel...", "I", self.iostatus_command)
+	menu.add_separator()
+	self._menucmd(menu, "Close", "W", self.close_command),
+	self._menucmd(menu, "Quit", "Q", self.quit_command)
 
-	self.helpmenu = Menu(self.helpbutton, name='menu')
-	self.helpbutton['menu'] = self.helpmenu
+    def create_menu_go(self, menu):
+	self._menucmd(menu, "Back", "Left", self.back_command)
+	self._menucmd(menu, "Reload", "R", self.reload_command)
+	self._menucmd(menu, "Forward", "Right", self.forward_command)
+	menu.add_separator()
+	self._menucmd(menu, 'History...', "H", self.show_history_command)
+	self._menucmd(menu, "Home", None, self.home_command)
 
+    def create_menu_search(self, menu):
+	menu.grail_browser = self	# Applet compatibility
+	import SearchMenu
+	SearchMenu.SearchMenu(menu, self.root, self)
+
+    def create_menu_bookmarks(self, menu):
+	menu.grail_browser = self # Applet compatibility
+	import Bookmarks
+	self.bookmarksmenu_menu = Bookmarks.BookmarksMenu(menu)
+
+    def create_menu_preferences(self, menu):
+	from PrefsPanels import PrefsPanelsMenu
+	PrefsPanelsMenu(menu, self)
+
+    def create_menu_help(self, menu):
+	lines = self.get_helpspec()
 	i = 0
 	n = len(lines) - 1
 	while i < n:
 	    label = lines[i]
 	    i = i+1
 	    if label == '-':
-		self.helpmenu.add_separator()
+		menu.add_separator()
 	    else:
 		url = lines[i]
 		i = i+1
-		command = HelpMenuCommand(self, url)
-		self.helpmenu.add_command(label=label, command=command)
+		self._menucmd(menu, label, None, HelpMenuCommand(self, url))
+
+    __helpspec = None
+    def get_helpspec(self):
+	if self.__helpspec is not None:
+	    return self.__helpspec
+	raw = self.app.prefs.Get('browser', 'help-menu')
+	lines = filter(None, map(string.strip, string.split(raw, '\n')))
+	lines = map(string.split, lines)
+	self.__helpspec = tuple(map(string.join, lines))
+	return self.__helpspec
 
     def create_urlbar(self):
-	self.entry, self.entryframe = \
-		    tktools.make_form_entry(self.topframe, "URL:")
+	f = Frame(self.topframe)
+	f.pack(fill=X)
+	l = Label(self.root, name="uriLabel")
+	l.pack(side=LEFT, in_=f)
+	self.entry = Entry(self.root, name="uriEntry")
+	self.entry.pack(side=LEFT, fill=X, expand=1, in_=f)
 	self.entry.bind('<Return>', self.load_from_entry)
 
     def create_statusbar(self):
-	self.msg_frame = Frame(self.topframe, height=20)
-	self.msg_frame.pack(fill=X, side=BOTTOM)
-	self.msg_frame.propagate(OFF)
-	self.msg = Label(self.msg_frame, anchor=W,
-			 font=self.app.prefs.Get('presentation',
-						 'message-font'))
-
-	self.msg.pack(fill=X, in_=self.msg_frame)
+	msg_frame = Frame(self.root, name="statusbar")
+	msg_frame.pack(fill=X, side=BOTTOM, in_=self.topframe)
+	msg_frame.propagate(OFF)
+	fontspec = self.app.prefs.Get('presentation', 'message-font')
+	fontspec = string.strip(fontspec) or None
+	self.msg = Label(self.root, font=fontspec, name="status")
+	self.msg.pack(fill=X, in_=msg_frame)
 
     # --- External interfaces ---
 
@@ -303,7 +250,8 @@ class Browser:
 
     def set_url(self, url):
 	self.set_entry(url)
-	self.set_title(url)
+	title, when = self.app.global_history.lookup_url(url)
+	self.set_title(title or url)
 
     def set_title(self, title):
 	self._window_title(TITLE_PREFIX + title)
@@ -347,6 +295,7 @@ class Browser:
 	self.viewer.close()
 	self.root.destroy()
 	self.bookmarksmenu_menu.close()
+	self.bookmarksmenu_menu = None
 	if self.app:
 	    self.app.del_browser(self)
 	    self.app.maybe_quit()
