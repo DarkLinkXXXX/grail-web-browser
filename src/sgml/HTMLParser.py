@@ -13,34 +13,84 @@ import sys
 if __name__ == '__main__':
     sys.path.insert(0, '../pythonlib')
 
+import grailutil
 import regsub
 import string
-from types import StringType
+from types import DictType, StringType
 import SGMLLexer
-from SGMLParser import SGMLParser
+import SGMLParser
 from formatter import AS_IS
 
 
 URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase', 'data']
 
 
-class HTMLParser(SGMLParser):
+class HTMLParser(SGMLParser.SGMLParser):
 
     from htmlentitydefs import entitydefs
+    new_entities = {
+	"Dstrok": entitydefs["ETH"],
+	"apos": "'",
+	"ast": "*",
+	"brkbar": entitydefs["brvbar"],
+	"bsol": "\\",
+	"circ": "^",
+	"colon": ":",
+	"comma": ",",
+	"commat": "@",
+	"die": entitydefs["uml"],
+	"dollar": "$",
+	"equals": "=",
+	"excl": "!",
+	"grave": "`",
+	"half": entitydefs["frac12"],
+	"hibar": entitydefs["macr"],
+	"horbar": "_",
+	"hyphen": "-",
+	"lcub": "{",
+	"ldquo": "``",
+	"log": " log ",
+	"lowbar": "_",
+	"lpar": "(",
+	"lsqb": "[",
+	"lsquo": "`",
+	"minus": "-",
+	"num": "#",
+	"OElig": "OE",
+	"oelig": "oe",
+	"percnt": "%",
+	"period": ".",
+	"plus": "+",
+	"quest": "?",
+	"rcub": "}",
+	"rdquo": "''",
+	"rpar": ")",
+	"rsqb": "[",
+	"rsquo": "'",
+	"semi": ";",
+	"sin": " sin ",
+	"sol": "/",
+	"tanh": " tanh ",
+	"tilde": "~",
+	"verbar": "|",
+	"zwj": "",			# i18n: zero-width joiner
+	"zwnj": "",			# i18n: zero-width non-joiner
+	}
+    for k, v in new_entities.items():
+	entitydefs[k] = v
 
     doctype = 'html'
-    head_only_tags = ('link', 'meta', 'title', 'isindex', 'range',
-		      'base', 'nextid', 'style', 'head', 'html')
     autonumber = None
     savedata = None
     title = base = anchor = nextid = None
     nofill = badhtml = 0
     inhead = 1
 
-    object_aware_tags = ['param', 'script', 'object', 'param']
+    object_aware_tags = ['param', 'script', 'object', 'a', 'param']
 
     def __init__(self, formatter, verbose=0):
-        SGMLParser.__init__(self, verbose)
+	self.__taginfo = {}
+        SGMLParser.SGMLParser.__init__(self, verbose)
 	self.restrict(1)
         self.formatter = formatter
         self.anchor = None
@@ -50,10 +100,11 @@ class HTMLParser(SGMLParser):
 	self.headernumber = HeaderNumber()
 
     def close(self):
-	SGMLParser.close(self)
+	SGMLParser.SGMLParser.close(self)
 	#  Clean out circular reference:
 	if self.__dict__.has_key('handle_data'):
 	    del self.__dict__['handle_data']
+	self.__taginfo = {}		# clear circular references
 
     # ------ Methods used internally; some may be overridden
 
@@ -73,6 +124,10 @@ class HTMLParser(SGMLParser):
 
     def handle_data_save(self, data):
 	self.savedata[0] = self.savedata[0] + data
+
+    def get_devicetypes(self):
+	"""Return sequence of device type names."""
+	return ('writer',)
 
     # --- Hooks to save data; shouldn't need to be overridden
 
@@ -141,40 +196,79 @@ class HTMLParser(SGMLParser):
 	del self.object_stack[-1]
 	return r
 
+    __object = None
+    def get_object(self):
+	return self.__object
+
+    def set_object(self, object):
+	self.__object = object
+	if object:
+	    self.set_suppress()
+
     def handle_starttag(self, tag, method, attrs):
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
 	for k in URL_VALUED_ATTRIBUTES:
 	    if attrs.has_key(k) and attrs[k]:
-		attrs[k] = string.joinfields(string.split(attrs[k]), '')
-	method(attrs)
+		s = string.strip(attrs[k])
+		# we really don't want to do this if this is a data: URL
+		if len(s) < 5 or string.lower(s[:5]) != "data:":
+		    s = string.joinfields(string.split(s), '')
+		attrs[k] = s
+	method(self, attrs)
+	if attrs.has_key('id'):
+	    self.register_id(attrs['id'])
 
     def handle_endtag(self, tag, method):
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
-	method()
+	method(self)
 
     def start_object(self, attrs, tag='object'):
 	if self.push_object(tag):
 	    return
 	obj = self.handle_object(attrs)
 	if obj:
-	    self.__object = obj
-	    self.set_suppress()
+	    self.set_object(obj)
 
     def end_object(self):
 	if self.pop_object():
-	    self.__object.end()
-	    self.__object = None
+	    object = self.get_object()
+	    self.set_object(None)
+	    object.end()
 
-    def get_object_handlers(self):
-	return ()
-
+    context = None
     def handle_object(self, attrs):
-	for handler in  self.get_object_handlers():
-	    obj = handler(self, attrs)
-	    if obj:
-		return obj
+	if not self.context:		# Ugly, but we don't want to duplicate
+	    return None			# this method in each subclass!
+	#
+	extract_keyword = grailutil.extract_keyword
+	codetype = extract_keyword('codetype', attrs, conv=string.strip)
+	if not codetype and attrs.has_key('classid'):
+	    codeurl = attrs['classid']
+	    codetype, opts = self.context.app.guess_type(codeurl)
+	if not codetype and attrs.has_key('codebase'):
+	    codeurl = attrs['codebase']
+	    codetype, encoding = self.context.app.guess_type(codeurl)
+	embedtype = codetype
+	if not embedtype:
+	    datatype = extract_keyword('type', attrs, conv=string.strip)
+	    if not datatype and attrs.has_key('data'):
+		dataurl = attrs['data']
+		datatype, encoding = self.context.app.guess_type(dataurl)
+	    embedtype = datatype
+	if not embedtype:
+	    return None
+	#
+	import copy
+	message = grailutil.extract_keyword('standby', attrs, '')
+	message = string.join(string.split(message))
+	for dev in self.get_devicetypes():
+	    embedder = self.context.app.find_embedder(dev, embedtype)
+	    obj = embedder and embedder(self, copy.copy(attrs))
+	    if obj and message:
+		self.context.message(message)
+	    return obj
 	return None
 
     def do_param(self, attrs):
@@ -185,7 +279,7 @@ class HTMLParser(SGMLParser):
 	    if attrs.has_key('value'):
 		value = attrs['value']
 	    if name is not None and value is not None:
-		self.__object.param(name, value)
+		self.get_object().param(name, value)
 
     # --- Hooks for anchors; should probably be overridden
 
@@ -193,6 +287,8 @@ class HTMLParser(SGMLParser):
         self.anchor = href
         if href:
 	    self.anchorlist.append(href)
+	if name:
+	    self.register_id(name)
 
     def anchor_end(self):
         if self.anchor:
@@ -268,14 +364,13 @@ class HTMLParser(SGMLParser):
 
     def start_script(self, attrs):
 	if not self.push_object('script'):
-	    self.__object = NullObject()
-	    self.set_suppress()
+	    self.set_object(Embedding())
 	self.save_bgn()
 
     def end_script(self):
 	self.pop_object()
 	self.save_end()
-	self.__object = None
+	self.set_object(None)
 
     # ------ Body elements
 
@@ -338,17 +433,29 @@ class HTMLParser(SGMLParser):
         self.formatter.end_paragraph(1)
 	self.formatter.pop_alignment()
 
+    __dedented_numbers = 0
     def header_number(self, tag, level, attrs):
 	if self.autonumber is None:
 	    if attrs.has_key('seqnum') or attrs.has_key('skip'):
 		self.autonumber = 1
 	self.headernumber.incr(level, attrs)
 	if self.autonumber:
-	    self.formatter.add_flowing_data(self.headernumber.string(level))
+	    if self.__dedented_numbers:
+		self.formatter.writer.send_label_data(
+		    self.headernumber.string(level))
+	    else:
+		self.formatter.add_flowing_data(
+		    self.headernumber.string(level))
 
     # --- Block Structuring Elements
 
-    def start_p(self, attrs, parbreak = 1):
+    def start_p(self, attrs):
+	self.para_bgn(attrs)
+
+    def end_p(self):
+	self.para_end()
+
+    def para_bgn(self, attrs, parbreak=1):
 	if 'pre' in self.stack:
 	    if 'p' in self.stack:
 		while self.stack[-1] != 'p':
@@ -357,13 +464,17 @@ class HTMLParser(SGMLParser):
 	    return
 	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
         self.formatter.end_paragraph(parbreak)
-	align = None
-	if attrs.has_key('align') and attrs['align']:
-	    align = string.lower(attrs['align'])
+	align = grailutil.extract_keyword(
+	    'align', attrs, conv=grailutil.conv_normstring)
+	if align == "indent":
+	    align = None
 	self.formatter.push_alignment(align)
 
-    def end_p(self, parbreak=1):
+    def para_end(self, parbreak=1):
 	if not 'pre' in self.stack:
+	    if parbreak and self.list_stack:
+		compact = self.list_stack[-1][3]
+		parbreak = not compact
 	    self.formatter.end_paragraph(parbreak)
 	    self.formatter.pop_alignment()
 
@@ -374,15 +485,15 @@ class HTMLParser(SGMLParser):
 		self.lex_endtag(self.stack[-1])
 	    #  Remove <P> surgically:
 	    del self.stack[-1]
-	    self.end_p(parbreak=0)
+	    self.para_end(parbreak=0)
 	else:
 	    self.formatter.add_line_break()
 
     def start_div(self, attrs):
-	self.start_p(attrs, parbreak=0)
+	self.para_bgn(attrs, parbreak=0)
 
     def end_div(self):
-	self.end_p(parbreak=0)
+	self.para_end(parbreak=0)
 
     # New tag: <CENTER> (for Amy)
 
@@ -412,14 +523,14 @@ class HTMLParser(SGMLParser):
 
     def start_xmp(self, attrs):
         self.start_pre(attrs)
-        #self.setliteral('xmp') # Tell SGML parser
+        self.setliteral('xmp')		# Tell SGML parser
 
     def end_xmp(self):
         self.end_pre()
 
     def start_listing(self, attrs):
         self.start_pre(attrs)
-        #self.setliteral('listing') # Tell SGML parser
+        self.setliteral('listing')	# Tell SGML parser
 
     def end_listing(self):
         self.end_pre()
@@ -759,15 +870,14 @@ class HTMLParser(SGMLParser):
 	self.formatter.pop_style()
 
     def start_a(self, attrs):
+	if self.get_object():
+	    self.get_object().anchor(attrs)
+	    return
         href = ''
-        name = ''
-        type = ''
 	if attrs.has_key('href'):
-	    href = string.strip(attrs['href'])
-	if attrs.has_key('name'):
-	    name = string.strip(attrs['name'])
-	if attrs.has_key('type'):
-	    type = string.lower(string.strip(attrs['type']))
+	    href = attrs['href']
+	name = grailutil('name', attrs, '', conv=grailutil.conv_normstring)
+	type = grailutil('type', attrs, '', conv=grailutil.conv_normstring)
         self.anchor_bgn(href, name, type)
 
     def end_a(self):
@@ -860,7 +970,43 @@ class HTMLParser(SGMLParser):
         self.start_pre(attrs)
         self.setnomoretags() # Tell SGML parser
 
+    # --- Grail magic: processing instructions!
+
+    def lex_pi(self, stuff):
+	fields = string.split(string.lower(stuff))
+	if not fields or fields[0] != 'grail':
+	    self.unknown_pi(fields)
+	    return
+	fields[0] = 'pi'
+	width = len(fields)
+	while width >= 2:
+	    procname = string.joinfields(fields[:width], '_')
+	    if hasattr(self, procname):
+		getattr(self, procname)(fields[width:])
+		return
+	    width = width - 1
+	# could not locate handler
+	fields[0] = 'grail'
+	self.unknown_pi(fields)
+
+    def pi_header_numbers(self, arglist):
+	if len(arglist) != 1:
+	    return
+	arg = arglist[0]
+	if arg == 'dedent':
+	    self.__dedented_numbers = self.__dedented_numbers + 1
+	    self.formatter.push_margin('pi')
+	elif arg == 'undent':
+	    depth = self.__dedented_numbers - 1
+	    self.__dedented_numbers = max(0, depth)
+	    self.formatter.pop_margin()
+
     # --- Unhandled elements:
+
+    def unknown_pi(self, fields):
+## 	print "Could not locate processing instruction handler:"
+## 	print "   ", fields
+	pass
 
     # We don't implement these, but we want to know that they go in pairs,
     # just in case we're in "strict" mode.  They need to have been defined
@@ -870,42 +1016,73 @@ class HTMLParser(SGMLParser):
     #
     UNIMPLEMENTED_CONTAINERS = [
 	'abbrev', 'acronym', 'applet', 'au', 'author', 'big', 'blink',
-	'bq', 'caption', 'comment', 'credit', 'fig', 'font', 'lang',
-	'math', 'noembed', 'note', 'person', 'q', 'small', 'span',
-	'sub', 'sup',
+	'bq', 'caption', 'cmd', 'comment', 'credit', 'fig', 'fn', 'font',
+	'frameset', 'lang', 'math', 'noembed', 'noframes', 'noscript',
+	'note', 'person', 'q', 'small', 'span', 'sub', 'sup', 'webcreeper',
 	]
 
     def unknown_starttag(self, tag, attrs):
-	if tag in self.UNIMPLEMENTED_CONTAINERS:
-	    self.stack.append(tag)
-	else:
-	    self.badhtml = 1
+	self.badhtml = 1
+
+    def register_id(self, id):
+	pass
 
     def unknown_endtag(self, tag):
-        self.badhtml = 1
+	self.badhtml = 1
+
+    def get_taginfo(self, tag):
+	override = self.context.app.prefs.GetBoolean(
+	    'parsing-html', 'override-builtin-tags')
+	taginfo = None
+	if override:
+	    # This prefers external definitions over internal definitions:
+	    for dev in self.get_devicetypes():
+		taginfo = self.context.app.find_html_extension(tag, dev)
+		if taginfo:
+		    break
+	if not taginfo:
+	    taginfo = SGMLParser.SGMLParser.get_taginfo(self, tag)
+	if not (taginfo or override):
+	    for dev in self.get_devicetypes():
+		taginfo = self.context.app.find_html_extension(tag, dev)
+		if taginfo:
+		    break
+	if not taginfo and tag in self.UNIMPLEMENTED_CONTAINERS:
+	    taginfo = DummyTagInfo(tag)
+	return taginfo
+
+    # a few interesting UNICODE values:
+    __charrefs = {
+	8204: "",			# zero-width non-joiner
+	8205: "",			# zero-width joiner
+	8482: "\xe4",			# 
+	}
+    def unknown_charref(self, ordinal, terminator):
+	if self.__charrefs.has_key(ordinal):
+	    data = self.__charrefs[ordinal]
+	else:
+	    data = "%s%d%s" % (SGMLLexer.CRO, ordinal, terminator)
+	    self.badhtml = 1
+	self.handle_data(data)
+
+    def unknown_entityref(self, entname, terminator):
+	# support through a method:
+	if hasattr(self, "entref_" + entname):
+	    getattr(self, "entref_" + entname)(terminator)
+	    return
+	self.badhtml = 1
+	# if the name is not all lower case, try a lower case version:
+	if entname == string.upper(entname):
+	    self.handle_entityref(string.lower(entname), terminator)
+	else:
+	    self.handle_data('%s%s%s' % (SGMLLexer.ERO, entname, terminator))
 
     # remove from the dictionary so the "unknown" handler can call the
     # magic implementation...
     if entitydefs.has_key("nbsp"):
 	del entitydefs["nbsp"]
 
-    def unknown_entityref(self, entname, terminator):
-	if entname == "nbsp":
-	    self.nbsp_magic()
-	    return
-	# if the name is all upper case, try a lower case version:
-	for c in entname:
-	    if c not in string.uppercase:
-		break
-	else:
-	    if entname:
-		self.badhtml = 1
-		self.handle_entityref(string.lower(entname), terminator)
-		return
-	self.badhtml = 1
-	self.handle_data('%s%s%s' % (SGMLLexer.ERO, entname, terminator))
-
-    def nbsp_magic(self):
+    def entref_nbsp(self, terminator):
 	# for non-strict interpretation: really nasty stuff to act more
 	# like more popular browsers.  Really just turns &nbsp; into a
 	# normal space, so it'll still be breakable, but it will always
@@ -916,6 +1093,16 @@ class HTMLParser(SGMLParser):
 	else:
 	    self.formatter.flush_softspace()
 	    self.formatter.writer.send_literal_data(' ')
+
+    def entref_emsp(self, terminator):
+	if self.formatter.softspace:
+	    self.formatter.flush_softspace()
+	    self.formatter.add_literal_data(' ')
+	else:
+	    self.formatter.add_literal_data('  ')
+
+    def entref_bull(self, terminator):
+	self.unknown_entityref("disc", terminator)
 
     def report_unbalanced(self, tag):
 	self.badhtml = 1
@@ -935,6 +1122,15 @@ class HTMLParser(SGMLParser):
     def close_paragraph(self):
 	if 'p' in self.stack:
 	    self.lex_endtag('p')
+
+
+class DummyTagInfo(SGMLParser.TagInfo):
+    container = 0
+
+    def __init__(self, tag):
+	self.tag = tag
+	self.start = SGMLParser._nullfunc
+	self.end = SGMLParser._nullfunc
 
 
 class NewlineScratcher:
@@ -1034,14 +1230,20 @@ class HeaderNumber:
 HeaderNumber.set_default_format = HeaderNumber().set_default_format
 
 
-class NullObject:
+class Embedding:
     def __init__(self):
 	pass
 
+    def anchor(self, attrs):
+	# allow use for image maps
+	pass
+
     def param(self, name, value):
+	# pass in parameter values
 	pass
 
     def end(self):
+	# </object>
 	pass
 
 
