@@ -132,8 +132,9 @@ class HTMLParser(SGMLParser):
 
     def do_nextid(self, attrs):		# Deprecated, but maintain the state.
 	self.element_close_maybe('style', 'title')
-	if attrs.has_attr('n'):
+	if attrs.has_key('n'):
 	    self.nextid = attrs['n']
+	    self.badhtml = self.badhtml or not self.inhead
 	else:
 	    self.badhtml = 1
 
