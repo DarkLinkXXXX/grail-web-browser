@@ -50,8 +50,7 @@ class CacheManager:
     def __init__(self, app):
 	"""Initializes cache manager, creates disk cache.
 
-	Basic disk cache characteristics loaded from preferences.
-	"""
+	Basic disk cache characteristics loaded from 	"""
 	
 	self.app = app
 	self.caches = []
@@ -189,7 +188,7 @@ class CacheManager:
 	    if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
 		self.caches[0].add(item)
 	    elif reload == 1:
-		self.caches[0].add(item)
+		self.caches[0].update(item)
 	except CacheFileError, err_tuple:
 	    (file, err) = err_tuple
 	    print "error adding item %s (file %s): %s" % (item.url,
@@ -345,6 +344,9 @@ class DiskCacheEntry:
 	self.type = ctype
 
     string_date = regex.compile('^[A-Za-z]')
+
+    def __repr__(self):
+	return self.unparse()
 
     def parse(self,parsed_rep):
         """Reads transaction log entry.
@@ -581,7 +583,7 @@ class DiskCache:
 		if os.path.isfile(path):
 		    os.unlink(path)
 	
-	os.path.walk(self.directory, erase_cache, None)
+	os.path.walk(self.directory, walk_erase, None)
 
     def erase_unlogged_files(self):
 
@@ -602,6 +604,11 @@ class DiskCache:
 	self.use_order.append(key)
 	self.log_use_order(key)
 
+    def update(self,object):
+	# this is simple, but probably not that efficient
+	self.evict(object.key)
+	self.add(object)
+
     def add(self,object):
 	"""Creates a DiskCacheEntry for object and adds it to cache.
 
@@ -617,6 +624,21 @@ class DiskCache:
 	self.make_space(size)
 
 	newitem = DiskCacheEntry(self)
+	(date, lastmod, expires, ctype) = self.read_headers(headers)
+	newitem.fill(object.key, object.url, size, date, lastmod,
+		   expires, ctype)
+	newitem.file = self.get_file_name(newitem)
+
+	self.make_file(newitem,object)
+	self.log_entry(newitem)
+
+	self.items[object.key] = newitem
+	self.manager.items[object.key] = newitem
+	self.use_order.append(object.key)
+
+	return newitem
+
+    def read_headers(self,headers):
 	if headers.has_key('date'):
 	    date = headers['date']
 	else:
@@ -628,7 +650,6 @@ class DiskCache:
 	    lastmod = date
 
 	if headers.has_key('expires'):
-	    # need to interpret "Expires: 0" style headers
 	    expires = headers['expires']
 	    self.add_expireable(newitem)
 	else:
@@ -640,17 +661,8 @@ class DiskCache:
 	    # what is the proper default content type?
 	    ctype = 'text/html'
 
-	newitem.fill(object.key, object.url, size, date, lastmod,
-		     expires, ctype)
+	return (date, lastmod, expires, ctype)
 
-	self.make_file(newitem,object)
-	self.log_entry(newitem)
-
-	self.items[object.key] = newitem
-	self.manager.items[object.key] = newitem
-	self.use_order.append(object.key)
-
-	return newitem
 
     def add_expireable(self,entry):
 	"""Adds entry to list of pages with explicit expire date."""
@@ -677,9 +689,7 @@ class DiskCache:
 
     def make_file(self,entry,object):
 	"""Write the object's data to disk."""
-	file = self.get_file_name(entry)
-	entry.file = file
-	path = self.get_file_path(file)
+	path = self.get_file_path(entry.file)
 	try:
 	    f = open(path, 'w')
 	    f.write(object.data)
@@ -738,7 +748,7 @@ class DiskCache:
 
     def evict(self,key):
 	"""Remove an entry from the cache and delete the file from disk."""
-	print "evict(%s)" % (key)
+#	print "evict(%s)" % (key)
 	self.use_order.remove(key)
 	evictee = self.items[key]
 	del self.manager.items[key]
