@@ -1031,33 +1031,30 @@ class PrintingHTMLParser(HTMLParser):
 	return href
 
     def _formatAnchorList(self):
-	from urlparse import urlparse
 	baseurl = self.base or self._baseurl or ''
-	self.formatter.add_hor_rule()
+	self.close_paragraph()
+	self.do_hr({})
+	self.start_p({'align':'left'})
 	self.formatter.add_flowing_data('URLs referenced in this document:')
-	self.formatter.end_paragraph(1)
-	self.formatter.push_margin(1)
+	self.end_p()
 	self.formatter.push_font((8, None, None, None))
-	acnt = len(self._anchor_sequence)
-	count = 1
+	self.start_ul({'type':'[1]', 'compact':None})
 	for anchor, title in self._anchor_sequence:
-	    self.formatter.add_label_data('[1]', count)
+	    self.do_li({})
 	    if title:
 		#  Set the title as a citation:
 		self.start_cite({})
 		self.formatter.add_flowing_data(title)
 		self.end_cite()
-		self.formatter.add_literal_data(', ')
+		self.formatter.add_flowing_data(', ')
 	    self.formatter.add_literal_data(anchor)
-	    self.formatter.end_paragraph(1)
-	    count = count + 1
-	self.formatter.pop_margin()
+	self.end_ul()
 	self.formatter.pop_font()
 
     def start_a(self, attrs):
 	href = None
 	if attrs.has_key('href'):
-	    from urlparse import urljoin, urlparse
+	    from urlparse import urljoin
 	    baseurl = self.base or self._baseurl or ''
 	    href = urljoin(baseurl, attrs['href'])
 	self.anchor = href
