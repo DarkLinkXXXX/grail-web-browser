@@ -210,3 +210,7 @@ proxies--manual_proxy_enabled: -1
 proxies--no_proxy:
 proxies--ftp_proxy:
 proxies--http_proxy:
+#
+# Sockets per application
+#
+sockets--number: 5
