@@ -2,8 +2,10 @@
 
 
 import os
+import string
 import urlparse
 from Tkinter import *
+import tktools
 from AppletHTMLParser import AppletHTMLParser
 from BaseReader import BaseReader
 import ProtocolAPI
@@ -45,6 +47,7 @@ class Reader(BaseReader):
 
 	self.save_file = None
 	self.save_mailcap = None
+	self.user_passwd = None
 	self.maxrestarts = 10
 
 	self.restart(url)
@@ -61,14 +64,20 @@ class Reader(BaseReader):
 	tuple = urlparse.urlparse(url)
 	self.fragment = tuple[-1]
 	tuple = tuple[:-1] + ("",)
-	cleanurl = urlparse.urlunparse(tuple)
+	if self.user_passwd:
+	    netloc = tuple[1]
+	    i = string.find(netloc, '@')
+	    if i >= 0: netloc = netloc[i+1:]
+	    netloc = self.user_passwd + '@' + netloc
+	    tuple = (tuple[0], netloc) + tuple[2:]
+	realurl = urlparse.urlunparse(tuple)
 
 	if self.app:
-	    api = self.app.open_url(cleanurl,
+	    api = self.app.open_url(realurl,
 				    self.method, self.params, self.reload,
 				    data=self.data)
 	else:
-	    api = ProtocolAPI.protocol_access(cleanurl,
+	    api = ProtocolAPI.protocol_access(realurl,
 					      self.method, self.params,
 					      data=self.data)
 
@@ -108,9 +117,11 @@ class Reader(BaseReader):
 	    if self.maxrestarts > 0:
 		self.stop()
 		self.restart(url)
-	    return
+		return
 
-	# XXX Similar for error 401
+	if errcode == 401:
+	    if self.handle_auth_error(errcode, errmsg, headers):
+		return
 
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
@@ -187,6 +198,51 @@ class Reader(BaseReader):
 	self.last_was_cr = 0
 	self.browser.clear_reset(self.url, self.new)
 
+    def handle_auth_error(self, errcode, errmsg, headers):
+	# Return nonzero if handle_error() should return now
+	if not headers.has_key('www-authenticate') or self.maxrestarts <= 0:
+	    return
+	challenge = headers['www-authenticate']
+	# <authscheme> realm="<value>" [, <param>="<value>"] ...
+	parts = string.splitfields(challenge, ',')
+	p = parts[0]
+	i = string.find(p, '=')
+	if i < 0: return
+	key, value = p[:i], p[i+1:]
+	keyparts = string.split(string.lower(key))
+	if not(len(keyparts) == 2 and keyparts[1] == 'realm'): return
+	authscheme = keyparts[0]
+	value = string.strip(value)
+	if len(value) >= 2 and value[0] == value[-1] and value[0] in '\'"':
+	    value = value[1:-1]
+	self.stop()
+	self.user_passwd = self.get_user_passwd(authscheme, value)
+	if not self.user_passwd:
+	    self.maxrestarts = 0
+	self.restart(self.url)
+	return 1
+
+    def get_user_passwd(self, authscheme, realmvalue):
+	if authscheme != "basic": return None
+	netloc = urlparse.urlparse(self.url)[1]
+	i = string.find(netloc, '@')
+	if i >= 0: netloc = netloc[i+1:]
+	i = string.find(netloc, ':')
+	if i >= 0: netloc = netloc[:i]
+	key = (netloc, realmvalue)
+	browser = self.last_browser
+	app = browser.app
+	if app.login_cache.has_key(key):
+	    if self.user_passwd:
+		del app.login_cache[key]
+	    else:
+		return app.login_cache[key]
+	login = LoginDialog(browser.root, netloc, realmvalue)
+	user_passwd = login.go()
+	if user_passwd:
+	    app.login_cache[key] = user_passwd
+	return user_passwd
+
     def handle_data(self, data):
 	if self.save_file:
 	    self.save_file.write(data)
@@ -261,6 +317,59 @@ class Reader(BaseReader):
 	except:
 	    self.app.exception_dialog("during import of %s" % modname)
 	    return None
+
+
+class LoginDialog:
+
+    def __init__(self, master, netloc, realmvalue):
+	self.root = Toplevel(master)
+	self.root.title("Authentication Dialog")
+	self.prompt = Label(self.root,
+			    text="Enter user authentication\nfor %s on %s" %
+			    (realmvalue, netloc))
+	self.prompt.pack(side=TOP)
+	self.user_entry, dummy = tktools.make_form_entry(self.root, "User:")
+	self.user_entry.focus_set()
+	self.user_entry.bind('<Return>', self.user_return_event)
+	self.passwd_entry, dummy = \
+			   tktools.make_form_entry(self.root, "Password:")
+	self.passwd_entry.config(show="*")
+	self.passwd_entry.bind('<Return>', self.ok_command)
+	self.ok_button = Button(self.root, text="OK", command=self.ok_command)
+	self.ok_button.pack(side=LEFT)
+	self.cancel_button = Button(self.root, text="Cancel",
+				    command=self.cancel_command)
+	self.cancel_button.pack(side=RIGHT)
+
+	self.user_passwd = None
+
+	self.root.grab_set()
+
+    def go(self):
+	try:
+	    self.root.mainloop()
+	except SystemExit:
+	    return self.user_passwd
+
+    def user_return_event(self, event):
+	self.passwd_entry.focus_set()
+
+    def ok_command(self, event=None):
+	user = string.strip(self.user_entry.get())
+	passwd = string.strip(self.passwd_entry.get())
+	if not user:
+	    self.root.bell()
+	    return
+	self.user_passwd = user + ':' + passwd
+	self.goaway()
+
+    def cancel_command(self):
+	self.user_passwd = None
+	self.goaway()
+
+    def goaway(self):
+	self.root.destroy()
+	raise SystemExit
 
 
 from formatter import AS_IS
