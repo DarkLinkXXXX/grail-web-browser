@@ -7,35 +7,33 @@ from Tkinter import *
 
 def start_frameset(parser, attrs):
     # Augment parser object
-    iat = parser.insert_aware_tags
-    if 'frameset' not in iat:
-	iat.append('frameset')
-	iat.append('frame')
-	iat.append('noframes')
-    if not hasattr(parser, "frameset"):
-	parser.frameset = None
-    parser.insert_stack.append('frameset')
+    tags = parser.object_aware_tags
+    if 'frameset' not in tags:
+	tags.append('frameset')
+	tags.append('frame')
+	tags.append('noframes')
+    if parser.push_object('frameset'):
+	return
     rows = ""
     cols = ""
     for name, value in attrs:
 	if name == "rows": rows = value
 	if name == "cols": cols = value
-    if not parser.insert_active:
-	parser.insert_active = len(parser.insert_stack)
-    elif not parser.frameset:
-	# Active yet no frameset: inside some other skipping tag
-	return
-    parser.frameset = FrameSet(parser, rows, cols, parser.frameset)
+    if not hasattr(parser, "frameset"):
+	parent = None
+    else:
+	parent = parser.frameset
+    parser.frameset = FrameSet(parser, rows, cols, parent)
 
 def end_frameset(parser):
-    if parser.insert_active == len(parser.insert_stack):
-	parser.insert_active = 0
-    del parser.insert_stack[-1]
-    if parser.frameset:
-	parser.frameset.done()
-	parser.frameset = parser.frameset.parent
+    if parser.pop_object():
+	if parser.frameset:
+	    parser.frameset.done()
+	    parser.frameset = parser.frameset.parent
 
 def do_frame(parser, attrs):
+    if parser.suppress_output or not hasattr(parser, "frameset"):
+	return
     src = ""
     fname = ""
     marginwidth = ""
