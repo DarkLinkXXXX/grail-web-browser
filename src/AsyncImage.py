@@ -52,8 +52,12 @@ class AsyncImage(PhotoImage):
 	if self.reader:
 	    return
 	self['file'] = makestopsign()
-	api = self.browser.app.open_url(self.url, 'GET', {},
-					reload) # Through cache
+	try:
+	    api = self.browser.app.open_url(self.url, 'GET', {},
+					    reload) # Through cache
+	except IOError, msg:
+	    self.blank()
+	    return
 	ImageTempFileReader(self.browser, api, self)
 
     def stop_loading(self):
