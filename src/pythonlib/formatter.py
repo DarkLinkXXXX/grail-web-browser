@@ -55,8 +55,9 @@ class AbstractFormatter:
 	self.hard_break = self.nospace = 1
 	self.softspace = 0
 
-    def add_hor_rule(self, abswidth=None, percentwidth=1.0):
-	self.writer.send_hor_rule(abswidth, percentwidth)
+    def add_hor_rule(self, abswidth=None, percentwidth=1.0,
+		     height=None, align=None):
+	self.writer.send_hor_rule(abswidth, percentwidth, height, align)
 	self.hard_break = self.nospace = 1
 	self.para_end = self.softspace = 0
 
