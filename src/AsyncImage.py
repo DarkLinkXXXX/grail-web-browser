@@ -133,6 +133,9 @@ class AsyncImage(PhotoImage):
 	    self.url = headers['location']
 	    self.start_loading()
 
+    def is_reloading(self):
+	return self.reload and not self.loaded
+
     def get_load_status(self):
 	if self.reader:
 	    return 'loading'
