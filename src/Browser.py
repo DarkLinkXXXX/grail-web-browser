@@ -282,6 +282,7 @@ class Browser:
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
+	    self.viewer.remove_temp_tag()
 
     def post(self, url, data, ctype):
 	# Post form data
@@ -516,7 +517,8 @@ class Browser:
     def show_history_command(self, event=None):
 	if not self.history_dialog:
 	    self.history_dialog = History.HistoryDialog(self, self.history)
-	self.history_dialog.show()
+	else:
+	    self.history_dialog.show()
 
     # Help menu commands
 
