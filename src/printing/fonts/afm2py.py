@@ -79,10 +79,6 @@ charset = LATIN_1_MAPPING
 
 
 TEMPLATE = """\
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:cnri/19980302135001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
-
 # Character width information for PostScript font `%(fullname)s'
 # generated from the Adobe Font Metric file `%(filename)s'.  Adobe
 # copyright notice follows:

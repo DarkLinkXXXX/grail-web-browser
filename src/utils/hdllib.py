@@ -1,9 +1,5 @@
 #! /usr/bin/env python
 
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Handle Management System client library.
 
 This module implements the low-level client library for CNRI's Handle
@@ -978,8 +974,6 @@ testsets = [
         [
         "//cnri-1/cnri_home",
         "cnri-1/cnri_home",
-        "1001/0",
-        "1001.cat/0",
         ],
         # 1: Some demo handles
         [
@@ -1016,14 +1010,17 @@ testsets = [
         ],
 
         # 4: Test handles on local handle server.
+        [
+        "10.1000/1",
+        "10.1000/2",
+        "10.1000/45",
+##        "nlm.hdl_test/96053804",
+##        "nlm.hdl_test/96047983",
         # The last three handles are known to exploit the poll_data.c
         # bug discovered by Charles on 2/26/96.
-        [
-        "nlm.hdl_test/96053804",
-        "nlm.hdl_test/96047983",
-        "nlm.hdl_test/96058248",
-        "nlm.hdl_test/96037846",
-        "nlm.hdl_test/96055523",
+##        "nlm.hdl_test/96058248",
+##        "nlm.hdl_test/96037846",
+##        "nlm.hdl_test/96055523",
         ],
 ]
 
