@@ -156,9 +156,15 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.tag_raise(tag, abovetag)
 
     def configure_tags_fixed(self):
-	# These are used in aligning rules:
+	# These are used in aligning block-level elements:
 	self.text.tag_config('right', justify = 'right')
 	self.text.tag_config('center', justify = 'center')
+	#  Typographic controls:
+	self.text.tag_config('underline', underline = 1)
+	self.text.tag_config('overstrike', overstrike = 1)
+	self.text.tag_config('red', foreground = 'red')
+	self.text.tag_config('ins', foreground = 'darkgreen')
+	#  Special fonts:
 	if DINGBAT_FONT:
 	    self.text.tag_config('dingbat', font = DINGBAT_FONT)
 	if SYMBOL_FONT:
@@ -171,6 +177,7 @@ class Viewer(formatter.AbstractWriter):
 	    tabs = "%d right %d left" % (pix-5, pix)
 	    self.text.tag_config('label_%d' % level,
 				 lmargin1=pix-40, tabs=tabs)
+	self.text.tag_config('blockquote', rmargin = 40)
 	# Configure anchor tags
 	for tag in 'a', 'ahist':
 	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
