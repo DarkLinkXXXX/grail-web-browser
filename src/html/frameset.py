@@ -205,8 +205,18 @@ class FrameSet:
 		  scrolling, noresize):
 	viewer = self.make_next_viewer(name, scrolling)
 	if viewer:
+	    self.do_margin(viewer, 'padx', marginwidth)
+	    self.do_margin(viewer, 'pady', marginheight)
 	    src = self.viewer.context.get_baseurl(src)
 	    viewer.context.load(src, reload=self.parser.reload)
+
+    def do_margin(self, viewer, attr, value):
+	try:
+	    mw = string.atoi(value)
+	except ValueError:
+	    pass
+	else:
+	    if mw >= 0: viewer.text[attr] = mw
 
     def done(self):
 	while self.make_next_viewer():
