@@ -18,32 +18,41 @@ class AppletsPanel(PrefsDialogs.Framework):
     helpbrowser = None
 
     def CreateLayout(self, name, frame):
-	# Create GUI
-	self.label = Label(frame, text=LABEL, anchor=W)
-	self.label.pack(fill=X)
-	self.textbox, self.textframe = tktools.make_text_box(frame,
-							     width=40,
-							     height=10)
-	self.textbox.bind('<Return>', self.return_in_textbox)
+	# Create GUI elements in order of preference (the ones created
+	# last disappear first when there's not enough space)
+
+	self.helpbtn = Button(frame, text="Help", command=self.help)
+	self.helpbtn.pack(side=BOTTOM, anchor=E)
+
 	self.loadvar = StringVar()
-	self.loadall = Radiobutton(frame,
-				   text="Load all applets",
-				   variable=self.loadvar,
-				   value="all")
-	self.loadall.pack(anchor=W)
+
+	self.loadnone = Radiobutton(frame,
+				    text="Load no applets",
+				    variable=self.loadvar,
+				    value="none")
+	self.loadnone.pack(anchor=W, side=BOTTOM)
+
 	self.loadsome = Radiobutton(
 	    frame,
 	    text="Load applets in indicated groups only",
 	    variable=self.loadvar,
 	    value="some")
-	self.loadsome.pack(anchor=W)
-	self.loadnone = Radiobutton(frame,
-				    text="Load no applets",
-				    variable=self.loadvar,
-				    value="none")
-	self.loadnone.pack(anchor=W)
-	self.helpbtn = Button(frame, text="Help", command=self.help)
-	self.helpbtn.pack(side=BOTTOM, anchor=E)
+	self.loadsome.pack(anchor=W, side=BOTTOM)
+
+	self.loadall = Radiobutton(frame,
+				   text="Load all applets",
+				   variable=self.loadvar,
+				   value="all")
+	self.loadall.pack(anchor=W, side=BOTTOM)
+
+	self.label = Label(frame, text=LABEL, anchor=W)
+	self.label.pack(fill=X)
+
+	self.textbox, self.textframe = tktools.make_text_box(frame,
+							     width=40,
+							     height=10)
+	self.textbox.bind('<Return>', self.return_in_textbox)
+
 	self.RegisterUI("applets", "groups", "string",
 			self.getgroups, self.setgroups)
 	self.RegisterUI("applets", "load", "string",
