@@ -87,6 +87,39 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.formatter.pop_style()
 	self.anchor = None
 
+    # Duplicated from htmllib.py because we want to have the border attribute
+    def do_img(self, attrs):
+	align = ''
+	alt = '(image)'
+	ismap = ''
+	usemap = ''
+	src = ''
+	width = 0
+	height = 0
+	border = 2
+        for attrname, value in attrs:
+            if attrname == 'align':
+                align = value
+            if attrname == 'alt':
+                alt = value
+            if attrname == 'border':
+		try: border = string.atoi(value)
+		except: pass
+            if attrname == 'ismap':
+                ismap = value
+            if attrname == 'src':
+                src = value
+	    if attrname == 'width':
+		try: width = string.atoi(value)
+		except: pass
+	    if attrname == 'height':
+		try: height = string.atoi(value)
+		except: pass
+	    if attrname == 'usemap':
+		usemap = value
+        self.handle_image(src, alt, usemap or ismap,
+			  align, width, height, border)
+
     def handle_image(self, src, alt, ismap, align, width, height, border=2):
 	from ImageWindow import ImageWindow
 	window = ImageWindow(self.viewer, self.anchor,
