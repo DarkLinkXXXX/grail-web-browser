@@ -41,11 +41,24 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if not image:
 	    self.handle_data(alt)
 	    return
-	self.formatter.add_literal_data('')
+	if self.formatter.nospace:
+	    # Disgusting hack to tag the first character of the line
+	    # so things like indents and centering work
+	    self.formatter.add_literal_data(' ')
+	else:
+	    self.formatter.add_literal_data('')
 	label = AnchorLabel(self.viewer.text, image=image)
 	if self.anchor:
 	    label.setinfo(self.anchor, self.browser)
 	self.viewer.add_subwindow(label)
+
+    # New tag: <CENTER> (for Amy)
+
+    def start_center(self, attrs):
+	self.formatter.push_style('center')
+
+    def end_center(self):
+	self.formatter.pop_style()
 
     # New tag: <APP>
 
@@ -121,10 +134,10 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    msg, crs = self.viewer.browser.message("Reloading module " + mod)
 	    m = rexec.modules[mod]
 	    rexec.r_reload(m)
-	    self.loaded.append(mod)
 	else:
 	    msg, crs = self.viewer.browser.message("Loading module " + mod)
 	    m = rexec.r_import(mod)
+	self.loaded.append(mod)
 	self.viewer.browser.message(msg, crs)
 	return getattr(m, cls)
 
