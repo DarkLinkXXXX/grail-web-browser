@@ -248,9 +248,8 @@ class FormInfo:
 	    if not i.name: continue
 	    v = i.get()
 	    if type(v) == type(()):
-		print `v`
-		if None in v: continue
 		# XXX Argh!  Have to do it twice, for each coordinate
+		if None in v: continue
 		disp = 'form-data; name="%s.x"' % i.name
 		sw = mw.nextpart()
 		sw.addheader("Content-Disposition", disp)
