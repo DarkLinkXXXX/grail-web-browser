@@ -41,6 +41,7 @@ import ni
 import string
 import StringIO
 import regsub
+import urlparse
 from types import StringType, TupleType
 from HTMLParser import HTMLParser
 from formatter import AbstractFormatter, AbstractWriter, AS_IS
@@ -81,29 +82,30 @@ fontdefs = {
     'Lucida':           (None, '', 'Bold', 'Italic'),
     }
 
-DEFAULT_FONT_SIZE = 10.0
-
 # Mappings between HTML header tags and font sizes
+# Entries in the dictionary are factors used with DEFAULT_FONT_SIZE
 # The values used by Mosaic
+#DEFAULT_FONT_SIZE = 12.0
 #font_sizes = {
-#    None: 12.0,
-#    'h1': 36.0,
-#    'h2': 24.0,
-#    'h3': 18.0,
-#    'h4': 14.0,
-#    'h5': 12.0,
-#    'h6': 10.0
+#    None: 1.0,
+#    'h1': 3.0,
+#    'h2': 2.0,
+#    'h3': 1.5,
+#    'h4': 1.67,
+#    'h5': 1.0,
+#    'h6': 0.83
 #    }
 
 # The values used by Grail
+DEFAULT_FONT_SIZE = 10.0
 font_sizes = {
-    None: DEFAULT_FONT_SIZE,
-    'h1': 18.0,
-    'h2': 14.0,
-    'h3': 12.0,
-    'h4': 10.0,
-    'h5': 10.0,
-    'h6': 10.0
+    None: 1.0,
+    'h1': 1.8,
+    'h2': 1.4,
+    'h3': 1.2,
+    'h4': 1.0,
+    'h5': 1.0,
+    'h6': 1.0
     }
 
 
@@ -125,7 +127,7 @@ HR_TOP_MARGIN = 4.0
 HR_BOT_MARGIN = 2.0
 
 # paragraph rendering
-PARAGRAPH_SEPARATION = DEFAULT_FONT_SIZE
+PARAGRAPH_SEPARATION = 1.0		# * base-font-size
 
 # distance after a label tag in points
 LABEL_TAB = 6.0
@@ -266,7 +268,8 @@ class PSFont:
        text_width(TEXT) ==> WIDTH_IN_POINTS
        font_size(optional: (SIZE, ITALIC?, BOLD?, TT?)) ==> SZ_IN_POINTS
     """
-    def __init__(self, varifamily='Times', fixedfamily='Courier'):
+    def __init__(self, varifamily='Times', fixedfamily='Courier',
+		 size=DEFAULT_FONT_SIZE):
 	"""Create a font definition using VARIFAMILY as the variable
 	width font and FIXEDFAMILY as the fixed width font.  Defaults
 	to Helvetica and Courier respectively.
@@ -274,7 +277,8 @@ class PSFont:
 	# current font is a tuple of size, family, italic, bold
 	self.vfamily = varifamily
 	self.ffamily = fixedfamily
-	self.font = (DEFAULT_FONT_SIZE, 'FONTV', '', '')
+	self.font = (size, 'FONTV', '', '')
+	self.base_size = size
 
 	# TBD: this number is slightly bogus, but the rational is
 	# thus.  The original code was tied fairly closely with X so
@@ -376,13 +380,15 @@ class PSFont:
 	if not font_tuple: return self.font[0]
 	tuple_sz = font_tuple[0]
 	try:
-	    if type(tuple_sz) != type(1.0): return font_sizes[tuple_sz]
-	    else: return tuple_sz
-	except KeyError: return DEFAULT_FONT_SIZE
+	    if type(tuple_sz) is type(1.0):
+		return tuple_sz
+	    return font_sizes[tuple_sz] * self.base_size
+	except KeyError: return self.base_size
 
 
 class EPSImage:
-    __scale = 1.0
+    __xscale = 1.0
+    __yscale = 1.0
 
     def __init__(self, data, bbox):
 	self.data = data
@@ -397,9 +403,10 @@ class EPSImage:
 	The resulting scale factor may be equal to or less than the
 	current scale, but will be no larger.
 	"""
-	scale = self.__scale
+	scale = min(self.__xscale, self.__yscale)
 	self.set_size(xmax, ymax)
-	self.__scale = min(scale, self.__scale)
+	scale = min(scale, self.__xscale, self.__yscale)
+	self.__xscale = self.__yscale = scale
 
     def set_size(self, xmax, ymax):
 	"""Scale image to be as large as possible within xmax by ymax points.
@@ -409,23 +416,37 @@ class EPSImage:
 	scale = (1.0 * xmax) / self.__width
 	if (scale * self.__height) > ymax:
 	    scale = (1.0 * ymax) / self.__height
-	self.__scale = scale
+	self.__xscale = self.__yscale = scale
+
+    def set_scale(self, xscale=1.0, yscale=None):
+	"""Set the scaling factor."""
+	if yscale is None:
+	    yscale = xscale
+	self.__xscale = 1.0 * xscale
+	self.__yscale = 1.0 * yscale
 
     def height(self):
-	return self.__height * self.__scale
+	return self.__height * self.__yscale
 
     def width(self):
-	return self.__width * self.__scale
+	return self.__width * self.__xscale
 
-    def scale(self):
-	"""Returns the current scale factor."""
-	return self.__scale
+    def get_scale(self):
+	return self.__xscale, self.__yscale
 
-    def set_scale(self, scale = 1.0):
-	"""Set the scaling factor."""
-	self.__scale = 1.0 * scale
+    def xscale(self):
+	"""Returns the current horizontal scale factor."""
+	return self.__xscale
+
+    def yscale(self):
+	"""Returns the current vertical scale factor."""
+	return self.__yscale
 
 
+def cook(string):
+    return regsub.gsub(QUOTE_re, '\\\\\\1', string)
+
+
 class PSStream:
     _pageno = 1
     _margin = 0.0
@@ -447,12 +468,13 @@ class PSStream:
 
     def __init__(self, psfont, ofp, title='', url='', paper=None):
 	self._paper = paper or PaperInfo("letter")
-## 	self._paper.dump()
 	self._font = psfont
 	self._base_font_size = psfont.font_size()
 	self._ofp = ofp
 	self.set_title(title)
-	self._url = url
+	# strip any fragment identifiers from the url, and pre-cook:
+	parsed = urlparse.urlparse(url)
+	self._url_cooked = cook(urlparse.urlunparse(parsed[:-1] + ('',)))
 	# current line state
 	self._linestr = []
 	self._yshift = [(0.0, 0.0)]	# vertical baseline shift w/in line
@@ -483,7 +505,7 @@ class PSStream:
 		print "%%Title:", self.get_title()
 	    # output font prolog
 	    print "%%DocumentPaperSizes:", self._paper.PaperName
-	    print "%%DocumentFonts:",
+	    print "%%DocumentFonts: Symbol ZapfDingbats",
 	    docfonts = self._font.docfonts
 	    for dfv in docfonts.values(): print dfv,
 	    print
@@ -492,8 +514,8 @@ class PSStream:
 	    # define the fonts
 	    print "/scalfac", self._font.points_per_pixel, "D"
 	    for docfont in docfonts.keys():
-		print "/%s { /%s } D %s reencodeISO D" \
-		      % (docfont, docfonts[docfont], docfont)
+		print "/%s /%s dup reencodeISO D findfont D" \
+		      % (docfont, docfonts[docfont])
 	    # finish out the prolog with paper information:
 	    for name, value in vars(self._paper).items():
 		if type(value) is type(''):
@@ -583,11 +605,11 @@ class PSStream:
 	try:
 	    sys.stdout = self._linefp
 	    #  Translate & scale for image origin:
-	    print 'gsave currentpoint %s sub translate %s dup scale' \
-		  % (below, img.scale())
+	    print 'gsave\n currentpoint %s sub translate %s %s scale' \
+		  % (below, img.xscale(), img.yscale())
 	    if ll_x or ll_y:
 		#  Have to translate again to make image happy:
-		print '%d %d translate' % (-ll_x, -ll_y)
+		print ' %d %d translate' % (-ll_x, -ll_y)
 	    print img.data
 	    #  Restore context, move to right of image:
 	    print 'grestore', width, '0 R'
@@ -611,10 +633,9 @@ class PSStream:
 	    self._baseline = size
 	else:
 	    self._baseline = max(self._baseline, size)
-	self._linefp.write('gsave /%s findfont %d scalefont setfont '
+	self._linefp.write('gsave\n /%s findfont %d scalefont setfont '
 			   % (font, size))
-	self._linefp.write('(%s) show grestore %d 0 R\n'
-			   % (regsub.gsub(QUOTE_re, '\\\\\\1', s), width))
+	self._linefp.write('(%s) show\ngrestore %d 0 R\n' % (cook(s), width))
 	self._xpos = self._xpos + width
 
     def push_alignment(self, align):
@@ -652,7 +673,7 @@ class PSStream:
     def pop_yshift(self):
 	if self._linestr:
 	    self.close_string()
-	self._linefp.write('0 %s -1.0 mul R\n' % self._yshift[-1][1])
+	self._linefp.write('0 %s R\n' % -self._yshift[-1][1])
 	del self._yshift[-1]
 
     def push_end(self):
@@ -663,6 +684,7 @@ class PSStream:
 	    sys.stdout = self._ofp
 	    print "%%Trailer"
 	    print "%%Pages:", self._pageno
+	    print "%%EOF"
 	finally:
 	    sys.stdout = oldstdout
 
@@ -725,7 +747,7 @@ class PSStream:
 	distance = level * self._paper.TabStop
 	if self._margin != distance:
 	    self._margin = distance
-	    self._ofp.write('/indentmargin %s D CR\n' % distance)
+	    self._ofp.write('/grIndentMargin %s D CR\n' % distance)
 
     def push_rightmargin(self, level):
 	if self._linestr:
@@ -734,24 +756,26 @@ class PSStream:
 
     def push_paragraph(self, blankline):
 	if blankline and self._ypos:
-	    self._vtab = self._vtab + PARAGRAPH_SEPARATION
+	    self._vtab = self._vtab \
+			 + (self._base_font_size * PARAGRAPH_SEPARATION)
 
     def push_label(self, bullet):
 	if self._linestr:
 	    self.close_string()
 	if type(bullet) is StringType:
+	    #  Simple textual bullet:
 	    distance = self._font.text_width(bullet) + LABEL_TAB
-	    cooked = regsub.gsub(QUOTE_re, '\\\\\\1', bullet)
+	    cooked = cook(bullet)
 	    self._linefp.write('gsave CR -%s 0 R (%s) S grestore\n' %
 			       (distance, cooked))
 	elif type(bullet) is TupleType:
 	    #  Font-based dingbats:
 	    string, font = bullet
-	    cooked = regsub.gsub(QUOTE_re, '\\\\\\1', string)
-	    self._linefp.write('gsave CR (%s) dup\n' % cooked)
-	    self._linefp.write('/%s findfont %d scalefont setfont\n'
+	    cooked = cook(string)
+	    self._linefp.write('gsave\n CR %s %d SF\n'
 			       % (font, self._font.font_size()))
-	    self._linefp.write('stringwidth pop -%s E sub 0 R S grestore\n'
+	    self._linefp.write(' (%s) dup\n' % cooked)
+	    self._linefp.write(' stringwidth pop -%s E sub 0 R S\ngrestore\n'
 			       % LABEL_TAB)
 	else:
 	    #  This had better be an EPSImage object!
@@ -763,13 +787,14 @@ class PSStream:
 	    distance = width + LABEL_TAB
 	    #  Locate new origin:
 	    vshift = (self._font.font_size() - height) / 2.0
-	    self._linefp.write("gsave CR -%s %s R currentpoint translate "
-			       "%s dup scale\n"
-			       % (distance, vshift, bullet.scale()))
+	    self._linefp.write("gsave\n CR -%s %s R currentpoint translate "
+			       "%s %s scale\n"
+			       % (distance, vshift,
+				  bullet.xscale(), bullet.yscale()))
 	    ll_x, ll_y, ur_x, ur_y = bullet.bbox
 	    if ll_x or ll_y:
 		#  Have to translate again to make image happy:
-		self._linefp.write('%d %d translate\n' % (-ll_x, -ll_y))
+		self._linefp.write(' %d %d translate\n' % (-ll_x, -ll_y))
 	    self._linefp.write(bullet.data)
 	    self._linefp.write("grestore\n")
 
@@ -899,7 +924,7 @@ class PSStream:
 	    print '%%Page:', self._pageno, self._pageno
 	    print '%%BeginPageProlog'
 	    psfontname, size = self._font.get_font()
-	    print "save", self._margin, psfontname, size, "NP"
+	    print "save", self._margin, psfontname, size, self._pageno, "NP"
 	    print '%%EndPageProlog'
 	    if RECT_DEBUG:
 		print 'gsave', 0, 0, "M"
@@ -911,19 +936,13 @@ class PSStream:
 	    sys.stdout = oldstdout
 
     def print_page_postamble(self):
-	title = url = ''
+	title = ''
+	url = self._url_cooked
 	if self._pageno != 1:
-	    title = regsub.gsub(QUOTE_re, '\\\\\\1', self.get_title())
-	if self._url:
-	    url = regsub.gsub(QUOTE_re, '\\\\\\1', self._url)
+	    title = cook(self.get_title())
 	self.prune_titles()
 	stdout = sys.stdout
-	try:
-	    sys.stdout = self._ofp
-	    print "(%s)\n(%s)\n%d EP" % (url, title, self._pageno)
-	    #print "restore showpage"
-	finally:
-	    sys.stdout = stdout
+	self._ofp.write("(%s)\n(%s)\n%d EP\n" % (url, title, self._pageno))
 
     def print_page_break(self):
 	# will the line we're about to write fit on the current page?
@@ -985,7 +1004,7 @@ class PSStream:
 	    linestr = self._linestr
 	contiguous = string.joinfields(linestr, '')
 	# handle quoted characters
-	cooked = regsub.gsub(QUOTE_re, '\\\\\\1', contiguous)
+	cooked = cook(contiguous)
 	# TBD: handle ISO encodings
 	#pass
 	render = self._render
@@ -1028,8 +1047,8 @@ class PSWriter(AbstractWriter):
 		 fontsize=None, leading=None):
 	if not title:
 	    title = url
-	font = PSFont(varifamily=varifamily, fixedfamily=fixedfamily)
-	font.set_font((fontsize or DEFAULT_FONT_SIZE, 'FONTV', '', ''))
+	font = PSFont(varifamily=varifamily, fixedfamily=fixedfamily,
+		      size=fontsize)
 	self.ps = PSStream(font, ofile, title, url, paper=paper)
 	if leading:
 	    self.ps.set_leading(leading)
@@ -1249,9 +1268,8 @@ class PrintingHTMLParser(HTMLParser):
     def start_a(self, attrs):
 	href = None
 	if attrs.has_key('href'):
-	    from urlparse import urljoin
 	    baseurl = self.base or self._baseurl or ''
-	    href = urljoin(baseurl, attrs['href'])
+	    href = urlparse.urljoin(baseurl, attrs['href'])
 	self.anchor = href
 	if href:
 	    if self._underline_anchors:
@@ -1325,8 +1343,7 @@ class PrintingHTMLParser(HTMLParser):
 
     def handle_image(self, src, alt, ismap, align, *notused):
 	if self._image_loader:
-	    from urlparse import urljoin, urlparse
-	    imageurl = urljoin(self._baseurl, src)
+	    imageurl = urlparse.urljoin(self._baseurl, src)
 	    if self._image_cache.has_key(imageurl):
 		image = self._image_cache[imageurl]
 	    else:
@@ -1462,45 +1479,87 @@ class PrintingHTMLParser(HTMLParser):
 	    raise EPSError, 'Image could not be loaded.'
 	if not image:
 	    raise EPSError, 'Image could not be loaded.'
-	from imghdr import what
-	from tempfile import mktemp
-	img_fn = mktemp()
-	fp = open(img_fn, 'w')
+	import tempfile
+	img_fn = tempfile.mktemp()
+	fp = open(img_fn, 'wb')
 	try:
 	    fp.write(image)
 	except:
 	    raise EPSError, 'Failed to write image to external file.'
 	fp.close()
-	imgtype = what(img_fn)
-	if not imgtype:
+	return load_image_file(img_fn, self._greyscale)
+
+
+def load_image_file(img_fn, greyscale):
+    """Generate EPS and the bounding box for an image stored in a file.
+
+    This function attempts to use the Python Imaging Library if it is
+    installed, otherwise it uses a fallback approach using external
+    conversion programs.
+    """
+    import tempfile
+    eps_fn = tempfile.mktemp()
+    try:
+	load_image_pil(img_fn, greyscale, eps_fn)
+    except (AttributeError, IOError, ImportError):
+	# AttributeError is possible with partial installation of PIL,
+	# and IOError can mean a recognition failure.
+	load_image_internal(img_fn, greyscale, eps_fn)
+    img = load_eps(eps_fn)		# img is (data, bbox)
+    os.unlink(eps_fn)
+    return img
+
+
+def load_image_internal(img_fn, greyscale, eps_fn):
+    """Use external converters to generate EPS."""
+    from imghdr import what
+    imgtype = what(img_fn)
+    if not imgtype:
+	os.unlink(img_fn)
+	raise EPSError, 'Could not identify image type.'
+    cnv_key = (imgtype, (greyscale and 'grey') or 'color')
+    if not image_converters.has_key(cnv_key):
+	cnv_key = (imgtype, 'grey')
+    if not image_converters.has_key(cnv_key):
+	os.unlink(img_fn)
+	raise EPSError, 'No converter defined for %s images.' % imgtype
+    img_command = image_converters[cnv_key]
+    img_command = img_command % {'i':img_fn, 'o':eps_fn}
+    try:
+	if os.system(img_command + ' 2>/dev/null'):
 	    os.unlink(img_fn)
-	    raise EPSError, 'Could not identify image type.'
-	cnv_key = (imgtype, (self._greyscale and 'grey') or 'color')
-	if not image_converters.has_key(cnv_key):
-	    cnv_key = (imgtype, 'grey')
-	if not image_converters.has_key(cnv_key):
-	    os.unlink(img_fn)
-	    raise EPSError, 'No converter defined for %s images.' % imgtype
-	eps_fn = mktemp()
-	img_command = image_converters[cnv_key]
-	img_command = img_command % {'i':img_fn, 'o':eps_fn}
-	try:
-	    if os.system(img_command + ' 2>/dev/null'):
-		os.unlink(img_fn)
-		if os.path.exists(eps_fn):
-		    os.unlink(eps_fn)
-		raise EPSError, 'Error converting image to EPS.'
-	except:
-	    if os.path.exists(img_fn):
-		os.unlink(img_fn)
 	    if os.path.exists(eps_fn):
 		os.unlink(eps_fn)
-	    raise EPSError, 'Could not run conversion process.'
+	    raise EPSError, 'Error converting image to EPS.'
+    except:
 	if os.path.exists(img_fn):
 	    os.unlink(img_fn)
-	img = load_eps(eps_fn)
-	os.unlink(eps_fn)
-	return img
+	if os.path.exists(eps_fn):
+	    os.unlink(eps_fn)
+	raise EPSError, 'Could not run conversion process.'
+    if os.path.exists(img_fn):
+	os.unlink(img_fn)
+
+
+def load_image_pil(img_fn, greyscale, eps_fn):
+    """Use PIL to generate EPS."""
+    import Image
+    import traceback
+    try:
+	im = Image.open(img_fn)
+	format = im.format
+	if greyscale and im.mode not in ("1", "L"):
+	    im = im.convert("L")
+	im.save(eps_fn, "EPS")
+    except:
+	stdout = sys.stdout
+	e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+	try:
+	    sys.stdout = sys.stderr
+	    traceback.print_exc()
+	finally:
+	    sys.stdout = stdout
+	    raise e, v, tb
 
 
 def load_eps(eps_fn):
@@ -1565,14 +1624,50 @@ def convert_gif_to_eps(cog, giffile, epsfile):
     return filename
 
 
+def image_loader(url):
+    """Simple image loader for the PrintingHTMLParser instance."""
+    #
+    # This needs a lot of work for efficiency and connectivity
+    # with the rest of Grail, but works O.K. if there aren't many images
+    # or if blocking can be tolerated.
+    #
+    from urllib import urlopen
+    try:
+	imgfp = urlopen(url)
+    except IOError, msg:
+	return None
+    return imgfp.read()
+
+
+# These functions and classes are "filters" which can be used as anchor
+# transforms with the PrintingHTMLParser class.
+
+
 def disallow_data_scheme(href, attrs):
-    from urlparse import urlparse
-    if urlparse(href)[0] == 'data':
+    """Cancel data: URLs."""
+    if urlparse.urlparse(href)[0] == 'data':
 	href = None
     return href
 
+
 def disallow_anchor_footnotes(href, attrs):
+    """Cancel all anchor footnotes."""
     return None
+
+
+class disallow_self_reference:
+    """Cancel all anchor footnotes which refer to the current document."""
+    def __init__(self, baseurl):
+	parsed = urlparse.urlparse(baseurl)
+	scheme, netloc, path, params, query, fragment = parsed
+	self.__baseref = (scheme, netloc, path, params, query, '')
+
+    def __call__(self, href, attrs):
+	parsed = urlparse.urlparse(href)
+	ref = parsed[:-1] + ('',)
+	if ref == self.__baseref:
+	    href = None
+	return href
 
 
 def main():
@@ -1585,11 +1680,21 @@ def main():
     paper = None
     title = ''
     url = ''
-    footnote_anchors = 1
-    underline_anchors = 0
-    fontsize = None
-    leading = None
-    orientation = None
+    #
+    #  load preferences
+    #
+    prefs = {}
+    from grailutil import getgraildir
+    load_prefs(os.path.join(script_dir, "grail-defaults"), prefs)
+    load_prefs(os.path.join(getgraildir(), "grail-preferences"), prefs)
+    #
+    fontsize, leading = parse_fontsize(prefs['font-size'])
+    footnote_anchors = string.atoi(prefs['footnote-anchors'])
+    underline_anchors = string.atoi(prefs['underline-anchors'])
+    orientation = prefs['orientation']
+    greyscale = string.atoi(prefs['greyscale'])
+    images = string.atoi(prefs['images'])
+    #
     try:
 	options, argv = getopt.getopt(sys.argv[1:], 'hdlaUu:t:s:p:o:')
     except getopt.error, err:
@@ -1599,29 +1704,30 @@ def main():
 	sys.stderr.write("option failure: %s\n" % err)
     for opt, arg in options:
 	if opt == '-h': help = 1
-	elif opt == '-a': footnote_anchors = 0
+	elif opt == '-a': footnote_anchors = not footnote_anchors
 	elif opt == '-d': DEBUG = 1
 	elif opt == '-l': logfile = arg
 	elif opt == '-o': orientation = arg
-	elif opt == '-s': fontsize, leading = parse_fontsize(arg)
+	elif opt == '-f': fontsize, leading = parse_fontsize(arg)
 	elif opt == '-t': title = arg
 	elif opt == '-u': url = arg
-	elif opt == '-U': underline_anchors = 1
+	elif opt == '-U': underline_anchors = not underline_anchors
+	elif opt == '-c': greyscale = 0
 	elif opt == '-p': paper = PaperInfo(arg)
     if help:
 	stdout = sys.stderr
 	progname = os.path.basename(sys.argv[0])
 	try:
 	    sys.stdout = sys.stderr
-	    print 'Usage:', progname, '[options] [file]'
+	    print 'Usage:', progname, '[options] [file-or-url]'
 	    print '    -u: URL for footer'
 	    print '    -t: title for header'
 	    print '    -a: disable anchor footnotes'
 	    print '    -U: disable anchor underlining'
 	    print '    -o: orientation; portrait, landscape, or seascape'
 	    print '    -p: paper size; letter, legal, a4, etc.'
-	    print '    -s: font size, in points (default is %s)' \
-		  % DEFAULT_FONT_SIZE
+	    print '    -f: font size, in points (default is %s/%s)' \
+		  % (fontsize, leading)
 	    print '    -d: turn on debugging'
 	    print '    -l: logfile for debugging, otherwise stderr'
 	    print '    -h: this help message'
@@ -1637,28 +1743,44 @@ def main():
     # crack open the input file, or stdin
     if argv:
 	infile = argv[0]
-	infp = open(infile, 'r')
-	outfile = os.path.splitext(infile)[0] + '.ps'
+	try:
+	    infp = open(infile, 'r')
+	except IOError:
+	    # derive file object via URL; still needs to be HTML.
+	    import urllib
+	    infp = urllib.urlopen(infile)
+	    import posixpath
+	    outfile = posixpath.basename(urlparse.urlparse(infile)[2])
+	    if not url:
+		url = infile
+	else:
+	    outfile = infile
+	outfile = os.path.splitext(outfile)[0] + '.ps'
 	print 'Outputting PostScript to', outfile
 	outfp = open(outfile, 'w')
     else:
 	infile = None
 	infp = sys.stdin
 	outfp = sys.stdout
+    if not paper:
+	paper = PaperInfo(prefs['paper-size'])
     if orientation:
-	if not paper:
-	    paper = PaperInfo("letter")
 	try:
 	    paper.rotate(orientation)
 	except KeyError:
 	    paper.rotate(string.atof(orientation))
+    margins = map(string.atof, string.split(prefs['margins']))
+    paper.set_margins(tuple(margins))
     # create the parsers
     w = PSWriter(outfp, title or None, url or '',
 		 fontsize=fontsize, leading=leading, paper=paper)
-    p = PrintingHTMLParser(w, baseurl=url,
-			   underline_anchors=underline_anchors)
+    p = PrintingHTMLParser(w, baseurl=url, greyscale=greyscale,
+			   underline_anchors=underline_anchors,
+			   image_loader=(images and image_loader or None))
     if not footnote_anchors:
 	p.add_anchor_transform(disallow_anchor_footnotes)
+    elif url:
+	p.add_anchor_transform(disallow_self_reference(url))
     p.feed(infp.read())
     p.close()
     w.close()
@@ -1684,6 +1806,26 @@ def parse_fontsize(spec):
 	raise ValueError, "illegal font size specification"
     spec = map(string.atof, map(string.strip, spec))
     return tuple(spec)
+
+
+import regex
+PREFS_re = regex.compile("printing--\([^:]*\):\(.*\)$", regex.casefold)
+
+def load_prefs(filename, dict):
+    try:
+	fp = open(filename)
+    except IOError:
+	return dict
+    while 1:
+	line = fp.readline()
+	if not line: break
+	if PREFS_re.match(line) > -1:
+	    key = string.lower(PREFS_re.group(1))
+	    value = string.strip(PREFS_re.group(2))
+	    dict[key] = value
+    fp.close()
+    return dict
+    
 
 
 # This PostScript causes the printer to use the named printer tray

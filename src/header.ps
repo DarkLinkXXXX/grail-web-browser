@@ -1,7 +1,4 @@
-%%   This is an extended header with an error handler.  There should be
-%%   no need to generate this much PostScript if everything's working.
-%%
-%%   This needs a lot more comments.
+%%   This needs a lot more comments!
 %%
 %%Creator: CNRI Grail, HTML2PS.PY by the Holy Grailers.
 %%   Modified underlining to user 'UnderLineString' from pg. 140 of
@@ -17,20 +14,20 @@
 %%
 /SimpleErrorDict 20 dict def
 SimpleErrorDict begin
-  /arraytype { pop (>> array <<) } def
-  /booleantype { { (>> true <<) }{ (>> false <<) } ifelse } def
-  /dicttype { pop (>> dictionary <<) } def
-  /filetype { pop (>> file <<) } def
-  /fonttype { pop (>> font <<) } def
+  /arraytype { pop (--array--) } def
+  /booleantype { { (true) }{ (false) } ifelse } def
+  /dicttype { pop (--dictionary--) } def
+  /filetype { pop (--file--) } def
+  /fonttype { pop (--font--) } def
   /integertype { =string cvs } def
-  /marktype { pop (>> mark <<) } def
-  /nametype { pop (>> name <<) } def
-  /nulltype { pop (>> null <<) } def
-  /operatortype { pop (>> operator <<) } def
-  /packedarraytype { pop (>> packed array <<) } def
+  /marktype { pop (--mark--) } def
+  /nametype { (/) exch =string cvs GrCatstrings } def
+  /nulltype { pop (--null--) } def
+  /operatortype { pop (--operator--) } def
+  /packedarraytype { pop (--packed array--) } def
   /realtype { =string cvs } def
-  /savetype { pop (>> save type <<) } def
-  /stringtype { } def
+  /savetype { pop (--save type--) } def
+  /stringtype { (\() exch GrCatstrings (\)) GrCatStrings } def
 end % SimpleErrorDict
 
 /ErrBaseLine 732 def
@@ -77,7 +74,7 @@ end % errordict
 %% "carriage return" to the current indentation;
 %%   no vertical motion
 /CR { %% - CR -
-  indentmargin currentpoint E pop M
+  grIndentMargin currentpoint E pop M
 } D
 
 %% display an underlined string:
@@ -98,8 +95,10 @@ end % errordict
 
 %% change the font size:
 /SF { %% fontname pointsize SF -
-  E findfont E scalefont setfont
+  scalefont setfont
 } D
+/Symbol dup findfont D
+/ZapfDingbats dup findfont D
 
 %% display a string right-justified at the current vertical position
 /EDGE { %% string EDGE -
@@ -107,7 +106,8 @@ end % errordict
 } D
 
 %% new page
-/NP { %% indentmargin fontname pointsize NP -
+/NP { %% indentmargin fontname pointsize pageno NP -
+  pop
   GrRotation 0.0 ne {
     GrRotation 90.0 eq {
       GrPaperHeight 0.0
@@ -125,11 +125,12 @@ end % errordict
   GrLeftMargin GrPaperHeight GrTopMargin sub translate scalfac dup scale
   % this is where we consume the arguments
   SF
-  /indentmargin exch D			% /indentmargin set in page prologue
+  /grIndentMargin exch D
   % and position to start the page
   0 0 M CR
 } D
 
+%% end page
 /EP { %% url title pageno EP -
   dup 2 mod 0 eq {
     %% odd pages
@@ -161,7 +162,9 @@ end % errordict
   GrDecorateOddPage
 } D
 
+%% strcat() for PostScript!
 /GrCatstrings { %% first second GrCatstrings third
+					% STACK:
   E /TempCatFirst E D			% second
   dup length TempCatFirst length add	% second #3
   string dup				% second third third
@@ -179,14 +182,15 @@ end % errordict
 %% package), courtesy of Steinar Kjaernsr|d, steinar@ifi.uio.no
 %%
 /reencodeISO {
-  dup dup findfont dup length dict begin { 
+  dup dup findfont dup length dict begin {
     1 index /FID ne { def }{ pop pop } ifelse
   } forall
   /Encoding ISOLatin1Encoding D
   currentdict end definefont
 } D
 
-/ISOLatin1Encoding [
+/ISOLatin1Encoding 
+[
   /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
   /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
   /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
