@@ -12,6 +12,8 @@ ATEMPPREF = 'history-atemp-foreground'
 
 class ImageWindow(Frame):
 
+    image_loaded = 0
+
     def __init__(self, viewer, url, src, alt, usemap, ismap, align,
 		 width, height, borderwidth, target="", reload):
 	self.viewer = viewer
@@ -31,6 +33,30 @@ class ImageWindow(Frame):
 	    self.url = url
 	    self.ismap = None
 	    self.map = None
+	bgcolor = self.get_bgcolor(borderwidth)
+	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
+		       background=bgcolor)
+	self.borderwidth = borderwidth
+	label = Label(self, text=self.alt, background=bgcolor, borderwidth=0)
+	label.pack(fill=BOTH, expand=1)
+	if width > 0 and height > 0:
+	    self.propagate(0)
+	    self.config(width=width + 2*borderwidth,
+			height=height + 2*borderwidth)
+	if self.url or self.map:
+	    self.bind('<Enter>', self.enter)
+	    self.bind('<Leave>', self.leave)
+	    if (self.ismap and self.url) or self.map:
+		label.bind('<Motion>', self.motion)
+	    label.bind('<ButtonRelease-1>', self.follow)
+	    label.bind('<ButtonRelease-2>', self.follow_new)
+	label.bind("<Button-3>", self.button_3_event)
+	self.image = self.context.get_async_image(
+	    self.src, reload, width=width, height=height)
+	if self.image:
+	    label['image'] = self.image
+
+    def get_bgcolor(self, borderwidth):
 	# figure out colors for link, if the image is a link
 	if borderwidth:
 	    if self.url:
@@ -42,37 +68,10 @@ class ImageWindow(Frame):
 	    elif self.map:
 		bg = app.prefs.Get(STYLEGROUP, APREF)
 	    else:
-		bg = viewer.text['foreground']
+		bg = self.viewer.text['foreground']
 	else:
-	    bg = viewer.text['background']
-	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
-		       background=bg)
-	self.borderwidth = borderwidth
-	self.label = Label(self, text=self.alt, background=bg, borderwidth=0)
-	self.label.pack(fill=BOTH, expand=1)
-	self.image_loaded = 0
-	if width > 0 and height > 0:
-	    self.propagate(0)
-	    self.config(width=width + 2*borderwidth,
-			height=height + 2*borderwidth)
-	if self.url:
-	    self.bind('<Enter>', self.enter)
-	    self.bind('<Leave>', self.leave)
-	    if self.ismap:
-		self.label.bind('<Motion>', self.motion)
-	    self.label.bind('<ButtonRelease-1>', self.follow)
-	    self.label.bind('<ButtonRelease-2>', self.follow_new)
-	elif self.map:
-	    self.bind('<Enter>', self.enter)
-	    self.bind('<Leave>', self.leave)
-	    self.label.bind('<Motion>', self.motion)
-	    self.label.bind('<ButtonRelease-1>', self.follow)
-	    self.label.bind('<ButtonRelease-2>', self.follow_new)
-	self.label.bind("<Button-3>", self.button_3_event)
-	self.image = self.context.get_async_image(self.src, reload,
-						  width=width, height=height)
-	if self.image:
-	    self.label['image'] = self.image
+	    bg = self.viewer.text['background']
+	return bg
 
     def enter(self, event):
 	url, target = self.whichurl(event)
