@@ -32,36 +32,36 @@ DONE = 'done'
 
 class MyHTTP(httplib.HTTP):
 
-	def getreply(self):
-	    # Use unbuffered file so we can use the raw socket later on;
-	    # don't zap the socket
-	    self.file = self.sock.makefile('r', 0)
-	    line = self.file.readline()
-	    if self.debuglevel > 0: print 'reply:', `line`
-	    if replyprog.match(line) < 0:
-		# Not an HTTP/1.0 response.  Fall back to HTTP/0.9.
-		self.headers = {}
-		return -1, line, self.headers
-	    errcode, errmsg = replyprog.group(1, 2)
-	    errcode = string.atoi(errcode)
-	    errmsg = string.strip(errmsg)
-	    self.headers = mimetools.Message(self.file, 0)
-	    return errcode, errmsg, self.headers
+    def getreply(self):
+	# Use unbuffered file so we can use the raw socket later on;
+	# don't zap the socket
+	self.file = self.sock.makefile('r', 0)
+	line = self.file.readline()
+	if self.debuglevel > 0: print 'reply:', `line`
+	if replyprog.match(line) < 0:
+	    # Not an HTTP/1.0 response.  Fall back to HTTP/0.9.
+	    self.headers = {}
+	    return -1, line, self.headers
+	errcode, errmsg = replyprog.group(1, 2)
+	errcode = string.atoi(errcode)
+	errmsg = string.strip(errmsg)
+	self.headers = mimetools.Message(self.file, 0)
+	return errcode, errmsg, self.headers
 
-	def close(self):
-	    if self.file:
-		self.file.close()
-	    if self.sock:
-		self.sock.close()
-	    self.file = None
-	    self.sock = None
+    def close(self):
+	if self.file:
+	    self.file.close()
+	if self.sock:
+	    self.sock.close()
+	self.file = None
+	self.sock = None
 
 
 class http_access:
 
     def __init__(self, resturl, method, params, data=None):
 	grailversion = __main__.__version__
-	if data:
+	if data is not None:
 	    assert(method=="POST")
 	else:
 	    assert(method=="GET")
