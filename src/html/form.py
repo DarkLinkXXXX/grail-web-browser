@@ -450,7 +450,7 @@ class FormInfo:
 	    self.getflagopt('checked')
 
 	def setup(self):
-	    self.var = StringVar()
+	    self.var = StringVar(self.viewer.text)
 	    self.w = Checkbutton(self.viewer.text, variable=self.var,
 				 offvalue='', onvalue=self.value,
 				 highlightbackground=self.bgcolor)
@@ -468,7 +468,7 @@ class FormInfo:
 
 	def setup(self):
 	    if not self.fi.radios.has_key(self.name):
-		self.fi.radios[self.name] = StringVar()
+		self.fi.radios[self.name] = StringVar(self.viewer.text)
 		self.first = 1
 	    else:
 		self.first = 0
@@ -647,7 +647,7 @@ class Select:
 	    self.make_list(size)
 
     def make_menu(self, width):
-	self.v = StringVar()
+	self.v = StringVar(self.viewer.text)
 	self.v.set(self.name)
 	values = tuple(map(lambda (v,s,t): t, self.options))
 	self.w = apply(OptionMenu,
