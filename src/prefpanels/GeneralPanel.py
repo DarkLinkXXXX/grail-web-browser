@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.8 $"
+__version__ = "$Revision: 1.9 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -43,6 +43,9 @@ class GeneralPanel(PrefsPanels.Framework):
 			"Height:", 'browser', 'default-height', 'int',
 			label_width=7, entry_width=3, composite=1)
 	f.pack(fill=X, side=TOP, pady='1m')
+
+	self.PrefsEntry(frame, 'Max. connections', 'sockets', 'number', 'int',
+			entry_width=3) 
 
 	self.PrefsCheckButton(frame, "Image loading:", "Load inline images",
 			      'browser', 'load-images')
