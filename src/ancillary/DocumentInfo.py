@@ -4,7 +4,7 @@
 
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.8 $'
+__version__ = '$Revision: 2.9 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import regex
@@ -50,14 +50,16 @@ class DocumentInfoDialog:
 		import ht_time
 		v = ht_time.unparse(v.get_secs())
 	    s = "%s%s:\t%s\n" % (s, k, v)
-	self.add_text_field("Response headers", s, "headers")
+	stretch = self.add_text_field("Response headers", s, "headers")
 	if query:
 	    query = string.translate(query, FIELD_BREAKER)
-	    self.add_text_field("Query fields", query, "query")
+	    stretch = stretch or \
+		      self.add_text_field("Query fields", query, "query")
 	postdata = context.get_postdata()
 	if postdata:
 	    postdata = string.translate(postdata, FIELD_BREAKER)
-	    self.add_text_field("POST fields", postdata, "postdata")
+	    stretch = stretch or \
+		      self.add_text_field("POST fields", postdata, "postdata")
 	#
 	# Bottom button
 	#
@@ -70,10 +72,16 @@ class DocumentInfoDialog:
 	#
 	del self.__topfr		# loose the reference
 	tktools.set_transient(root, master)
+	root.update_idletasks()
+	reqwidth = root.winfo_reqwidth()
+	reqheight = root.winfo_reqheight()
+	root.minsize(reqwidth, reqheight)
+	if not stretch:
+	    root.maxsize(reqwidth, reqheight)
 
     def add_field(self, label, name):
 	fr = Tkinter.Frame(self.__topfr, name=name)
-	fr.pack(expand=1, fill=Tkinter.X)
+	fr.pack(fill=Tkinter.X)
 	if label: label = label + ": "
 	Tkinter.Label(fr, text=label, width=17, anchor=Tkinter.E, name="label"
 		      ).pack(anchor=Tkinter.NE, side=Tkinter.LEFT)
@@ -100,16 +108,19 @@ class DocumentInfoDialog:
 	return label
 
     def add_text_field(self, label, value, name):
+	"""Add a text field; return true if it can be stretched vertically."""
 	fr = self.add_field(label, name)
 	if value and value[-1] != "\n":
 	    value = value + "\n"
+	maxlines = 1 + map(None, value).count("\n")
 	text, frame = tktools.make_text_box(
 	    fr, takefocus=0, width=60, vbar=1,
-	    height=min(MAX_TEXT_FIELD_LINES, 1 + map(None, value).count("\n")))
-	frame.pack(side=Tkinter.LEFT)
+	    height=min(MAX_TEXT_FIELD_LINES, maxlines))
+	frame.pack(side=Tkinter.LEFT, expand=1, fill=Tkinter.BOTH)
+	fr.pack(expand=1, fill=Tkinter.BOTH)
 	text.insert(Tkinter.END, value)
 	text["state"] = Tkinter.DISABLED
-	return text
+	return maxlines > MAX_TEXT_FIELD_LINES
 
 
 class DocumentInfoCommand:
