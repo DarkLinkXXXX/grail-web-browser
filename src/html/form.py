@@ -1,9 +1,5 @@
 """HTML <FORM> tag support (and <INPUT>, etc.).
 
-XXX TO DO:
-
-- METHOD=POST
-
 """
 
 import string
@@ -268,6 +264,7 @@ class FormInfo:
     class InputCheckbox(Input):
 
 	checked = 0
+	value = 'on'
 
 	def getoptions(self):
 	    self.getopt('checked')
