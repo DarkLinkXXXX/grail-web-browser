@@ -311,7 +311,10 @@ class SharedAPI:
 	if self.fno < 0:
 	    self.fno = self.item.fileno()
 	    if self.fno >= 0:
-		self.fno = os.dup(self.fno)
+		try:
+		    self.fno = os.dup(self.fno)
+		except os.error:
+		    self.fno = -1
 	return self.fno
 
     def register_reader(self,reader):
