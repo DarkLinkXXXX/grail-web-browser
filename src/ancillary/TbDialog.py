@@ -16,7 +16,7 @@ class TracebackDialog:
 	self.close_button = Button(self.root,
 				   text="Close",
 				   command=self.close_command)
-	self.close_button.pack(side=BOTTOM)
+	self.close_button.pack(side=BOTTOM, pady='1m')
 	self.label = Label(self.root, text="%s: %s" % (exc, str(val)))
 	self.label.pack(fill=X)
 	self.text, self.text_frame = tktools.make_text_box(self.root,
@@ -24,6 +24,7 @@ class TracebackDialog:
 	lines = traceback.format_exception(exc, val, tb)
 	for line in lines:
 	    self.text.insert(END, line + '\n')
+	self.text["state"] = DISABLED
 
     def close_command(self):
 	self.root.destroy()
