@@ -8,12 +8,14 @@ information.
 
 This class is also used to generate new ID values for nodes.
 """
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 
+import copy
 import nodes                            # sibling
 import search                           # sibling sub-package
 import string
 import urlparse
+import walker                           # sibling
 
 
 class NodeIDError(Exception):
@@ -61,6 +63,19 @@ class Collection:
             if nodetype == "Folder":
                 queue[len(queue):] = node.children()
         return count_map
+
+    def copytree(self, startnode=None):
+        if startnode is None:
+            startnode = self.__root
+        walker = CopyWalker(startnode)
+        walker.walk()
+        class Object:
+            pass
+        coll = Object()
+        coll.__class__ = Collection
+        coll.__root = walker.get_new_root()
+        coll.__node_map, coll.__id_map, coll.__ref_map = walker.get_new_info()
+        return coll
 
     def merge_node(self, node, folder):
         node_map, id_map, ref_map = self.build_info(node)
@@ -197,3 +212,93 @@ class Collection:
     def __make_node_key(self, node):
         parsed = _parse_uri(node.uri())[:3] + ('', '', '')
         return urlparse.urlunparse(parsed)
+
+
+class CopyWalker(walker.TreeWalker):
+    def __init__(self, root=None):
+        walker.TreeWalker.__init__(self, root)
+        self.__node_map = {}
+        self.__id_map = {}
+        self.__ref_map = {}
+        self.__needed_ids = []
+        self.__parents = []
+        self.__new_root = None
+
+    def get_new_info(self):
+        return (self.__node_map, self.__id_map, self.__ref_map)
+
+    def get_new_root(self):
+        if self.__parents:
+            raise RuntimeError, \
+                  "cannot retrieve new root before walk is complete"
+        if self.__needed_ids:
+            raise RuntimeError, \
+                  "copied tree cannot resolve all referenced IDs: " \
+                  + string.join(self.__needed_ids)
+        return self.__new_root
+
+    def add_node(self, node):
+        if self.__new_root is None:
+            self.__new_root = node
+        else:
+            self.__parents[-1].append_child(node)
+
+    def add_describable(self, node, old_node):
+        id = old_node.id()
+        if id:
+            node.set_id(id)
+            self.__id_map[id] = node
+            if self.__ref_map.has_key(id):
+                for alias in self.__ref_map[id]:
+                    alias.set_refnode(node)
+            if id in self.__needed_ids:
+                self.__needed_ids.remove(id)
+        node.set_add_date(old_node.add_date())
+        node.set_title(old_node.title())
+        node.set_description(old_node.description())
+        node.set_info(copy.deepcopy(old_node.info()))
+
+    def start_Alias(self, node):
+        idref = node.idref()
+        if self.__id_map.has_key(idref):
+            new_node = nodes.Alias(self.__id_map[idref])
+        else:
+            new_node = nodes.Alias()
+            if idref not in self.__needed_ids:
+                self.__needed_ids.append(idref)
+        if self.__ref_map.has_key(idref):
+            L = self.__ref_map[idref]
+        else:
+            L = self.__ref_map[idref] = []
+        L.append(new_node)
+        self.add_node(new_node)
+
+    def start_Bookmark(self, node):
+        new_node = nodes.Bookmark()
+        self.add_node(new_node)
+        self.add_describable(new_node, node)
+        uri = node.uri()
+        new_node.set_uri(uri)
+        new_node.set_last_modified(node.last_modified())
+        new_node.set_last_visited(node.last_visited())
+        key = urlparse.urlunparse(_parse_uri(uri)[:3] + ('', '', ''))
+        try:
+            self.__node_map[key].append(new_node)
+        except KeyError:
+            self.__node_map[key] = [new_node]
+
+    def start_Folder(self, node):
+        new_node = nodes.Folder()
+        self.add_node(new_node)
+        self.add_describable(new_node, node)
+        if node.expanded_p():
+            new_node.expand()
+        else:
+            new_node.collapse()
+        self.__parents.append(new_node)
+
+    def end_Folder(self, node):
+        self.__parents.pop()
+
+    def start_Separator(self, node):
+        self.add_node(nodes.Separator())
