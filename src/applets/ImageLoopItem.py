@@ -10,8 +10,6 @@ class ImageLoopItem:
 		 pause=3900, align=None, **kw):
 	self.master = master
 	self.pause = pause
-	if img[:4] == 'doc:':
-	    img = 'http://monty.cnri.reston.va.us/grail' + img[4:]
 	self.browser = master.grail_browser
 	self.images = []
 	i = 0
