@@ -8,7 +8,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.24 $"
+__version__ = "$Revision: 2.25 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
@@ -136,10 +136,9 @@ class AllPreferences:
 	"""Load preferences from scratch, discarding any mods and deletions."""
 	self.user = Preferences(os.path.join(grailutil.getgraildir(),
 					      USERPREFSFILENAME))
-	from __main__ import grail_root
-	self.sys = Preferences(os.path.join(grail_root,
-					     SYSPREFSFILENAME),
-				1)
+	self.sys = Preferences(os.path.join(grailutil.get_grailroot(),
+					    SYSPREFSFILENAME),
+			       1)
 
     def AddGroupCallback(self, group, callback):
 	"""Register callback to be invoked when saving GROUP changed prefs.
