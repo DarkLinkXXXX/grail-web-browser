@@ -222,9 +222,9 @@ class PackageLoader(ModuleLoader):
 	    m = self.load_module(package.__name__ + '.__init__', stuff)
 	    package.__init__ = m
 	    # modification:  1-Mar-1996 bwarsaw
-	    for attr in dir(m):
-		if attr[0] <> '_' or attr in ['__doc__']:
-		    setattr(package, attr, getattr(m, attr))
+#	    for attr in dir(m):
+#		if attr[0] <> '_' or attr in ['__doc__']:
+#		    setattr(package, attr, getattr(m, attr))
 
 
 class PackageImporter(ModuleImporter):
