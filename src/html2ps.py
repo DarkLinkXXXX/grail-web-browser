@@ -34,7 +34,7 @@ import ni
 import string
 import StringIO
 import regsub
-from htmllib import HTMLParser
+from HTMLParser import HTMLParser
 from formatter import AbstractFormatter, AbstractWriter
 import fonts
 
@@ -879,21 +879,22 @@ class PrintingHTMLParser(HTMLParser):
 	self.formatter.pop_font()
 
     def start_a(self, attrs):
-	title, href = None, None
-	for attr, value in attrs:
-	    if attr == 'href':
-		from urlparse import urljoin
-		baseurl = self.base or self._baseurl or ''
-		href = urljoin(baseurl, value)
-	    elif attr == 'title':
-		title = string.strip(value)
+	href = None
+	if attrs.has_key('href'):
+	    from urlparse import urljoin
+	    baseurl = self.base or self._baseurl or ''
+	    href = urljoin(baseurl, attrs['href'])
 	self.anchor = href
 	if href:
 	    if self._underline_anchors:
 		self.formatter.push_style('u')
 	    if self._footnote_anchors and not self._anchors.has_key(href):
 		self._anchors[href] = len(self._anchor_sequence) + 1
-		self._anchor_sequence.append((href, title))
+		if attrs.has_key('title'):
+		    title = string.strip(attrs['title'])
+		    self._anchor_sequence.append((href, title))
+		else:
+		    self._anchor_sequence.append((href, None))
 
     def end_a(self):
 	anchor, self.anchor = self.anchor, None

@@ -6,20 +6,20 @@
 
 
 from Tkinter import *
-import htmllib
 import urlparse
 import string
 import tktools
 import formatter
 from ImageMap import MapThunk, MapInfo
+from HTMLParser import HTMLParser
 from AppletLoader import AppletLoader
 
 # Get rid of do_isindex method so we can implement it as an extension
-if hasattr(htmllib.HTMLParser, 'do_isindex'):
-    del htmllib.HTMLParser.do_isindex
+if hasattr(HTMLParser, 'do_isindex'):
+    del HTMLParser.do_isindex
 
 
-class AppletHTMLParser(htmllib.HTMLParser):
+class AppletHTMLParser(HTMLParser):
 
     insert_aware_tags = ['param', 'alias', 'applet']
 
@@ -35,10 +35,10 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.image_maps = {}            # for image maps
 	self.current_map = None
 	self.formatter = formatter.AbstractFormatter(self.viewer)
-	htmllib.HTMLParser.__init__(self, self.formatter)
+	HTMLParser.__init__(self, self.formatter)
 
     def close(self):
-	htmllib.HTMLParser.close(self)
+	HTMLParser.close(self)
 
     # Override HTMLParser internal methods
 
@@ -56,7 +56,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def handle_data(self, data):
 	if not self.insert_active:
-	    htmllib.HTMLParser.handle_data(self, data)
+	    HTMLParser.handle_data(self, data)
 
     def anchor_bgn(self, href, name, type, target=""):
 	self.formatter.flush_softspace()
@@ -83,33 +83,24 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def do_img(self, attrs):
 	align = ''
 	alt = '(image)'
-	ismap = ''
-	usemap = ''
+	ismap = 0
+	usemap = None
 	src = ''
 	width = 0
 	height = 0
 	border = 2
-        for attrname, value in attrs:
-            if attrname == 'align':
-                align = value
-            if attrname == 'alt':
-                alt = value
-            if attrname == 'border':
-		try: border = string.atoi(value)
-		except: pass
-            if attrname == 'ismap':
-                ismap = 'ismap'
-            if attrname == 'src':
-                src = value
-	    if attrname == 'width':
-		try: width = string.atoi(value)
-		except: pass
-	    if attrname == 'height':
-		try: height = string.atoi(value)
-		except: pass
-	    if attrname == 'usemap':
-		# not sure how to assert(value[0] == '#')
-		usemap = MapThunk (self, value[1:])
+
+	extract = self.extract_keyword
+	align = extract('align', attrs, conv=string.lower)
+	alt = extract('alt', attrs, '(image)')
+	border = extract('border', attrs, 2, conv=string.atoi)
+	ismap = attrs.has_key('ismap')
+	src = extract('src', attrs, '')
+	width = extract('width', attrs, 0, conv=string.atoi)
+	height = extract('height', attrs, 0, conv=string.atoi)
+	if attrs.has_key('usemap'):
+	    # not sure how to assert(value[0] == '#')
+	    usemap = MapThunk (self, attrs['usemap'][1:])
         self.handle_image(src, alt, usemap or ismap,
 			  align, width, height, border)
 
@@ -130,18 +121,19 @@ class AppletHTMLParser(htmllib.HTMLParser):
     # Extend tag: </TITLE>
 
     def end_title(self):
-	htmllib.HTMLParser.end_title(self)
+	HTMLParser.end_title(self)
 	self.context.set_title(self.title)
 
     # Override tag: <BODY colorspecs...>
 
     def start_body(self, attrs):
-	dict = {'bgcolor': None, 'text': None,
-		'link': None, 'vlink': None, 'alink': None}
-	for name, value in attrs:
-	    dict[name] = value
-	self.configcolor('background', dict['bgcolor'])
-	self.configcolor('foreground', dict['text'])
+	bgcolor = text = None
+	if attrs.has_key('bgcolor'):
+	    bgcolor = attrs['bgcolor']
+	if attrs.has_key('text'):
+	    text = attrs['text']
+	self.configcolor('background', bgcolor)
+	self.configcolor('foreground', text)
 
     def configcolor(self, option, color):
 	if not color: return
@@ -156,11 +148,10 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def do_base(self, attrs):
 	base = None
 	target = None
-        for a, v in attrs:
-            if a == 'href':
-                base = v
-	    if a == 'target':
-		target = v
+	if attrs.has_key('href'):
+	    base = attrs['href']
+	if attrs.has_key('target'):
+	    target = attrs['target']
 	self.context.set_baseurl(base, target)
 
     # New tag: <CENTER> (for Amy)
@@ -173,32 +164,20 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
-        href = ''
-        name = ''
-        type = ''
-	target = ''
-        for attrname, value in attrs:
-	    value = string.strip(value)
-            if attrname == 'href':
-                href = value
-            if attrname == 'name':
-                name = value
-            if attrname == 'type':
-                type = string.lower(value)
-	    if attrname == 'target':
-		target = value
+	extract = self.extract_keyword
+        href = extract('href', attrs, '', conv=string.strip)
+        name = extract('name', attrs, '', conv=string.strip)
+	type = extract('type', attrs, '',
+		       conv=lambda v,s=string: s.lower(s.strip(v)))
+	target = extract('target', attrs, '', conv=string.strip)
         self.anchor_bgn(href, name, type, target)
 
     # New tag: <MAP> (for client side image maps)
 
     def start_map(self, attrs):
-	mapname = ''
-	for name, value in attrs:
-	    if name == 'name':
-		mapname = value
-	if mapname != '':
-	    # ignore maps without names
-	    self.current_map = MapInfo(self, mapname)
+	# ignore maps without names
+	if attrs.has_key('name'):
+	    self.current_map = MapInfo(self, attrs['name'])
 
     def end_map(self):
 	if self.current_map:
@@ -211,22 +190,12 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	"""Handle the <AREA> tag."""
 
 	if self.current_map:
-	    coords = ''
-	    shape = 'rect'
-	    url = ''
-	    alt = ''
-
-	    for name, val in attrs:
-		if name == 'shape':
-		    shape = val
-		if name == 'coords':
-		    coords = val
-		if name == 'alt':
-		    alt = val
-		if name == 'href':
-		    url = val
-		if name == 'nohref':  # not sure what the point is
-		    url = None
+	    extract = self.extract_keyword
+	    shape = extract('shape', attrs, 'rect')
+	    coords = extract('coords', attrs, '')
+	    alt = extract('alt', attrs, '')
+	    # not sure what the point of NOHREF is
+	    url = extract('nohref', attrs, extract('href', attrs, ''))
 
 	    try:
 		self.current_map.add_shape(
@@ -274,17 +243,17 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def start_applet(self, attrs):
 	self.insert_stack.append('applet')
 	if self.insert_active: return
-	keywords = self.get_keywords(attrs)
 	# See http://www.javasoft.com/people/avh/applet.html for DTD
-	width = self.extract_keyword('width', keywords, conv=string.atoi)
-	height = self.extract_keyword('height', keywords, conv=string.atoi)
-	menu = self.extract_keyword('menu', keywords)
-	code = self.extract_keyword('code', keywords)
-	name = self.extract_keyword('name', keywords)
-	codebase = self.extract_keyword('codebase', keywords)
-	align = self.extract_keyword('align', keywords, 'baseline')
-	vspace = self.extract_keyword('vspace', keywords)
-	hspace = self.extract_keyword('hspace', keywords)
+	extract = self.extract_keyword
+	width = extract('width', attrs, conv=string.atoi)
+	height = extract('height', attrs, conv=string.atoi)
+	menu = extract('menu', attrs)
+	code = extract('code', attrs)
+	name = extract('name', attrs)
+	codebase = extract('codebase', attrs)
+	align = extract('align', attrs, 'baseline')
+	vspace = extract('vspace', attrs)
+	hspace = extract('hspace', attrs)
 	apploader = AppletLoader(self,
 				 width=width, height=height, menu=menu,
 				 name=name, code=code, codebase=codebase,
@@ -306,40 +275,31 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def do_param(self, attrs):
 	if 0 < self.insert_active == len(self.insert_stack):
-	    name = value = None
-	    for a, v in attrs:
-		if a == 'name': name = v
-		if a == 'value': value = v
+	    name = self.extract_keyword('name', attrs)
+	    value = self.extract_keyword('value', attrs)
 	    if name is not None and value is not None:
 		self.apploader.set_param(name, value)
 
     # New tag: <APP>
 
     def do_app(self, attrs):
-	keywords = self.get_keywords(attrs)
-	mod, cls, src = self.get_mod_class_src(keywords)
+	mod, cls, src = self.get_mod_class_src(attrs)
 	if not (mod and cls): return
-	width = self.extract_keyword('width', keywords, conv=string.atoi)
-	height = self.extract_keyword('height', keywords, conv=string.atoi)
-	menu = self.extract_keyword('menu', keywords)
+	width = self.extract_keyword('width', attrs, conv=string.atoi)
+	height = self.extract_keyword('height', attrs, conv=string.atoi)
+	menu = self.extract_keyword('menu', attrs)
 	mod = mod + ".py"
 	apploader = AppletLoader(self, code=mod, name=cls, codebase=src,
 				 width=width, height=height, menu=menu,
 				 reload=self.reload)
 	if apploader.feasible():
-	    for name, value in keywords.items():
+	    for name, value in attrs.items():
 		apploader.set_param(name, value)
 	    apploader.go_for_it()
 	else:
 	    apploader.close()
 
     # Subroutines for <APP> tag parsing
-
-    def get_keywords(self, attrs):
-	keywords = {}
-	for a, v in attrs:
-	    keywords[a] = v
-	return keywords
 
     def get_mod_class_src(self, keywords):
 	cls = self.extract_keyword('class', keywords)
@@ -370,11 +330,13 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def unknown_starttag(self, tag, attrs):
 	# Look up the function first, so it has a chance to update
 	# the list of insert-aware tags
-	function = self.app.find_html_start_extension(tag)
 	if self.insert_active:
 	    if tag not in self.insert_aware_tags:
 		return
+	function, as_dict = self.app.find_html_start_extension(tag)
 	if function:
+	    if not as_dict:
+		attrs = attrs.items()
 	    function(self, attrs)
 
     def unknown_endtag(self, tag):
