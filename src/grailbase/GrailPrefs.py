@@ -4,7 +4,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.18 $"
+__version__ = "$Revision: 2.19 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
@@ -36,13 +36,13 @@ class Preferences:
 	self.mods = {}			# Changed settings not yet saved.
 	self.deleted = {}		# Settings overridden, not yet saved.
 	try:
-	    self.last_mtime = os.stat(filename)[9]
 	    f = open(filename)
+	    self.last_mtime = os.stat(filename)[9]
 	    self.saved = parseprefs.parseprefs(f)
 	    f.close()
 	except IOError:
 	    self.saved = {}
-	    self.file_mtime = 0
+	    self.last_mtime = 0
 	self.modified = 0
 
     def Get(self, group, cmpnt):
