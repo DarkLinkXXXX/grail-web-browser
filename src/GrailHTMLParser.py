@@ -147,6 +147,20 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	traceback.print_exc()
 	print "-"*40
 
+    # Handle HTML extensions
+
+    def unknown_starttag(self, tag, attrs):
+	app = self.viewer.browser.app
+	function = app.find_html_start_extension(tag)
+	if function:
+	    function(self, attrs)
+
+    def unknown_endtag(self, tag):
+	app = self.viewer.browser.app
+	function = app.find_html_end_extension(tag)
+	if function:
+	    function(self)
+
 
 class AppletMagic:
 
