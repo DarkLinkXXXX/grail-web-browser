@@ -290,7 +290,7 @@ class Application:
 	# interrupts get through
 	self.root.tk.createtimerhandler(KEEPALIVE_TIMER, self.keep_alive)
 
-    html_start_tags = {}
+    html_start_tags = {}		# 'tag': (startFunc, asDict, startOrDo)
     html_end_tags = {}
 
     def find_html_start_extension(self, tag):
@@ -298,15 +298,15 @@ class Application:
 	    return self.html_start_tags[tag]
 	mod = self.find_extension('html', tag)
 	if not mod:
-	    self.html_start_tags[tag] = None, None
-	    return None, None
+	    self.html_start_tags[tag] = None, None, None
+	    return None, None, None
 	as_dict = hasattr(mod, 'ATTRIBUTES_AS_KEYWORDS') \
 		  and mod.ATTRIBUTES_AS_KEYWORDS
 	for name in dir(mod):
 	    if name[:6] == 'start_':
 		t = name[6:]
 		if t and not self.html_start_tags.has_key(t):
-		    self.html_start_tags[t] = getattr(mod, name), as_dict
+		    self.html_start_tags[t] = getattr(mod, name), as_dict, 1
 	    elif name[:4] == 'end_':
 		t = name[4:]
 		if t and not self.html_end_tags.has_key(t):
@@ -314,10 +314,10 @@ class Application:
 	    elif name[:3] == 'do_':
 		t = name[3:]
 		if t and not self.html_start_tags.has_key(t):
-		    self.html_start_tags[t] = getattr(mod, name), as_dict
+		    self.html_start_tags[t] = getattr(mod, name), as_dict, 0
 	if not self.html_start_tags.has_key(tag):
 	    print "Hmm... module html/%s doesn't define start_%s" % (tag, tag)
-	    self.html_start_tags[tag] = None, None
+	    self.html_start_tags[tag] = None, None, None
 	return self.html_start_tags[tag]
 
     def find_html_end_extension(self, tag):

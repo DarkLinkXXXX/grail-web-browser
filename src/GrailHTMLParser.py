@@ -487,11 +487,13 @@ class GrailHTMLParser(HTMLParser):
 	if self.suppress_output:
 	    if tag not in self.object_aware_tags:
 		return
-	function, as_dict = self.app.find_html_start_extension(tag)
+	function, as_dict, has_end = self.app.find_html_start_extension(tag)
 	if function:
 	    if not as_dict:
 		attrs = attrs.items()
 	    function(self, attrs)
+	    if has_end:
+		self.stack.append(tag)
 
     def unknown_endtag(self, tag):
 	if self.suppress_output:

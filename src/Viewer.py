@@ -294,8 +294,8 @@ class Viewer(formatter.AbstractWriter):
 	    self.pendingdata = ''
 	self.flowingtags = filter(
 	    None,
-	    (self.align, self.fonttag, self.margintag, self.spacingtag)) \
-	    + self.addtags
+	    (self.align, self.fonttag, self.margintag, self.spacingtag) \
+	    + self.addtags)
 	self.literaltags = self.flowingtags + ('pre',)
 
     def scroll_page_down(self, event=None):
@@ -342,7 +342,7 @@ class Viewer(formatter.AbstractWriter):
 
     def new_styles(self, styles):
 ##	print 'New styles:', styles
-	self.addtags = filter(None, styles)
+	self.addtags = styles
 	self.new_tags()
 
     def send_paragraph(self, blankline):
