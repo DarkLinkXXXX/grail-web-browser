@@ -44,10 +44,16 @@ tkinter = _tkinter
 
 class _DumbTkinter:
     """Helper class to provide interfaces to low-level handler functions"""
-    READABLE = 1
-    WRITABLE = 2
-    createfilehandler = tkinter.createfilehandler
-    deletefilehandler = tkinter.deletefilehandler
+    READABLE = tkinter.READABLE
+    WRITABLE = tkinter.WRITABLE
+    try:
+	createfilehandler = tkinter.createfilehandler
+    except AttributeError:
+	pass
+    try:
+	deletefilehandler = tkinter.deletefilehandler
+    except AttributeError:
+	pass
     createtimerhandler = tkinter.createtimerhandler
 
 tkinter = _DumbTkinter()
