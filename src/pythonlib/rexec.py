@@ -38,10 +38,10 @@ class FileWrapper(FileBase):
 	def __init__(self, f):
 		self.f = f
 		for m in self.ok_file_methods:
-			if not hasattr(self, m):
+			if not hasattr(self, m) and hasattr(f, m):
 				setattr(self, m, getattr(f, m))
 	
-	def close(f):
+	def close(self):
 		self.flush()
 
 
@@ -131,9 +131,10 @@ class RExec(ihooks._Verbose):
 
     ok_path = tuple(sys.path)		# That's a policy decision
 
-    ok_builtin_modules = ('array', 'binascii', 'audioop', 'imageop',
-			  'marshal', 'math',
-			  'md5', 'parser', 'regex', 'rotor', 'select',
+    ok_builtin_modules = ('audioop', 'array', 'binascii',
+			  'cmath', 'errno', 'imageop',
+			  'marshal', 'math', 'md5', 'operator',
+			  'parser', 'regex', 'rotor', 'select',
 			  'strop', 'struct', 'time')
 
     ok_posix_names = ('error', 'fstat', 'listdir', 'lstat', 'readlink',
@@ -297,7 +298,7 @@ class RExec(ihooks._Verbose):
         s = self.modules['sys']
 	s.stdin = self.restricted_stdin
 	s.stdout = self.restricted_stdout
-	s.stderr = self.restricted_stdout
+	s.stderr = self.restricted_stderr
 	sys.stdin = self.delegate_stdin
 	sys.stdout = self.delegate_stdout
 	sys.stderr = self.delegate_stderr
@@ -307,7 +308,7 @@ class RExec(ihooks._Verbose):
         s = self.modules['sys']
 	self.restricted_stdin = s.stdin
 	self.restricted_stdout = s.stdout
-	self.restricted_stdout = s.stderr
+	self.restricted_stderr = s.stderr
 	
 
     def save_files(self):
@@ -320,11 +321,14 @@ class RExec(ihooks._Verbose):
 	sys.stdout = self.save_stdout
 	sys.stderr = self.save_stderr
     
-    def s_apply(self, func, *args, **kw):
+    def s_apply(self, func, args=(), kw=None):
 	self.save_files()
 	try:
 	    self.set_files()
-	    r = apply(func, args, kw)
+	    if kw:
+		r = apply(func, args, kw)
+	    else:
+		r = apply(func, args)
         finally:
 	    self.restore_files()
     
