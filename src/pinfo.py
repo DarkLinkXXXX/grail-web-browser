@@ -9,7 +9,7 @@
 Usage:	pinfo.py [profile-file] [callees | callers | stats]
 		 [sorts] [restrictions]
 """
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 #  $Source: /home/john/Code/grail/src/pinfo.py,v $
 
 
@@ -44,6 +44,13 @@ if sys.argv[1:]:
 	    try: args[i] = string.atoi(args[i])
 	    except: pass
 	restrictions = tuple(filter(None, args))
+
+
+if not os.path.exists(fileName):
+    import glob
+    files = glob.glob("*.prof")
+    if len(files) == 1:
+	fileName = files[0]
 
 
 p = pstats.Stats(fileName).strip_dirs()
