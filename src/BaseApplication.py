@@ -5,10 +5,11 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.9 $'
+__version__ = '$Revision: 2.10 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import keyword
+import mimetypes
 import os
 import posixpath
 import regsub
@@ -42,19 +43,16 @@ class BaseApplication:
 	self.iconpath = [os.path.join(grailutil.get_grailroot(), 'icons')]
 	self.get_package("html")	# make it a 'user' package
 	grailutil.establish_dir(self.graildir)
-	s = \
-	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
-	  read_mime_types("/usr/local/lib/netscape/mime.types") or \
-	  read_mime_types("/usr/local/etc/httpd/conf/mime.types") or \
-	  {}
-	for key, value in self.suffixes_map.items():
-	    if not s.has_key(key): s[key] = value
-	self.suffixes_map = s
 	user_icons = os.path.join(self.graildir, 'icons')
 	if os.path.isdir(user_icons):
 	    self.iconpath.insert(0, user_icons)
 	# cache of available extensions
 	self.__extensions = {}
+        #
+        # Add our type map file to the set used to initialize the shared map:
+        #
+        typefile = os.path.join(self.graildir, "mime.types") 
+        mimetypes.init(mimetypes.knownfiles + [typefile])
 
     # Mapping '.' to os.sep to test for the user dir is needed to support
     # nested packages.
@@ -190,133 +188,7 @@ class BaseApplication:
 	if self.__data_scheme_re.match(url) >= 0:
 	    scheme = self.__data_scheme_re.group(1) or "text/plain"
 	    return string.lower(scheme), self.__data_scheme_re.group(3)
-	base, ext = posixpath.splitext(url)
-	if ext in ('.tgz', '.taz', '.tz'):
-	    # Special case, can't be encoded in tables
-	    base = base + '.tar'
-	    ext = '.gz'
-	if self.encodings_map.has_key(ext):
-	    encoding = self.encodings_map[ext]
-	    base, ext = posixpath.splitext(base)
-	else:
-	    encoding = None
-	if self.suffixes_map.has_key(ext):
-	    return self.suffixes_map[ext], encoding
-	elif self.suffixes_map.has_key(string.lower(ext)):
-	    return self.suffixes_map[string.lower(ext)], encoding
-	return None, encoding
-
-    encodings_map = {
-	'.gz': 'gzip',
-	'.Z': 'compress',
-	}
-
-    suffixes_map = {
-	'.a': 'application/octet-stream',
-	'.ai': 'application/postscript',
-	'.aif': 'audio/x-aiff',
-	'.aifc': 'audio/x-aiff',
-	'.aiff': 'audio/x-aiff',
-	'.au': 'audio/basic',
-	'.avi': 'video/x-msvideo',
-	'.bcpio': 'application/x-bcpio',
-	'.bin': 'application/octet-stream',
-	'.cdf': 'application/x-netcdf',
-	'.cpio': 'application/x-cpio',
-	'.csh': 'application/x-csh',
-	'.dll': 'application/octet-stream',
-	'.dvi': 'application/x-dvi',
-	'.exe': 'application/octet-stream',
-	'.eps': 'application/postscript',
-	'.etx': 'text/x-setext',
-	'.gif': 'image/gif',
-	'.gtar': 'application/x-gtar',
-	'.hdf': 'application/x-hdf',
-	'.htm': 'text/html',
-	'.html': 'text/html',
-	'.ief': 'image/ief',
-	'.jpe': 'image/jpeg',
-	'.jpeg': 'image/jpeg',
-	'.jpg': 'image/jpeg',
-	'.latex': 'application/x-latex',
-	'.man': 'application/x-troff-man',
-	'.me': 'application/x-troff-me',
-	'.mif': 'application/x-mif',
-	'.mov': 'video/quicktime',
-	'.movie': 'video/x-sgi-movie',
-	'.mpe': 'video/mpeg',
-	'.mpeg': 'video/mpeg',
-	'.mpg': 'video/mpeg',
-	'.ms': 'application/x-troff-ms',
-	'.nc': 'application/x-netcdf',
-	'.o': 'application/octet-stream',
-	'.obj': 'application/octet-stream',
-	'.oda': 'application/oda',
-	'.pbm': 'image/x-portable-bitmap',
-	'.pdf': 'application/pdf',
-	'.pgm': 'image/x-portable-graymap',
-	'.pnm': 'image/x-portable-anymap',
-	'.png': 'image/png',
-	'.ppm': 'image/x-portable-pixmap',
-	'.py': 'text/x-python',
-	'.pyc': 'application/x-python-code',
-	'.ps': 'application/postscript',
-	'.qt': 'video/quicktime',
-	'.ras': 'image/x-cmu-raster',
-	'.rgb': 'image/x-rgb',
-	'.roff': 'application/x-troff',
-	'.rtf': 'application/rtf',
-	'.rtx': 'text/richtext',
-	'.sgm': 'text/x-sgml',
-	'.sgml': 'text/x-sgml',
-	'.sh': 'application/x-sh',
-	'.shar': 'application/x-shar',
-	'.snd': 'audio/basic',
-	'.so': 'application/octet-stream',
-	'.src': 'application/x-wais-source',
-	'.sv4cpio': 'application/x-sv4cpio',
-	'.sv4crc': 'application/x-sv4crc',
-	'.t': 'application/x-troff',
-	'.tar': 'application/x-tar',
-	'.tcl': 'application/x-tcl',
-	'.tex': 'application/x-tex',
-	'.texi': 'application/x-texinfo',
-	'.texinfo': 'application/x-texinfo',
-	'.tif': 'image/tiff',
-	'.tiff': 'image/tiff',
-	'.tr': 'application/x-troff',
-	'.tsv': 'text/tab-separated-values',
-	'.txt': 'text/plain',
-	'.ustar': 'application/x-ustar',
-	'.wav': 'audio/x-wav',
-	'.xbm': 'image/x-xbitmap',
-        '.xml': 'text/xml',
-	'.xpm': 'image/x-xpixmap',
-	'.xwd': 'image/x-xwindowdump',
-	'.zip': 'application/zip',
-	}
-
-
-def read_mime_types(file):
-    try:
-	f = open(file)
-    except IOError:
-	return None
-    map = {}
-    while 1:
-	line = f.readline()
-	if not line: break
-	words = string.split(line)
-	for i in range(len(words)):
-	    if words[i][0] == '#':
-		del words[i:]
-		break
-	if not words: continue
-	type, suffixes = words[0], words[1:]
-	for suff in suffixes:
-	    map['.'+suff] = type
-    f.close()
-    return map
+        return mimetypes.guess_type(url)
 
 
 def _nullfunc(*args, **kw):
@@ -337,6 +209,3 @@ class ListAttributesCaller:
 
     def __call__(self, parser, attrs):
 	return apply(self.__func, (parser, attrs.items()))
-
-#
-#  end of file
