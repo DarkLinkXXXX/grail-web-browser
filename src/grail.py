@@ -1,46 +1,30 @@
 #! /depot/sundry/plat/bin/python
 
-
-"""Grail -- an extensible web browser.
-
-"""
+"""Grail -- an extensible web browser."""
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3a1"		# 0.2 plus fixes plus <applet> tag
+__version__ = "Grail/0.3a1"
 
-import sys
+
+# Standard python imports (needed by path munging code)
 import os
+import sys
+import string
 
-# first find curdir in sys.path, but don't do anything with it yet
-index = -1
-for i in range(len(sys.path)):
-    p = sys.path[i]
-    if p in ("", os.curdir):
-	index = i
+# Path munging
+script_dir = os.path.dirname(sys.argv[0])
+script_dir = os.path.join(os.getcwd(), script_dir)
+script_dir = os.path.normpath(script_dir)
+grail_root = script_dir
+for path in 'utils', 'pythonlib', 'ancillary', 'applet', script_dir:
+    sys.path.insert(0, os.path.join(grail_root, path))
 
-# insert Grail's non-package subdirectories.  these get inserted in
-# reverse order, but that shouldn't matter.
-for subdir in ['applet', 'ancillary', 'pythonlib', 'utils']:
-    sys.path.insert(index+1, os.path.join(os.curdir, subdir))
-#print sys.path
-
-# Hack sys.path:
-# replace the last occurrence of curdir or "" by dirname of argv[0]
-progname = sys.argv[0]
-dirname = os.path.dirname(progname)
-
-if dirname and dirname != os.curdir:
-    if index >= 0:
-	sys.path[index] = dirname
-    else:
-	index = 0
-	sys.path.insert(0, dirname)
-
+# More imports
 import ni
 import html
 import filetypes
-from grailutil import *
+import grailutil
 import getopt
 import string
 import urllib
@@ -59,6 +43,7 @@ import TbDialog
 if 0:
     import dummies
 import GlobalHistory
+
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
@@ -134,17 +119,7 @@ class SplashScreen:
 	self.root = root
 	self.frame = Frame(self.root)
 	self.frame.pack()
-	for dir in sys.path:
-	    fullname = os.path.join(dir, BIGLOGO)
-	    try:
-		f = open(fullname)
-	    except IOError:
-		pass
-	    else:
-		f.close()
-		break
-	else:
-	    fullname = BIGLOGO
+	fullname = os.path.join(grail_root, BIGLOGO)
 	self.image = PhotoImage(file=fullname)
 	self.label = Label(self.frame, image=self.image)
 	self.label.pack()
@@ -217,7 +192,7 @@ class Application:
 	self.image_cache = {}
 	self.login_cache = {}
 	self.rexec = AppletRExec(None, 2, self)
-	self.graildir = getgraildir()
+	self.graildir = grailutil.getgraildir()
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
 	  read_mime_types("/usr/local/lib/netscape/mime.types") or \
