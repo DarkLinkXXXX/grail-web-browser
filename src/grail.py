@@ -121,6 +121,7 @@ class Application:
 	    if not s.has_key(key): s[key] = value
 	self.suffixes_map = s
 	self.root = Tk()
+	self.root.report_callback_exception = self.report_callback_exception
 	self.root.withdraw()
 ##	self.quit_button = Button(self.root, text='Quit', command=self.quit)
 ##	self.quit_button.pack()
@@ -323,19 +324,26 @@ class Application:
 
     def exception_dialog(self, message=""):
 	exc, val, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
-	msg = "An exception occurred " + str(message) + ' :\n'
+	self.exc_dialog(self, message, exc, val, tb)
+
+    def report_callback_exception(self, exc, val, tb):
+	self.exc_dialog("in a callback function", exc, val, tb)
+
+    def exc_dialog(self, message, exc, val, tb):
+	msg = "An exception occurred " + str(message) + " :\n"
 	msg = msg + str(exc) + " : " + str(val)
 	dlg = SafeDialog.Dialog(self.root,
 				text=msg,
 				title="Python Exception: " + str(exc),
 				bitmap='error',
 				default=0,
-				strings=('OK', 'Show traceback'),
+				strings=("OK", "Show traceback"),
 				)
 	if dlg.num == 1:
 	    self.traceback_dialog(exc, val, tb)
 
     def traceback_dialog(self, exc, val, tb):
+	# XXX This should actually just create a new Browser window...
 	TbDialog.TracebackDialog(self.root, exc, val, tb)
 
     def error_dialog(self, exc, msg):
