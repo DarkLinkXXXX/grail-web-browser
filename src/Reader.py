@@ -211,6 +211,26 @@ class Base64Wrapper:
         self.__parser.close()
 
 
+class DeflateWrapper:
+    """Decompress deflated data incrementally and pass is on to the real
+    type-specific handler."""
+
+    def __init__(self, parser):
+        import zlib
+        self.__parser = parser
+        self.__decompressor = zlib.decompressobj(-zlib.MAX_WBITS)
+
+    def feed(self, data):
+        data = self.__decompressor.decompress(data)
+        self.__parser.feed(data)
+
+    def close(self):
+        data = self.__decompressor.flush()
+        if data:
+            self.__parser.feed(data)
+        self.__parser.close()
+
+
 class GzipWrapper:
     """Decompress gzipped data incrementally and pass it on to the real
     type-specific handler."""
@@ -351,6 +371,7 @@ try:
 except ImportError, error:
     pass
 else:
+    content_decoding_wrappers["deflate"] = DeflateWrapper
     content_decoding_wrappers["gzip"] = GzipWrapper
     content_decoding_wrappers["x-gzip"] = GzipWrapper
 
