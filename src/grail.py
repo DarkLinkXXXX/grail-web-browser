@@ -56,16 +56,6 @@ import GlobalHistory
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
 
-# Location of logo image for splash screen
-BIGLOGO = "biglogo.gif"
-
-# Notice displayed underneath the big logo
-NOTICE = """Copyright \251 1996.
-GRAIL\256, is a registered
-trademark of CNRI.
-
-Version: %s""" % __version__
-
 # Command line usage message
 USAGE = """Usage: %s [options] [url]
 Options:
@@ -142,112 +132,6 @@ def main():
 
     # Give the user control
     app.go()
-
-
-class SplashScreen:
-
-    """Display splash screen at startup.
-
-    This uses the initial Tk widget.
-    It goes away after 10 seconds.
-
-    If the preference "browser--show-splash" is false, the splash
-    screen is not drawn.
-
-    """
-
-    def __init__(self, app):
-	self.root = app.root
-	name = "Grail"
-	self.root.title(name)
-	self.root.iconname(name)
-	if app.prefs.GetBoolean('browser', 'show-splash'):
-	    self.frame = Frame(self.root)
-	    self.frame.pack()
-	    fullname = os.path.join(grail_root, BIGLOGO)
-	    self.image = PhotoImage(file=fullname)
-	    self.label = Label(self.frame, image=self.image)
-	    self.label.pack()
-	    self.message = Label(self.frame, text=NOTICE)
-	    self.message.pack()
-	    screenwidth = self.root.winfo_screenwidth()
-	    screenheight = self.root.winfo_screenheight()
-	    reqwidth = self.image.width()
-	    reqheight = self.image.height()
-	    xpos = (screenwidth - reqwidth) / 2
-	    ypos = (screenheight - reqheight) / 2
-	    self.root.geometry("+%d+%d" % (xpos, ypos))
-	    self.root.after(10000, self.close)
-	    self.root.update_idletasks()
-	    if sys.platform[:3] == 'win':
-		# update -idletasks doesn't display the spash screen;
-		# start a temporary mainloop to do it.
-		self.root.after(1000, self.root.quit)
-		self.root.mainloop()
-	else:
-	    self.root.withdraw()
-
-    def close(self):
-	self.frame.destroy()
-	self.root.withdraw()
-
-
-class LicenseDialog:
-
-    """Display the license dialog at startup.
-
-    This uses the initial Tk widget.  If the user clicks the "Agree"
-    button, this returns normally.  If "Disagree" is clicked,
-    the application is exited right here and this never returns.
-
-    Control over whether to display this dialog is through the
-    preference browser--license-agreed-to; this logic is in the
-    caller, not in the dialog.
-
-    """
-
-    def __init__(self, app):
-	if app.prefs.GetBoolean('browser', 'license-agreed-to'):
-	    return
-	licensefilename = grailutil.which("LICENSE")
-	licensefile = open(licensefilename)
-	licensetext = licensefile.read()
-	licensefile.close()
-	self.root = root = app.root
-	title = "Grail License Dialog"
-	root.title(title)
-	root.iconname(title)
-	top = Frame(root)
-	top.pack(expand=1, fill=BOTH)
-	label = Label(top, text=
-	    "Please read the Grail license below and click Agree or Disagree")
-	label.pack()
-	text, textframe = tktools.make_text_box(top, width=80)
-	text.insert(END, licensetext)
-	text['state'] = DISABLED
-	botframe = Frame(top)
-	botframe.pack(fill=X)
-	agreebutton = Button(botframe,
-			     text="Agree", command=self.agree)
-	agreebutton.pack(side=LEFT)
-	disagreebutton = Button(botframe,
-				text="Disagree", command=self.disagree)
-	disagreebutton.pack(side=RIGHT)
-	self.agreeflag = 0
-	root.mainloop()
-	top.destroy()
-	if self.agreeflag:
-	    app.prefs.Set('browser', 'license-agreed-to', 1)
-	    app.prefs.Save()
-	else:
-	    sys.exit(0)
-
-    def agree(self):
-	self.agreeflag = 1
-	self.root.quit()
-
-    def disagree(self):
-	self.root.quit()
 
 
 class URLReadWrapper:
@@ -328,13 +212,12 @@ class Application:
 
     def __init__(self, prefs=None):
 	self.root = Tk(className='Grail')
+	self.root.withdraw()
 	self.prefs = prefs or GrailPrefs.AllPreferences()
-	LicenseDialog(self)
 	# The stylesheet must be initted before any Viewers, so it
 	# registers its' prefs callbacks first, hence reloads before the
 	# viewers reconfigure w.r.t. the new styles.
 	self.stylesheet = Stylesheet.Stylesheet(self.prefs)
-	self.splash = SplashScreen(self)
 	self.load_images = 1		# Overridden by cmd line or pref.
 
 	# socket management
