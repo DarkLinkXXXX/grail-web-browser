@@ -10,7 +10,7 @@ from grailutil import *
 from Outliner import OutlinerNode, OutlinerViewer, OutlinerController
 import tktools
 import formatter
-from HTMLParser import HTMLParser
+from SGMLParser import SGMLParser
 import string
 import time
 
@@ -88,32 +88,22 @@ class BookmarkNode(OutlinerNode):
 
       No Public Ivars
     """
+    _uri = ''
+    _islink_p = False
+    _isseparator_p = False
 
     def __init__(self, title='', uri_string = None,
 		 add_date=None, last_visited=None,
 		 description=''):
-	OutlinerNode.__init__(self)
+	self._children = []		# performance hack; should call base
 	self._title = title
-	if uri_string is None:
-	    self._uri = ''
-	    self._islink_p = False
-	else:
+	if uri_string:
 	    self._uri = uri_string
 	    self._islink_p = True
 	self._desc = description
-	if add_date:
-	    self._add_date = add_date
-	else:
-	    self._add_date = time.time()
-	if last_visited:
-	    self._visited = last_visited
-	else:
-	    self._visited = time.time()
-	self._isseparator_p = False
-	if self._islink_p or last_visited:
-	    self._leaf_p = True
-	else:
-	    self._leaf_p = False
+	self._add_date = add_date or time.time()
+	self._visited = last_visited or time.time()
+	self._leaf_p = uri_string or last_visited
 
     def __repr__(self):
 	return OutlinerNode.__repr__(self) + ' ' + self.title()
@@ -185,16 +175,28 @@ class HTMLBookmarkReader:
 
 
 
-class NetscapeBookmarkHTMLParser(HTMLParser):
+class NetscapeBookmarkParser(SGMLParser):
+    _root = None
+    _current = None
+    _prevleaf = None
+    _storing = 0
+    _buffer = ''
+
     def __init__(self):
-	self._root = None
-	self._current = None
-	self._prevleaf = None
+	SGMLParser.__init__(self)
+
+    def save_bgn(self):
 	self._buffer = ''
-	self._state = []
-	w = formatter.NullWriter()
-	f = formatter.AbstractFormatter(w)
-	HTMLParser.__init__(self, f)
+
+    def save_end(self):
+	s, self._buffer = self._buffer, ''
+	return s
+
+    def handle_data(self, data):
+	self._buffer = self._buffer + data
+
+    def handle_starttag(self, tag, method, attrs):
+	method(attrs)
 
     def _push_new(self):
 	if not self._current: raise BookmarkFormatError, 'file corrupted'
@@ -202,20 +204,12 @@ class NetscapeBookmarkHTMLParser(HTMLParser):
 	self._current.append_child(newnode)
 	self._current = newnode
 
-    def _pop(self):
-	if not self._current: raise PoppedRootError
-	self._current = self._current.parent()
-
     def start_h1(self, attrs):
 	self._root = self._current = BookmarkNode()
 	self.save_bgn()
 
     def end_h1(self):
-	title = self.save_end()
-	self._current.set_title(title)
-
-    def end_dl(self):
-	self._pop()
+	self._current.set_title(self.save_end())
 
     def start_h3(self, attrs):
 	self._push_new()
@@ -225,32 +219,30 @@ class NetscapeBookmarkHTMLParser(HTMLParser):
 	if attrs.has_key('folded'):
 	    self._current.collapse()
 
-    def end_h3(self):
-	title = self.save_end()
-	self._current.set_title(title)
+    end_h3 = end_h1
 
     def do_hr(self, attrs):
 	snode = BookmarkNode()
 	snode.set_separator()
 	self._current.append_child(snode)
 
+    def end_dl(self):
+	if not self._current: raise PoppedRootError
+	self.ddpop()
+	self._current = self._current.parent()
+
     def do_dd(self, attrs):
-	self._buffer = ''
-	self._state.append('dd')
+	self.save_bgn()
+	self._storing = 1
 
-    def ddpop(self, bl=0):
-	if len(self._state) > 0 and self._state[-1] == 'dd':
+    def ddpop(self, *args):
+	if self._storing:
 	    if self._prevleaf:
-		self._prevleaf.set_description(self._buffer)
-	    del self._state[-1]
-	else:
-	    HTMLParser.ddpop(self, bl)
+		self._prevleaf.set_description(self.save_end())
+	    self._storing = 0
 
-    def handle_data(self, data):
-	if len(self._state) > 0 and self._state[-1] == 'dd':
-	    self._buffer = self._buffer + data
-	else:
-	    HTMLParser.handle_data(self, data)
+    do_dt = ddpop
+    start_dl = ddpop
 
     def start_a(self, attrs):
 	self._push_new()
@@ -264,10 +256,9 @@ class NetscapeBookmarkHTMLParser(HTMLParser):
 	    curnode.set_last_visited(string.atoi(attrs['last_visit']))
 
     def end_a(self):
-	title = self.save_end()
-	self._current.set_title(title)
+	self._current.set_title(self.save_end())
 	self._prevleaf = self._current
-	self._pop()
+	self._current = self._current.parent()
 
 
 class NetscapeBookmarkWriter:
@@ -392,10 +383,10 @@ class BookmarksIO:
 	    import regex
 	    line1 = fp.readline()
 	    if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkHTMLParser()
+		parser = NetscapeBookmarkParser()
 		writer = NetscapeBookmarkWriter()
 	    elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkHTMLParser()
+		parser = NetscapeBookmarkParser()
 		writer = GrailBookmarkWriter()
 	finally:
 	    fp.seek(0)
