@@ -26,7 +26,7 @@ bastion is created.
 
 """
 
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 # $Source: /home/john/Code/grail/src/pythonlib/Attic/Bastion.py,v $
 
 
@@ -79,7 +79,7 @@ class BastionClass:
 
 	"""
 	attribute = self._get_(name)
-	setattr(self, name, attribute)
+	self.__dict__[name] = attribute
 	return attribute
 
 
