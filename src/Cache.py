@@ -15,7 +15,7 @@ META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
 SharedItemExpired = 'SharedItem Expired'
 
-from assert import assert
+from Assert import Assert
 import os
 import protocols
 import time
@@ -106,7 +106,7 @@ class SharedItem:
 	self.refcnt = self.refcnt + 1
 
     def decref(self):
-	assert(self.refcnt > 0)
+	Assert(self.refcnt > 0)
 	self.refcnt = self.refcnt - 1
 	self.cache_update()
 	if self.refcnt == 0:
@@ -149,8 +149,8 @@ class SharedItem:
 	return msg, ready
 
     def getdata(self, offset, maxbytes):
-	assert(offset >= 0)
-	assert(maxbytes > 0)
+	Assert(offset >= 0)
+	Assert(maxbytes > 0)
 
 	while self.stage == DATA and offset >= self.datalen:
 	    buf = self.api.getdata(maxbytes)
@@ -292,21 +292,21 @@ class SharedAPI:
 	self.close()
 
     def pollmeta(self):
-	assert(self.stage == META)
+	Assert(self.stage == META)
 	return self.item.pollmeta()
 
     def getmeta(self):
-	assert(self.stage == META)
+	Assert(self.stage == META)
 	meta = self.item.getmeta()
 	self.stage = DATA
 	return meta
 
     def polldata(self):
-	assert(self.stage == DATA)
+	Assert(self.stage == DATA)
 	return self.item.polldata()
 
     def getdata(self, maxbytes):
-	assert(self.stage == DATA)
+	Assert(self.stage == DATA)
 	data = self.item.getdata(self.offset, maxbytes)
 	self.offset = self.offset + len(data)
 	if not data:

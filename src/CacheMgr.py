@@ -3,7 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 from Cache import SharedItem, SharedAPI
-from assert import assert
+from Assert import Assert
 import urlparse
 import string
 import os
@@ -234,8 +234,8 @@ class CacheManager:
 
     def expire(self,key):
 	"""Should not be used."""
-	assert('night' == 'day')
-	assert(self.items.has_key(key))
+	Assert('night' == 'day')
+	Assert(self.items.has_key(key))
 	self.items[key].evict()
 
     def delete(self, keys, evict=1):
@@ -578,7 +578,7 @@ class DiskCache:
 			del self.items[key]
 			del self.manager.items[key]
 			self.use_order.remove(key)
-			assert(not key in self.use_order)
+			Assert(not key in self.use_order)
 		elif kind == '0': # add
 		    newentry = DiskCacheEntry(self)
 		    newentry.parse(line[2:-1])
@@ -600,7 +600,7 @@ class DiskCache:
 				del self.manager.items[key]
 				self.size = 0
 			    return
-		    assert(ver == self.log_version)
+		    Assert(ver == self.log_version)
 	    except IndexError:
 		# ignore this line
 		pass
@@ -698,7 +698,7 @@ class DiskCache:
 
     def get(self,key):
 	"""Update and log use_order."""
-	assert(self.items.has_key(key))
+	Assert(self.items.has_key(key))
 	self.use_order.remove(key)
 	self.use_order.append(key)
 	self.log_use_order(key)
