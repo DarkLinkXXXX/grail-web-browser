@@ -48,6 +48,7 @@ DEBUG = 0				# Default debugging flag
 
 # Internal constants
 # XXX These need reorganizing
+HANDLE_SERVICE_ID = 'HDL             ' # Yes the spaces are important
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash.tbl'
 DEFAULT_GLOBAL_SERVER = "hs.handle.net"
 DEFAULT_SERVERS = ['132.151.1.155',
@@ -570,14 +571,15 @@ class HashTable:
 	checksum = data[:16]
 	data = data[16:]
 	if md5.new(data).digest() != checksum:
-	    raise Error("checksum error for hash table %s" % `filename`)
+	    raise Error("checksum error for hash table")
 
 	# Read and decode header
 	u = xdrlib.Unpacker(data[:4])
 	self.schema_version = u.unpack_int()
 	# The header_length field is not present if schema version < 2
 	if self.schema_version < 2:
-	    if self.debug: print "*** Old hash table detected ***"
+	    if self.debug: print "Old hash table detected, version: %d" \
+	       % self.schema_version
 	    self.header_length = HP_HASH_HEADER_SIZE
 	    restofheader = data[4:self.header_length]
 	else:
@@ -840,7 +842,14 @@ def fetch_global_hash_table(ht=None, debug=DEBUG):
     hashtable = None
     for type, data in items:
 	if type == HDL_TYPE_SERVICE_POINTER:
-	    hashtable = data
+	    # Version 2 of the handle protocol introduces the
+	    # HANDLE_SERVICE_ID.  This must be checked first.
+	    # As of 8/10/97 global now implements version 2.
+	    urnscheme = data[:16]
+	    if urnscheme == HANDLE_SERVICE_ID:
+		hashtable = data[16:]
+	    else:
+		raise Error("Unknown SERVICE_ID: %s" % data[:16])
 	    if debug: print "hash table data =", hexstr(hashtable)
 	    # This data is in the same format as file "hdl_hash.tbl"
     return HashTable(data=hashtable, debug=debug)
@@ -868,6 +877,8 @@ def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
 	    handle = data
 	elif type == HDL_TYPE_SERVICE_POINTER:
 	    urnscheme = data[:16]
+	    if urnscheme != HANDLE_SERVICE_ID:
+		raise Error("Unknown SERVICE_ID: %s" % urnscheme)		
 	    urndata = data[16:]
 	    if debug:
 		print "URN scheme =", `urnscheme`
