@@ -67,7 +67,8 @@ class BaseReader:
 		ok = 1
 	    finally:
 		if not ok:
-		    self.context.rmreader(self)
+		    if self.context:
+			self.context.rmreader(self)
 
     def start(self):
 	# when the protocol API is ready to go, it tells the reader
