@@ -24,13 +24,20 @@ import httplib
 from urllib import splithost
 import mimetools
 from assert import assert
-from httplib import replyprog
 import __main__
 import select
 import regex
 import StringIO
 import socket
 import sys
+
+
+httplib.HTTP_VERSIONS_ACCEPTED = 'HTTP/1\.[0-9.]+'
+replypat = httplib.HTTP_VERSIONS_ACCEPTED + '[ \t]+\([0-9][0-9][0-9]\)\(.*\)'
+replyprog = regex.compile(replypat)
+
+httplib.replypat = replypat
+httplib.replyprog = replyprog
 
 
 # Search for blank line following HTTP headers
