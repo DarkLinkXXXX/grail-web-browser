@@ -164,15 +164,6 @@ class CacheManager:
 	else:
 	    return None
 
-    def check_cache_image(self,url):
-	"""This routine is no longer used."""
-	assert('night' == 'day')
-	key = self.url2key(url, 'GET', {})
-	if self.items.has_key(key):
-	    return self.caches[0].get_file_path(key)
-	else:
-	    return None
-
     def touch(self,key=None,url=None):
 	"""Calls touch() method of CacheEntry object."""
 	if url:
@@ -362,7 +353,7 @@ class DiskCacheEntry:
  	vars = string.splitfields(parsed_rep,'\t')
         self.key = vars[0]
         self.url = vars[1]
-	self.path = vars[2]
+	self.file = vars[2]
         self.size = string.atoi(vars[3])
         self.type = vars[7]
 	self.date = None
@@ -383,10 +374,10 @@ class DiskCacheEntry:
     def unparse(self):
         """Return entry for transaction log.
         """
-	if not hasattr(self, 'path'):
-	    self.path = ''
+	if not hasattr(self, 'file'):
+	    self.file = ''
 	string = reduce(lambda x,y: str(x) + '\t' + str(y), \
-		 [self.key, self.url, self.path, self.size,
+		 [self.key, self.url, self.file, self.size,
 		  self.date, self.lastmod, self.expires, self.type])
 	return string
 
@@ -394,7 +385,7 @@ class DiskCacheEntry:
 	"""Don't pickel a pointer to the cache."""
 	return { 'key'    : self.key,
 		 'url'    : self.url,
-		 'path'   : self.path,
+		 'file'   : self.file,
 		 'size'   : self.size,
 		 'date'   : self.date,
 		 'lastmod': self.lastmod,
@@ -414,7 +405,8 @@ class DiskCacheEntry:
 		# we need to refresh the page; can we just reload?
 		raise CacheItemExpired, self.cache
 	self.cache.get(self.key) 
-	api = disk_cache_access(self.path, self.type, self.date, self.size)
+	api = disk_cache_access(self.cache.get_file_path(self.file),
+				self.type, self.date, self.size)
 	return api
 
     def touch(self):
@@ -479,7 +471,7 @@ class DiskCache:
 	self.manager.app.register_on_exit(lambda self=self: \
 					  self._checkpoint_metadata())
 
-    log_version = "1.1"
+    log_version = "1.2"
 
     def _read_metadata(self):
 	"""Read the transaction log from the cache directory.
@@ -502,37 +494,41 @@ class DiskCache:
 	    return
 
 	for line in log.readlines():
-	    log_entry = [line[0:1], line[2:-1]]
-	    # guess we could also try:
-	    # kind=line[0:1], entry=[2:]
-	    kind = log_entry[0]
+	    kind = line[0:1]
 	    if kind == '1': # delete
-		key = log_entry[1]
+		key = line[2:-1]
 		if self.items.has_key(key):
+		    self.size = self.size - self.items[key].size
 		    del self.items[key]
 		    del self.manager.items[key]
 		    self.use_order.remove(key)
-		    self.size = self.size - entry.size
 		    assert(not key in self.use_order)
-	    elif kind == '0':
+	    elif kind == '0': # add
 		newentry = DiskCacheEntry(self)
-		newentry.parse(log_entry[1])
+		newentry.parse(line[2:-1])
 		if not self.items.has_key(newentry.key):
 		    self.use_order.append(newentry.key)
 		newentry.cache = self
 		self.items[newentry.key] = newentry
 		self.manager.items[newentry.key] = newentry
 		self.size = self.size + newentry.size
-	    elif kind == '2':
-		# how expensive is this?
-		key = log_entry[1]
+	    elif kind == '2': # use update
+		key = line[2:-1]
 		self.use_order.remove(key)
 		self.use_order.append(key)
-	    elif kind == '3':
-		if log_entry[1] != self.log_version:
-		    print "You should delete your cache and start over."
-		    print "We've upgraded to a new and improved log!"
-		assert(log_entry[1] == self.log_version)
+	    elif kind == '3': # version (hopefully first)
+		ver = line[2:-1]
+		if ver != self.log_version:
+                   ### clear out anything we might have read
+                   ### and bail. this is an old log file.
+		    if len(self.use_order) > 0:
+			self.use_order = []
+			for key in self.items.keys():
+			    del self.items[key]
+			    del self.manager.items[key]
+			    self.size = 0
+		    return
+		assert(ver == self.log_version)
 
     def _checkpoint_metadata(self):
 	"""Checkpoint the transaction log.
@@ -545,7 +541,7 @@ class DiskCache:
 	try:
 	    newpath = os.path.join(self.directory, 'CHECKPOINT')
 	    newlog = open(newpath, 'w')
-	    newlog.write('3\0' + self.log_version + '\n')
+	    newlog.write('3 ' + self.log_version + '\n')
 	    for key in self.use_order:
 		self.log_entry(self.items[key],alt_log=newlog)
 	    newlog.close()
@@ -566,17 +562,39 @@ class DiskCache:
 	else:
 	    dest = self.log
 	if delete:
-	    dest.write('1\0' + entry.key + '\n')
+	    dest.write('1 ' + entry.key + '\n')
 	else:
-	    dest.write('0\0' + entry.unparse() + '\n')
+	    dest.write('0 ' + entry.unparse() + '\n')
 	dest.flush()
 
     def log_use_order(self,key):
 	"""Write to the log changes in use_order."""
 	if self.items.has_key(key):
-	    self.log.write('2\0' + key + '\n')
+	    self.log.write('2 ' + key + '\n')
 	    # should we flush() here? probably...
 	    self.log.flush()
+
+    def erase_cache(self):
+	
+	def walk_erase(nil,dir,files):
+	    for file in files:
+		path = os.path.join(dir,file)
+		if os.path.isfile(path):
+		    os.unlink(path)
+	
+	os.path.walk(self.directory, erase_cache, None)
+
+    def erase_unlogged_files(self):
+
+	def walk_erase_unknown(known,dir,files):
+	    for file in files:
+		if not file in known:
+		    path = os.path.join(dir,file)
+		    if os.path.isfile(path):
+			os.unlink(path)
+
+	files = map(lambda entry:entry.file, self.items.values())
+	os.path.walk(self.directory, walk_erase_unknown, files)
 
     def get(self,key):
 	"""Update and log use_order."""
@@ -637,11 +655,12 @@ class DiskCache:
 	"""Adds entry to list of pages with explicit expire date."""
 	self.expires.append(entry)
 
-    clean_path = regex.compile('[^A-Za-z0-9\-]')
-
-    def get_file_path(self,object):
+    def get_file_name(self,entry):
 	"""Invent a filename for a new cache entry."""
-	filename = 'spam' + str(time.time()) + self.get_suffix(object.type)
+	filename = 'spam' + str(time.time()) + self.get_suffix(entry.type)
+	return filename
+
+    def get_file_path(self,filename):
 	path = os.path.join(self.directory, filename)
 	return path
 
@@ -657,8 +676,9 @@ class DiskCache:
 
     def make_file(self,entry,object):
 	"""Write the object's data to disk."""
-	path = self.get_file_path(entry)
-	entry.path = path
+	file = self.get_file_name(entry)
+	entry.file = file
+	path = self.get_file_path(file)
 	try:
 	    f = open(path, 'w')
 	    f.write(object.data)

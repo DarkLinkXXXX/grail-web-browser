@@ -308,6 +308,7 @@ class Application:
 
     def get_cached_image(self, url):
 	if url and self.image_cache.has_key(url):
+	    self.url_cache.touch(url)
 	    return self.image_cache[url]
 	else:
 	    return None
