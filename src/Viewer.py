@@ -33,6 +33,7 @@ class Viewer(formatter.AbstractWriter):
 	self.flowingtags = ()		# Tags for flowed text
 	self.freeze()
 	self.text.bind('<Configure>', self.resize_event)
+	self._atemp = []
 
     def create_widgets(self, height):
 	self.text, self.frame = tktools.make_text_box(self.master,
@@ -174,21 +175,28 @@ class Viewer(formatter.AbstractWriter):
     def anchor_click(self, event):
 	url = self.find_tag_url()
 	if url:
-	    start, end = self.find_tag_range()
-	    if start and end:
-		self.text.tag_add('atemp', start, end)
+	    self.add_temp_tag()
 	    self.browser.follow(url)
 
     def anchor_click_new(self, event):
 	url = self.find_tag_url()
 	if url:
-	    start, end = self.find_tag_range()
-	    if start and end:
-		self.text.tag_add('atemp', start, end)
+	    self.add_temp_tag()
 	    from Browser import Browser
 	    from __main__ import app
 	    b = Browser(self.master, app)
 	    b.load(url)
+
+    def add_temp_tag(self):
+	start, end = self.find_tag_range()
+	if start and end:
+	    self._atemp = [start, end]
+	    self.text.tag_add('atemp', start, end)
+
+    def remove_temp_tag(self):
+	if self._atemp:
+	    self.text.tag_remove('atemp', self._atemp[0], self._atemp[1])
+	    self._atemp = []
 
     def find_tag_range(self):
 	for tag in self.text.tag_names(CURRENT):
