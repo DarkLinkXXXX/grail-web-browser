@@ -29,6 +29,9 @@ class ImageTempFileReader(TempFileReader):
 	'image/tiff':
 	    """(T=${TMPDIR-/usr/tmp}/@$$.tiff; cat >$T;
 	        tifftopnm $T 2>/dev/null; rm -f $T)""",
+	'image/png':
+	    # This requires pngtopnm which isn't standard netpbm yet
+	    'pngtopnm | ppmtogif -transparent "#FFFFFF" 2>/dev/null',
 	}
 
     def handle_done(self):
