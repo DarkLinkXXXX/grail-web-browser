@@ -272,6 +272,17 @@ class Browser:
 	self.entry.delete('0', END)
 	self.entry.insert(END, url)
 
+    def update_form_data(self, reload=0):
+	# if reloading, clear out any form data, otherwise, before we
+	# load another page, save any form data on this page
+	if hasattr(self, 'forms'):
+	    formdata = []
+	    if not reload:
+		for fi in self.forms:
+		    formdata.append(fi.get())
+	    self.history.set_formdata(self.url, formdata)
+	    del self.forms
+
     def follow(self, url):
 	if url[:1] == '#':
 	    self.viewer.scroll_to(url[1:])
@@ -283,6 +294,7 @@ class Browser:
     def load(self, url, method='GET', params={},
 	     new=1, show_source=0, reload=0):
 	# Start loading a new URL into the window
+	self.update_form_data(reload)
 	self.stop()
 	scheme, netloc = urlparse.urlparse(url)[:2]
 	if not scheme:
@@ -303,6 +315,7 @@ class Browser:
 	    self.viewer.remove_temp_tag()
 
     def post(self, url, data, ctype):
+	self.update_form_data()
 	# Post form data
 	url = urlparse.urljoin(self.url, url)
 	method = 'POST'
