@@ -7,6 +7,12 @@ Loosely modelled after the W3C Reference Library at
 import time
 import string
 
+try:
+	time.timezone
+except AttributeError:
+	t = time.time()
+	time.timezone = int(time.gmtime(t)[3] - time.localtime(t)[3]) * 3600
+
 _months = { 'jan' : 1, 'feb' : 2, 'mar' : 3, 'apr' : 4,
 	    'may' : 5, 'jun' : 6, 'jul' : 7, 'aug' : 8,
 	    'sep' : 9, 'oct' : 10, 'nov' : 11, 'dec' : 12 }
