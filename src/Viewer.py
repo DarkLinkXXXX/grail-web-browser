@@ -80,8 +80,9 @@ class Viewer(formatter.AbstractWriter):
 
     def close(self):
 	context = self.context
-	if context:
+	if context and context.viewer is self:
 	    context.stop()
+	if context:
 	    self.clear_reset()
 	    self.context = None
 	frame = self.frame
