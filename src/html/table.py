@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.24 1996/04/09 21:40:49 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.25 1996/04/10 15:30:51 bwarsaw Exp $'
 
 
 import string
@@ -31,15 +31,18 @@ class TableSubParser:
 
     def start_table(self, parser, attrs):
 	# create the table data structure
-	self._lasttable = Table(parser.viewer, attrs)
-	self._table_stack.append(self._lasttable)
+	if self._lasttable:
+	    self._table_stack.append(self._lasttable)
+	self._lasttable = Table(parser.viewer, attrs, self._lasttable)
 
     def end_table(self, parser):
 	ti = self._lasttable 
 	if ti:
 	    self._finish_cell(parser)
-	    del self._table_stack[-1]
 	    ti.finish()
+	    if self._table_stack:
+		self._lasttable = self._table_stack[-1]
+		del self._table_stack[-1]
 
     def start_caption(self, parser, attrs):
 	ti = self._lasttable 
@@ -216,9 +219,10 @@ class Table(AttrElem):
     Attrs: width, cols, border, frame, rules, cellspacing, cellpadding.
 
     """
-    def __init__(self, parentviewer, attrs):
+    def __init__(self, parentviewer, attrs, parenttable=None):
 	AttrElem.__init__(self, attrs)
 	self.parentviewer = parentviewer
+	self._parenttable = parenttable
 	# attributes
 	def conv_align(val):
 	    return grailutil.conv_enumeration(
@@ -228,7 +232,10 @@ class Table(AttrElem):
 	self.Awidth = self.attribute('width', conv=conv_stdunits)
 	self.Acols = self.attribute('cols', conv=grailutil.conv_integer)
 	if self.Acols:
-	    self.layout = FIXEDLAYOUT
+## 	    self.layout = FIXEDLAYOUT
+	    print 'Fixed layout tables not yet supported!', \
+		  '(Using auto-layout)'
+	    self.layout = AUTOLAYOUT
 	else:
 	    self.layout = AUTOLAYOUT
 	# grok through the myriad of border/frame combinations.  this
@@ -320,8 +327,10 @@ class Table(AttrElem):
 	
     def finish(self):
 	if self.layout == AUTOLAYOUT:
-	    self._mappos = self.parentviewer.text.index(END)
-	    self.parentviewer.text.insert(END, '\n\n')
+	    self._mappos = self.parentviewer.text.index('end - 1 c')
+	    if self._mappos == '1.0': nls = 1
+	    else: nls = 2
+	    self.parentviewer.text.insert(END, ('\n' * nls))
 	    self._autolayout_1()
 	    self._autolayout_2()
 	    self._autolayout_3()
@@ -332,7 +341,24 @@ class Table(AttrElem):
 		self._map()
 	    self.parentviewer.context.register_notification(self._notify)
 	else:
-	    print 'fixed layout for tables not yet supported!'
+	    # FIXEDLAYOUT not yet supported
+	    pass
+
+    def _available_space(self):
+	if self._parenttable:
+	    available = self._parenttable._available_space()
+	    # TBD: substract out stuff like the table's border width,
+	    # the cell spacing for all the cells on this line
+	    # (anything else?)
+	    return available
+	# calculate the available width that the table should render
+	# itself in. first get the actual width, then apply any <TABLE
+	# WIDTH=xxx> attributes.
+	ptext = self.parentviewer.text
+	viewerwidth = ptext.winfo_width() - \
+		      2 * string.atof(ptext['padx']) - \
+		      13		# TBD: kludge alert!
+	return viewerwidth
 
     def _autolayout_1(self):
 	# internal representation of the table as a sparse array
@@ -441,6 +467,10 @@ class Table(AttrElem):
 	maxwidths = self._maxwidths
 	minwidths = self._minwidths
 
+	print table, colcount, rowcount
+	print 'minwidths=', minwidths
+	print 'maxwidths=', maxwidths
+
 	mincanvaswidth = 2 * bw + self.Acellspacing * (colcount + 1)
 	maxcanvaswidth = 2 * bw + self.Acellspacing * (colcount + 1)
 	for col in range(colcount):
@@ -462,30 +492,26 @@ class Table(AttrElem):
 ## 	    print ']'
 ## 	print '==========', id(self)
 
-	# calculate the available width that the table should render
-	# itself in. first get the actual width, then apply any <TABLE
-	# WIDTH=xxx> attributes.
-	ptext = self.parentviewer.text
-	viewerwidth = ptext.winfo_width() - \
-		      2 * string.atof(ptext['padx']) - \
-		      13		# TBD: kludge alert!
+	availablewidth = self._available_space()
 	if self.Awidth is None:
-	    suggestedwidth = viewerwidth
+	    suggestedwidth = availablewidth
 	# units in screen pixels
 	elif type(self.Awidth) in [IntType, FloatType]:
 	    suggestedwidth = self.Awidth
 	# other standard units
 	elif type(self.Awidth) == TupleType:
 	    if self.Awidth[1] == '%':
-		suggestedwidth = viewerwidth * self.Awidth[0] / 100.0
+		suggestedwidth = availablewidth * self.Awidth[0] / 100.0
 	    # other standard units are not currently supported
 	    else:
 		suggestedwidth = veiwerwidth
 	else:
 	    print 'Tables internal inconsistency.  Awidth=', \
 		  self.Awidth, type(self.Awidth)
-	    suggestedwidth = viewerwidth
+	    suggestedwidth = availablewidth
 	
+	print 'suggestedwidth=', suggestedwidth
+
 	# now we need to adjust for the available space (i.e. parent
 	# viewer's width).  The Table spec outlines three cases...
 	#
@@ -526,6 +552,9 @@ class Table(AttrElem):
 		cellheight = _safe_mojo_height(cell) / cell.rowspan
 		for row_i in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
+
+	print 'cellwidths=', cellwidths
+	print 'cellheights=', cellheights
 
 	canvaswidth = self.Acellspacing * (colcount - 1)
 	for col in range(colcount):
