@@ -182,17 +182,21 @@ class Browser:
 	self.stop("Stopped.")
 	self.message("Loading %s" % url)
 	try:
-	    reader = Reader(self, url, method, params,
-			    new, show_source, reload)
+	    Reader(self, url, method, params,
+		   new, show_source, reload)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
-	else:
-	    self.readers.append(reader)
+
+    def addreader(self, reader):
+	self.readers.append(reader)
+	self.allowstop()
 
     def rmreader(self, reader):
 	if reader in self.readers:
 	    self.readers.remove(reader)
+	if not self.readers:
+	    self.clearstop()
 
     def busy(self):
 	return not not self.readers

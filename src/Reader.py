@@ -57,9 +57,9 @@ class Reader:
 	    self.api = self.app.open_url(cleanurl, 'GET', params, reload)
 	else:
 	    self.api = ProtocolAPI.protocol_access(cleanurl, 'GET', params)
-	self.browser.allowstop()
 	self.stage = META
 	self.fno = self.api.fileno()
+	self.browser.addreader(self)
 	if self.fno >= 0:
 	    self.root.tk.createfilehandler(
 		self.fno, tkinter.READABLE, self.checkapi)
@@ -173,9 +173,8 @@ class Reader:
     def stop(self, msg=None):
 	api = self.api
 	if api:
-	    self.browser.clearstop()
-	    self.message("Stopping...")
 	    self.browser.rmreader(self)
+	    self.message("Stopping...")
 	    parser = self.parser
 	    fno = self.fno
 	    self.api = None
