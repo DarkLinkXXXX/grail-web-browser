@@ -17,9 +17,7 @@ class logo_access(null_access):
 	return 200, "OK", {}
 
     def getdata(self, maxbytes):
-	print "getdata", maxbytes
 	data = self.data[self.offset : self.offset + maxbytes]
-	print len(data)
 	self.offset = self.offset + len(data)
 	if not data:
 	    return null_access.getdata(self, maxbytes)

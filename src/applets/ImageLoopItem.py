@@ -4,13 +4,12 @@ from Tkinter import *
 
 class ImageLoopItem:
 
-    def __init__(self, master, img='doc:/demo/images/duke/',
+    def __init__(self, master, img='logo:',
 		 pause=3900, delay=100, align=None, text="?", **kw):
 	self.master = master
 	self.pause = pause
 	self.delay = delay
 	self.browser = master.grail_browser
-	if img and img[-1] != '/': img.append('/')
 	self.urlpattern = img + "T%d.gif"
 	self.images = []
 	self.index = 0

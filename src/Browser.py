@@ -13,6 +13,7 @@ import tktools
 from DefaultStylesheet import DefaultStylesheet
 from Reader import Reader
 from Viewer import Viewer
+from AsyncImage import AsyncImage
 import History
 
 
@@ -21,7 +22,8 @@ GRAIL_HOME = "http://monty.cnri.reston.va.us/grail/"
 PYTHON_HOME = "http://www.python.org/"
 ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail/about/"
 DEFAULT_HOME = GRAIL_HOME
-LOGO_IMAGES = "http://monty.cnri.reston.va.us/grail/demo/images/logo/"
+LOGO_IMAGES = "logo:"
+FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 
 
 # Window title prefix
@@ -79,16 +81,16 @@ class Browser:
 	self.animate_logo()
 
     def create_logo(self):
-	self.logo = Frame(self.topframe, relief=RAISED, borderwidth=2)
-	self.logo.pack(side=LEFT, padx=5, pady=5)
+	self.logo_button = Button(self.topframe,
+				  text="Grail",
+				  command=self.stop_command)
+	self.logo_button.pack(side=LEFT)
+	self.root.bind("<Alt-period>", self.stop_command)
 
     def animate_logo(self):
-	import ImageLoopItem
-	self.logo.grail_browser = self
-	saved_readers = self.readers[:]
-	self.logo_loop = ImageLoopItem.ImageLoopItem(
-	    self.logo, img=LOGO_IMAGES, text="Grail")
-	self.readers[:] = saved_readers
+	self.logo_image = AsyncImage(self, FIRST_LOGO_IMAGE)
+	self.logo_image.load_synchronously()
+	self.logo_button.config(image=self.logo_image)
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
@@ -205,18 +207,6 @@ class Browser:
 	import Bookmarks
 	Bookmarks.BookmarksMenu(self.bookmarksmenu)
 
-	# Create Stop button
-
-	self.stopbutton = Button(self.mbar, text="Stop",
-				 state=DISABLED,
-				 foreground='#770000', # Darkish red
-				 activeforeground='red',
-				 padx=0,
-				 pady=0,
-				 command=self.stop_command)
-	self.stopbutton.pack(side=LEFT)
-	self.root.bind("<Alt-period>", self.stop_command)
-
 	# List of user menus (reset on page load)
 	self.user_menus = []
 
@@ -332,10 +322,10 @@ class Browser:
 	return 0
 
     def allowstop(self):
-	self.stopbutton['state'] = NORMAL
+	pass
 
     def clearstop(self):
-	self.stopbutton['state'] = DISABLED
+	pass
 
     def stop(self):
 	for reader in self.readers[:]:
@@ -426,8 +416,9 @@ class Browser:
     # Stop command
 
     def stop_command(self, event=None):
-	self.stop()
-	self.message("Stopped.")
+	if self.readers:
+	    self.stop()
+	    self.message("Stopped.")
 
     # File menu commands
 

@@ -35,6 +35,7 @@ class BaseReader:
 	self.api = api
 
 	self.callback = self.checkmeta
+	self.poller = self.api.pollmeta
 	self.fno = self.api.fileno()
 	if TkVersion == 4.0 and sys.platform == 'irix5':
 	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
@@ -66,6 +67,7 @@ class BaseReader:
 	    tkinter.deletefilehandler(fno)
 
 	self.callback = None
+	self.poller = None
 
 	if self.api:
 	    self.api.close()
@@ -77,7 +79,9 @@ class BaseReader:
 	    return
 	self.callback()
 	if self.callback:
-	    self.browser.root.after(self.sleeptime, self.checkapi_regularly)
+	    sleeptime = self.sleeptime
+	    if self.poller and self.poller()[1]: sleeptime = 0
+	    self.browser.root.after(sleeptime, self.checkapi_regularly)
 
     def checkapi(self, *args):
 	if not self.callback:
@@ -102,6 +106,7 @@ class BaseReader:
     def getapimeta(self):
 	errcode, errmsg, headers = self.api.getmeta()
 	self.callback = self.checkdata
+	self.poller = self.api.polldata
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
 	else:
