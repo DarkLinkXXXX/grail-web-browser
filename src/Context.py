@@ -50,6 +50,7 @@ class Context:
 	self.next_status_update = None	# ID of next scheduled status update
 	self.show_source = 0
 	self.applet_group = None
+	self.pending_frag = None
 	self.notifications = []		# callbacks when no readers left
 
     def register_notification(self, callback):
@@ -141,7 +142,7 @@ class Context:
 	"""Return the default target for this page (which may be None)."""
 	return self._target
 
-    def follow(self, url, target=""):
+    def follow(self, url, target="", pended=0):
 	"""Follow a link, given by a relative URL.
 
 	If the relative URL is *just* a fragment id (#name), just
@@ -149,11 +150,19 @@ class Context:
 
 	"""
 	if url[:1] == '#':
-	    self.viewer.scroll_to(url[1:])
-	    self.viewer.remove_temp_tag(histify=1)
-	    baseurl = self.get_baseurl(url)
-	    self.page = None
-	    self.set_url(baseurl)
+	    fragment = url[1:]
+	    if self.readers:
+		# we're still reading in text, so don't try to scroll
+		# there now, but instead, remember the scroll position
+		# for later when the reader is done.
+		self.pending_frag = fragment
+	    else:
+		self.viewer.scroll_to(fragment)
+		self.viewer.remove_temp_tag(histify=1)
+		baseurl = self.get_baseurl(url)
+		if not pended:
+		    self.page = None
+		    self.set_url(baseurl)
 	    return
 	if not target:
 	    target = self._target
@@ -290,7 +299,7 @@ class Context:
 	s, n, p, a, q, f = urlparse(self._url)
 	current = urlunparse((s, n, p, a, q, ''))
 	if target == current and not reload:
-	    if frag:
+	    if frag and self._url <> page.url():
 		self.follow('#' + frag)
 	    else:
 		self.viewer.scroll_to_position(page.scrollpos())
@@ -506,6 +515,9 @@ class Context:
 	    if self.source:
 		self.source.remove_temp_tag()
 		self.source = None
+	    if self.pending_frag:
+		self.follow('#' + self.pending_frag, pended=1)
+		self.pending_frag = None
 	    self.notify()
 	self.new_reader_status()
 
