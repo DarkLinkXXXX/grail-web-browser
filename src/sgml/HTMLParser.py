@@ -56,23 +56,32 @@ class HTMLParser(SGMLParser):
     handle_data = handle_data_head	# always start in head
 
     def handle_data_save(self, data):
-	self.savedata = self.savedata + data
+	self.savedata[0] = self.savedata[0] + data
 
     # --- Hooks to save data; shouldn't need to be overridden
 
     def save_bgn(self):
-        self.savedata = ''
+	if self.savedata:
+	    self.savedata.insert(0, '')
+	else:
+	    self.savedata = ['']
 	self.handle_data = self.handle_data_save
 
     def save_end(self):
-        data = self.savedata
-        self.savedata = None		# in case anyone cheats
-	if self.inhead:
-	    self.handle_data = self.handle_data_head
-	elif self.nofill:
-	    self.handle_data = self.formatter.add_literal_data
+	if self.savedata:
+	    data = self.savedata[0]
+	    del self.savedata[0]
+	    if not self.savedata:	# deal with cheaters
+		self.savedata = None
 	else:
-	    self.handle_data = self.formatter.add_flowing_data
+	    data = None
+	if not self.savedata:
+	    if self.inhead:
+		self.handle_data = self.handle_data_head
+	    elif self.nofill:
+		self.handle_data = self.formatter.add_literal_data
+	    else:
+		self.handle_data = self.formatter.add_flowing_data
 	if not self.nofill:
 	    data = string.join(string.split(data))
 	return data
