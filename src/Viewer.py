@@ -45,6 +45,9 @@ class Viewer(formatter.AbstractWriter):
 	self.resize_interests = [self.__class__.resize_rules]
 	self.reset_interests = [self.__class__.clear_targets]
 	self.current_cursor = CURSOR_NORMAL
+	if not self.parent:
+	    # Avoid showing the widget until it's fully constructed:
+	    self.master.withdraw()
 	self.create_widgets(width=width, height=height)
 	self.reset_state()
 	self.freeze()
@@ -60,6 +63,10 @@ class Viewer(formatter.AbstractWriter):
 	    self.parent.add_subviewer(self)
 	self.message("")
 	self.add_styles_callbacks()
+	if not self.parent:
+	    # Ok, now show the fully constructed widget:
+	    self.master.deiconify()
+	    self.master.tkraise()
 
     def add_styles_callbacks(self):
 	"""Add prefs callbacks so text widget's reconfigured on major changes.
