@@ -122,6 +122,7 @@ class HTMLParser(SGMLParser):
     # --- Headings
 
     def start_h1(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font(('h1', 0, 1, 0))
 
@@ -130,6 +131,7 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_font()
 
     def start_h2(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font(('h2', 0, 1, 0))
 
@@ -138,14 +140,17 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_font()
 
     def start_h3(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font(('h3', 0, 1, 0))
 
     def end_h3(self):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.pop_font()
 
     def start_h4(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font(('h4', 0, 1, 0))
 
@@ -154,6 +159,7 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_font()
 
     def start_h5(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font(('h5', 0, 1, 0))
 
@@ -162,6 +168,7 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_font()
 
     def start_h6(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font(('h6', 0, 1, 0))
 
@@ -172,12 +179,14 @@ class HTMLParser(SGMLParser):
     # --- Block Structuring Elements
 
     def start_p(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
 
     def end_p(self):
         self.formatter.end_paragraph(1)
 
     def start_pre(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_font((AS_IS, AS_IS, AS_IS, 1))
         self.nofill = self.nofill + 1
@@ -210,16 +219,19 @@ class HTMLParser(SGMLParser):
         self.formatter.pop_font()
 
     def start_blockquote(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.formatter.push_margin('blockquote')
 
     def end_blockquote(self):
+	self.close_paragraph()		# may be paragraphs in blockquotes
         self.formatter.end_paragraph(1)
         self.formatter.pop_margin()
 
     # --- List Elements
 
     def start_ul(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(not self.list_stack)
         self.formatter.push_margin('ul')
         self.list_stack.append(['ul', '*', 0])
@@ -233,12 +245,26 @@ class HTMLParser(SGMLParser):
         self.formatter.end_paragraph(0)
         if self.list_stack:
 	    [dummy, label, counter] = top = self.list_stack[-1]
-	    top[2] = counter = counter+1
+	    if attrs.has_key('value'):
+		try:
+		    v = string.atoi(string.strip(attrs['value']))
+		except:
+		    top[2] = counter = counter+1
+		else:
+		    top[2] = counter = v
+	    else:
+		top[2] = counter = counter+1
 	    self.formatter.add_label_data(label, counter)
         else:
-	    self.formatter.add_flowing_data('* ')
+	    if attrs.has_key('value'):
+		v = string.strip(attrs['value'])
+		if not v: v = '1'
+		self.formatter.add_flowing_data(v + '. ')
+	    else:
+		self.formatter.add_flowing_data('* ')
 
     def start_ol(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(not self.list_stack)
         self.formatter.push_margin('ol')
         label = '1.'
@@ -266,6 +292,7 @@ class HTMLParser(SGMLParser):
         self.end_ul()
 
     def start_dl(self, attrs):
+	self.close_paragraph()
         self.formatter.end_paragraph(1)
         self.list_stack.append(['dl', '', 0])
 
@@ -393,6 +420,14 @@ class HTMLParser(SGMLParser):
 
     def unknown_endtag(self, tag):
         pass
+
+    # --- Utilities:
+
+    def close_paragraph(self):
+	"""Handle any open paragraphs on the stack.
+	"""
+	while 'p' in self.stack:
+	    self.lex_endtag(self.stack[-1])
 
 
 def test():
