@@ -21,7 +21,8 @@ class IndexWidget:
 	formatter = parser.formatter
 	viewer = parser.viewer
 	self.context = viewer.context
-	self.w = Entry(viewer.text)
+	self.w = Entry(viewer.text,
+		       highlightbackground=viewer.text["background"])
 	self.w.bind('<Return>', self.submit)
 	formatter.add_hor_rule()
 	formatter.add_flowing_data(prompt)
