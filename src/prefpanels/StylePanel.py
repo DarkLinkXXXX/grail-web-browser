@@ -1,6 +1,6 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.5 $"
+__version__ = "$Revision: 1.6 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the panel:
@@ -16,6 +16,8 @@ import string
 
 class StylePanel(PrefsPanels.Framework):
     """Panel for selecting viewer presentation styles."""
+
+    HELP_URL = "help/prefs/styles.html"
 
     def CreateLayout(self, name, frame):
 
