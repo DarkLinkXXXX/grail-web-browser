@@ -687,6 +687,9 @@ def main():
 # PostScript templates
 header_template = """
 %%Creator: CNRI Grail, HTML2PS.PY by Barry Warsaw
+%%   Modified underlining to user 'UnderLineString' from pg. 140 of
+%%	POSTSCRIPT BY EXAMPLE, by Henry McGilton and Mary Campione,
+%%	pub. by Addison Wesley, 1992.  Mods by Fred Drake.
 %%   Adapted from the Public Domain NCSA Mosaic,
 %%   Postscript templates by Ameet Raval & Frans van Hoesel
 %%Pages: (atend)
@@ -705,9 +708,12 @@ save
 /C {dup stringwidth pop pagewidth exch sub 2 div 0 R S} D
 /EDGE {0 currentpoint E pop M dup stringwidth pop pagewidth exch sub 0 R S} D
 /U {
-  gsave currentpoint currentfont /FontInfo get /UnderlinePosition get
-  0 E currentfont /FontMatrix get dtransform E pop add newpath moveto
-  dup stringwidth rlineto stroke grestore S
+  currentfont dup /FontMatrix get E /FontInfo get dup
+  /UnderlinePosition get E /UnderlineThickness get
+  3 -1 roll dtransform /UnderThick E D /UnderPos E D
+  currentpoint pop /Start_x E D S currentpoint /End_y E D /End_x E D
+  0 UnderPos R Start_x End_x sub 0 RL currentlinewidth
+  UnderThick setlinewidth stroke setlinewidth End_x End_y M
 } D
 /B {
   /r E D gsave -13 0  R currentpoint 
