@@ -152,7 +152,7 @@ class http_access:
 
 	sock = self.h.sock
 	try:
-	    if not select.select([sock.fileno()], [], [], timeout)[0]:
+	    if not select.select([sock], [], [], timeout)[0]:
 		return "waiting for server response", 0
 	except select.error, msg:
 	    raise IOError, msg, sys.exc_traceback
@@ -195,7 +195,7 @@ class http_access:
 	if self.readahead:
 	    return "processing readahead data", 1
 	return ("waiting for data",
-		len(select.select([self.fileno()], [], [], 0)[0]))
+		len(select.select([self], [], [], 0)[0]))
 
     def getdata(self, maxbytes):
 	assert(self.state == DATA)
