@@ -683,6 +683,10 @@ class HTMLParser(SGMLParser):
 	    try: percent = string.atoi(str[:-1])
 	    except: pass
 	    else: percent = min(1.0, max(0.0, (0.01 * percent)))
+	elif len(str) > 3 and string.lower(str[-3:]) == "pct":
+	    try: percent = string.atoi(str[:-3])
+	    except: pass
+	    else: percent = min(1.0, max(0.0, (0.01 * percent)))
 	else:
 	    try: wid = max(0, string.atoi(str))
 	    except: pass
