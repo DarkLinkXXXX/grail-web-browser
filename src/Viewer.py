@@ -839,6 +839,8 @@ class ViewerMenu:
 			 command=context.go_forward)
 	menu.add_command(label="Reload Frame",
 			 command=context.reload_page)
+	menu.add_command(label="Open Frame in New Window",
+			 command=self.__open_in_new)
 	menu.add_separator()
 	menu.add_command(label="Frame History...",
 			 command=context.show_history_dialog)
@@ -870,6 +872,11 @@ class ViewerMenu:
 	    context = viewer.context
 	    future, page = context.history.peek(-1)
 	self.__menu.entryconfig(0, state=(page and NORMAL or DISABLED))
+	#
+	# update the "Open Frame in New Window" item
+	# (disable if there is no parent frame)
+	parent = self.__context.viewer.parent
+	self.__menu.entryconfig(3, state=(parent and NORMAL or DISABLED))
 	#
 	need_link = self.__link_url and 1 or 0
 	need_image = self.__image_url and 1 or 0
@@ -991,6 +998,12 @@ class ViewerMenu:
     def __unmap(self, event=None):
 	if self.__link_url:
 	    self.__viewer.remove_temp_tag()
+
+    def __open_in_new(self, event=None):
+	from Browser import Browser
+	url = self.__context.get_url()
+	b = Browser(self.__context.browser.master, self.__context.app)
+	b.context.load(url)
 
 
 def test():
