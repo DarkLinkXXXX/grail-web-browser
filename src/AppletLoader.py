@@ -521,6 +521,11 @@ class AppletFrame(Frame, AppletMagic):
 	apply(Frame.__init__, (self, master, cnf), kw)
 	AppletMagic.__init__(self, loader)
 
+    def table_geometry(self):
+	w = self.winfo_width()
+	h = self.winfo_height()
+	return w, w, h
+
 
 class AppletMenu(Menu, AppletMagic):
 

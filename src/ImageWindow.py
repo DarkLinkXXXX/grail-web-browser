@@ -81,3 +81,13 @@ class ImageWindow(Frame):
 	elif self.map:
 	    return self.map.url(event.x,event.y)
 	return self.url, self.target
+
+    # table width calculation interface
+
+    def table_geometry(self):
+	bw = string.atoi(self['borderwidth'])
+	w = self.image.width() + 2 * bw
+	h = self.image.height() + 2 * bw
+	x = self.winfo_x()
+	y = self.winfo_y()
+	return x+w, x+w, y+h
