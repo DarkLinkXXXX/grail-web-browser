@@ -438,6 +438,7 @@ class IOErrorDialog:
     def __init__(self, master, where, errmsg):
 	msg = 'Bookmark file error encountered %s:' % where
 	self._frame = tktools.make_toplevel(master, msg)
+	self._frame.protocol('WM_DELETE_WINDOW', self.close)
 	label = Label(self._frame, text=msg)
 	label.pack()
 	errlabel = Label(self._frame, text=errmsg)
@@ -482,6 +483,7 @@ class BookmarksDialog:
     def __init__(self, frame, controller):
 	# create the basic controls of the dialog window
 	self._frame = Toplevel(frame, class_='Grail')
+	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 	self._controller = controller
 	infoframe = Frame(self._frame, relief=GROOVE, borderwidth=2)
 	infoframe.pack(fill=BOTH)
@@ -676,7 +678,6 @@ class BookmarksDialog:
 	status.pack(side=LEFT, expand=1, fill=BOTH)
 	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
 	cancelbtn.pack(side=RIGHT)
-	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 	self._frame.bind('Alt-w', self.cancel_cmd)
 	self._frame.bind('Alt-W', self.cancel_cmd)
 	# top buttonbar buttons
@@ -732,6 +733,7 @@ class BookmarksDialog:
 class DetailsDialog:
     def __init__(self, master, node, controller):
 	self._frame = Toplevel(master, class_='Grail')
+	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
 	self._frame.title("Bookmark Details")
 	self._frame.iconname("Bookmark Details")
 	self._node = node
