@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.19 $"
+__version__ = "$Revision: 1.20 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -89,6 +89,10 @@ class SGMLLexerBase:
 	returning.
 	"""
 	pass
+
+    def line(self):
+	"""Return the current line number if known.
+	"""
 
     def normalize(self, norm):
 	"""Control normalization of name tokens.
@@ -188,8 +192,31 @@ class SGMLLexerBase:
 	"""
 	pass
 
+    def lex_error(self, error_string):
+	"""Process an error packet.
+
+	`error_string' is a string which describes a lexical error in
+	the input stream.  This may be affected by the current
+	scanning mode.  The next callback other than lex_limitation()
+	or lex_error() will show symptoms described by the error
+	described by `error_string'.
+	"""
+	pass
+
+    def lex_limitation(self, limit_string):
+	"""Process a limitation packet.
+
+	`limit_string' is a string which describes a lexical limitation
+	in the current scanning mode.  The next callback other than
+	lex_limitation() or lex_error() will show symptoms described by
+	the limitation described by `limit_string'.
+	"""
+	pass
+
 
 class SGMLLexer(SGMLLexerBase):
+    entitydefs = {}
+
     if _sgmllex:
 	def __init__(self):
 	    self.reset()
@@ -220,6 +247,9 @@ class SGMLLexer(SGMLLexerBase):
 	    """Flush any remaining data in the lexer's internal buffer.
 	    """
 	    self._l.scan('')
+
+	def line(self):
+	    return self._l.line()
 
 	def setnomoretags(self):
 	    self.nomoretags = 1
@@ -255,14 +285,22 @@ class SGMLLexer(SGMLLexerBase):
 	    elif types[0] is sgmllex.processingInstruction:
 		# strip <? and >
 		self.lex_pi(strings[0][2:-1])
+	    elif len(strings) == 1 and strings[0] == '<!>':
+		self.lex_declaration([])
 	    else:
 		#XXX other markup declarations
-		self.lex_declaration([strings[0][2:]]
-				     + map(None, strings[1:-1]))
+		list = [strings[0][2:]] + map(None, strings[1:-1])
+		for i in range(len(list)):
+		    if types[i] is sgmllex.number:
+			list[i] = string.atoi(list[i])
+		self.lex_declaration(list)
 
 	def _lex_err(self, types, strings):
 	    #  raise SGMLError?
-	    pass
+	    if types[0] is sgmllex.error:
+		self.lex_error(strings[0])
+	    else:
+		self.lex_limitation(strings[0])
 
     else:				# sgmllex not available
 
@@ -280,6 +318,9 @@ class SGMLLexer(SGMLLexerBase):
 
 	def close(self):
 	    self.goahead(1)
+
+	def line(self):
+	    return None
 
 	def feed(self, data):
 	    self.rawdata = self.rawdata + data
@@ -328,7 +369,7 @@ class SGMLLexer(SGMLLexerBase):
 		    if endtagopen.match(rawdata, i) >= 0:
 			k = self.parse_endtag(i)
 			if k < 0: break
-			i =  k
+			i = k
 			self.literal = 0
 			continue
 		    if commentopen.match(rawdata, i) >= 0:
@@ -338,7 +379,7 @@ class SGMLLexer(SGMLLexerBase):
 			    continue
 			k = self.parse_comment(i, end)
 			if k < 0: break
-			i = i+k
+			i = i + k
 			continue
 		    k = processinginstruction.match(rawdata, i)
 		    if k >= 0:
@@ -352,20 +393,23 @@ class SGMLLexer(SGMLLexerBase):
 			continue
 		    k = special.match(rawdata, i)
 		    if k >= 0:
+			if k == 3:
+			    self.lex_declaration([])
+			    i = i + 3
+			    continue
 			if self._strict:
 			    if rawdata[i+2] in string.letters:
 				k = self.parse_declaration(i)
 				if k > -1:
-				    i = k
+				    i = i + k
 			    else:
 				self.lex_data('<!')
 				i = i + 2
 			else:
-			    #  Pretend it's a arkup declaration:
+			    #  Pretend it's data:
 			    if self.literal:
 				self.lex_data(rawdata[i])
-				i = i+1
-				continue
+				k = 1
 			    i = i+k
 			continue
 		elif rawdata[i] == '&':
@@ -442,7 +486,14 @@ class SGMLLexer(SGMLLexerBase):
 		    else:
 			#  reached end of input buffer or EOF,
 			#  or it's just bad input:
-			return -1
+			if rawdata[pos] != '-' or \
+			   datalength > pos + 2:	#  "-[^-]"...
+			    self.lex_error("illegal character in"
+					   " markup declaration")
+			    pos = pos + 1
+			    continue
+			else:
+			    return -1
 		map(self.lex_comment, comments)
 		q = pos + 1 - i
 	    else:
@@ -478,7 +529,7 @@ class SGMLLexer(SGMLLexerBase):
 		tag, data = shorttag.group(1, 2)
 		tag = self._normfunc(tag)
 		self.lex_starttag(tag, {})
-		self.lex_data(data)
+		self.lex_data(data)	# should scan for entity refs
 		self.lex_endtag(tag)
 		return i + j
 	    # XXX The following should skip matching quotes (' or ")
@@ -491,10 +542,9 @@ class SGMLLexer(SGMLLexerBase):
 		#  Semantics of the empty tag are handled by lex_starttag():
 		if self._strict:
 		    self.lex_starttag('', {})
-		    return i + 2
 		else:
-		    self.lex_data(rawdata[i])
-		    return i + 1
+		    self.lex_data('<>')
+		return i + 2
 
 	    k = tagfind.match(rawdata, i+1)	# matches just the GI
 	    if k < 0:
@@ -515,14 +565,44 @@ class SGMLLexer(SGMLLexerBase):
 			attrvalue = replace(attrvalue, self.entitydefs)
 		attrs[self._normfunc(attrname)] = attrvalue
 		k = k + l
-	    if rawdata[j] in '>/':
-		j = j+1
+	    xx = tagend.match(rawdata, k)
+	    if xx < 0:
+		#  something vile
+		print 'dealing with vile start tag', tag
+		while 1:
+		    try:
+			while rawdata[k] in string.whitespace:
+			    k = k + 1
+		    except IndexError:
+			return -1
+		    if rawdata[k] not in '<>/':
+			self.lex_error("bad character in tag")
+			k = k + 1
+		    else:
+			break
+		if not self._strict:
+		    if rawdata[k] == '<':
+			self.lex_limitation("unclosed start tag not supported")
+		    elif rawdata[k] == '/':
+			self.lex_limitation("NET-enabling start tags"
+					    " not supported")
+	    else:
+		k = k + len(tagend.group(0)) - 1
+	    if rawdata[k] in '>/':
+		k = k + 1
 	    self.lex_starttag(tag, attrs)
-	    return j
+	    return k
 
 	# Internal -- parse endtag
 	def parse_endtag(self, i):
 	    rawdata = self.rawdata
+	    if rawdata[i+2] in '<>':
+		if rawdata[i+2] == '<' and not self._strict:
+		    self.lex_limitation("unclosed end tags not supported")
+		    self.lex_data(ETAGO)
+		    return i + 2
+		self.lex_endtag('')
+		return i + 2 + (rawdata[i+2] == TAGC)
 	    j = endtag.match(rawdata, i)
 	    if j < 0:
 		return -1
@@ -544,40 +624,55 @@ class SGMLLexer(SGMLLexerBase):
 	    self.lex_endtag(self._normfunc(endtag.group(1)))
 	    return j
 
-	def parse_declaration(self, i):
+	def parse_declaration(self, start):
 	    #  This only gets used in "strict" mode.
 	    rawdata = self.rawdata
+	    i = start
 	    #  Markup declaration, possibly illegal:
 	    strs = []
 	    i = i + 2
 	    k = md_name.match(rawdata, i)
 	    strs.append(self._normfunc(md_name.group(1)))
 	    i = i + k
+	    end_target = '>'
 	    while k > 0:
 		#  Have to check the comment pattern first so we don't get
 		#  confused and think this is a name that starts with '--':
+		if rawdata[i] == '[':
+		    self.lex_limitation("declaration subset not supported")
+		    end_target = ']>'
+		    break
 		k = comment.match(rawdata, i)
 		if k > 0:
 		    strs.append(string.strip(comment.group(0)))
 		    i = i + k
 		    continue
-		k = md_name.match(rawdata, i)
-		if k > 0:
-		    strs.append(self._normfunc(md_name.group(1)))
-		    i = i + k
-		    continue
 		k = md_string.match(rawdata, i)
 		if k > 0:
-		    strs.append(md_string.group(1)[1:-1])
+		    strs.append(md_string.group(1))
 		    i = i + k
 		    continue
-	    k = string.find(rawdata, '>', i)
+		k = md_name.match(rawdata, i)
+		if k > 0:
+		    s = md_name.group(1)
+		    try:
+			strs.append(string.atoi(s))
+		    except string.atoi_error:
+			strs.append(self._normfunc(s))
+		    i = i + k
+		    continue
+	    k = string.find(rawdata, end_target, i)
+	    if end_target == ']>':
+		if k < 0:
+		    k = string.find(rawdata, '>', i)
+		else:
+		    k = k + 1
 	    if k >= 0:
 		i = k + 1
 	    else:
 		return -1
 	    self.lex_declaration(strs)
-	    return i
+	    return i - start
 
 
 if not _sgmllex:
@@ -624,6 +719,9 @@ if not _sgmllex:
 	'\([ \t\n]*' + VI + '[ \t\n]*'		# VI
 	'\(\\' + LITA + '[^\']*\\' + LITA
 	+ '\|' + LIT + '[^"]*' + LIT + '\|[-~a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
+    tagend = regex.compile('[ \n\t\f\b]*[<>/]')
+
+    del regex
 
 
 #  Test code for the lexer is now located in the test_lexer.py script.
