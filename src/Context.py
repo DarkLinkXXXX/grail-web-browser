@@ -48,6 +48,7 @@ class Context:
 	self._target = None
 	self.last_status_update = 0.0	# Time when last status update was done
 	self.next_status_update = None	# ID of next scheduled status update
+	self.show_source = 0
 
     def clear_reset(self):
 	self.viewer.clear_reset()
@@ -320,10 +321,12 @@ class Context:
 	# Start loading a new URL into the window
 	self.stop()
 	self.message("Loading %s" % url)
+	if self.show_source: show_source = 1
 	try:
 	    self.read_page(url, method, params,
 			   show_source=show_source, reload=reload,
 			   scrollpos=scrollpos)
+	    self.show_source = show_source
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
