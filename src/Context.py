@@ -274,12 +274,11 @@ class Context:
 	if not self.app.load_images: return None
 
 	# try loading from the cache
-	if not reload:
-	    image = self.app.get_cached_image(url)
-	    if image:
-		if not image.loaded:
-		    image.start_loading(self)
-		return image
+	image = self.app.get_cached_image(url)
+	if image and (not reload or image.is_reloading()):
+	    if not image.loaded:
+		image.start_loading(self)
+	    return image
 
         # it's not in the cache.
 	from AsyncImage import AsyncImage
