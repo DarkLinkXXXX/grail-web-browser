@@ -19,6 +19,20 @@ VALID_TARGET_STARTS = string.letters + '_'
 LAST_CONTEXT = None
 
 
+default_joiner = urljoin
+
+def urljoin(a, b):
+    ta = urlparse(a)
+    tb = urlparse(b)
+    sa = ta[0]
+    sb = tb[0]
+    if sa and (sa == sb or not sb):
+	import protocols
+	joiner = protocols.protocol_joiner(sa)
+	if joiner: return joiner(a, b)
+    return default_joiner(a, b)
+
+
 class Context:
 
     """Context for browsing operations.
@@ -177,6 +191,7 @@ class Context:
 	newurl, frag = urldefrag(url)
 	current, f = urldefrag(self._url)
 	if newurl == current:
+	    # XXX This is not correct if we got here through a POST.
 	    context = self.find_window_target(target)
 	    if context is self:
 		self.follow_local_fragment(url, newurl, frag, histify)
