@@ -4,7 +4,6 @@
 # - Resizing behavior is ugly
 
 from SafeTkinter import *
-from SafeTkinter import _cnfmerge
 import tktools
 
 class Dialog:
