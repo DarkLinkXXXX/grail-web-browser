@@ -741,7 +741,7 @@ image_converters = {
     ('gif', 'color') : 'giftopnm %(i)s | pnmtops -noturn >%(o)s',
     ('gif', 'grey') : 'giftopnm %(i)s | ppmtopgm | pnmtops -noturn >%(o)s',
     ('jpeg', 'color') : 'djpeg -pnm %(i)s | pnmtops -noturn >%(o)s',
-    ('jpeg', 'grey') : 'djpeg -grayscale -pnm %(i) | pnmtops -noturn >%(o)s',
+    ('jpeg', 'grey') : 'djpeg -grayscale -pnm %(i)s | pnmtops -noturn >%(o)s',
     ('pbm', 'grey') : 'pbmtoepsi %(i)s >%(o)s',
     ('pgm', 'grey') : 'pnmtops -noturn %(i)s >%(o)s',
     ('ppm', 'color') : 'pnmtops -noturn %(i)s >%(o)s',
