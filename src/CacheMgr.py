@@ -860,7 +860,11 @@ class HTTime:
 
     def get_secs(self):
 	if not self.secs:
-	    self.secs = ht_time.parse(self.str)
+	    try:
+		self.secs = ht_time.parse(self.str)
+	    except:
+		# if there is a parsing error, we bail
+		self.secs = 0
 	return self.secs
 
     def get_str(self):
