@@ -224,6 +224,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind("<Button-1>", self.button_1_event)
 	self.text.bind("<Button-2>", self.button_2_event)
 	self.text.bind("<Button-3>", self.button_3_event)
+	self.frame.bind("<Button-3>", self.button_3_event)
 
     def init_styles(self):
 	self.configure_styles(new_styles=1)
@@ -725,6 +726,7 @@ class Viewer(formatter.AbstractWriter):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
+	window.bind("<Button-3>", self.button_3_event)
 	self.subwindows.append(window)
 	self.text.window_create(index, window=window, align=align)
 
