@@ -835,10 +835,10 @@ class ViewerMenu:
 	self.__context = context = viewer.context
 	self.__viewer = viewer
 	menu.add_command(label="Back in Frame", command=context.go_back)
-	menu.add_command(label="Reload Frame",
-			 command=context.reload_page)
 	menu.add_command(label="Forward in Frame",
 			 command=context.go_forward)
+	menu.add_command(label="Reload Frame",
+			 command=context.reload_page)
 	menu.add_separator()
 	menu.add_command(label="Frame History...",
 			 command=context.show_history_dialog)
@@ -849,7 +849,6 @@ class ViewerMenu:
 	menu.add_command(label="Document Info...",
 			 command=DocumentInfo.DocumentInfoCommand(viewer))
 	self.__source_item = menu.index(END)
-	menu.add_separator()
 	menu.add_command(label="Print Frame...",
 			 command=context.print_document)
 	menu.add_command(label="Save Frame As...",
