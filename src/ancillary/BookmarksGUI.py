@@ -279,15 +279,14 @@ class BookmarksIO:
         if not self.filename(): self.saveas(root)
         else: self.__save_to_file(root, self.filename())
 
-    def saveas(self, root):
+    def saveas(self, root, export=0):
         filename = self.filename() or DEFAULT_GRAIL_BM_FILE
         saver = BMSaveDialog(self.__frame, self.__controller)
         saver.set_filetype(self.format())
         savefile = saver.go(filename, key="bookmarks")
         if savefile:
             self.set_format(saver.get_filetype())
-            export = saver.export()
-            if export:
+            if saver.export():
                 # remove the added/modified/visited information:
                 import bookmarks.exporter
                 collection = self.__controller._collection.copytree(root)
@@ -295,7 +294,9 @@ class BookmarksIO:
                 exporter = bookmarks.exporter.ExportWalker(root)
                 exporter.walk()
             self.__save_to_file(root, savefile)
-            self.set_filename(savefile)
+            if not export:
+                self.set_filename(savefile)
+
 
 class IOErrorDialog:
     def __init__(self, master, where, errmsg):
@@ -414,6 +415,8 @@ class BookmarksDialog:
         self._frame.bind("<Alt-S>", self._controller.save)
         filemenu.add_command(label="Save As...",
                              command=self._controller.saveas)
+        filemenu.add_command(label="Export Selection...",
+                             command=self._controller.export)
         filemenu.add_command(label="Title...",
                              command=self._controller.title_dialog,
                              underline=0, accelerator="Alt-T")
@@ -917,6 +920,12 @@ class BookmarksController(OutlinerController):
         self.update_backup()
         if self._dialog:
             self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+
+    def export(self, event=None):
+        # save the selected node
+        node, selection = self._get_selected_node()
+        if node:
+            self._iomgr.saveas(node, export=1)
 
     # Other commands
 
