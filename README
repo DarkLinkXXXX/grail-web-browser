@@ -65,7 +65,7 @@ script named "grail" which execs the Python interpreter, e.g.:
 
     exec python /usr/local/lib/grail/grail.py ${1+"$@"}
 
-(On Windows or Macintosg systems, the best thing to do is to create a
+(On Windows or Macintosh systems, the best thing to do is to create a
 shortcut or alias to the file grail.py on the desktop.)
 
 
