@@ -30,11 +30,18 @@ TITLE_PREFIX = "Grail: "
 #
 _iconxbm_file = grailutil.which('icon.xbm')
 if _iconxbm_file:
+    _iconmask_file = os.path.join(os.path.dirname(_iconxbm_file),
+                                  "iconmask.xbm")
+    if not os.path.isfile(_iconmask_file):
+        _iconmask_file = None
     def make_toplevel(*args, **kw):
         w = apply(tktools_make_toplevel, args, kw)
         # icon set up
         try: w.iconbitmap('@' + _iconxbm_file)
         except TclError: pass
+        if _iconmask_file:
+            try: w.iconmask('@' + _iconmask_file)
+            except TclError: pass
         return w
     #
     tktools_make_toplevel = tktools.make_toplevel
@@ -55,10 +62,7 @@ class Browser:
         self.master = master
         if not app:
             app = grailutil.get_grailapp()
-        # In common operation, we should always have an app at this point.
-        if app:
-            app.add_browser(self)
-            prefs = app.prefs
+        prefs = app.prefs
         self.app = app
 
         if not width: width = prefs.GetInt('browser', 'default-width')
@@ -66,6 +70,7 @@ class Browser:
 
         self.create_widgets(width=width, height=height, geometry=geometry)
         self.root.iconname('Grail')
+        app.add_browser(self)
 
     def create_widgets(self, width, height, geometry):
         # I'd like to be able to set the widget name here, but I'm not
@@ -102,9 +107,7 @@ class Browser:
         # Create menu bar, menus, and menu entries
 
         # Create menu bar
-        self.mbarframe = Frame(self.root, name="menubar", class_="Menubar")
-        self.mbarframe.pack(fill=X, in_=self.topframe)
-        self.mbar = Menu(self.mbarframe)
+        self.mbar = Menu(self.root, name="menubar", tearoff=0)
         self.root.config(menu=self.mbar)
 
         # Create the menus
