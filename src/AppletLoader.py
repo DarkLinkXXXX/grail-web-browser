@@ -294,6 +294,7 @@ class AppletLoader:
 	    linecache.cache[filename] = (len(data), 0, lines, filename)
 	    code = compile(data, filename, 'exec')
 	    m = rexec.hooks.add_module(mod)
+	    m.__file__ = filename
 	    m.__filename__ = filename
 	    exec code in m.__dict__
 	elif type == ihooks.BUILTIN_MODULE:
