@@ -131,7 +131,9 @@ class SplashScreen:
 	xpos = (screenwidth - reqwidth) / 2
 	ypos = (screenheight - reqheight) / 2
 	self.root.geometry("+%d+%d" % (xpos, ypos))
-	self.root.title("grail spash")
+	name = 'Grail Splash Screen'
+	self.root.title(name)
+	self.root.iconname(name)
 	self.root.update_idletasks()
 	self.root.after(10000, self.close)
 
