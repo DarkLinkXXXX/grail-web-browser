@@ -6,7 +6,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.57 1997/02/20 16:06:11 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.58 1997/09/10 21:50:35 fdrake Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -169,7 +169,7 @@ class TableSubParser:
 	    # create a new object to hold the attributes
 	    if not ti.lastbody or not ti.lastbody.trows \
 	       or not ti.lastbody.trows[-1].is_accepting():
-		parser.lex_starttag('tr', {})
+		parser.sgml_parser.lex_starttag('tr', {})
 	    # create a new formatter for the cell, made from a new subviewer
 	    if header:
 		cell = THCell(ti, parser, attrs)
