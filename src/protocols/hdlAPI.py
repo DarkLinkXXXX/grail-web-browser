@@ -134,7 +134,7 @@ class hdl_access(nullAPI.null_access):
             mname = "hdl_type_" + t
             tname = string.upper(mname)
             try:
-                m = self.app.find_extension('protocols', mname)
+                m = self.app.get_loader('protocols').find_module(mname)
                 if not m:
                     self._msgattrs["title"] = (
                         "hdlAPI: Could not load %s data type handler" % mname)

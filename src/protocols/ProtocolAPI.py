@@ -36,10 +36,7 @@ def protocol_joiner(scheme):
     app = grailutil.get_grailapp()
     m = app.find_extension('protocols', modname)
     if m:
-        try:
-            return getattr(m, scheme + '_join')
-        except AttributeError:
-            pass
+        return m.join
     return None
 
 def protocol_access(url, mode, params, data=None):
@@ -119,20 +116,45 @@ def protocol_access(url, mode, params, data=None):
 ##          print "     to", scheme, "proxy", proxy_host
     modname = sanitized + "API"
     app = grailutil.get_grailapp()
-    m = app.find_extension('protocols', modname)
-    if not m:
-        raise IOError, ("protocol error", "no module for %s" % scheme)
-    classname = sanitized + "_access"
-    if not hasattr(m, classname):
+    access = app.find_extension('protocols', sanitized).access
+    if not access:
         raise IOError, ("protocol error", "no class for %s" % scheme)
-    klass = getattr(m, classname)
     try:
         if data:
-            return klass(resturl, mode, params, data)
+            return access(resturl, mode, params, data)
         else:
-            return klass(resturl, mode, params)
+            return access(resturl, mode, params)
     except socket.error, msg:
         raise IOError, ("socket error", msg)
+
+
+import grailbase.extloader
+
+class ProtocolLoader(grailbase.extloader.ExtensionLoader):
+    class ProtocolInfo:
+        def __init__(self, scheme, access, join):
+            self.scheme = scheme
+            self.access = access
+            self.join = join
+
+    def find(self, name):
+        ext = None
+        mod = self.find_module(name + "API")
+        if mod:
+            classname = name + "_access"
+            joinername = name + "_join"
+            if hasattr(mod, classname):
+                access = getattr(mod, classname)
+            else:
+                access = None
+            if hasattr(mod, joinername):
+                join = getattr(mod, joinername)
+            else:
+                import urlparse
+                join = urlparse.urljoin
+            ext = self.ProtocolInfo(name, access, join)
+        return ext
+
 
 def test(url = "http://www.python.org/"):
     import sys
