@@ -38,6 +38,10 @@ C:
 C: view-by can be 'titles', 'urls'
 history--view-by: titles
 C:
+C: Parsing preferences:
+C:
+parsing-html--strict:		0
+C:
 C: Printing preferences:
 C:
 printing--images:		1
