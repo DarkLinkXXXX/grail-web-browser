@@ -206,6 +206,7 @@ class Application:
 	self.login_cache = {}
 	self.rexec_cache = {}
 	self.graildir = grailutil.getgraildir()
+	grailutil.establish_dir(self.graildir)
 	self.iconpath.insert(0, os.path.join(self.graildir, 'icons'))
 	self.url_cache = CacheManager(self)
 	s = \
