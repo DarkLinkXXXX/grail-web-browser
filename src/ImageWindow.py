@@ -98,8 +98,11 @@ class ImageWindow(Frame):
     def table_geometry(self):
 	import string
 	bw = string.atoi(self['borderwidth'])
-	w = self.image.width() + 2 * bw
-	h = self.image.height() + 2 * bw
+	if self.image:
+	    w = self.image.width() + 2 * bw
+	    h = self.image.height() + 2 * bw
+	else:
+	    w = h = 2 * bw
 	x = self.winfo_x()
 	y = self.winfo_y()
 	return x+w, x+w, y+h
