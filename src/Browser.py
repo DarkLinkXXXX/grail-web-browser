@@ -99,38 +99,53 @@ class Browser:
 	self.filemenu = Menu(self.filebutton)
 	self.filebutton['menu'] = self.filemenu
 
-	self.filemenu.add_command(label="New",
+	self.filemenu.add_command(label="New Window",
 			  command=self.new_command,
 			  underline=0, accelerator="Alt-N")
 	self.root.bind("<Alt-n>", self.new_command)
+	self.root.bind("<Alt-N>", self.new_command)
+	self.filemenu.add_command(label="Clone Current Window",
+			  command=self.clone_command,
+			  underline=0, accelerator="Alt-K")
+	self.root.bind("<Alt-k>", self.clone_command)
+	self.root.bind("<Alt-K>", self.clone_command)
 	self.filemenu.add_command(label="View source",
 			  command=self.view_source_command,
 			  underline=0, accelerator="Alt-V")
 	self.root.bind("<Alt-v>", self.view_source_command)
-	self.filemenu.add_command(label='Open...',
+	self.root.bind("<Alt-V>", self.view_source_command)
+	self.filemenu.add_command(label='Open Location...',
 				  command=self.open_uri_command,
-				  underline=0, accelerator='Alt-O')
-	self.root.bind('<Alt-o>', self.open_uri_command)
+				  underline=5, accelerator='Alt-L')
+	self.root.bind('<Alt-l>', self.open_uri_command)
+	self.root.bind('<Alt-L>', self.open_uri_command)
 	self.filemenu.add_command(label='Open file...',
+				  underline=0, accelerator='Alt O',
 				  command=self.open_file_command)
+	self.root.bind('<Alt-o>', self.open_file_command)
+	self.root.bind('<Alt-O>', self.open_file_command)
 	self.filemenu.add_separator()
 	self.filemenu.add_command(label="Save As...",
 			  command=self.save_as_command,
 			  underline=0, accelerator="Alt-S")
 	self.root.bind("<Alt-s>", self.save_as_command)
+	self.root.bind("<Alt-S>", self.save_as_command)
 	self.filemenu.add_command(label="Print...",
 			  command=self.print_command,
 			  underline=0, accelerator="Alt-P")
 	self.root.bind("<Alt-p>", self.print_command)
+	self.root.bind("<Alt-P>", self.print_command)
 	self.filemenu.add_separator()
 	self.filemenu.add_command(label="Close",
 			  command=self.close_command,
 			  underline=0, accelerator="Alt-W")
 	self.root.bind("<Alt-w>", self.close_command) # Macintosh origins...
+	self.root.bind("<Alt-W>", self.close_command) # Macintosh origins...
 	self.filemenu.add_command(label="Quit",
 			  command=self.quit_command,
 			  underline=0, accelerator="Alt-Q")
 	self.root.bind("<Alt-q>", self.quit_command)
+	self.root.bind("<Alt-Q>", self.quit_command)
 
 	self.histbutton = Menubutton(self.mbar, text="Go")
 	self.histbutton.pack(side=LEFT)
@@ -152,11 +167,12 @@ class Browser:
 	self.root.bind("<Alt-Right>", self.forward_command)
 	self.histmenu.add_separator()
 	self.histmenu.add_command(label='History...',
-				  command=self.show_history_command)
+				  command=self.show_history_command,
+				  underline=0, accelerator="Alt-H")
+	self.root.bind("<Alt-h>", self.show_history_command)
+	self.root.bind("<Alt-H>", self.show_history_command)
 	self.histmenu.add_command(label="Home",
-			  command=self.home_command,
-			  underline=0, accelerator="Alt-H")
-	self.root.bind("<Alt-h>", self.home_command)
+			  command=self.home_command)
 
 	# Create the Search menu
 
@@ -214,7 +230,6 @@ class Browser:
 	self.entry, self.entryframe = \
 		    tktools.make_form_entry(self.topframe, "URL:")
 	self.entry.bind('<Return>', self.load_from_entry)
-	self.entry.bind('<Control-u>', self.clear_entry)
 
     def create_statusbar(self):
 	self.msg_frame = Frame(self.topframe, height=20)
@@ -235,9 +250,6 @@ class Browser:
 
     def load_from_entry(self, event):
 	self.load(string.strip(self.entry.get()))
-
-    def clear_entry(self, event=None):
-	self.entry.delete('0', INSERT)
 
     def set_entry(self, url):
 	self.entry.delete('0', END)
@@ -407,7 +419,10 @@ class Browser:
     # File menu commands
 
     def new_command(self, event=None):
-	# File/New
+	b = Browser(self.master, self.app)
+	return b
+
+    def clone_command(self, event=None):
 	b = Browser(self.master, self.app)
 	if self.url:
 	    b.load(self.url)
@@ -418,18 +433,14 @@ class Browser:
 	import OpenURIDialog
 	dialog = OpenURIDialog.OpenURIDialog(self.master)
 	uri = dialog.go()
-	if uri:
-	    b = Browser(self.master, self.app)
-	    b.load(uri)
+	if uri: self.load(uri)
 
     def open_file_command(self, event=None):
 	if self.busycheck(): return
 	import FileDialog
 	dialog = FileDialog.LoadFileDialog(self.master)
 	filename = dialog.go()
-	if filename:
-	    b = Browser(self.master, self.app)
-	    b.load('file:/' + filename)
+	if filename: self.load('file:' + filename)
 
     def view_source_command(self, event=None):
 	# File/View Source
