@@ -490,9 +490,9 @@ class TkListboxViewer(OutlinerViewer):
 
 
 class BookmarksDialog:
-    def __init__(self, frame, controller):
+    def __init__(self, master, controller):
 	# create the basic controls of the dialog window
-	self._frame = Toplevel(frame, class_='Grail')
+	self._frame = Toplevel(master, class_='Grail')
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 	self._controller = controller
 	infoframe = Frame(self._frame, relief=GROOVE, borderwidth=2)
@@ -844,13 +844,13 @@ class DetailsDialog:
 
 
 class BookmarksController(OutlinerController):
-    def __init__(self, frame, app):
+    def __init__(self, app):
 	default_root = BookmarkNode(username()+" Bookmarks")
 	OutlinerController.__init__(self, default_root)
-	self._frame = frame
+	self._master = app.root
 	self._app = app
 	self._active = None
-	self._iomgr = BookmarksIO(frame, self)
+	self._iomgr = BookmarksIO(self._master, self)
 	self._dialog = None
 	self._details = {}
 	self._listbox = None
@@ -901,11 +901,14 @@ class BookmarksController(OutlinerController):
 	if self._tkvars.has_key(name): return self._tkvars[name]
 	else: raise AttributeError, name
 
-    def _browser(self):
-	browser = self._active
-	try: self._app.browsers.index(browser)
-	except ValueError: browser = None
-	return browser
+    def set_browser(self, browser=None):
+	self._active = browser
+
+    def get_browser(self):
+	if self._active not in self._app.browsers:
+	    # there better be at least one browser window open!
+	    self._active = self._app.browsers[-1]
+	return self._active
 
     ## coordinate with Application instance
 
@@ -921,9 +924,9 @@ class BookmarksController(OutlinerController):
 
     ## I/O
 
-    def initialize(self, active_browser=None):
-	if active_browser: self._active = active_browser
-	if self._initialized_p: return
+    def initialize(self):
+	if self._initialized_p:
+	    return
 	# attempt to read each bookmarks file in the BOOKMARKS_FILES
 	# list.  Search order is 1) $GRAIL_BOOKMARKS_FILE; 2)
 	# $GRAIL_DIR/grail-bookmarks.html; 3) ~/.netscape-bookmarks.html
@@ -1028,14 +1031,16 @@ class BookmarksController(OutlinerController):
 
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
-	if filename: self._browser().context.load('file:' + filename)
+	if filename:
+	    self.get_browser().context.load('file:' + filename)
+
     def goto_node(self, node, browser=None):
 	if node and node.leaf_p() and node.uri():
 	    node.set_last_visited(int(time.time()))
 	    if self._details.has_key(id(node)):
 		self._details[id(node)].revert()
 	    if browser is None:
-		browser = self._browser()
+		browser = self.get_browser()
 	    browser.context.load(node.uri())
 	    self.viewer().select_node(node)
 	    self.set_modflag(True, quiet=True)
@@ -1044,7 +1049,7 @@ class BookmarksController(OutlinerController):
 	# create a new node to represent this addition and then fit it
 	# into the tree, updating the listbox
 	now = int(time.time())
-	browser = self._browser()
+	browser = self.get_browser()
 	node = BookmarkNode(browser.context.get_title(),
 			    browser.context.get_baseurl(), now, now)
 	addlocation = self.addcurloc.get()
@@ -1081,7 +1086,7 @@ class BookmarksController(OutlinerController):
 	    details = self._details[id(node)]
 	    details.show()
 	else:
-	    details = DetailsDialog(self._frame, node, self)
+	    details = DetailsDialog(self._master, node, self)
 	    self._details[id(node)] = details
 
     def show(self, event=None):
@@ -1092,7 +1097,7 @@ class BookmarksController(OutlinerController):
 	# placement, the user will see a zero-sized widget
 	show_p = True
 	if not self._dialog:
-	    self._dialog = BookmarksDialog(self._frame, self)
+	    self._dialog = BookmarksDialog(self._master, self)
 	    self._listbox = self._dialog._listbox # TBD: gross
 	    viewer = TkListboxViewer(self.root(), self._listbox)
 	    self.set_viewer(viewer)
@@ -1131,7 +1136,7 @@ class BookmarksController(OutlinerController):
 	if not node: return
 	newnode = BookmarkNode('<Category>')
 	self._insert_at_node(node, newnode)
-	self._details[id(newnode)] = DetailsDialog(self._frame, newnode, self)
+	self._details[id(newnode)] = DetailsDialog(self._master, newnode, self)
 
     def insert_entry(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1139,7 +1144,7 @@ class BookmarksController(OutlinerController):
 	newnode = BookmarkNode('<Entry>', '')
 	self._insert_at_node(node, newnode)
 	details = self._details[id(newnode)] = \
-		  DetailsDialog(self._frame, newnode, self)
+		  DetailsDialog(self._master, newnode, self)
 
     def remove_entry(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1330,7 +1335,7 @@ class BookmarksMenu:
 	try: self._controller = self._app.bookmarks_controller
 	except AttributeError:
 	    self._controller = self._app.bookmarks_controller = \
-			       BookmarksController(self._frame, self._app)
+			       BookmarksController(self._app)
 	# currently, too difficult to coordinate edits to bookmarks
 	# with tear-off menus, so just disable these for now and
 	# create the rest of this menu every time the menu is posted
@@ -1355,18 +1360,21 @@ class BookmarksMenu:
 	if self._controller.includepulldown.get():
 	    self._menu.add_separator()
 	    # First make sure the controller has initialized
-	    self._controller.initialize(active_browser=self._browser)
+	    self._controller.initialize()
+	    self._controller.set_browser(self._browser)
 	    viewer = BookmarksMenuViewer(self._controller, self._menu)
 	    viewer.populate()
 
     def show(self, event=None):
 	# make sure controller is initialized
-	self._controller.initialize(active_browser=self._browser)
+	self._controller.initialize()
+	self._controller.set_browser(self._browser)
 	self._controller.show()
 
     def add_current(self, event=None):
 	# make sure controller is initialized
-	self._controller.initialize(active_browser=self._browser)
+	self._controller.initialize()
+	self._controller.set_browser(self._browser)
 	self._controller.add_current()
 	# if the dialog is unmapped, then do a save
 	if not self._controller.dialog_is_visible_p():
