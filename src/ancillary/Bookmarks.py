@@ -215,9 +215,10 @@ class NetscapeBookmarkHTMLParser(HTMLParser):
     def start_h3(self, attrs):
 	self._push_new()
 	self.save_bgn()
-	for k, v in attrs:
-	    if k == 'add_date': self._current.set_add_date(string.atoi(v))
-	    elif k == 'folded': self._current.collapse()
+	if attrs.has_key('add_date'):
+	    self._current.set_add_date(string.atoi(attrs['add_date']))
+	if attrs.has_key('folded'):
+	    self._current.collapse()
 
     def end_h3(self):
 	title = self.save_end()
@@ -250,10 +251,12 @@ class NetscapeBookmarkHTMLParser(HTMLParser):
 	self._push_new()
 	self.save_bgn()
 	curnode = self._current		# convenience
-	for k, v in attrs:
-	    if k == 'href': curnode.set_uri(v)
-	    elif k == 'add_date': curnode.set_add_date(string.atoi(v))
-	    elif k == 'last_visit': curnode.set_last_visited(string.atoi(v))
+	if attrs.has_key('href'):
+	    curnode.set_uri(attrs['href'])
+	if attrs.has_key('add_date'):
+	    curnode.set_add_date(string.atoi(attrs['add_date']))
+	if attrs.has_key('last_visit'):
+	    curnode.set_last_visited(string.atoi(attrs['last_visit']))
 
     def end_a(self):
 	title = self.save_end()
