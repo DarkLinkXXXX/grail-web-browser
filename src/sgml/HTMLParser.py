@@ -606,6 +606,9 @@ class HTMLParser(SGMLParser):
 	self.badhtml = 1
 	self.handle_data('%s%s%s' % (SGMLLexer.ERO, entname, terminator))
 
+    def report_unbalanced(self, tag):
+	self.badhtml = 1
+
     # --- Utilities:
 
     def element_close_maybe(self, *elements):
