@@ -10,6 +10,7 @@ import urlparse
 
 import Outliner
 import SGMLParser
+import SGMLGatherer
 
 
 True = 1
@@ -170,7 +171,7 @@ class BookmarkReader:
 
 
 
-class NetscapeBookmarkParser(SGMLParser.SGMLParser):
+class NetscapeBookmarkParser(SGMLGatherer.BaseSGMLGatherer):
     _root = None
     _current = None
     _prevleaf = None
@@ -182,7 +183,7 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 
     def __init__(self, filename, node_class=BookmarkNode):
 	self._filename = filename
-	SGMLParser.SGMLParser.__init__(self)
+	self.sgml_parser = SGMLParser.SGMLParser(gatherer=self)
 	#
 	# Based on comments from Malcolm Gillies <M.B.Gillies@far.ruu.nl>,
 	# take the class to instantiate as a node as a parameter.  This
@@ -192,6 +193,12 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 	# an unbound method.
 	#
 	self.new_node = node_class
+
+    def feed(self, data):
+	self.sgml_parser.feed(data)
+
+    def close(self):
+	self.sgml_parser.close()
 
     def save_bgn(self):
 	self._buffer = ''
@@ -300,16 +307,6 @@ class PickleBookmarkParser:
 	except:
 	    from pickle import loads
 	return loads(self.get_data())
-
-
-class PickleBinaryBookmarkParser(PickleBookmarkParser):
-    pass
-##     def unpickle(self):
-## 	try:
-## 	    from cPickle import loads
-## 	except:
-## 	    from pickle import loads
-## 	return loads(self.get_data(), 1)
 
 
 class BookmarkWriter:
@@ -463,7 +460,7 @@ __formats = {
     "html/grail": (NetscapeBookmarkParser, GrailBookmarkWriter),
     "html": (NetscapeBookmarkParser, GrailBookmarkWriter),
     "pickle": (PickleBookmarkParser, PickleBookmarkWriter),
-    "pickle-binary": (PickleBinaryBookmarkParser, PickleBinaryBookmarkWriter),
+    "pickle-binary": (PickleBookmarkParser, PickleBinaryBookmarkWriter),
     }
 
 def get_handlers(format, filename):
