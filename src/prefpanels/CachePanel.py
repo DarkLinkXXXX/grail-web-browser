@@ -4,7 +4,7 @@
 
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.11 $"
+__version__ = "$Revision: 1.12 $"
 # $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
 
 # Base class for the panel:
@@ -43,7 +43,7 @@ class CachePanel(PrefsPanels.Framework):
                              text="Every",
                              variable=radio,
                              value='periodic')
-        e = Entry(periodic_frame, relief=SUNKEN, width=3)
+        e = Entry(periodic_frame, relief=SUNKEN, width=4)
         t = Label(periodic_frame, text="hours")
 
         period.pack(side=LEFT)
