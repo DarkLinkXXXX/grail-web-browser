@@ -11,6 +11,7 @@ import urlparse
 import string
 import tktools
 import formatter
+import Viewer
 from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser, HeaderNumber
 import AppletLoader
@@ -176,7 +177,7 @@ class GrailHTMLParser(HTMLParser):
 	if href:
 	    atag = 'a'
 	    if target:
-		utag = '>%s>%s' % (href, target)
+		utag = '>%s%s%s' % (href, Viewer.TARGET_SEPARATOR, target)
 	    else:
 		utag = '>' + href
 	    self.viewer.bind_anchors(utag)
