@@ -77,8 +77,9 @@ class CanvasItem:
 		self.canvas.lower(self.id, belowthis)
 	def move(self, xamount, yamount):
 		self.canvas.move(self.id, xamount, yamount)
-	def raise_(self, abovethis=None):
-		self.canvas.raise_(self.id, abovethis)
+	def tkraise(self, abovethis=None):
+		self.canvas.tkraise(self.id, abovethis)
+	raise_ = tkraise # BW compat
 	def scale(self, xorigin, yorigin, xscale, yscale):
 		self.canvas.scale(self.id, xorigin, yorigin, xscale, yscale)
 	def type(self):
@@ -91,6 +92,10 @@ class Arc(CanvasItem):
 class Bitmap(CanvasItem):
 	def __init__(self, canvas, *args):
 		CanvasItem.__init__(self, canvas, 'bitmap', args)
+
+class ImageItem(CanvasItem):
+	def __init__(self, canvas, *args):
+		CanvasItem.__init__(self, canvas, 'image', args)
 
 class Line(CanvasItem):
 	def __init__(self, canvas, *args):
