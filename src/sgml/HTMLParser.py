@@ -41,6 +41,12 @@ class HTMLParser(SGMLParser):
 	    self.autonumber = autonumber
 	self.headernumber = HeaderNumber()
 
+    def close(self):
+	SGMLParser.close(self)
+	#  Clean out circular reference:
+	if self.__dict__.has_key('handle_data'):
+	    del self.__dict__['handle_data']
+
     # ------ Methods used internally; some may be overridden
 
     # --- Formatter interface, taking care of 'savedata' mode;
@@ -501,13 +507,20 @@ class HTMLParser(SGMLParser):
     def ddpop(self, bl=0):
 	self.element_close_maybe('lh', 'p')
         self.formatter.end_paragraph(bl)
-        if self.list_stack:
-            if self.list_stack[-1][0] == 'dd':
-		del self.list_stack[-1]
-		self.list_trim_stack()
-		self.formatter.pop_margin()
+	if not self.list_stack or self.list_stack[-1][0] not in ('dl', 'dd'):
+	    # we're not already in a DL, so imply one.
+	    # this isn't perfect compatibility, but keeps grail from
+	    # dying a horrible death.
+	    self.lex_starttag('dl', {})
+	    self.badhtml = 1
+        if self.list_stack and self.list_stack[-1][0] == 'dd':
+	    del self.list_stack[-1]
+	    self.list_trim_stack()
+	    self.formatter.pop_margin()
 
     def list_trim_stack(self):
+	if not self.list_stack:
+	    return
 	depth = self.list_stack[-1][4]
 	while len(self.stack) > depth:
 	    self.lex_endtag(self.stack[depth])
