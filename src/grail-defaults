@@ -23,6 +23,7 @@ browser--initial-geometry:
 browser--show-splash:		1
 browser--smooth-scroll-hack:	0
 browser--enable-pil:		0
+browser--license-agreed-to:	0
 #
 # Presentation defaults
 #
