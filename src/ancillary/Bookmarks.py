@@ -339,15 +339,15 @@ class FileDialogExtras:
     def __init__(self, frame):
 	# create a small subwindow for the extra buttons
 	frame = Frame(frame, relief='groove', borderwidth=2)
-	frame.pack()
+	frame.pack(fill=X)
 	label = Label(frame, text='Bookmark File Shortcuts:')
-	label.pack(side='left')
+	label.pack(side=LEFT, anchor=W)
 	grailbtn = Button(frame, text='Grail',
 			  command=self.set_for_grail)
-	grailbtn.pack(side='left')
 	netscapebtn = Button(frame, text='Netscape',
 			     command=self.set_for_netscape)
-	netscapebtn.pack(side='left')
+	netscapebtn.pack(side=RIGHT)
+	grailbtn.pack(side=RIGHT)
 
     def _set_to_file(self, path):
 	dir, file = os.path.split(path)
