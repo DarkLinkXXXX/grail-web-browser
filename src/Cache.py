@@ -288,7 +288,6 @@ class CacheAPI:
 	assert(self.stage == DATA)
 	data = self.item.getdata(self.offset, maxbytes)
 	self.offset = self.offset + len(data)
-	print "api:getdata(%5d,%5d) got %5d bytes" % (self.offset,maxbytes,len(data))
 	if not data:
 	    self.close()
 	return data
