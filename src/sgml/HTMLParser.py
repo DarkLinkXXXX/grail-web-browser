@@ -225,7 +225,6 @@ class HTMLParser(SGMLParser):
 	else:
 	    align = None
 	self.formatter.push_alignment(align)
-	self.viewer.flush()
         self.formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
 
