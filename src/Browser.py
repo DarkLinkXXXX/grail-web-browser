@@ -313,6 +313,7 @@ class Browser:
     # WM_DELETE_WINDOW on toplevel
 
     def on_delete(self):
+        self.root.withdraw()
         self.close()
 
     # <Return> in URL entry field
