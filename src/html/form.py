@@ -259,9 +259,9 @@ class FormInfo:
 	return data[1:]
 
     def make_form_data(self):
-	import ArrayIO
+	import StringIO
 	import MimeWriter
-	fp = ArrayIO.ArrayIO()
+	fp = StringIO.StringIO()
 	mw = MimeWriter.MimeWriter(fp)
 	mw.startmultipartbody("form-data")
 	for i in self.inputs:
