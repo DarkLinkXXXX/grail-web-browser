@@ -70,17 +70,6 @@ HTML_TRAILER = """
 
 
 
-global_hash_table = None
-local_hash_tables = {}
-
-def get_local_hash_table(hdl):
-    key = hdllib.get_authority(hdl)
-    if not local_hash_tables.has_key(key):
-	#print "Fetching local hash table for", key
-	local_hash_tables[key] = hdllib.fetch_local_hash_table(
-	    key, global_hash_table)
-    return local_hash_tables[key]
-
 def parse_handle(hdl):
     """Parse off options from handle.
 
@@ -115,6 +104,24 @@ class hdl_access(nullAPI.null_access):
 
     _types = HANDLE_TYPES
 
+    try:
+	#print "Fetching global hash table"
+	_global_hashtable = hdllib.fetch_global_hash_table()
+    except hdllib.Error, inst:
+	raise IOError, inst, sys.exc_traceback
+
+    _hashtable = _global_hashtable
+
+    _local_hashtables = {}
+
+    def get_local_hash_table(self, hdl):
+	key = hdllib.get_authority(hdl)
+	if not self._local_hashtables.has_key(key):
+	    #print "Fetching local hash table for", key
+	    self._local_hashtables[key] = hdllib.fetch_local_hash_table(
+		key, self._global_hashtable)
+	return self._local_hashtables[key]
+
     def __init__(self, hdl, method, params):
 	nullAPI.null_access.__init__(self, hdl, method, params)
 
@@ -132,35 +139,35 @@ class hdl_access(nullAPI.null_access):
 		types = m.handle_types
 		formatter = m.data_formatter
 	    except (ImportError, AttributeError), msg:
-		self._types = []
 		if hdllib.data_map.has_key(tname):
 		    self._types = [hdllib.data_map[tname]]
 		else:
-		    self._types = []
+		    try:
+			n = string.atoi(t)
+		    except ValueError:
+			self._types = [] # Request all types
+		    else:
+			self._types = [n]
 	    else:
 		self._types = types
 		if formatter:
 		    self._formatter = formatter
 
-	global global_hash_table
-	if not global_hash_table:
-	    try:
-		#print "Fetching global hash table"
-		global_hash_table = hdllib.fetch_global_hash_table()
-	    except hdllib.Error, inst:
-		raise IOError, inst, sys.exc_traceback
+	if self._attrs.has_key('server'):
+	    self._hashtable = hdllib.HashTable(server=self._attrs['server'])
 
     def pollmeta(self):
 	nullAPI.null_access.pollmeta(self)
 	try:
-	    replyflags, self._items = global_hash_table.get_data(
+	    replyflags, self._items = self._hashtable.get_data(
 		self._hdl, self._types)
 	except hdllib.Error, inst:
 	    if inst.err == hdllib.HP_HANDLE_NOT_FOUND:
-		# Retry using a local handle server
+		#print "Retry using a local handle server"
 		try:
-		    hashtable = get_local_hash_table(self._hdl)
-		    replyflags, self._items = hashtable.get_data(
+		    self._hashtable = self.get_local_hash_table(
+			self._hdl)
+		    replyflags, self._items = self._hashtable.get_data(
 			self._hdl, self._types)
 		except hdllib.Error, inst:
 		    # (Same comment as below)
@@ -198,7 +205,7 @@ class hdl_access(nullAPI.null_access):
 			    hdllib.HDL_TYPE_SERVICE_HANDLE):
 		    uri = hdllib.hexstr(uri)
 		else:
-		    uri = escape(uri)
+		    uri = escape(`uri`)
 		if hdllib.data_map.has_key(type):
 		    type = hdllib.data_map[type][9:]
 		else:
@@ -222,6 +229,11 @@ class hdl_access(nullAPI.null_access):
 	return data
 
 
-# Here are some handles to try out the multiple-URL reponse:
+# Here are some test handles:
+#
+# hdl:CNRI/19970131120001
+# hdl:nlm.hdl_test/96053804
+# hdl:cnri.dlib/december95
+# hdl:cnri.dlib/november95
 # hdl:nonreg.guido/python-home-page
 # hdl:nonreg.guido/python-ftp-dir
