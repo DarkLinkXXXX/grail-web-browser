@@ -20,6 +20,7 @@ META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 from assert import assert
 import urlparse
 import string
+import os
 import ProtocolAPI
 
 
@@ -40,8 +41,10 @@ class Cache:
 	if data or not self.cachedir.has_key(key):
 	    self.cachedir[key] = item = CacheItem(url, mode, params,
 						  self, key, data)
+##	    print "Cache.open() -> new item", item
 	else:
 	    item = self.cachedir[key]
+##	    print "Cache.open() -> existing item", item
 	    if reload:
 		item.reset()
 	    else:
@@ -108,18 +111,28 @@ class CacheItem:
 	self.cache = cache
 	self.key = key
 	self.postdata = data
+	# The following two are changed by reset()
+	self.api = None
+	self.stage = DONE
 	self.reset()
+
+    def __repr__(self):
+	return "CacheItem(%s)<%d>" % (`self.url`, self.refcnt)
 
     def incref(self):
 	self.refcnt = self.refcnt + 1
+##	print self, "incref() ->", self.refcnt
 
     def decref(self):
 	assert(self.refcnt > 0)
 	self.refcnt = self.refcnt - 1
+##	print self, "decref() ->", self.refcnt
 	if self.refcnt == 0:
 	    if self.stage == DONE:
+##		print "    finish()"
 		self.finish()
 	    else:
+##		print "    abort()"
 		self.abort()
 
     def check(self):
@@ -130,6 +143,11 @@ class CacheItem:
 	return self.stage is not DONE or self.complete
 
     def reset(self):
+##	print self, "reset()"
+	if self.stage != DONE:
+	    return
+	assert(self.api is None)
+##	print "Open", self.url
 	self.api = ProtocolAPI.protocol_access(self.url,
 					       self.mode, self.params,
 					       data=self.postdata)
@@ -186,6 +204,7 @@ class CacheItem:
 	    return -1
 
     def abort(self):
+##	print " Abort", self.url
 	if self.cache:
 	    cachedir = self.cache.cachedir
 	    key = self.key
@@ -199,6 +218,7 @@ class CacheItem:
 	api = self.api
 	self.api = None
 	if api:
+##	    print "  Close", self.url
 	    api.close()
 
 
@@ -219,8 +239,14 @@ class CacheAPI:
 	self.item.incref()
 	self.offset = 0
 	self.stage = META
+	self.fno = -1
+##	print self, "__init__()"
+
+    def __repr__(self):
+	return "CacheAPI(%s)" % self.item
 
     def __del__(self):
+##	print self, "__del__()"
 	self.close()
 
     def pollmeta(self):
@@ -246,10 +272,19 @@ class CacheAPI:
 	return data
 
     def fileno(self):
-	return self.item.fileno()
+	if self.fno < 0:
+	    self.fno = self.item.fileno()
+	    if self.fno >= 0:
+		self.fno = os.dup(self.fno)
+	return self.fno
 
     def close(self):
+##	print self, "close()"
 	self.stage = DONE
+	fno = self.fno
+	if fno >= 0:
+	    self.fno = -1
+	    os.close(fno)
 	item = self.item
 	if item:
 	    self.item = None
