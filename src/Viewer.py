@@ -123,6 +123,10 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.tag_config(tag, cnf)
 	for tag, abovetag in stylesheet.priorities.items():
 	    self.text.tag_raise(tag, abovetag)
+	# These are used in aligning rules:
+	self.text.tag_config('ALIGN_LEFT', justify = 'left')
+	self.text.tag_config('ALIGN_RIGHT', justify = 'right')
+	self.text.tag_config('ALIGN_CENTER', justify = 'center')
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level*40
@@ -309,7 +313,8 @@ class Viewer(formatter.AbstractWriter):
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
 
-    def send_hor_rule(self, abswidth=None, percentwidth=1.0):
+    def send_hor_rule(self, abswidth=None, percentwidth=1.0,
+		      height=None, align=None):
 	self.text.insert(END, '\n')
 	width = self.rule_width()
 	if abswidth:
@@ -317,12 +322,17 @@ class Viewer(formatter.AbstractWriter):
 	elif percentwidth:
 	    width = min(width, int(percentwidth * width))
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
-			width=width, height=0,
+			width=width, height=max((height or 0) - 2, 0),
 			background=self.text['background'],
 			highlightbackground=self.text['background'])
 	self.rules.append(window)
 	window._width = abswidth
 	window._percent = percentwidth
+	if align:
+	    align = "ALIGN_" + string.upper(align)
+	    self.text.insert(END, "\240", align)
+	else:
+	    self.text.insert(END, "\240") # Non-breaking space
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
 ##	self.text.update_idletasks()

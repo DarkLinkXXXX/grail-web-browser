@@ -131,9 +131,8 @@ PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN) # 648
 PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 
 # horizontal rule spacing, in points
-HR_TOP_MARGIN = 8.0
-HR_BOT_MARGIN = 8.0
-HR_LINE_WIDTH = 1.0
+HR_TOP_MARGIN = 4.0
+HR_BOT_MARGIN = 4.0
 
 # distance after a label tag in points
 LABEL_TAB = 6.0
@@ -480,7 +479,18 @@ class PSStream:
 	    self._linestr.append(' ' * spaces)
 	    self._xpos = self._xpos + self._space_width * spaces
 
-    def push_horiz_rule(self, abswidth=None, percentwidth=None):
+    def push_horiz_rule(self, abswidth=None, percentwidth=None,
+			height=None, align=None):
+	if type(height) is type(0):
+	    height = 0.5 * max(height, 1)
+	else:
+	    height = 1				# 2
+	if type(align) is type(''):
+	    align = string.lower(align)
+	    if align not in ('left', 'center', 'right'):
+		align = 'left'
+	else:
+	    align = 'left'
 	self.close_line()
 	self._baseline = HR_TOP_MARGIN
 	self._descender = HR_BOT_MARGIN
@@ -490,9 +500,15 @@ class PSStream:
 	    width = min(1.0, percentwidth) * PAGE_WIDTH
 	else:
 	    width = PAGE_WIDTH
-	self._linefp.write('%f HR\n' % width)
+	if align == 'left':
+	    start = 0.0
+	elif align == 'center':
+	    start = (PAGE_WIDTH - width) / 2
+	else:  # ALIGN = left
+	    start = PAGE_WIDTH - width
+	self._linefp.write('%d %f %f HR\n' % (height, start, width))
 	self.close_line()
-	self._ypos = self._ypos - HR_LINE_WIDTH
+	self._ypos = self._ypos - height
 
     def push_margin(self, level):
 	if self._linestr:
@@ -535,18 +551,20 @@ class PSStream:
 	linecnt = len(lines)-1
 	# local variable cache
 	xpos = self._xpos
-	margin = self._margin
 	linestr = self._linestr
+	append = linestr.append
+	text_width = self._font.text_width
+	allowed_width = PAGE_WIDTH - self._margin
 	# outer loop
 	for line in lines:
 	    # do flowing text
 	    words = string.splitfields(line, ' ')
 	    wordcnt = len(words)-1
 	    for word in words:
-		width = self._font.text_width(word)
+		width = text_width(word)
 		# Does the word fit on the current line?
-		if xpos + width + margin < PAGE_WIDTH:
-		    linestr.append(word)
+		if xpos + width < allowed_width:
+		    append(word)
 		    xpos = xpos + width
 		# The current line, with the additional text, is too
 		# long.  We need to figure out where to break the
@@ -556,7 +574,7 @@ class PSStream:
 		# then just break the line at the last space.
 		elif len(linestr) and len(linestr[-1]) and \
 		     linestr[-1][-1] in [' ', '\t'] and \
-		     xpos + margin > PAGE_WIDTH * 0.75 and \
+		     xpos > allowed_width * 0.75 and \
 		     width < PAGE_WIDTH:
 		    #
 		    # first output the current line data
@@ -567,7 +585,8 @@ class PSStream:
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
 		    linestr = []
-		    linestr.append(word)
+		    append = linestr.append
+		    append(word)
 		    xpos = xpos + width
 		# Try an alternative line break strategy.  If we're
 		# closer than 75% of the page width to the end of the
@@ -581,17 +600,17 @@ class PSStream:
 		    # local variable cache, which must be updated.
 		    xpos = 0.0
 		    linestr = []
+		    append = linestr.append
 		    while width > PAGE_WIDTH:
 			# make our best guess as to the longest bit of
 			# the word we can write on a line.
 			if self._inliteral_p:
-			    linestr.append(word)
+			    append(word)
 			    word = ''
 			else:
 			    average_charwidth = width / len(word)
 			    chars_on_line = int(PAGE_WIDTH / average_charwidth)
-			    front = word[:chars_on_line]
-			    linestr.append(front + '-')
+			    append(word[:chars_on_line] + '-')
 			    word = word[chars_on_line:]
 			# now write the word
 			self.close_line(linestr=linestr)
@@ -599,15 +618,15 @@ class PSStream:
 			# local variable cache, which must be updated.
 			xpos = 0.0
 			linestr = []
-			width = self._font.text_width(word)
-		    linestr.append(word)
+			append = linestr.append
+			width = text_width(word)
+		    append(word)
 		    xpos = width
 		# for every word but the last, put a space after it
-		if wordcnt > 0:
-		    # inlining push_space() for speed
-		    if self._inliteral_p or xpos > 0.0:
-			linestr.append(' ')
-			xpos = xpos + self._space_width
+		# inlining push_space() for speed
+		if wordcnt > 0 and (self._inliteral_p or xpos > 0.0):
+		    append(' ')
+		    xpos = xpos + self._space_width
 		wordcnt = wordcnt - 1
 	    # for every line but the last, put a hard newline after it
 	    if linecnt > 0:
@@ -618,6 +637,7 @@ class PSStream:
 		# must be updated.
 		xpos = 0.0
 		linestr = []
+		append = linestr.append
 	    linecnt = linecnt - 1
 	# undo effects of local variable cache
 	self._xpos = xpos
@@ -675,28 +695,27 @@ class PSStream:
     def close_line(self, linestr=None):
 	if linestr is None:
 	    linestr = self._linestr
-	if self._baseline is None:
-	    self._baseline = self._font.font_size() + self._lineshift
-##	print 'ypos=', self._ypos, 'vtab=', self._vtab, 'linestr:', linestr, \
-##		'lineshift=', self._lineshift
 	if linestr:
 	    self.close_string(linestr)
+	baseline = self._baseline
+	yshift = self._yshift[-1][0]
+	if baseline is None:
+	    baseline = self._font.font_size() + max(yshift, 0.0)
+	    self._baseline = baseline
 	# do we need to break the page?
 	self.print_page_break()
-	distance = -self._baseline - self._vtab + self._lineshift
-	distance = distance - self._yshift[-1][0]
-	self._ofp.write('CR 0 %f R\n' % distance)
-	if self._yshift[-1][0]:
-	    self._ofp.write('0 %f R\n' % self._yshift[-1][0])
+	distance = baseline + self._vtab
+	#if self._lineshift != yshift:
+	#    distance =  distance + self._lineshift #- yshift
+	self._ofp.write('CR 0 -%f R\n' % distance)
 	self._ofp.write(self._linefp.getvalue())
 	if self._descender > 0:
-	    self._ofp.write('0 %f R\n' % -self._descender)
+	    self._ofp.write('0 -%f R\n' % self._descender)
 	    self._descender = 0.0
 	# reset cache
 	self._linefp = StringIO.StringIO()
-	self._lineshift = max(self._yshift[-1][0], 0.0)
-	self._xpos = 0.0
-	self._vtab = 0.0
+	self._lineshift = yshift
+	self._xpos = self._vtab = 0.0
 	self._baseline = None
 
     def close_string(self, linestr=None):
@@ -706,14 +725,14 @@ class PSStream:
 	# handle quoted characters
 	cooked = regsub.gsub(QUOTE_re, '\\\\\\1', contiguous)
 	# TBD: handle ISO encodings
-	pass
-	if self._prev_render == 'S' \
-	   and self._render == 'U' \
-	   and cooked[0] == ' ':
+	#pass
+	render = self._render
+	# This only works if 'S' and 'U' are the only values for render:
+	if self._prev_render != render and cooked[0] == ' ':
 	    cooked = cooked[1:]
 	    self._linefp.write('( ) S\n')
-	self._linefp.write('(%s) %s\n' % (cooked, self._render))
-	self._prev_render = self._render
+	self._linefp.write('(%s) %s\n' % (cooked, render))
+	self._prev_render = render
 	self._linestr = []
 
 
@@ -778,9 +797,10 @@ class PSWriter(AbstractWriter):
 ##	_debug('send_line_break')
 	self.ps.push_hard_newline()
 
-    def send_hor_rule(self, abswidth=None, percentwidth=None):
+    def send_hor_rule(self, abswidth=None, percentwidth=None,
+		      height=None, align=None):
 ##	_debug('send_hor_rule')
-	self.ps.push_horiz_rule(abswidth, percentwidth)
+	self.ps.push_horiz_rule(abswidth, percentwidth, height, align)
 
     def send_label_data(self, data):
 ##	_debug('send_label_data: %s' % data)
@@ -1193,7 +1213,9 @@ save
 } D
 /NP {xmargin topmargin translate scalfac dup scale } D
 /HDR {1 1 scale} D
-/HR {/l E D gsave currentpoint 0 E M pop l 0 RL stroke grestore } D
+%% width startx length HR
+/HR {/l E D /s E D gsave currentpoint s E M pop setlinewidth
+  l 0 RL stroke grestore } D
 /SF {E findfont E scalefont setfont } D
 """
 

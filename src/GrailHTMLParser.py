@@ -103,16 +103,14 @@ class GrailHTMLParser(HTMLParser):
 
     def do_hr(self, attrs):
 	HTMLParser.do_hr(self, attrs)
-	try:
-	    rule = self.viewer.rules[-1]
-	except:
-	    return
-	size = self.extract_keyword('size', attrs, conv=string.atoi)
-	if size:
-	    rule['height'] = size
 	if attrs.has_key('noshade'):
-	    rule['relief'] = FLAT
-	    rule['background'] = self.viewer.text['foreground']
+	    try:
+		rule = self.viewer.rules[-1]
+	    except:
+		pass
+	    else:
+		rule['relief'] = FLAT
+		rule['background'] = self.viewer.text['foreground']
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
