@@ -316,6 +316,7 @@ class PSStream:
 	self._linefp = StringIO.StringIO()
 	self._inliteral_p = None
 	self._render = 'S'		# S == normal string, U == underline
+	self._prev_render = self._render
 
     def start(self):
 	# print document preamble
@@ -695,7 +696,13 @@ class PSStream:
 	cooked = regsub.gsub(QUOTE_re, '\\\\\\1', contiguous)
 	# TBD: handle ISO encodings
 	pass
+	if self._prev_render == 'S' \
+	   and self._render == 'U' \
+	   and cooked[0] == ' ':
+	    cooked = cooked[1:]
+	    self._linefp.write('( ) S\n')
 	self._linefp.write('(%s) %s\n' % (cooked, self._render))
+	self._prev_render = self._render
 	self._linestr = []
 
 
@@ -906,13 +913,17 @@ class PrintingHTMLParser(HTMLParser):
 		try:
 		    eps_data, bbox = self.load_image(imageurl)
 		except EPSError:
-		    self.handle_data(alt)
-		    return
+		    self._image_cache[imageurl] = ('', None)
+		    eps_data, bbox = '', None
 		else:
 		    self._image_cache[imageurl] = (eps_data, bbox)
-	    align = string.lower(align)
-	    self.formatter.writer.send_eps_data(eps_data, bbox, align)
-	    self.formatter.assert_line_data()
+	    if not bbox:
+		#  previous load resulted in failure:
+		self.handle_data(alt)
+	    else:
+		align = string.lower(align)
+		self.formatter.writer.send_eps_data(eps_data, bbox, align)
+		self.formatter.assert_line_data()
 	else:
 	    self.handle_data(alt)
 
@@ -922,7 +933,10 @@ class PrintingHTMLParser(HTMLParser):
 	If the conversion from raster data to EPS fails, the EPSError is
 	raised.
 	"""
-	image = self._image_loader(imageurl)
+	try:
+	    image = self._image_loader(imageurl)
+	except:
+	    raise EPSError, 'Image could not be loaded.'
 	if not image:
 	    raise EPSError, 'Image could not be loaded.'
 	from imghdr import what
