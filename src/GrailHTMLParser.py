@@ -15,9 +15,11 @@ from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser
 from AppletLoader import AppletLoader
 
-# Get rid of do_isindex method so we can implement it as an extension
+# Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
     del HTMLParser.do_isindex
+if hasattr(HTMLParser, 'do_link'):
+    del HTMLParser.do_link
 
 
 class GrailHTMLParser(HTMLParser):
