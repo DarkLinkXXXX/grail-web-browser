@@ -258,7 +258,7 @@ class Browser:
     def view_source_command(self):
 	# File/View Source
 	b = Browser(self.master, self.app, height=24)
-	save_show_source = b.load_from_entry
+	save_show_source = b.show_source
 	try:
 	    b.show_source = 1
 	    b.load(self.url)
