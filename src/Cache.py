@@ -36,12 +36,16 @@ class Cache:
 	self.cachedir = {}
 
     def open(self, url, mode, params):
+	reload = params.has_key('.reload') and params['.reload']
 	key = self.url2key(url, mode, params)
 	if not self.cachedir.has_key(key):
 	    self.cachedir[key] = item = CacheItem(url, mode, params, self, key)
 	else:
 	    item = self.cachedir[key]
-	    item.check()
+	    if reload:
+		item.reset()
+	    else:
+		item.check()
 	return CacheAPI(item)
 
     def url2key(self, url, mode, params):
@@ -137,7 +141,7 @@ class CacheItem:
 	elif self.stage == DATA:
 	    return self.api.polldata()[0], 1
 	else:
-	    return "Done.", 1
+	    return "Reading cache", 1
 
     def getmeta(self):
 	if self.stage == META:
@@ -154,7 +158,7 @@ class CacheItem:
 	elif self.stage == DATA:
 	    msg, ready = self.api.polldata()
 	else:
-	    msg, ready = "Done.", 1
+	    msg, ready = "Reading cache", 1
 	return msg, ready
 
     def getdata(self, offset, maxbytes):
