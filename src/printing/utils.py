@@ -1,8 +1,9 @@
 """Small utility functions for printing support, mostly for debugging."""
 
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 
 import os
+import string
 import sys
 
 
