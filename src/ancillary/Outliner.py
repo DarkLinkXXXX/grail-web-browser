@@ -242,6 +242,8 @@ class OutlinerController:
 	# reparent the node such that it is now the child of the
 	# preceding sibling in the sib list
 	newparent = sibs[sibi-1]
+	# cannot shift right if the above node is a leaf
+	if newparent.leaf_p(): return
 	parent.del_child(node)
 	newparent.append_child(node)
 	newparent.expand()
@@ -257,7 +259,7 @@ class OutlinerController:
 	above = self._viewer.node(nodevi-1)
 	parent, sibi, sibs = self._sibi(node)
 	if not parent: return
-	# if node and above are at the same depth, just rearrange
+	# if node and above are at the same depth, just rearrange.
 	if node.depth() == above.depth():
 	    parent.del_child(node)
 	    parent.insert_child(node, sibi-1)
@@ -284,10 +286,16 @@ class OutlinerController:
 	# below it.  if it's the last visible node, it cannot be
 	# shifted down.
 	nodevi = self._viewer.index(node)
-	if not nodevi or nodevi >= self._viewer.count()-1: return
+	if nodevi is None or nodevi >= self._viewer.count()-1: return
 	below = self._viewer.node(nodevi+1)
 	parent, sibi, sibs = self._sibi(node)
 	if not parent: return
+	# if below is really node's first child, then what we want to
+	# do is try to shift into node's next sibling's child list
+	children = node.children()
+	if len(children) > 0 and below == children[0]:
+	    if sibi+1 < len(sibs) and not sibs[sibi+1].leaf_p():
+		below = sibs[sibi+1]
 	# if node and below are at the same depth, then what happens
 	# depends on the state of below.  If below is an expanded
 	# branch, then node becomes it's first sibling, otherwise it
