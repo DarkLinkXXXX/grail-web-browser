@@ -11,18 +11,13 @@ import PrefsPanels
 LABEL = "\
 Enter applet group names (host names, or domain names with leading dot):"
 
-HELP_URL = "help/prefs/applets.html"	# Relative to grail-home-page
-
 class AppletsPanel(PrefsPanels.Framework):
 
-    helpbrowser = None
+    HELP_URL = "help/prefs/applets.html"	# Relative to grail-home-page
 
     def CreateLayout(self, name, frame):
 	# Create GUI elements in order of preference (the ones created
 	# last disappear first when there's not enough space)
-
-	self.helpbtn = Button(frame, text="Help", command=self.help)
-	self.helpbtn.pack(side=BOTTOM, anchor=E)
 
 	self.loadvar = StringVar()
 
@@ -73,18 +68,3 @@ class AppletsPanel(PrefsPanels.Framework):
 	"""Redefine <Return> binding to prevent invoking the OK button."""
 	self.textbox.insert(INSERT, '\n')
 	return 'break'
-
-    def help(self):
-	"""Display help in the associated (or any old) browser."""
-	from __main__ import app
-	if not app.browsers:
-	    print "No browser left to display help."
-	    return
-	browser = self.helpbrowser
-	if not browser or not browser.valid():
-	    import Browser
-	    browser = Browser.Browser(self.app.root, self.app)
-	    self.helpbrowser = browser
-	grailhome = self.app.prefs.Get('landmarks', 'grail-home-page')
-	browser.context.load(urlparse.urljoin(grailhome, HELP_URL))
-	browser.root.tkraise()
