@@ -21,6 +21,9 @@ from SGMLParser import SGMLParser
 from formatter import AS_IS
 
 
+URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase', 'data']
+
+
 class HTMLParser(SGMLParser):
 
     from htmlentitydefs import entitydefs
@@ -34,6 +37,8 @@ class HTMLParser(SGMLParser):
     nofill = badhtml = 0
     inhead = 1
 
+    object_aware_tags = ['param', 'script', 'object', 'param']
+
     def __init__(self, formatter, verbose=0):
         SGMLParser.__init__(self, verbose)
 	self.restrict(1)
@@ -41,6 +46,7 @@ class HTMLParser(SGMLParser):
         self.anchor = None
         self.anchorlist = []
         self.list_stack = []
+	self.object_stack = []
 	self.headernumber = HeaderNumber()
 
     def close(self):
@@ -55,6 +61,8 @@ class HTMLParser(SGMLParser):
     # shouldn't need to be overridden
 
     def handle_data_head(self, data):
+	if self.suppress_output:
+	    return
 	if string.strip(data) != '':
 	    self.element_close_maybe('head', 'script', 'style', 'title')
 	    self.inhead = 0
@@ -103,6 +111,81 @@ class HTMLParser(SGMLParser):
         self.nofill = max(0, self.nofill - 1)
 	if not self.nofill:
 	    self.set_data_handler(self.formatter.add_flowing_data)
+
+    # --- Manage the object stack
+
+    suppress_output = 0			# Length of object_stack at activation
+
+    def push_object(self, tag):
+	self.object_stack.append(tag)
+	return self.suppress_output
+
+    def set_suppress(self):
+	self.suppress_output = len(self.object_stack)
+	self.set_data_handler(self.handle_data_noop)
+
+    def handle_data_noop(self, data):
+	pass
+
+    def pop_object(self):
+	if self.suppress_output == len(self.object_stack):
+	    self.suppress_output = 0
+	    if self.nofill:
+		handler = self.formatter.add_literal_data
+	    else:
+		handler = self.formatter.add_flowing_data
+	    self.set_data_handler(handler)
+	    r = 1
+	else:
+	    r = 0
+	del self.object_stack[-1]
+	return r
+
+    def handle_starttag(self, tag, method, attrs):
+	if self.suppress_output and tag not in self.object_aware_tags:
+	    return
+	for k in URL_VALUED_ATTRIBUTES:
+	    if attrs.has_key(k) and attrs[k]:
+		attrs[k] = string.joinfields(string.split(attrs[k]), '')
+	method(attrs)
+
+    def handle_endtag(self, tag, method):
+	if self.suppress_output and tag not in self.object_aware_tags:
+	    return
+	method()
+
+    def start_object(self, attrs, tag='object'):
+	if self.push_object(tag):
+	    return
+	obj = self.handle_object(attrs)
+	if obj:
+	    self.__object = obj
+	    self.set_suppress()
+
+    def end_object(self):
+	if self.pop_object():
+	    self.__object.end()
+	    self.__object = None
+
+    def get_object_handlers(self):
+	return ()
+
+    def handle_object(self, attrs):
+	for handler in  self.get_object_handlers():
+	    obj = handler(self, attrs)
+	    if obj:
+		return obj
+	return None
+
+    def do_param(self, attrs):
+	if 0 < self.suppress_output == len(self.object_stack):
+	    name, value = None, None
+	    if attrs.has_key('name'):
+		name = attrs['name']
+	    if attrs.has_key('value'):
+		value = attrs['value']
+	    if name is not None and value is not None:
+		self.__object.param(name, value)
 
     # --- Hooks for anchors; should probably be overridden
 
@@ -175,8 +258,24 @@ class HTMLParser(SGMLParser):
 	"""
 	self.save_end()
 
-    start_script = start_style
-    end_script = end_style
+    def start_marquee(self, attrs):
+	self.save_bgn()
+
+    def end_marquee(self):
+	self.save_end()
+
+    # New tag: <SCRIPT> -- ignore anything inside it
+
+    def start_script(self, attrs):
+	if not self.push_object('script'):
+	    self.__object = NullObject()
+	    self.set_suppress()
+	self.save_bgn()
+
+    def end_script(self):
+	self.pop_object()
+	self.save_end()
+	self.__object = None
 
     # ------ Body elements
 
@@ -752,19 +851,28 @@ class HTMLParser(SGMLParser):
 	    except: pass
         self.handle_image(src, alt, ismap, align, width, height)
 
+    def do_image(self, attrs):
+	self.do_img(attrs)
+
     # --- Really Old Unofficial Deprecated Stuff
 
     def do_plaintext(self, attrs):
         self.start_pre(attrs)
         self.setnomoretags() # Tell SGML parser
 
-    # --- Unhandled lexical tokens:
+    # --- Unhandled elements:
 
     # We don't implement these, but we want to know that they go in pairs,
-    # just in case we're in "strict" mode.
+    # just in case we're in "strict" mode.  They need to have been defined
+    # *somewhere* to get listed here, preferably with documentation
+    # available.  These are candidates for subclasses, but we'd like to
+    # keep the SGML context stack as well-maintained as possible.
+    #
     UNIMPLEMENTED_CONTAINERS = [
-	'big', 'caption', 'fig', 'font', 'lang', 'note',
-	'small', 'span', 'sub', 'sup',
+	'abbrev', 'acronym', 'applet', 'au', 'author', 'big', 'blink',
+	'bq', 'caption', 'comment', 'credit', 'fig', 'font', 'lang',
+	'math', 'noembed', 'note', 'person', 'q', 'small', 'span',
+	'sub', 'sup',
 	]
 
     def unknown_starttag(self, tag, attrs):
@@ -776,7 +884,15 @@ class HTMLParser(SGMLParser):
     def unknown_endtag(self, tag):
         self.badhtml = 1
 
+    # remove from the dictionary so the "unknown" handler can call the
+    # magic implementation...
+    if entitydefs.has_key("nbsp"):
+	del entitydefs["nbsp"]
+
     def unknown_entityref(self, entname, terminator):
+	if entname == "nbsp":
+	    self.nbsp_magic()
+	    return
 	# if the name is all upper case, try a lower case version:
 	for c in entname:
 	    if c not in string.uppercase:
@@ -788,6 +904,18 @@ class HTMLParser(SGMLParser):
 		return
 	self.badhtml = 1
 	self.handle_data('%s%s%s' % (SGMLLexer.ERO, entname, terminator))
+
+    def nbsp_magic(self):
+	# for non-strict interpretation: really nasty stuff to act more
+	# like more popular browsers.  Really just turns &nbsp; into a
+	# normal space, so it'll still be breakable, but it will always
+	# be pushed to the output device.  This means multiple &nbsp;'s
+	# will act as spacers.  Ugh.
+	if self.strict_p():
+	    self.handle_data(' ')
+	else:
+	    self.formatter.flush_softspace()
+	    self.formatter.writer.send_literal_data(' ')
 
     def report_unbalanced(self, tag):
 	self.badhtml = 1
@@ -810,19 +938,29 @@ class HTMLParser(SGMLParser):
 
 
 class NewlineScratcher:
+    import regex
+    __scratch_re = regex.compile("[ \t]*\n")
+
+    __buffer = ''
+
     def __init__(self, parser, limit=-1):
-	self._limit = limit
-	self._parser = parser
+	self.__limit = limit
+	self.__parser = parser
 
     def __call__(self, data):
-	while data and data[0] == "\n" and self._limit != 0:
-	    data = data[1:]
-	    self._limit = self._limit - 1
-	if data:
-	    self._parser.formatter.add_literal_data(data)
-	    self._parser.set_data_handler(
-		self._parser.formatter.add_literal_data)
-	    del self._parser
+	data = self.__buffer + data
+	while "\n" in data and self.__limit != 0:
+	    length = self.__scratch_re.match(data)
+	    if length >= 0:
+		data = data[length:]
+		self.__limit = self.__limit - 1
+	if string.strip(data) or self.__limit == 0:
+	    self.__parser.formatter.add_literal_data(data)
+	    self.__parser.set_data_handler(
+		self.__parser.formatter.add_literal_data)
+	    self.__parser = None
+	else:
+	    self.__buffer = data
 
 
 class HeaderNumber:
@@ -883,6 +1021,16 @@ class HeaderNumber:
 
 HeaderNumber.set_default_format = HeaderNumber().set_default_format
 
+
+class NullObject:
+    def __init__(self):
+	pass
+
+    def param(self, name, value):
+	pass
+
+    def end(self):
+	pass
 
 
 def test():
