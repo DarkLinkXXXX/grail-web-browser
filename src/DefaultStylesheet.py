@@ -70,6 +70,7 @@ class DefaultStylesheet:
 
 	'a': {
 	    'foreground': 'blue',
+	    'underline': 'true',
 	    },
 
 	# Preformatted text
