@@ -30,6 +30,8 @@ presentation--message-font:
 C:
 C: Viewer stylesheets:
 C:
+C: System will revert to this style if a bad one is selected, and no 
+styles--default-group: basic
 C: Identify current one
 styles--group: basic
 styles--allgroups: basic small big
@@ -53,6 +55,9 @@ styles-common--priorities-atemp: ahist
 C:
 C: Basic viewer styles:
 C:
+C: Every style should have a 'valid' component, particularly if it has nothing
+C: else - empty styles are invalid.
+styles-basic--valid: 1
 styles-basic--default-font:
 	-*-helvetica-medium-r-normal-*-*-120-*-*-*-*-*-*
 styles-basic--styles-h1_b-font:
@@ -87,6 +92,7 @@ styles-basic--styles-_tt_b_i-font:
 C:
 C: Smallish viewer styles:
 C:
+styles-small--valid: 1
 styles-small--default-font:
 	-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*
 styles-small--styles-h1_b-font:
@@ -121,6 +127,7 @@ styles-small--styles-_tt_b_i-font:
 C:
 C: Bigish viewer styles:
 C:
+styles-big--valid: 1
 styles-big--default-font:
 	-*-helvetica-medium-r-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-h1_b-font:
@@ -131,11 +138,11 @@ styles-big--styles-h2_b-font:
 styles-big--styles-h3_b-font:
 	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-h4_b-font:
-	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
 styles-big--styles-h5_b-font:
-	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
 styles-big--styles-h6_b-font:
-	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
+	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
 C: Normal fonts
 styles-big--styles-_i-font:
 	-*-helvetica-medium-o-normal-*-*-140-*-*-*-*-*-*
