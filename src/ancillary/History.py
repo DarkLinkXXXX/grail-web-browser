@@ -9,6 +9,7 @@ import os
 import sys
 import time
 from grailutil import *
+from urlparse import urldefrag
 
 
 class PageInfo:
@@ -200,6 +201,9 @@ class HistoryDialog:
 	    url = page.url()
 	    title = page.title() or url
 	    if viewby == VIEW_BY_TITLES:
+		docurl, frag = urldefrag(url)
+		if frag and title <> url:
+		    title = title + ' [%s]' % frag
 		self._listbox.insert(END, title)
 	    elif viewby == VIEW_BY_URLS:
 		self._listbox.insert(END, url)
