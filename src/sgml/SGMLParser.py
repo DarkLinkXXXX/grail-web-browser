@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.8 $"
+__version__ = "$Revision: 1.9 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -59,12 +59,12 @@ class SGMLParser(SGMLLexer):
     entitydefs = \
 	       {'lt': '<', 'gt': '>', 'amp': '&', 'quot': '"'}
 
-    def handle_entityref(self, name):
+    def handle_entityref(self, name, terminator):
 	table = self.entitydefs
 	if table.has_key(name):
 	    self.handle_data(table[name])
 	else:
-	    self.unknown_entityref(name)
+	    self.unknown_entityref(name, terminator)
 
 
     def handle_data(self, data):
@@ -82,7 +82,7 @@ class SGMLParser(SGMLLexer):
 	"""
 	method(attributes)
 
-    def unknown_charref(self, ordinal):
+    def unknown_charref(self, ordinal, terminator):
 	"""
 	"""
 	pass
@@ -92,12 +92,12 @@ class SGMLParser(SGMLLexer):
 	"""
 	pass
 
-    def unknown_entityref(self, ref):
+    def unknown_entityref(self, ref, terminator):
 	"""
 	"""
 	pass
 
-    def unknown_namedcharref(self, ref):
+    def unknown_namedcharref(self, ref, terminator):
 	"""
 	"""
 	pass
@@ -121,8 +121,8 @@ class SGMLParser(SGMLLexer):
     def setliteral(self, *args):
 	self.cdata = 1 #@@ finish implementing this...
 
-    def lex_data(self, string):
-	self.handle_data(string)
+    def lex_data(self, data):
+	self.handle_data(data)
 
     def lex_starttag(self, tag, attrs):
 	#print 'received start tag', `tag`
@@ -146,15 +146,17 @@ class SGMLParser(SGMLLexer):
 	    except AttributeError:
 		self.unknown_starttag(tag, attrs)
 		return -1
+	    else:
+		setattr(self, 'do_' + tag, method)
 	    self.handle_starttag(tag, method, attrs)
 	    return 0
 	else:
+	    setattr(self, 'start_' + tag, method)
 	    self.lasttag = tag
 	    self.handle_starttag(tag, method, attrs)
 	    self.stack.append(tag)
 
     def lex_endtag(self, tag):
-	#print 'received end tag', `tag`
 	if not tag:
 	    found = len(self.stack) - 1
 	    if found < 0:
@@ -178,6 +180,7 @@ class SGMLParser(SGMLLexer):
 	    except AttributeError:
 		self.unknown_endtag(tag)
 	    else:
+		setattr(self, 'end_' + tag, method)
 		self.handle_endtag(tag, method)
 	    del self.stack[-1]
 
@@ -186,20 +189,20 @@ class SGMLParser(SGMLLexer):
 			'rs' : '\n',
 			'space' : ' '}
 
-    def lex_namedcharref(self, name):
+    def lex_namedcharref(self, name, terminator):
 	if self.named_characters.has_key(name):
 	    self.handle_data(self.named_characters[name])
 	else:
-	    self.unknown_namedcharref(name)
+	    self.unknown_namedcharref(name, terminator)
 
-    def lex_charref(self, ordinal):
+    def lex_charref(self, ordinal, terminator):
 	if 0 < ordinal < 256:
 	    self.handle_data(chr(ordinal))
 	else:
-	    self.unknown_charref(ordinal)
+	    self.unknown_charref(ordinal, terminator)
 
-    def lex_entityref(self, name):
-	self.handle_entityref(name)
+    def lex_entityref(self, name, terminator):
+	self.handle_entityref(name, terminator)
 
 
 

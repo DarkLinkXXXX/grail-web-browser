@@ -8,6 +8,7 @@ http://www.w3.org/hypertext/WWW/MarkUp/html-spec/html-spec_toc.html
 import sys
 import regsub
 import string
+import SGMLLexer
 from SGMLParser import SGMLParser
 from formatter import AS_IS
 
@@ -16,6 +17,7 @@ class HTMLParser(SGMLParser):
 
     from htmlentitydefs import entitydefs
 
+    doctype = 'html'
     head_only_tags = ('link', 'meta', 'title', 'isindex', 'range',
 		      'base', 'nextid', 'style', 'head')
 
@@ -44,12 +46,12 @@ class HTMLParser(SGMLParser):
         if self.savedata is not None:
 	    self.savedata = self.savedata + data
 	    return
-	if self.inhead:
-	    if string.strip(data) != '':
-		self.element_close_maybe('head', 'style', 'title')
-		self.inhead = 0
-	    else:
-		return
+	self.inhead = 0
+	#    if string.strip(data) != '':
+	#	self.element_close_maybe('head', 'style', 'title')
+	#	self.inhead = 0
+	#    else:
+	#	return
 	if self.nofill:
 	    self.formatter.add_literal_data(data)
 	else:
@@ -546,15 +548,19 @@ class HTMLParser(SGMLParser):
 
     def do_plaintext(self, attrs):
         self.start_pre(attrs)
-        #self.setnomoretags() # Tell SGML parser
+        self.setnomoretags() # Tell SGML parser
 
-    # --- Unhandled tags
+    # --- Unhandled lexical tokens:
 
     def unknown_starttag(self, tag, attrs):
         pass
 
     def unknown_endtag(self, tag):
         pass
+
+    def unknown_entityref(self, entname, terminator):
+	self.badhtml = 1
+	self.handle_data('%s%s%s' % (SGMLLexer.ERO, entname, terminator))
 
     # --- Utilities:
 
@@ -565,11 +571,12 @@ class HTMLParser(SGMLParser):
 	closed if they exist on the stack.  Sequence is not important.
 	"""
 	for elem in elements:
-	    while elem in self.stack:
-		self.lex_endtag(self.stack[-1])
+	    if elem in self.stack:
+		self.lex_endtag(elem)
 
     def close_paragraph(self):
-	self.element_close_maybe('p')
+	if 'p' in self.stack:
+	    self.lex_endtag('p')
 
 
 def test():

@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.10 $"
+__version__ = "$Revision: 1.11 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -143,17 +143,17 @@ class SGMLLexerBase:
 	"""
 	pass
 
-    def lex_charref(self, ordinal):
+    def lex_charref(self, ordinal, terminator):
 	"""Process a numeric character reference.
 	"""
 	pass
 
-    def lex_namedcharref(self, refname):
+    def lex_namedcharref(self, refname, terminator):
 	"""Process a named character reference.
 	"""
 	pass
 
-    def lex_entityref(self, refname):
+    def lex_entityref(self, refname, terminator):
 	"""Process a general entity reference.
 	"""
 	pass
@@ -190,9 +190,12 @@ class SGMLLexerBase:
 
 
 class SGMLLexer(SGMLLexerBase):
+    nomoretags = 0
+
     if _sgmllex:
 	def __init__(self):
 	    self.reset()
+	    self.feed = self.feed
 
 	def feed(self, data):
 	    self._l.scan(data)
@@ -217,16 +220,27 @@ class SGMLLexer(SGMLLexerBase):
 	def close(self):
 	    """Flush any remaining data in the lexer's internal buffer.
 	    """
-	    self.feed('')
+	    self._l.scan('')
 
-	def _lex_got_geref(self, entname):
-	    self.lex_entityref(entname[1:])
+	def setnomoretags(self):
+	    self._l.scan('')		# flush flex cache - not perfect
+	    self.feed = self.lex_data
+	    self.nomoretags = 1
+
+	def _lex_got_geref(self, entname, terminator):
+	    if self.nomoretags:
+		self.lex_data('&%s%s' % (entname, terminator))
+	    else:
+		self.lex_entityref(entname[1:], terminator)
 
 	def _lex_got_namedcharref(self, name):
 	    self.lex_namedcharref(name[2:])
 
 	def _lex_got_endtag(self, tagname):
-	    self.lex_endtag(tagname[2:])
+	    if self.nomoretags:
+		self.lex_data('</%s>' % tagname)
+	    else:
+		self.lex_endtag(tagname[2:])
 
 	def _lex_got_starttag(self, name, attributes):
 	    for k, v in attributes.items():
@@ -282,6 +296,9 @@ class SGMLLexer(SGMLLexerBase):
 	    prev = not self._strict
 	    self._strict = not ((constrain and 1) or 0)
 	    return prev
+
+	def setnomoretags(self):
+	    self.nomoretags = 1
 
 	# Internal -- handle data as far as reasonable.  May leave state
 	# and data to be processed by a subsequent call.  If 'end' is
@@ -358,23 +375,32 @@ class SGMLLexer(SGMLLexerBase):
 		    k = charref.match(rawdata, i)
 		    if k >= 0:
 			k = i+k
-			if rawdata[k-1] not in ';\n': k = k-1
+			if rawdata[k-1] not in ';\n':
+			    k = k-1
+			    terminator = ''
+			else:
+			    terminator = rawdata[k-1]
 			name = charref.group(1)[:-1]
 			if name[0] in '0123456789':
 			    #  Character reference:
-			    self.lex_charref(string.atoi(name))
+			    self.lex_charref(string.atoi(name), terminator)
 			else:
 			    #  Named character reference:
-			    self.lex_namedcharref(self._normfunc(name))
+			    self.lex_namedcharref(self._normfunc(name),
+						  terminator)
 			i = k
 			continue
 		    k = entityref.match(rawdata, i)
 		    if k >= 0:
 			#  General entity reference:
 			k = i+k
-			if rawdata[k-1] != ';': k = k-1
+			if rawdata[k-1] not in ';\n':
+			    k = k-1
+			    terminator = ''
+			else:
+			    terminator = rawdata[k-1]
 			name = entityref.group(1)
-			self.lex_entityref(name)
+			self.lex_entityref(name, terminator)
 			i = k
 			continue
 		else:
