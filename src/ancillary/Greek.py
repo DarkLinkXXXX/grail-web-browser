@@ -4,7 +4,7 @@ These symbols are encoded the same way as the PostScript Symbol font from
 Adobe.  The standard symbols font under X11 is from Adobe, so this can be
 used for both PostScript and X11 display.
 """
-__version__ = '$Revision: 2.2 $'
+__version__ = '$Revision: 2.3 $'
 #  $Source: /home/john/Code/grail/src/ancillary/Greek.py,v $
 
 # Greek & math stuff, ignored if symbol font is not available:
@@ -97,8 +97,11 @@ entitydefs = { 'forall': '\x22',
 	       'uArr': '\xdd',
 	       'rArr': '\xde',
 	       'dArr': '\xdf',
+	       'pd': '\xb6',		# Arena does this, whatever it is.
 	       'cdots': '\xd7'*3,
-	       'ldots': '\xbc'		# overrides default if font available
+	       'ldots': '\xbc',		# overrides default if font available
+	       'trade': '\xe4',
+	       'emdash': '\xbe',	# overrides ...
 	       }
 
 
