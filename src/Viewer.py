@@ -9,6 +9,7 @@ from Context import Context
 from Cursors import *
 from types import StringType
 from urlparse import urljoin
+from DefaultStylesheet import DefaultStylesheet
 
 
 DINGBAT_FONT = None
@@ -29,11 +30,13 @@ class Viewer(formatter.AbstractWriter):
 		 parent=None):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
+	self.prefs = browser.app.prefs
 	if not browser:
 	    if parent:
 		browser = parent.context.browser
 	self.context = context or Context(self, browser)
 	self.stylesheet = stylesheet
+	self.current_style = None
 	self.name = name
 	self.scrolling = scrolling
 	self.parent = parent
@@ -57,6 +60,11 @@ class Viewer(formatter.AbstractWriter):
 	if self.parent:
 	    self.parent.add_subviewer(self)
 	self.message("")
+
+	self.prefs.AddGroupCallback('styles-common',
+						self.configure_styles_hard)
+	self.prefs.AddGroupCallback('styles',
+						self.configure_styles)
 
     def message(self, message):
 	if not self.context or self.linkinfo:
@@ -128,8 +136,7 @@ class Viewer(formatter.AbstractWriter):
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
 	self.text.config(selectbackground='yellow')
-	if self.stylesheet:
-	    self.configure_tags(self.stylesheet)
+	self.configure_styles()
 	if self.parent:
 	    link = self.parent.text.tag_config('a', 'foreground')[-1]
 	    vlink = self.parent.text.tag_config('ahist', 'foreground')[-1]
@@ -145,6 +152,21 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind("<Button-1>", self.button_1_event)
 	self.text.bind("<Button-2>", self.button_2_event)
 	self.text.bind("<Button-3>", self.button_3_event)
+
+    def configure_styles_hard(self):
+	"""Force a full reconfigure of styles."""
+	self.current_style = None
+	self.configure_styles()
+
+    def configure_styles(self):
+	"""Used on widget creation, clear, and as a callback when style
+	preferences change."""
+	selected_style = self.prefs.Get('styles', 'group')
+	if not self.stylesheet or (self.current_style != selected_style):
+	    self.current_style = selected_style
+	    self.stylesheet = DefaultStylesheet(self.prefs,
+						self.current_style)
+	self.configure_tags(self.stylesheet)
 
     def configure_tags(self, stylesheet):
 	self.text.config(stylesheet.default)
@@ -235,8 +257,7 @@ class Viewer(formatter.AbstractWriter):
 	    self.freeze()
 	    self.text.config(background=self.default_bg,
 			     foreground=self.default_fg)
-	    if self.stylesheet:
-		self.configure_tags(self.stylesheet)
+	    self.configure_styles()
 	    self.reset_state()
 
     def tab_event(self, event):
