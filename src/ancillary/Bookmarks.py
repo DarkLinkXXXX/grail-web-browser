@@ -521,8 +521,6 @@ class DetailsDialog:
 	self._form[0][0].focus_set()
 
     def _create_form(self, top):
-	make = tktools.make_labeled_form_entry # convenience
-	lw = 12 # Label width, in "average characters"
 	self._form = []
 	self._add_field(top, 'Name', 40)
 	if self._node.islink_p():
@@ -538,8 +536,6 @@ class DetailsDialog:
 	tup = tktools.make_labeled_form_entry(master, label, width, height, 12,
 					      takefocus=0)
 	self._form.append(tup)
-	if type(tup[0]) is type(()):
-	    tup = tup[0]
 	return tup[0]
 
     def _create_buttonbar(self, top):
