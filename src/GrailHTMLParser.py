@@ -4,7 +4,6 @@
 from Tkinter import *
 import htmllib
 import imp
-import traceback
 import urlparse
 import urllib
 import string
@@ -16,6 +15,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def __init__(self, viewer):
 	self.viewer = viewer
+	self.app = self.viewer.browser.app
 	self.formatter = formatter.AbstractFormatter(self.viewer)
 	htmllib.HTMLParser.__init__(self, self.formatter)
 	self.browser = self.viewer.browser
@@ -146,10 +146,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	return getattr(m, cls)
 
     def show_tb(self):
-	print "-"*40
-	print "Exception during applet loading:"
-	traceback.print_exc()
-	print "-"*40
+	self.app.exception_dialog("during applet loading")
 
     # Handle HTML extensions
 
