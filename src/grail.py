@@ -19,10 +19,11 @@ for i in range(len(sys.path)):
     if p in ("", os.curdir):
 	index = i
 
-# insert Grail's non-package subdirectories
-for subdir in ['pythonlib']:
+# insert Grail's non-package subdirectories.  these get inserted in
+# reverse order, but that shouldn't matter.
+for subdir in ['applet', 'ancillary', 'pythonlib', 'utils']:
     sys.path.insert(index+1, os.path.join(os.curdir, subdir))
-
+#print sys.path
 
 # Hack sys.path:
 # replace the last occurrence of curdir or "" by dirname of argv[0]
