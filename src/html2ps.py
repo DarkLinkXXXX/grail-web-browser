@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.3 1995/09/12 22:28:19 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.4 1995/09/12 22:31:26 bwarsaw Exp $"
 
 import sys
 import string
@@ -507,6 +507,10 @@ class PSWriter(AbstractWriter):
 	    user = os.environ['NAME']
 	    title = 'Print Job for: ' + user
 	self.ps.header(title)
+	self.ps.newpage()
+
+    def close(self):
+	self.ps.trailer()
 
     def new_font(self, font):
 	self.ps.set_font(font)
@@ -542,124 +546,6 @@ class PSWriter(AbstractWriter):
     def send_literal_data(self, data):
 	self.ps.write_text(data)
 
-
-
-def test_args():
-    # set the output file
-    try:
-	filename = sys.argv[1]
-	ofile = open(filename, 'w')
-	ps = PSBuffer(ofile)
-    except:
-	ps = PSBuffer(sys.stdout)
-
-    try: title = sys.argv[2]
-    except IndexError: title = None
-    ps.header(title)
-    return ps
-
-def test():
-    ps = test_args()
-    ps.newpage()
-    ps.set_font((12, 0, 0, 1))
-    ps.write_text('Here is a fairly long line of text in fixed width')
-    ps.write_text('roman font, 12 point size.  Before I change to a different')
-    ps.write_text('font, I would like to say something... "something".')
-    ps.write_text('Now changing to')
-    ps.set_font((18, 0, 0, 1))
-    ps.write_text('18 point font size, but')
-    ps.write_text('supercalifragilistic-expiallidocious-anti-disestablishment')
-    ps.write_text('keeping the rest of the')
-    ps.write_text('characteristics')
-    ps.write_text('the same.')
-    ps.write_text('Astonishingly enough,')
-    ps.write_text('I will now change to')
-    ps.set_font((24, 1, 1, 0))
-    ps.write_text('24 point, variable width bold italic font,')
-    ps.write_text('and is it not compelling how beautiful even')
-    ps.write_text('this obliquely slantified font appears to the naked eye?')
-    ps.write_text('Why should it look the same as')
-    ps.set_font((12, 0, 1, 0))
-    ps.write_text('twelve point bold, non-italic (or is that,')
-    ps.horizontal_rule()
-    ps.write_text('non-oblique) font looks?\n\n')
-    ps.write_text('Now that I have started a')
-    ps.write_text('new paragraph, although not, of course, a new page')
-    ps.write_text('I would like to (say) `speak\' a few things that //I//')
-    ps.write_text('normally wouldn\'t have been able to.  Although now I am')
-    ps.write_text('not starting a')
-    ps.set_font((10, 1, 0, 0))
-    ps.write_text('new paragraph, I am beginning a different look')
-    ps.write_text('to the text that I will be spewing out.  Gosh is this')
-    ps.write_text('not super hip?  I sure think it is, so who cares')
-    ps.write_text('what you think, eh?')
-    ps.write_text('I would actually like to know because, dang it, I am')
-    ps.write_text('really friggin close to finishing at least preliminary')
-    ps.write_text('PostScript support.  Once the formatting rules are done')
-    ps.write_text('then I can begin mapping this stuff to the API required')
-    ps.write_text('by Grail.  By and by, it all looks pretty good, however')
-    ps.write_text('it does appear as if the smaller than twelve point text,')
-    ps.write_text('i.e. the 10 point text you are now looking at,')
-    ps.write_text('is not quite calculated correctly... hmmm!')
-    ps.trailer()
-    
-
-def metrics_test_1():
-    ps = test_args()
-    ps.newpage()
-
-    # spew some stuff for metrics
-    spew = [
-	(0, 0, 0, 'Variable Normal'),
-	(1, 0, 0, 'Variable Italic'),
-	(0, 1, 0, 'Variable Bold'),
-	(1, 1, 0, 'Variable Bold Italic'),
-	
-	(0, 0, 1, 'Fixed Normal'),
-	(1, 0, 1, 'Fixed Italic'),
-	(0, 1, 1, 'Fixed Bold'),
-	(1, 1, 1, 'Fixed Bold Italic')
-	]
-
-    for s in spew:
-	italic, bold, tt, name = s
-	ps.set_font((12, italic, bold, tt))
-	ps.write_text(name)
-	ps.line_break()
-	ps.write_text('M' * 50)
-	ps.line_break()
-	ps.write_text('.' * 50)
-	ps.line_break()
-
-    ps.showpage()
-    ps.trailer()
-
-
-def metrics_test_2():
-    ps = test_args()
-    ps.newpage()
-
-    for c in range(32, 127):
-	for bold in [0, 1]:
-	    for italic in [0, 1]:
-		ps.set_font((12, bold, italic, 0))
-		text = '|' + chr(c) * 40 + '|\n'
-		ps.write_text(text)
-
-    ps.trailer()
-
-
-def metrics_test_3():
-    ps = test_args()
-    ps.newpage()
-    for c in range(32, 127):
-	for s in [8, 10, 12, 14, 18, 24]:
-	    ps.set_font((s, 0, 0, 0))
-	    text = '|' + chr(c) * 10 + '|\n'
-	    ps.write_text(text)
-
-    ps.trailer()
-	    
 
 
 def html_test():
