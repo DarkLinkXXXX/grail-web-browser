@@ -198,10 +198,12 @@ class Browser:
 	    content_type = headers['content-type']
 	else:
 	    content_type = None
-	if headers.has_key('content-encoding'):
-	    content_encoding = headers['content-encoding']
+	if not content_type:
+	    content_type, content_encoding = self.app.guess_type(url)
 	else:
 	    content_encoding = None
+	if headers.has_key('content-encoding'):
+	    content_encoding = headers['content-encoding']
 	if content_encoding:
 	    # XXX Should fix this
 	    self.error_dialog("Warning",
@@ -288,11 +290,12 @@ class Browser:
 	self.set_history(new)
 
     def find_parser_extension(self, content_type):
-	# XXX SECURITY XXX if content_type has weird characters
 	try:
 	    [type, subtype] = string.splitfields(content_type, '/')
 	except:
 	    return None
+	type = regsub.gsub('[^a-zA-Z0-9_]', '_', type)
+	subtype = regsub.gsub('[^a-zA-Z0-9_]', '_', subtype)
 	modname = type + '_' + subtype
 	# XXX Some of this needs to be moved into the Application class
 	home = getenv("HOME") or os.curdir
@@ -313,10 +316,7 @@ class Browser:
 		    return None
 	    return parser
 	except:
-	    print "-"*40
-	    print "Exception occurred during import of %s:" % modname
-	    traceback.print_exc()
-	    print "-"*40
+	    self.app.exception_dialog("during import of %s" % modname)
 	    return None
 
     def set_history(self, new):
