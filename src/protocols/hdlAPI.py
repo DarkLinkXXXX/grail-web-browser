@@ -35,6 +35,7 @@ import string
 import urllib
 import hdllib
 import nullAPI
+import grailutil
 
 
 # We are currently only concerned with URL type handles.
@@ -131,7 +132,7 @@ class hdl_access(nullAPI.null_access):
 	    t = string.lower(self._attrs['type'])
 	    mname = "hdl_type_" + t
 	    tname = string.upper(mname)
-	    from __main__ import app
+	    app = grailutil.get_grailapp()
 	    try:
 		m = app.find_extension('protocols', mname)
 		if not m:

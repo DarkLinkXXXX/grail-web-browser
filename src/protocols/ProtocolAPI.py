@@ -37,7 +37,7 @@ def protocol_joiner(scheme):
     scheme = string.lower(scheme)
     sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
     modname = sanitized + "API"
-    from __main__ import app
+    app = grailutil.get_grailapp()
     m = app.find_extension('protocols', modname)
     if m:
 	try:
@@ -47,7 +47,6 @@ def protocol_joiner(scheme):
     return None
 
 def protocol_access(url, mode, params, data=None):
-    from __main__ import app
     scheme, resturl = splittype(url)
     if not scheme:
 	raise IOError, ("protocol error", "no scheme identifier in URL", url)
@@ -58,6 +57,7 @@ def protocol_access(url, mode, params, data=None):
     manual_proxy_enabled = grailutil.pref_or_getenv('manual_proxy_enabled',
 						    type_name='int')
 
+    app = grailutil.get_grailapp()
     if manual_proxy_enabled:
 	proxy_name = sanitized + "_proxy"
 	if manual_proxy_enabled == -1:
@@ -122,7 +122,7 @@ def protocol_access(url, mode, params, data=None):
 ##	    print "Sending", url
 ##	    print "     to", scheme, "proxy", proxy_host
     modname = sanitized + "API"
-    from __main__ import app
+    app = grailutil.get_grailapp()
     m = app.find_extension('protocols', modname)
     if not m:
 	raise IOError, ("protocol error", "no module for %s" % scheme)
