@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.31 $"
+__version__ = "$Revision: 2.32 $"
 
 try:
 	# See if modern _tkinter is present
@@ -668,7 +668,7 @@ class Pack:
 		for i in range(0, len(words), 2):
 			key = words[i][1:]
 			value = words[i+1]
-			if value[0] == '.':
+			if value[:1] == '.':
 				value = self._nametowidget(value)
 			dict[key] = value
 		return dict
@@ -704,7 +704,16 @@ class Place:
 		self.tk.call('place', 'forget', self._w)
 	place_forget = forget
 	def info(self):
-		return self.tk.call('place', 'info', self._w)
+		words = self.tk.splitlist(
+			self.tk.call('place', 'info', self._w))
+		dict = {}
+		for i in range(0, len(words), 2):
+			key = words[i][1:]
+			value = words[i+1]
+			if value[:1] == '.':
+				value = self._nametowidget(value)
+			dict[key] = value
+		return dict
 	place_info = info
 	def slaves(self):
 		return map(self._nametowidget,
@@ -745,7 +754,7 @@ class Grid:
 		for i in range(0, len(words), 2):
 			key = words[i][1:]
 			value = words[i+1]
-			if value[0] == '.':
+			if value[:1] == '.':
 				value = self._nametowidget(value)
 			dict[key] = value
 		return dict
