@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.9 $"
+__version__ = "$Revision: 1.10 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -69,7 +69,7 @@ class GeneralPanel(PrefsPanels.Framework):
 	viewbyframe = Frame(frame)
 	viewbyframe.pack(fill=X, side=TOP, pady='1m')
 
-	self.PrefsWidgetLabel(viewbyframe, 'View History Items By:')
+	self.PrefsWidgetLabel(viewbyframe, 'View history items by:')
 
 	byframe = Frame(viewbyframe, relief=SUNKEN, borderwidth=1)
 	byframe.pack(side=LEFT)
