@@ -277,28 +277,27 @@ class ModuleReader(BaseReader):
 
 class AppletMagic:
 
-    def __init__(self, parser):
-	self.grail_parser = parser
-	self.grail_viewer = self.grail_context = \
-			  self.grail_browser = self.grail_app = None
-	if parser:
-	    self.grail_viewer = viewer = parser.viewer
-	    if viewer:
-		self.grail_context = context = viewer.context
-		if context:
-		    self.grail_browser = context.browser
-		    self.grail_app = context.app
+    def __init__(self, loader):
+	self.grail_parser = self.grail_viewer = self.grail_context = \
+			    self.grail_browser = self.grail_app = None
+	if loader:
+	    self.grail_parser = loader.parser
+	    self.grail_viewer = loader.viewer
+	    self.grail_context = context = loader.context
+	    if context:
+		self.grail_browser = context.browser
+		self.grail_app = context.app
 
 
 class AppletFrame(Frame, AppletMagic):
 
-    def __init__(self, master, parser=None, cnf={}, **kw):
+    def __init__(self, master, loader=None, cnf={}, **kw):
 	apply(Frame.__init__, (self, master, cnf), kw)
-	AppletMagic.__init__(self, parser)
+	AppletMagic.__init__(self, loader)
 
 
 class AppletMenu(Menu, AppletMagic):
 
-    def __init__(self, master, parser=None, cnf={}, **kw):
+    def __init__(self, master, loader=None, cnf={}, **kw):
 	apply(Menu.__init__, (self, master, cnf), kw)
-	AppletMagic.__init__(self, parser)
+	AppletMagic.__init__(self, loader)
