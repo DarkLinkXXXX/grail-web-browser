@@ -39,7 +39,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text, self.frame = tktools.make_text_box(self.master,
 						      height=height,
 						      hbar=1, vbar=1)
-	self.text['insertwidth'] = 0
+	self.text.config(insertwidth=0, selectbackground='yellow')
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
 
@@ -97,6 +97,18 @@ class Viewer(formatter.AbstractWriter):
 	self.literaltags = self.tags + ('pre',)
 	self.flowingtags = self.tags
 	#print "New tags:", self.tags
+
+    def scroll_page_down(self, event=None):
+	self.text.tk.call('tkScrollByPages', self.text.vbar, 'v', 1)
+
+    def scroll_page_up(self, event=None):
+	self.text.tk.call('tkScrollByPages', self.text.vbar, 'v', -1)
+
+    def scroll_line_down(self, event=None):
+	self.text.tk.call('tkScrollByUnits', self.text.vbar, 'v', 1)
+
+    def scroll_line_up(self, event=None):
+	self.text.tk.call('tkScrollByUnits', self.text.vbar, 'v', -1)
 
     # AbstractWriter methods
 	
