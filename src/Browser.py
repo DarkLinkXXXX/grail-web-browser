@@ -319,8 +319,8 @@ class Browser:
     def print_command(self):
 	# File/Print...
 	if self.busycheck(): return
-	import Printing
-	Printing.Printing(self, self.url)
+	import PrintDialog
+	PrintDialog.PrintDialog(self, self.url)
 
     def close_command(self):
 	# File/Close
