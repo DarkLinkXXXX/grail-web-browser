@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 # Copyright (c) CNRI 1996, licensed under terms and conditions of license
 # agreement obtained from handle "hdl:CNRI.License/Grail-Version-0.3",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
@@ -41,6 +43,8 @@ XXX Should we cache the hash table entries read from the file?
 
 """
 
+# ' Emacs bait
+
 import rand
 import md5
 import os
@@ -54,6 +58,7 @@ DEBUG = 0				# Default debugging flag
 
 
 # Internal constants
+# XXX These need reorganizing
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash.tbl'
 DEFAULT_SERVERS = ['132.151.1.155',
 		   '198.32.1.37',
@@ -61,6 +66,9 @@ DEFAULT_SERVERS = ['132.151.1.155',
 		   '198.32.1.73']
 DEFAULT_NUM_OF_BITS = 2
 DEFAULT_HASH_FILE = '/etc/hdl_hash.tbl'
+DEFAULT_UDP_PORT = 2222
+DEFAULT_TCP_PORT = 2222
+DEFAULT_ADMIN_PORT = 2223
 FILE_NAME_LENGTH = 128
 HOST_NAME_LENGTH = 64
 MAX_BODY_LENGTH = 1024
@@ -82,8 +90,6 @@ flags_map = {0: 'HDL_NONMUTABLE', 1: 'HDL_DISABLED'}
 
 # Handle protocol miscellaneous constants
 HP_VERSION = 1				# Handle protocol version
-HP_NAME = "hdl-srv"			# Service name
-HP_PORT = 2222				# Used if service "hdl-srv" is unknown
 
 # Handle protocol lengths
 HP_HEADER_LENGTH = 28			# Packet header length
@@ -421,6 +427,10 @@ class SessionTag:
     Methods:
 
     session_tag() -- get next session tag
+
+    XXX looks pretty bogus to me (time modulo pid??? gimme a break)
+    XXX (and why does it have to be a class anyway?)
+
     """
     def session_tag(self):
 	"""Implemented as in create_session_tag()."""
@@ -435,21 +445,29 @@ class SessionTag:
 class HashTable:
     """Hash table.
 
-    Methods:
+    Public methods:
 
-    - __init__(FILE) -- constructor
-    - set_debuglevel(DEBUG) -- set debug level
-    - hash_handle(HANDLE) -- hash a handle to handle server info
-    - get_data(hdl, types, flags, timeout) -- resolve a handle
+    - __init__([filename, [debug, [server]]]) -- constructor
+    - set_debuglevel(debug) -- set debug level
+    - hash_handle(hdl) -- hash a handle to handle server info
+    - get_data(hdl, [types, [flags, [timeout, [interval]]]]]) --
+      resolve a handle
 
     """	
     def __init__(self, filename = None, debug = None, server = None):
 	"""Hash table constructor.
 
-	Read the hash table file header from optional FILE and
-	hold on to the open file.  Store the header fields as
-	instance variables.  Optional DEBUG sets debugging
-	level.
+	Read the hash table file header from optional filename and
+	hold on to the open file.  Store the header fields as instance
+	variables.  Optional debug argument sets debugging level.
+
+	If filename is None and the optional server argument is given,
+	a single bucket hash table is constructed using the default
+	port and the given server.
+
+	If both filename and server are none, we try to load a hash
+	table from the default location or from the fallback location,
+	and if both fail, we construct one using hardcoded defaults.
 
 	XXX This has only been tested with the default hash table at
 	"ftp://cnri.reston.va.us/handles/client_library/hdl_hash.tbl;type=i"
@@ -463,44 +481,81 @@ class HashTable:
 
 	"""
 
-	self.tag = SessionTag()
-
-	if not filename:
-	    if os.path.exists(DEFAULT_HASH_FILE):
-		filename = DEFAULT_HASH_FILE
-	    else:
-		filename = HASH_TABLE_FILE_FALLBACK
 	if debug is None: debug = DEBUG
-
-	self.filename = filename
 	self.debug = debug
+
+	self.tag = SessionTag()
 
 	self.bucket_cache = {}
 
-	if self.debug: print "Opening hash table:", `self.filename`
-	try:
-	    self.fp = fp = open(self.filename, 'rb')
-	    # Verify the checksum before proceeding
-	    checksum = fp.read(16)
-	    if md5.new(fp.read()).digest() != checksum:
-		fp.close()
-		raise IOError, "checksum error for hash table " + self.filename
-	    # Seek back to start of header
-	    fp.seek(16)
-	except IOError, msg:
-	    if self.debug:
-		print "IOError:", msg
-		print "Using hardcoded fallback scheme"
-	    if server:
-		self.num_of_bits = 0
+	if filename:
+	    self._read_hash_table(filename)
+	elif server:
+	    self._set_hardcoded_hash_table(server)
+	else:
+	    for fn in (DEFAULT_HASH_FILE, HASH_TABLE_FILE_FALLBACK):
+		try:
+		    self._read_hash_table(fn)
+		except IOError, msg:
+		    if self.debug:
+			print "IOError for %s: %s" % (`fn`, str(msg))
+		else:
+		    break
 	    else:
-		self.num_of_bits = DEFAULT_NUM_OF_BITS
-	    for i in range(1<<self.num_of_bits):
-		s = server or DEFAULT_SERVERS[i]
-		if self.debug:
-		    print 'Bucket', i, 'uses server', s
-		self.bucket_cache[i] = (0, 0, s, 2222, 2222, 2223, -1)
-	    return
+		self._set_hardcoded_hash_table()
+
+
+    def _set_hardcoded_hash_table(self, server=None):
+	"""Construct a hardcoded hash table -- internal.
+
+	If the server argument is given, construct a single bucket
+	from it using the default ports.  If the server argument is
+	absent, construct a number of buckets using the default ports
+	and the list of default servers.
+
+	"""
+	if self.debug:
+	    if server:
+		print "Constructing hardcoded hash table using", server
+	    else:
+		print "Constructing hardcoded fallback hash table"
+	if server:
+	    self.num_of_bits = 0
+	else:
+	    self.num_of_bits = DEFAULT_NUM_OF_BITS
+	up = DEFAULT_UDP_PORT
+	tp = DEFAULT_TCP_PORT
+	ap = DEFAULT_ADMIN_PORT
+	for i in range(1<<self.num_of_bits):
+	    s = server or DEFAULT_SERVERS[i]
+	    if self.debug and not server:
+		print 'Bucket', i, 'uses server', s
+	    self.bucket_cache[i] = (0, 0, s, up, tp, ap, -1)
+
+
+    def _read_hash_table(self, filename):
+	"""Read the hash table from a given filename -- internal.
+
+	Raise IOError if the file can't be opened or if the MD5
+	checksum is invalid.  Raise EOFError if xdrlib finds a
+	problem.
+
+	If the file is valid, set a bunch of ivars to info read from
+	the hash table header, and set self.fp to the (still open)
+	hash table file.
+
+	"""
+	if self.debug: print "Opening hash table:", `filename`
+	self.fp = fp = open(filename, 'rb')
+
+	# Verify the checksum before proceeding
+	checksum = fp.read(16)
+	if md5.new(fp.read()).digest() != checksum:
+	    fp.close()
+	    raise IOError, "checksum error for hash table " + filename
+
+	# Seek back to start of header
+	fp.seek(16)
 
 	# Read and decode header
 	u = xdrlib.Unpacker(fp.read(4))
@@ -796,9 +851,9 @@ testsets = [
 ##	"nonreg/" + "x"*10000,
 	],
 
-	# 4 test handles on hs5 running the new software -roj 2/19/96
-	# the last three handles are known to exploit the poll_data.c
-	# bug discovered by charles on 2/26
+	# 4: Test handles on local handle server.
+	# The last three handles are known to exploit the poll_data.c
+	# bug discovered by Charles on 2/26/96.
 	[
 	"nlm.hdl_test/96053804",
 	"nlm.hdl_test/96047983",
@@ -816,7 +871,7 @@ def test(defargs = testsets[0]):
     import getopt
 
     try:
-	opts, args = getopt.getopt(sys.argv[1:], '01234af:i:qt:v')
+	opts, args = getopt.getopt(sys.argv[1:], '01234af:i:qs:t:v')
     except getopt.error, msg:
 	print msg
 	sys.exit(2)
@@ -835,15 +890,16 @@ def test(defargs = testsets[0]):
 	if o == '-i': interval = string.atof(a)
 	if o == '-q': debug = 0
 	if o == '-t': timeout = string.atof(a)
+	if o == '-s': server = a
 	if o == '-v': debug = debug + 1
 	if o == '-0': args = args + testsets[0]
 	if o == '-1': args = args + testsets[1]
 	if o == '-2': args = args + testsets[2]
 	if o == '-3': args = args + testsets[3]
 	if o == '-4':
-	    args = args + testsets[4]
-	    server = 'hs5.cnri.reston.va.us'
-	    types = [HDL_TYPE_URL, HDL_TYPE_DLS]
+	    if not args: args = testsets[4]
+	    if not server: server = 'gather.cnri.reston.va.us'
+	    if types: types.append(HDL_TYPE_DLS)
 
     if not args:
 	args = defargs
@@ -858,6 +914,7 @@ def test(defargs = testsets[0]):
 		    hdl, types, flags, timeout, interval)
 	except Error, msg:
 	    print "Error:", msg
+	    print
 	    continue
 
 	if debug: print replyflags, items
@@ -881,6 +938,9 @@ def test(defargs = testsets[0]):
 	if bits & (1L<<HDL_DISABLED): print "\tDISABLED"
 
 	for stufftype, stuffvalue in items:
+	    if stufftype in (HDL_TYPE_SERVICE_POINTER,
+			     HDL_TYPE_SERVICE_HANDLE):
+		stuffvalue = hexstr(stuffvalue)
 	    if data_map.has_key(stufftype):
 		s = data_map[stufftype][9:]
 	    else:
