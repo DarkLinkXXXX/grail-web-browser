@@ -10,7 +10,6 @@ from Tkinter import *
 import tktools
 
 from Viewer import Viewer
-from AsyncImage import AsyncImage
 from Cursors import *
 
 
@@ -125,7 +124,7 @@ class Browser:
 	self.root.bind('<Alt-l>', self.open_uri_command)
 	self.root.bind('<Alt-L>', self.open_uri_command)
 	self.filemenu.add_command(label='Open File...',
-				  underline=0, accelerator='Alt O',
+				  underline=0, accelerator='Alt-O',
 				  command=self.open_file_command)
 	self.root.bind('<Alt-o>', self.open_file_command)
 	self.root.bind('<Alt-O>', self.open_file_command)
@@ -358,11 +357,13 @@ class Browser:
     def open_uri_command(self, event=None):
 	import OpenURIDialog
 	dialog = OpenURIDialog.OpenURIDialog(self.root)
-	uri = dialog.go()
+	uri, new = dialog.go()
 	if uri:
-	    uri = string.strip(uri)
-	    if uri:
-		self.context.load(grailutil.complete_url(uri))
+	    if new:
+		browser = Browser(self.master, self.app)
+	    else:
+		browser = self
+	    browser.context.load(grailutil.complete_url(uri))
 
     def open_file_command(self, event=None):
 	import FileDialog
