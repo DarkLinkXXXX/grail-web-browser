@@ -165,8 +165,12 @@ class Context:
 		self.viewer.remove_temp_tag(histify=1)
 		baseurl = self.get_baseurl(url)
 		if not pended:
+		    page = self.page
 		    self.page = None # triggers set_url() to update history
 		    self.set_url(baseurl, histify=histify)
+		    self.page.set_title(page.title())
+		    self.history.refresh()
+		    self.browser.set_title(page.title())
 	    return
 	if not target:
 	    target = self._target
