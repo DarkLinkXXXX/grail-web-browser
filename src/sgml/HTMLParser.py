@@ -56,7 +56,7 @@ class HTMLParser(SGMLParser):
 	if string.strip(data) != '':
 	    self.element_close_maybe('head', 'script', 'style', 'title')
 	    self.inhead = 0
-	    self.handle_data = self.formatter.add_flowing_data
+	    self.set_data_handler(self.formatter.add_flowing_data)
 	    self.handle_data(data)
 
     handle_data = handle_data_head	# always start in head
@@ -71,7 +71,7 @@ class HTMLParser(SGMLParser):
 	    self.savedata.insert(0, '')
 	else:
 	    self.savedata = ['']
-	self.handle_data = self.handle_data_save
+	self.set_data_handler(self.handle_data_save)
 
     def save_end(self):
 	if self.savedata:
@@ -83,23 +83,24 @@ class HTMLParser(SGMLParser):
 	    data = None
 	if not self.savedata:
 	    if self.inhead:
-		self.handle_data = self.handle_data_head
+		handler = self.handle_data_head
 	    elif self.nofill:
-		self.handle_data = self.formatter.add_literal_data
+		handler = self.formatter.add_literal_data
 	    else:
-		self.handle_data = self.formatter.add_flowing_data
+		handler = self.formatter.add_flowing_data
+	    self.set_data_handler(handler)
 	if not self.nofill and type(data) is StringType:
 	    data = string.join(string.split(data))
 	return data
 
     def push_nofill(self):
         self.nofill = self.nofill + 1
-	self.handle_data = self.formatter.add_literal_data
+	self.set_data_handler(self.formatter.add_literal_data)
 
     def pop_nofill(self):
         self.nofill = max(0, self.nofill - 1)
 	if not self.nofill:
-	    self.handle_data = self.formatter.add_flowing_data
+	    self.set_data_handler(self.formatter.add_flowing_data)
 
     # --- Hooks for anchors; should probably be overridden
 
@@ -214,8 +215,10 @@ class HTMLParser(SGMLParser):
 
     def header_bgn(self, tag, level, attrs):
 	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
-	while self.list_stack:
-	    self.lex_endtag(self.list_stack[0][0])
+	if self._strict:
+	    while self.list_stack:
+		self.badhtml = 1
+		self.lex_endtag(self.list_stack[0][0])
         self.formatter.end_paragraph(1)
 	if attrs.has_key('align'):
 	    align = attrs['align']
@@ -394,7 +397,6 @@ class HTMLParser(SGMLParser):
 	if 'p' in self.stack:		# ugly hack to compact trailing <P>
 	    self.implied_end_p()	# even though list_trim_stack() will
 	self.list_trim_stack()		# close it.
-	#self.formatter.end_paragraph(0)
 	[listtype, label, counter, compact, depth] = top = self.list_stack[-1]
 	if attrs.has_key('type'):
 	    s = attrs['type']
@@ -402,19 +404,20 @@ class HTMLParser(SGMLParser):
 		label = top[1] = self.make_format(s, label, listtype=listtype)
 	    elif s:
 		label = s
-	if attrs.has_key('seqnum'):
-	    try: top[2] = counter = \
-			  string.atoi(string.strip(attrs['seqnum']))
-	    except: top[2] = counter = counter+1
-	elif attrs.has_key('value'):
-	    try: top[2] = counter = \
-			  string.atoi(string.strip(attrs['value']))
-	    except: top[2] = counter = counter+1
-	else:
-	    top[2] = counter = counter+1
-	if attrs.has_key('skip'):
-	    try:  top[2] = counter = counter + string.atoi(attrs['skip'])
-	    except: pass
+	if listtype == 'ol':
+	    if attrs.has_key('seqnum'):
+		try: top[2] = counter = \
+			      string.atoi(string.strip(attrs['seqnum']))
+		except: top[2] = counter = counter+1
+	    elif attrs.has_key('value'):
+		try: top[2] = counter = \
+			      string.atoi(string.strip(attrs['value']))
+		except: top[2] = counter = counter+1
+	    else:
+		top[2] = counter = counter+1
+	    if attrs.has_key('skip'):
+		try: top[2] = counter = counter + string.atoi(attrs['skip'])
+		except: pass
 	self.formatter.add_label_data(label, counter)
 
     def fake_li(self, attrs):
