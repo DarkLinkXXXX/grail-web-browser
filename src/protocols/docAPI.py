@@ -1,6 +1,14 @@
-"""doc: URL scheme handler."""
+"""doc: URI scheme handler."""
 
-def open_doc(parturl):
-    if parturl[:1] != '/': parturl = '/' + parturl
-    newurl = "http://monty.cnri.reston.va.us/grail" + parturl
-    raise IOError, ('redirect error', 302, 'Moved', {'location': newurl})
+from nullAPI import null_access
+
+class doc_access(null_access):
+
+    def __init__(self, url, method, params):
+	null_access.__init__(self, url, method, params)
+	if url[:1] != '/': url = '/' + url
+	self.url = "http://monty.cnri.reston.va.us/grail" + url
+
+    def getmeta(self):
+	null_access.getmeta(self)	# assert, state change
+	return 302, "Moved", {'location': self.url}
