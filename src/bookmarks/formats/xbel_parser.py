@@ -1,18 +1,12 @@
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 
 import bookmarks
 import bookmarks.iso8601
 import bookmarks.nodes
 import string
-import xmllib
-
-try:
-    from xml.parsers import xmllib
-except ImportError:
-    pass
 
 
 class CaptureError(Exception):
@@ -118,7 +112,14 @@ def normalize_capture(data, preserve=0, StringType=type("")):
 
 
 
-class Parser(CaptureMixin, xmllib.XMLParser):
+try:
+    from xml.parsers.xmllib import XMLParser
+    print "Using xml.parsers.xmllib version of XMLParser."
+except ImportError:
+    from xmllib import XMLParser
+
+
+class Parser(CaptureMixin, XMLParser):
     __folder = None
     __store_node = None
 
@@ -128,18 +129,15 @@ class Parser(CaptureMixin, xmllib.XMLParser):
         self.__idmap = {}
         self.__missing_ids = {}
         self.__root = self.new_folder()
-        xmllib.XMLParser.__init__(self)
+        XMLParser.__init__(self)
 
     def get_root(self):
-        root = self.__root
-        if not root.title():
-            children = root.children()
-            if len(children) == 1 and children[0].get_nodetype() == "Folder":
-                root = children[0]
-        return root
+        return self.__root
 
     def start_xbel(self, attrs):
-        pass
+        root = self.get_root()
+        self.__store_date(root, attrs, "added", "set_add_date")
+        self.__handle_id(root, attrs)
     def end_xbel(self):
         pass
 
@@ -158,11 +156,12 @@ class Parser(CaptureMixin, xmllib.XMLParser):
     __node = None
     def start_bookmark(self, attrs):
         self.new_bookmark(attrs)
-        self.__handle_id(self.__node, attrs)
-        self.__node.set_uri(string.strip(attrs.get("href", "")))
-        self.__store_date(attrs, "added",    "set_add_date")
-        self.__store_date(attrs, "visited",  "set_last_visited")
-        self.__store_date(attrs, "modified", "set_last_modified")
+        node = self.__node
+        self.__handle_id(node, attrs)
+        node.set_uri(string.strip(attrs.get("href", "")))
+        self.__store_date(node, attrs, "added",    "set_add_date")
+        self.__store_date(node, attrs, "visited",  "set_last_visited")
+        self.__store_date(node, attrs, "modified", "set_last_modified")
     def end_bookmark(self):
         self.__node = None
         self.__store_node = None
@@ -263,10 +262,10 @@ class Parser(CaptureMixin, xmllib.XMLParser):
             raise BookmarkFormatError(self.__filename,
                                       "missing %s attribute" % attrname)
 
-    def __store_date(self, attrs, attrname, nodefuncname):
+    def __store_date(self, node, attrs, attrname, nodefuncname):
         date = attrs.get(attrname)
         if date:
-            func = getattr(self.__node, nodefuncname)
+            func = getattr(node, nodefuncname)
             try:
                 date = bookmarks.iso8601.parse(date)
             except ValueError:
@@ -295,9 +294,9 @@ class Parser(CaptureMixin, xmllib.XMLParser):
         if self.capturing():
             self.capture_starttag(tag, attrs)
             return
-        xmllib.XMLParser.handle_starttag(self, tag, method, attrs)
+        method(attrs)
 
     def handle_endtag(self, tag, method):
         if self.capturing() and self.capture_endtag(tag):
             return
-        xmllib.XMLParser.handle_endtag(self, tag, method)
+        method()
