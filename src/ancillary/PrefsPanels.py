@@ -1,80 +1,78 @@
-"""Framework for implementing GUI dialogs user preference group editing."""
+"""Framework for implementing GUI dialogs for editing of user preferences.
 
-__version__ = "$Revision: 2.3 $"
+Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
+~user/.grail/prefpanels/*prefs.py."""
+
+__version__ = "$Revision: 2.4 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
+import imp
+
+if __name__ == "__main__":
+    # For operation outside of Grail:
+    grail_root = '..'
+    sys.path = [grail_root, '../utils', '../pythonlib'] + sys.path
 
 import GrailPrefs
 
 from Tkinter import *
 import tktools
 import grailutil
-import tktools
-import string
+import string, regex, regsub
 
-# Setting this from PrefsDialogs module gives you reload-button for
-# incremental development of your dialogs.
-DEBUG=0
 
-# ########################### Initialization ########################### #
+DIALOG_CLASS_NAME_SUFFIX = 'Panel'
 
 GET_METHODS = {'string': 'Get', 'int': 'GetInt', 'float': 'GetFloat',
 	       'Boolean': 'GetBoolean'}
 
-# BrowserState is going.
-BrowserState = {'dialogs': [], 'browser': None, 'app': None, 'root': None}
+from __main__ import grail_root
 
-def PrefsDialogsSetup(menu, browser):
-    """Establish menu and browser state for use by dialogs.
+# User's panels dir should come after sys, so user's takes precedence.
+dialogs_dirs = [os.path.join(grail_root, 'prefspanels'),
+		os.path.expanduser("~/.grail/prefspanels")]
 
-    Should be invoked by mainline Grail code."""
-    global BrowserState
+modname_matcher = regex.compile("^\(.*\)prefs.py[c]?$")
 
-    BrowserState['menu'] = menu
-    BrowserState['browser'] = browser
-    BrowserState['root'] = browser.root
-
-    # BrowserState['dialogs'] is already populated by Framework.__init__().
-    for dialog in BrowserState['dialogs']:
-	menu.add_command(label=dialog.title, command=dialog.Post)
-
-    BrowserState['prefs'] = prefs = browser.app.prefs
-    # Create lookup table for use by Framework.set_widgets() method:
-
-# ########################### Framework ########################### #
+# Framework
 
 class Framework:
     """Skeleton for building preferences dialogs via inheritance.
 
     The framework provides general controls, like save/revert/resume, and a
-    mechanism for associating the User Inteface elements with preferences,
+    mechanism for associating the User Interface elements with preferences,
     so the preferences are systematically revised when the changes are
     committed.
 
     To build a preferences dialog:
 
-     - Inherit from this class.
-     - Invoke the base .__init__() from your derived  .__init__().
-     - implement preference-category-specific layout by overriding the
-       .CategoryLayout() method.
-     - Use the .RegisterUI() to couple the widget (or other) acccessor
-       routines with the corresponding preference.
+     - Create a class which inherit from this one, and is named with the
+       concatenation of the dialog name and "Panel", eg "GeneralPanel".
+     - Implement dialog-specific layout by overriding the .CreateLayout()
+       method.
+       - Within .CreateLayout, use the self.RegisterUI() to couple the
+         widget (or whatever user interface element) with the corresponding
+         preference.  (.widget_set_func() is useful for producing the uiset
+         func for many tkinter widgets.) 
+       - There are also some convenient routines for making widgets, eg
+         self.PrefsCheckButton().
 
     Your dialog will be included in the Preferences menu bar pulldown, and
     will be posted when its entry is selected."""
 
-    def __init__(self):
+    def __init__(self, name, app):
 	"""Invoke from category-specific __init__."""
 	self.collection = {}
+	self.app = app
+	self.frame = app.root
+	self.name = name
 	self.title = self.name + ' Preferences'
 	self.widget = None
 	self.prev_settings = {}
-	# Register on comprehensive list.
-	BrowserState['dialogs'].append(self)
 
     # Mandatory preferences-specific layout method.
-    def CreateLayout(self, frame):
+    def CreateLayout(self, name, frame):
 	"""Override this method with specific layout."""
 	raise SystemError, "Derived class should override .CreateLayout()"
 
@@ -88,23 +86,25 @@ class Framework:
     def RegisterUI(self, group, component, type, uiget, uiset):
 	"""Associate preference with User Interface setting mechanism.
 
-	Preference is specified by group and component, and type is
-	specified for 
-	The registered info is used to put established values in the widget
-	and check for changed values when the dialog session is applied."""
+	Preference is specified by group and component.  Type is used for
+	choice of preference-get funcs.  uiget and uiset should be routines
+	that obtain and impose values on the dialog widget representing the
+	preference.  (.widget_set_func() is useful for producing the uiset
+	func for many tkinter widgets.)"""
 
 	self.collection[(group, component)] = (type, uiget, uiset)
 
+    # Helpers
+
     def PrefsCheckButton(self, frame, general, specific, group, component,
 			 left_width=25):
-	"""Handy utility for creating single-button preferences widgets.
+	"""Handy utility for creating checkbutton preferences widgets.
 
 	A label and a button are packed in 'frame' arg, using text of
 	'general' arg for title and of 'specific' arg for button label.
 	The preferences variable is specified by 'group' and 'component'
 	args, and an optional 'left_width' arg specifies how much space
-	should be assigned to the general-label side of the
-	conglomerate."""
+	should be assigned to the general-label side of the thing."""
 	f = Frame(frame)
 	var = StringVar()
 	l = Label(f, text=general, width=left_width, anchor=E)
@@ -114,28 +114,36 @@ class Framework:
 	f.pack(fill=X, side=TOP, pady='1m')
 	self.RegisterUI(group, component, 'Boolean', var.get, var.set)
 
-    def Post(self):
+    def widget_set_func(self, widget):
+	"""Return routine to be used to set widget.
+	    
+	    The returned routine takes a single argument, the new setting."""
+	v = StringVar()
+	widget.config(textvariable=v)
+	return v.set
+
+    def post(self):
 	"""Called from menu interface to engage dialog."""
 
 	if not self.widget:
 	    self.create_widget()
 	else:
-	    try:
-		self.widget.deiconify()
-		self.widget.tkraise()
-	    except TclError:
-		# Whoops, widget musta been destroyed - recreate:
-		self.create_widget()
+	    self.widget.deiconify()
+	    self.widget.tkraise()
 	self.poll_modified()
 
     def create_widget(self):
-	self.frame = BrowserState['root']
 	widget = self.widget = Toplevel(self.frame, class_='Grail')
 	widget.title(self.title)
 	tktools.install_keybindings(widget)
 	widget.bind('<Return>', self.done_cmd)
 	widget.bind('<Key>', self.poll_modified)
 	widget.bind('<Button>', self.poll_modified)
+	widget.bind("<Alt-w>", self.cancel_cmd)
+	widget.bind("<Alt-W>", self.cancel_cmd)
+	widget.bind("<Alt-Control-r>", self.reload_panel_cmd) # Unadvertised
+	widget.bind('<Button>', self.poll_modified)
+	widget.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 
 	width=80			# Of the settings frame.
 
@@ -148,7 +156,7 @@ class Framework:
 	self.create_disposition_bar(widget)
 
 	# Do the user's setup:
-	self.CreateLayout(self.framework_widget)
+	self.CreateLayout(self.name, self.framework_widget)
 
 	# And now initialize the widget values:
 	self.set_widgets()
@@ -174,10 +182,6 @@ class Framework:
 	self.revert_btn.pack(side='right')
 	self.factory_defaults_btn.pack(side='right')
 	cancel_btn.pack(side='right')
-	if DEBUG:
-	    reload_btn = Button(bartop, text="(reload)",
-				command=self.reload_module)
-	    reload_btn.pack(side='right')
 
 	bartop.pack(fill='both')
 	barbottom.pack(fill='both')
@@ -189,7 +193,7 @@ class Framework:
 
 	Optional FACTORY true means use system defaults for values."""
 	for (g, c), (type, uiget, uiset) in self.collection.items():
-	    getter = getattr(BrowserState['prefs'], GET_METHODS[type])
+	    getter = getattr(self.app.prefs, GET_METHODS[type])
 	    uiset(getter(g, c, factory))
 
     def done_cmd(self, event=None):
@@ -199,11 +203,11 @@ class Framework:
 
     def apply_cmd(self):
 	"""Apply settings from dialog to preferences."""
-	prefsset = BrowserState['prefs'].Set
+	prefsset = self.app.prefs.Set
 	# Snarf the settings from the widgets:
 	for (g, c), (type, uiget, uiset) in self.collection.items():
 	    prefsset(g, c, uiget())
-	BrowserState['prefs'].Save()
+	self.app.prefs.Save()
 	self.poll_modified()
 
     def factory_defaults_cmd(self):
@@ -213,7 +217,7 @@ class Framework:
 
     def revert_cmd(self):
 	"""Return settings to currently applied ones."""
-	prefsget = getattr(BrowserState['prefs'], GET_METHODS['string'])
+	prefsget = getattr(self.app.prefs, GET_METHODS['string'])
 	# Snarf the settings from the widgets:
 	for (g, c), (type, uiget, uiset) in self.collection.items():
 	    uiset(prefsget(g, c))
@@ -226,21 +230,12 @@ class Framework:
     def hide(self):
 	self.widget.withdraw()
 
-    def reload_module(self):
-	"""Handy routine, used if DEBUG true, to reload the module within a
-	single grail session."""
-	# We retain some state around the reload, including the prior
-	# versions of the dialogs.
-	menu, browser = BrowserState['menu'], BrowserState['browser']
-	import PrefsDialogs
-	# Retain callbacks, since grail isn't restarting to reestablish them:
-	callbacks = BrowserState['prefs']._callbacks
-	reload(GrailPrefs)
-	BrowserState['prefs']._callbacks = callbacks
-	reload(sys.modules[__name__])
-	reload(PrefsDialogs)
-	PrefsDialogsSetup(menu, browser)
+    def reload_panel_cmd(self, event=None):
+	"""Unadvertised routine for reloading panel code during development."""
+	# Zeroing the entry for the module will force an import, which
+	# will force a reload if the code has been modified.
 	self.hide()
+	self.app.prefs_dialogs.load(self.name, reloading=1)
 
     # State mechanisms.
 
@@ -267,8 +262,133 @@ class Framework:
 
 	Optional 'factory' keyword means check wrt system default settings."""
 
-	prefsget = getattr(BrowserState['prefs'], GET_METHODS['string'])
+	prefsget = getattr(self.app.prefs, GET_METHODS['string'])
 	for (g, c), (type, uiget, uiset) in self.collection.items():
 	    if uiget() != prefsget(g, c, factory):
 		return 1
 	return 0
+
+# Setup
+
+class PrefsDialogsMenu:
+    """Setup prefs dialogs and populate the browser menu."""
+
+    def __init__(self, menu, app):
+	self.app = app
+	self.menu = menu
+	if hasattr(app, 'prefs_dialogs'):
+	    self.dialogs = app.prefs_dialogs.dialogs
+	else:
+	    self.dialogs = {}
+	    app.prefs_dialogs = self
+	    for (nm, clnm, modnm, moddir) in self.discover_dialog_modules():
+		if not self.dialogs.has_key(nm):
+		    # [module name, class name, directory, instance]
+		    self.dialogs[nm] = [modnm, clnm, moddir, None]
+	for name in self.dialogs.keys():
+	    # Enclose self and the name in a teeny leetle func:
+	    def poster(self=self, name=name):
+		self.do_post(name)
+	    # ... which will be used to call the real posting routine:
+	    menu.add_command(label=name, command=poster)
+
+    def discover_dialog_modules(self):
+	"""Identify candidate dialogs.
+
+	Return list of tuples describing found dialog modules: (name,
+	modname, moddir).
+
+	Candidate modules must end in 'prefs.py' or 'prefs.pyc'.  The name
+	is formed by extracting the prefix and substituting spaces for
+	underscores (with leading and trailing spaces stripped).
+
+	For multiple panels with the same name, the last one found is used."""
+	got = {}
+	for dir in dialogs_dirs:
+	    entries = []
+	    try:
+		entries = os.listdir(dir)
+	    except os.error:
+		# Optional dir not there.
+		pass
+	    for entry in entries:
+		if modname_matcher.match(entry) != -1:
+		    name = regsub.gsub("_", " ", modname_matcher.group(1))
+		    class_name = regsub.gsub("_", "",
+					     modname_matcher.group(1))
+		    got[name] = ((string.strip(name), class_name, entry, dir))
+	return got.values()
+		    
+    def do_post(self, name):
+	"""Expose the dialog, creating it if necessary."""
+	entry = self.dialogs[name]
+	if entry[3]:
+	    # Already loaded:
+	    entry[3].post()
+	else:
+	    # Needs to be loaded:
+	    if self.load(name):
+		self.do_post(name)
+
+    def load(self, name, reloading=0):
+	"""Import the dialog module and init the instance.
+
+	Returns 1 if successful, None otherwise."""
+	entry = self.dialogs[name]
+	try:
+	    sys.path.insert(0, entry[2])
+	    try:
+		modnm = entry[0][:string.index(entry[0], '.')]
+		mod = __import__(modnm)
+		if reload:
+		    reload(mod)
+		class_name = (regsub.gsub(" ", "", name)
+			      + DIALOG_CLASS_NAME_SUFFIX)
+		# Instantiate it:
+		entry[3] = getattr(mod, class_name)(name, self.app)
+		return 1
+	    except:
+		# Whatever may go wrong in import or dialog post
+		e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+		self.app.root.report_callback_exception(e, v, tb)
+		return None
+	finally:
+	    try:
+		sys.path.remove(entry[1])
+	    except ValueError:
+		pass
+
+# Testing.
+
+def standalone():
+    """Provide standins for Grail objs so we can run outside of Grail."""
+    class fake_app:
+	def __init__(self, root):
+	    self.prefs = GrailPrefs.AllPreferences()
+	    self.root = root
+	    root.report_callback_exception = self.report_callback_exception
+	def report_callback_exception(self, e, v, tb):
+	    print "Callback error: %s, %s" % (e, v)
+	def register_on_exit(self, func): pass
+	def unregister_on_exit(self, func): pass
+
+    root = Frame()
+
+    quitbutton = Button(root, text='quit')
+    quitbutton.pack(side=LEFT)
+    def quit(root=root): root.destroy(); sys.exit(0)
+    quitbutton.config(command=quit)
+
+    prefsbut = Menubutton(root, text="Preferences")
+    prefsbut.pack(side=LEFT)
+    prefsmenu = Menu(prefsbut)
+    prefsbut['menu'] = prefsmenu
+    root.pack(side=LEFT)
+
+    app = fake_app(root)
+    pdm = PrefsDialogsMenu(prefsmenu, app)
+    prefsmenu.mainloop()
+    del pdm
+
+if __name__ == "__main__":
+    standalone()
