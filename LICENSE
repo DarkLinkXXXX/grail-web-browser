@@ -1,82 +1,173 @@
-Grail Browser
-*************
+_________________________________________________________________
 
-CNRI Source Code License Agreement
-==================================
 
-----------------------------------------------------------------------
+GRAIL BROWSER (Version 0.3)
 
-IMPORTANT: Please read the following License Agreement carefully.
-Submitting the required information constitutes your acknowledgment
-that you have read and agreed to the terms and conditions of this
-License Agreement. The Grail source code identified below will be
-released when the required information is received.
 
-----------------------------------------------------------------------
+CNRI LICENSE AGREEMENT
 
-1. The Corporation for National Research Initiatives ("CNRI") provides
-Licensee with source code for the computer software listed below
-("Software"), subject to the terms and conditions set forth in this
-Agreement.
+_________________________________________________________________
 
-    Grail Browser, Version 0.3b2
 
-2. CNRI grants Licensee a non-exclusive, non-transferable,
-royalty-free license to reproduce, develop, test, analyze and
-otherwise use the Software solely for educational, research and
-internal business purposes. While Licensee may share the Software
-within its organization or otherwise use it internally for the
-purposes specified herein, this Agreement does not authorize Licensee
-to distribute copies of the Software to the public, perform and/or
-display the Software publicly, or otherwise make the Software
-accessible to the public. Third parties wishing to obtain the Software
-must get it directly from CNRI.
+IMPORTANT: PLEASE READ THE FOLLOWING AGREEMENT CAREFULLY.
 
-3. Licensee is encouraged, at its own expense, to create derivative
-works solely for the non-commercial purposes indicated in this
-Agreement, provided, however, that the Software is not edited in any
-way that would disable any credits embedded therein. Anyone wishing to
-obtain a license to make any other use of the Software, in particular,
-a license to incorporate the Software in a derivative work that will
-be placed on sale to the public, should contact CNRI for permission.
 
-4. Licensee is encouraged to share with CNRI any derivative works
-prepared under this Agreement.  If Licensee wishes CNRI to consider
-incorporating such derivative works, in whole or in part, in future
-releases of the Software, they should so indicate.  If CNRI, at its
-sole discretion, decides to incorporate any such derivative works in
-the Software, CNRI will contact Licensee to make the necessary
-licensing arrangements.
+SUBMITTING THE REQUIRED INFORMATION AND CLICKING ON THE BUTTON WHERE
+INDICATED BELOW CONSTITUTES YOUR ACKNOWLEDGMENT THAT YOU HAVE READ AND
+AGREED TO THE TERMS AND CONDITIONS OF THIS AGREEMENT.  THE GRAIL
+BROWSER SOFTWARE IDENTIFIED BELOW WILL BE RELEASED TO YOU WHEN THE
+REQUIRED INFORMATION IS RECEIVED.  THIS AGREEMENT WILL BE EFFECTIVE
+BETWEEN YOU AND CNRI AS OF THE DATE OF RELEASE TO YOU OF THE GRAIL
+BROWSER SOFTWARE.
 
-5. CNRI is making the Software available on an "AS IS" basis.  CNRI
-MAKES NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-ANY IMPLIED WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT.  CNRI SHALL NOT BE LIABLE TO USERS OF
-THE SOFTWARE FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR
-LOSS AS A RESULT OF USING THE SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY THEREOF.
+_________________________________________________________________
 
-6. This Agreement may be terminated by CNRI: (i) immediately upon
+
+1.  The Corporation for National Research Initiatives ("CNRI"), a
+District of Columbia corporation having a place of business at 1895
+Preston White Drive, Reston, VA 20191, desiring to encourage the wide
+dissemination of the following computer software ("Software"),
+provides Licensee identified below ("Licensee") with the Software in
+source form:
+
+
+ o Grail(reg) Browser, Version 0.3
+
+
+2.  CNRI owns the Software and its associated documentation and all
+copyrights therein.  Subject to the terms and conditions set forth in
+this Agreement, CNRI grants Licensee a non-exclusive, irrevocable,
+non-transferable, royalty-free, worldwide license to reproduce,
+analyze, perform publicly, prepare derivative works, or distribute the
+Software, provided, however, that CNRI's Grail Browser License
+Agreement (or an unambiguous identifier where it may be obtained
+electronically), and CNRI's notices of copyright and trademark, i.e.,
+"Copyright (c) CNRI 1996.  GRAIL(reg),is a registered trademark of
+CNRI", are displayed prominently when the Software starts up and
+appear on any associated documentation.
+
+
+3.  Subject to the terms and conditions of this Agreement, in
+particular, the license granted by CNRI under paragraph 2 above, if
+Licensee, at its sole cost and expense, uses the Software to prepare a
+derivative work that is based on or incorporates the Software or any
+part thereof, and wants to make the derivative work available to the
+public for commercial or noncommercial purposes, or uses the Software
+in this derivative form to provide a service to the public, then
+Licensee hereby agrees: (i) to indicate in any such work, in a
+prominently visible way, the specific modifications made to CNRI's
+Software; (ii) not to introduce any modifications known to be harmful,
+or where there is reason to believe they will be harmful, to other
+users and their systems; and (iii) to notify CNRI of any release or
+other use of Licensee's derivative work.
+
+
+4.  Licensee agrees to assume full responsibility for its use and sale
+of the Software and for the marketing of any derivative works made by
+Licensee, and Licensee expressly agrees to indemnify and hold harmless
+CNRI, its officers, employees and agents, from and against any and all
+claims, lawsuits and causes of action (including reasonable attorneys'
+fees and related costs) by third parties, including but not limited to
+personal injury, property damage, or damage or loss due to
+infringement of any other rights (including patent, copyright, or
+other intellectual property rights) which result to such third
+parties, directly or indirectly, from Licensee's sale or use of the
+Software or Licensee's derivative works.
+
+
+5.  Licensee agrees to share with CNRI any bug fixes, patches, ports
+to other platforms, minor corrections and the like made by Licensee to
+the Software.  Licensee hereby agrees and acknowledges that any such
+changes shall be deemed free of any claims under copyright, patent or
+other rights or interests and that CNRI may reproduce, disseminate and
+otherwise use the changes as part of its Software at no cost to CNRI
+or its licensed users.  CNRI may, at its sole discretion, decide
+whether or not to incorporate any such changes in the Software.
+
+
+6.  Licensee may not use CNRI's trademarks or trade name, including
+GRAIL or CNRI, in any trademark sense to endorse or promote Licensee's
+products or services.  Licensee may use the mark GRAIL in connection
+with License's derivative works that are based on or incorporate the
+Software, but only in the form "GRAIL-based Nifty Browser for PCs" or
+equivalent, together with a statement that "GRAIL(reg) is a registered
+trademark of CNRI."
+
+
+7.  In the installation, running, distribution and other use of the
+Software provided to Licensee under this Agreement, CNRI has no
+objection if Licensee makes use of computer software owned by others,
+including, in particular, Python and Tcl/Tk, provided, however, that
+Licensee complies with the terms of any license agreements
+accompanying such computer software.  Licensee hereby acknowledges
+that CNRI shall not be deemed a party to or otherwise subject to any
+obligations of Licensee to third parties.
+
+
+8.  CNRI is making the Software available to Licensee on an "AS IS"
+basis.  CNRI MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, CNRI MAKES NO
+REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS FOR ANY
+PARTICULAR PURPOSE OR THAT THE USE OF THE SOFTWARE OR DOCUMENTATION
+WILL NOT INFRINGE ANY THIRD PARTY RIGHTS (INCLUDING PATENT, COPYRIGHT,
+OR OTHER INTELLECTUAL PROPERTY RIGHTS).  TO THE EXTENT PERMITTED BY
+LAW, CNRI SHALL NOT BE LIABLE TO LICENSEE OR OTHER USERS OF THE
+SOFTWARE FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS
+AS A RESULT OF USING, MODIFYING OR DISTRIBUTING THE SOFTWARE, OR ANY
+DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.  IN
+ANY EVENT, CNRI'S ENTIRE LIABILITY AND YOUR EXCLUSIVE REMEDY UNDER
+THIS AGREEMENT SHALL NOT EXCEED TEN DOLLARS (U.S.$10.00).
+
+
+9.  This Agreement may be terminated by CNRI: (i) immediately upon
 written notice from CNRI of any material breach by the Licensee, if
-the nature of the breach is such that it cannot be remedied; or (ii)
-sixty days following notice from CNRI to the licensee of a material
-remediable breach, if Licensee has not remedied such breach within
-that sixty-day period. Upon termination of this Agreement, Licensee
-shall promptly destroy any copies of the Software in its possession.
+the nature of the breach is such that it cannot promptly be remedied;
+or (ii) sixty days following notice from CNRI to Licensee of a
+material remediable breach, if Licensee has not remedied such breach
+within that sixty-day period.
 
-7. Nothing in this Agreement shall be deemed to create any
+
+10.  Nothing in this Agreement shall be deemed to create any
 relationship of agency, partnership, or joint venture between the
 parties.  This Agreement shall be governed by and interpreted in
-accordance with Virginia law.
+accordance with the law of the Commonwealth of Virginia.  In the event
+any part of this Agreement is declared invalid or otherwise
+unenforceable by a court of competent jurisdiction, the remaining
+provisions shall remain in force.
 
-----------------------------------------------------------------------
+
+11.  Export of this Software from the United States may require a
+specific license from the United States Government.  It is the
+responsibility of any person or organization contemplating export to
+obtain such a license before exporting, and to comply with all
+applicable laws and regulations relating to such exports.
+
+
+--------------------------------------------------------------
+
 
 Please supply the following information for our records:
 
-Name of Licensee:
 
-E-mail address:
+Name of Licensee:
 
 Affiliation:
 
 Title:
+
+Internet address:
+
+Fax. No:
+
+Street address:
+
+
+
+---------------------------------------------------------------
+
+
+BY CLICKING ON THIS BUTTON, YOU WILL BE DEEMED TO HAVE AGREED TO THE
+TERMS AND CONDITIONS OF THIS AGREEMENT.
+
+
+[Grail source]
