@@ -7,7 +7,8 @@ import string
 
 class OpenURIDialog:
     def __init__(self, master):
-	self._frame = Toplevel(master)
+	self._frame = tktools.make_toplevel(master,
+					    title="Open Location Dialog")
 	self._entry, frame, label = tktools.make_labeled_form_entry(
 	    self._frame, 'URI:', 40)
 	self._entry.bind('<Return>', self.okay)
@@ -17,6 +18,7 @@ class OpenURIDialog:
 	okbtn.pack(side=LEFT)
 	cancelbtn = Button(btnframe, text='Cancel', command=self.cancel)
 	cancelbtn.pack(side=RIGHT)
+	tktools.set_transient(self._frame, master)
 
     def go(self):
 	self._frame.grab_set()
