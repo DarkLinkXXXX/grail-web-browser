@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.10 $"
+__version__ = "$Revision: 2.11 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -128,8 +128,23 @@ def extract_attribute(key, dict, default=None, conv=None, delete=1):
 	    return conv(val)
 	except:
 	    return default
-    else:
-	return default
+    return default
+
+def extract_keyword(key, dict, default=None, conv=None):
+    """Extracts an attribute from a dictionary.
+
+    KEY is the attribute name to look up in DICT.  If KEY is missing
+    or cannot be converted, then DEFAULT is returned, otherwise the
+    converted value is returned.  CONV is the conversion function.
+    """
+    if dict.has_key(key):
+	if conv:
+	    try:
+		return conv(dict[key])
+	    except:
+		return default
+	return dict[key]
+    return default
 
 def conv_integer(val, conv=string.atoi, otherlegal=''):
     val = string.strip(val)
