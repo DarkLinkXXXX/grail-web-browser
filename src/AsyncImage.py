@@ -242,8 +242,12 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	except (IOError, ValueError):
 	    # either of these may occur during decoding...
 	    return self.show_bad()
-	format = im.format
-	real_mode = im.mode
+	if im.format == "XBM":
+	    # invert & mask so we get transparency
+	    mapping = [255] * 256
+	    mapping[255] = 0
+	    mask = im.point(mapping)
+	    im = Image.merge("RGBA", (mask, mask, mask, im))
 	real_size = im.size
 	# determine desired size:
 	if self.__width and not self.__height and self.__width != im.size[0]:
@@ -273,12 +277,10 @@ class PILAsyncImage(BaseAsyncImage, PILPhotoImage):
 	    w, h = real_size
 	    if w != self.__width or h != self.__height:
 		im = im.resize((self.__width, self.__height))
-	mode = real_mode = im.mode
-	if mode not in ('1', 'L'):
-	    mode = 'RGB'
-	self._PhotoImage__mode = mode
+	self._PhotoImage__mode = im.mode
+	if im.mode not in ('1', 'L'):
+	    self._PhotoImage__mode = 'RGB'
 	self._PhotoImage__size = im.size
-	self.do_color_magic()
 	self.paste(im)
 	w, h = im.size
 	self.image['width'] = w
