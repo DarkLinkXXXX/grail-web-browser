@@ -9,11 +9,7 @@ def start_frameset(parser, attrs):
     # Augment parser object
     tags = parser.object_aware_tags
     if 'frameset' not in tags:
-	tags.append('frameset')
-	tags.append('frame')
 	tags.append('noframes')
-    if parser.push_object('frameset'):
-	return
     rows = ""
     cols = ""
     for name, value in attrs:
@@ -26,10 +22,9 @@ def start_frameset(parser, attrs):
     parser.frameset = FrameSet(parser, rows, cols, parent)
 
 def end_frameset(parser):
-    if parser.pop_object():
-	if parser.frameset:
-	    parser.frameset.done()
-	    parser.frameset = parser.frameset.parent
+    if parser.frameset:
+	parser.frameset.done()
+	parser.frameset = parser.frameset.parent
 
 def do_frame(parser, attrs):
     if parser.suppress_output or not hasattr(parser, "frameset"):
@@ -57,10 +52,12 @@ def do_frame(parser, attrs):
 			      scrolling, noresize)
 
 def start_noframes(parser, attrs):
-    "XXX"
+    if parser.push_object("noframes"):
+	return
+    parser.set_suppress()
 
 def end_noframes(parser):
-    "XXX"
+    parser.pop_object()
 
 
 class FrameSet:
