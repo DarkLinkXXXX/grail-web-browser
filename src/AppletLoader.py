@@ -329,6 +329,11 @@ class BrowserDummy(Dummy):
     def clone_command(self):
 	return BrowserBastion(self.real.clone_command(), self.key)
 
+    # 0.2 compatibility:
+    
+    def follow(self, url):
+	self.real.context.follow(url)
+
 ##    def get_async_image(self, src):
 ##	# For 0.2 ImageLoopItem only
 ##	return Bastion(self.real.get_async_image(src))
@@ -369,6 +374,9 @@ def BrowserBastion(real, key):
     # Add .context instance variable to help certain applets
     real._bastions[key] = bastion = Bastion(BrowserDummy(real, key))
     bastion.context = ContextBastion(real.context, key)
+    bastion.app = AppBastion(real.app, key)
+    # 0.2 compatibility:
+    bastion.viewer = AppBastion(real.context.viewer, key)
     return bastion
 
 def ContextBastion(real, key):
