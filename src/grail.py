@@ -237,6 +237,11 @@ class Application:
 	    dummy.destroy()
 	    for k, v in Application.fontsymbols.items():
 		Application.dingbatimages[k] = v
+	self.root.bind_class("Text", "<Alt-Left>", self.dummy_event)
+	self.root.bind_class("Text", "<Alt-Right>", self.dummy_event)
+
+    def dummy_event(self, event):
+	pass
 
     def register_on_exit(self, method):
 	self.on_exit_methods.append(method)
