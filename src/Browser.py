@@ -49,7 +49,7 @@ class Browser:
     def __init__(self, master, app=None, height=40):
 	self.master = master
 	self.app = app
-	self.reader = None
+	self.readers = []
 	self.url = ""
 	self.title = ""
 	self.history = []
@@ -182,18 +182,23 @@ class Browser:
 	self.stop("Stopped.")
 	self.message("Loading %s" % url)
 	try:
-	    self.reader = Reader(self, url, method, params,
-				 new, show_source, reload)
+	    reader = Reader(self, url, method, params,
+			    new, show_source, reload)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
-	    return
+	else:
+	    self.readers.append(reader)
+
+    def rmreader(self, reader):
+	if reader in self.readers:
+	    self.readers.remove(reader)
 
     def busy(self):
-	return self.reader is not None
+	return not not self.readers
 
     def busycheck(self):
-	if self.reader:
+	if self.readers:
 	    self.error_dialog('Busy',
 		"Please wait until the transfer is done (or stop it)")
 	    return 1
@@ -206,9 +211,7 @@ class Browser:
 	self.stopbutton['state'] = DISABLED
 
     def stop(self, msg):
-	reader = self.reader
-	self.reader = None
-	if reader:
+	for reader in self.readers[:]:
 	    reader.stop(msg)
 
     def clear_reset(self, url, new):
@@ -240,12 +243,19 @@ class Browser:
 	if not url: return None
 	return self.app.get_image(url)
 
+    def get_cached_image(self, src):
+	if not self.app: return None
+	if not src: return None
+	url = urlparse.urljoin(self.url, src)
+	if not url: return None
+	return self.app.get_cached_image(url)
+
     def message(self, string = "", cursor = None):
 	msg = self.msg['text']
 	crs = None			# B/W compat hack
 	self.msg['text'] = string
 	if not cursor:
-	    if self.reader:
+	    if self.readers:
 		cursor = CURSOR_WAIT
 	    else:
 		cursor = CURSOR_NORMAL
