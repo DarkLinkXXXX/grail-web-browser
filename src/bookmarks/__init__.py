@@ -51,6 +51,28 @@ def _prepstring(s):
 
 
 
+XBEL_PUBLIC_ID = "+//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN"
+XBEL_SYSTEM_ID = "http://www.python.org/topics/xml/dtds/xbel-1.0.dtd"
+
+
+def check_xml_format(buffer):
+    import xmlinfo
+    try:
+        info = xmlinfo.get_xml_info(buffer)
+    except xmlinfo.Error:
+        return None
+    if info.doc_elem == "xbel":
+        public_id = info.public_id
+        system_id = info.system_id
+        if public_id == XBEL_PUBLIC_ID:
+            if system_id == XBEL_SYSTEM_ID or not system_id:
+                return "xbel"
+        elif public_id:
+            pass
+        elif system_id == XBEL_SYSTEM_ID:
+            return "xbel"
+
+
 # The canonical table of supported bookmark formats:
 __formats = {
     # format-name     first-line-magic
@@ -86,6 +108,9 @@ def get_format(fp):
         for re, fmt in __format_table:
             if re.match(line1):
                 format = fmt
+                break
+        else:
+            format = check_xml_format(line1)
     finally:
         fp.seek(pos)
     return format
