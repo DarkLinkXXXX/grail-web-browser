@@ -3,7 +3,9 @@
 
 # XXX To do:
 # - Stop command
-# - load images should be menu option instead of command line option
+# - Options menu to toggle image loading
+# - Reload command
+# - Etc.
 
 
 import urllib
@@ -16,8 +18,8 @@ from DefaultStylesheet import DefaultStylesheet
 
 
 # URLs of various sorts
-DEFAULT_HOME = 'http://monty.cnri.reston.va.us/'
-ABOUT_GRAIL = 'http://monty.cnri.reston.va.us/grail/about.html'
+DEFAULT_HOME = 'http://monty.cnri.reston.va.us/grail/'
+ABOUT_GRAIL = 'http://monty.cnri.reston.va.us/grail/about/'
 
 
 # Various cursor shapes (argument to message())
@@ -86,13 +88,13 @@ class Browser:
 	self.histmenu = Menu(self.histbutton)
 	self.histbutton['menu'] = self.histmenu
 
-	self.histmenu.add('command', label='Home',
-			  command=self.home_command)
-	self.histmenu.add('separator')
 	self.histmenu.add('command', label='Back',
 			  command=self.back_command)
 	self.histmenu.add('command', label='Forward',
 			  command=self.forward_command)
+	self.histmenu.add('separator')
+	self.histmenu.add('command', label='Home',
+			  command=self.home_command)
 
 	# List of user menus (reset on page load)
 	self.user_menus = []

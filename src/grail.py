@@ -7,7 +7,6 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 
 (Not to mention Java :-)
 
-
 XXX Bugs:
 - error dialog looks ugly
 - view source
@@ -26,11 +25,13 @@ import tempfile
 import posixpath
 import os
 from Tkinter import *
-import Dialog
+import SafeDialog
 import tktools
-from Browser import Browser
+from Browser import Browser, DEFAULT_HOME
 import SafeTkinter
-
+from AppletRExec import AppletRExec
+if 0:
+    import dummies
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 100
@@ -64,7 +65,7 @@ def main():
 	self.root.update_idletasks()	# Get geometry implemented
     if url:
 	app.home = url
-	browser.load(app.home)
+    browser.load(app.home)
     app.go()
 
 
@@ -74,9 +75,9 @@ class Application:
 
     def __init__(self):
 	self.load_images = 1
-	self.home = None
+	self.home = DEFAULT_HOME
 	self.image_cache = {}
-	self.modules = {}
+	self.rexec = AppletRExec(None, 2)
 	self.root = Tk()
 	SafeTkinter._castrate(self.root.tk)
 	self.root.withdraw()
@@ -179,7 +180,7 @@ class Application:
 	# Display an error dialog.
 	# Return when the user clicks OK
 	# XXX This looks horrible
-	Dialog.Dialog(self.root,
+	SafeDialog.Dialog(self.root,
 		      text=tktools.flatten(msg),
 		      title=exc,
 		      bitmap='error',

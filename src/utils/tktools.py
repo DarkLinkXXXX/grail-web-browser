@@ -6,12 +6,7 @@ from types import *
 from Tkinter import *
 
 
-# Default dimensions for text box
-TEXT_WIDTH = 60
-TEXT_HEIGHT = 16
-
-
-def make_text_box(parent, width=TEXT_WIDTH, height=TEXT_HEIGHT):
+def make_text_box(parent, width=0, height=0):
 
     """Subroutine to create a text box.
 

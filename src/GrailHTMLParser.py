@@ -133,7 +133,11 @@ class AppletHTMLParser(htmllib.HTMLParser):
 			try: v = string.atof(v)
 			except string.atof_error: pass
 		keywords[a] = v
-	return self.get_class_proper(mod, cls, src, reload), keywords
+	try:
+	    return self.get_class_proper(mod, cls, src, reload), keywords
+	except:
+	    self.show_tb()
+	    return None, keywords
 
     def get_class_proper(self, mod, cls, src, reload):
 	if not (mod or cls):
@@ -141,44 +145,12 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    return None
 	if not mod: mod = cls
 	if not cls: cls = mod
-	modules = self.browser.app.modules
-	if modules.has_key(mod): m = modules[mod]
-	else: modules[mod] = m = imp.new_module(mod)
-	try:
-	    if reload: raise ''
-	    return getattr(m, cls)
-	except:
-	    if src and src[-1] != '/': src = src + '/'
-	    url = src + mod + '.py'
-	    code = self.get_code(url)
-	    if not code:
-		del modules[mod]
-		return None
-	    try:
-		exec code in m.__dict__
-		return getattr(m, cls)
-	    except:
-		self.show_tb()
-		del modules[mod]
-		return None
-
-    def get_code(self, src):
-	url = urlparse.urljoin(self.browser.url, src)
-	try:
-	    fp = urllib.urlopen(url)
-	    try:
-		data = fp.read()
-	    finally:
-		fp.close()
-	except IOError, msg:
-	    print "*** Load of", `url`, "failed:", msg
-	    return None
-	try:
-	    code = compile(data, url, 'exec')
-	except SyntaxError:
-	    self.show_tb()
-	    return None
-	return code
+	rexec = self.browser.app.rexec
+	rexec.reset_urlpath()
+	url = urlparse.urljoin(self.browser.url, src or '.')
+	rexec.set_urlpath(url)
+	m = rexec.r_import(mod)
+	return getattr(m, cls)
 
     def show_tb(self):
 	print "-"*40

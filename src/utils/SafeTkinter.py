@@ -1,6 +1,7 @@
 from types import *
 # NB Don't import Tk!
 from Tkinter import CallableTypes, TkVersion, TclVersion, \
+     _cnfmerge, \
      Event, Variable, StringVar, IntVar, DoubleVar, BooleanVar, \
      mainloop, getint, getdouble, getboolean, \
      Misc, Wm, Pack, Place, Toplevel, \
