@@ -8,7 +8,7 @@ There are parts of this module which assume the native character encoding is
 ASCII or a superset; this should be fixed.
 """
 
-__version__ = "$Revision: 1.2 $"
+__version__ = "$Revision: 1.3 $"
 
 import copy
 import os
@@ -125,7 +125,6 @@ def guess_byte_order_and_encoding(buffer):
 def extract(encoding, buffer, values, best_effort=0):
     tried = {}
     while not tried.has_key(encoding):
-        print "attempting to extract from", encoding
         tried[encoding] = 1
         v2 = copy.copy(values)
         extractor = new_extractor(encoding, buffer, v2)
@@ -164,7 +163,6 @@ class Extractor:
         if self.values.encoding not in self.encodings:
             raise EncodingMismatchError(self.values.encoding)
         self.skip_to_doctype()
-        print `self.buffer[:40]`
         self.parse_doctype()
         return self.values
 
@@ -709,7 +707,6 @@ class UCS2Extractor(Extractor):
         else:
             self.__whitespace = self.__WHITESPACE_LE
             self.__from_ascii = ascii_to_ucs2le
-        print self.__whitespace
 
     def skip_whitespace(self):
         buffer = self.buffer
