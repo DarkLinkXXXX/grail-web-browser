@@ -18,10 +18,10 @@ import History
 
 
 # URLs of various sorts
-GRAIL_HOME = "http://monty.cnri.reston.va.us/grail/"
+GRAIL_HOME = "http://monty.cnri.reston.va.us/grail-0.2/"
 PYTHON_HOME = "http://www.python.org/"
 CNRI_HOME = "http://www.cnri.reston.va.us/"
-ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail/about/"
+ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail-0.2/about/"
 DEFAULT_HOME = GRAIL_HOME
 LOGO_IMAGES = "logo:"
 FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
