@@ -458,7 +458,7 @@ class SessionTag:
 
     session_tag() -- get next session tag
 
-    XXX (and why does it have to be a class anyway?)
+    XXX Why does it have to be a class anyway?
 
     """
     def session_tag(self):
@@ -924,6 +924,7 @@ def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
                                       HDL_TYPE_SERVICE_HANDLE])
     # 5. Inspect the result
     hashtable = None
+    handle = None
     for type, data in items:
         if type == HDL_TYPE_SERVICE_HANDLE:
             if debug: print "service handle =", hexstr(data)
@@ -941,6 +942,23 @@ def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
             if debug: print "type", type, "=", data
     if hashtable:
         return HashTable(data=hashtable, debug=debug)
+    elif handle:
+        flags, items = ht.get_data(handle,
+                               types=[HDL_TYPE_SERVICE_POINTER])
+        for type, data in items:
+            if type == HDL_TYPE_SERVICE_POINTER:
+                urnscheme = data[:16]
+                urndata = data[16:]
+                if debug: print "URN scheme =", `urnscheme`
+                if urnscheme == HANDLE_SERVICE_ID:
+                    hashtable = urndata
+                    if debug: print "hash table data =", hexstr(hashtable)
+                  return HashTable(data=hashtable, debug=debug)
+                else:
+                    raise Error("Unknown SERVICE_ID: %s" % urnscheme)
+            else:
+                if debug: print "type", type, "=", data
+
     raise Error("Didn't get a hash table")
 
 
@@ -960,6 +978,8 @@ testsets = [
         [
         "//cnri-1/cnri_home",
         "cnri-1/cnri_home",
+        "1001/0",
+        "1001.cat/0",
         ],
         # 1: Some demo handles
         [
@@ -1139,4 +1159,6 @@ def test(defargs = testsets[0]):
 
 
 if __name__ == '__main__':
+#    import pdb
+#    pdb.set_trace()
     test()
