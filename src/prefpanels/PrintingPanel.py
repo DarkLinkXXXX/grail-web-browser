@@ -1,18 +1,10 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.3 $"
+__version__ = "$Revision: 1.4 $"
 # $Source: /home/john/Code/grail/src/prefpanels/PrintingPanel.py,v $
 
 # Base class for the panel:
 import PrefsPanels
-
-#import sys, os
-
-#from Tkinter import *
-import tktools
-#import grailutil
-#import tktools
-#import string
 
 class PrintingPanel(PrefsPanels.Framework):
     """Printing preferences."""
@@ -38,6 +30,10 @@ class PrintingPanel(PrefsPanels.Framework):
 	self.PrefsCheckButton(frame, " ", "Underline anchors",
 			      'printing', 'underline-anchors',
 			      label_width=16)
+	self.PrefsEntry(frame, "Base font size: ",
+			'printing', 'base-font-size',
+			typename='float', entry_width=4,
+			label_width=16)
 	self.PrefsEntry(frame, "Leading: ", 'printing', 'leading',
 			typename='float', entry_width=4,
 			label_width=16)
