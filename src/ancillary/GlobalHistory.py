@@ -123,7 +123,7 @@ class GlobalHistory:
     	urls()
 		Return a list, in order of all URLs on the GlobalHistory.
     """
-    def __init__(self, app):
+    def __init__(self, app, readonly=0):
 	self._app = app
 	self._urlmap = {}		# for fast lookup
 	self._history = []		# to maintain order
@@ -138,7 +138,8 @@ class GlobalHistory:
 		HistoryReader().read_file(fp, self)
 	finally:
 	    if fp: fp.close()
-	app.register_on_exit(self.on_app_exit)
+	if not readonly:
+	    app.register_on_exit(self.on_app_exit)
 
     def mass_append(self, histlist):
 	histlist.reverse()
@@ -154,6 +155,13 @@ class GlobalHistory:
 	self._urlmap[url] = (title, now())
 	# Debugging...
 #	print 'remember_url:', url, self._urlmap[url]
+
+    def set_title(self, url, title):
+	if self._urlmap.has_key(url):
+	    old_title, when = self._urlmap[url]
+	else:
+	    when = now()
+	self._urlmap[url] = (title, when)
 
     def lookup_url(self, url):
 	if self._urlmap.has_key(url): return self._urlmap[url]
