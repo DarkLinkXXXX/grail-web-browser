@@ -26,7 +26,7 @@ from Tkinter import *
 import tktools
 import os
 
-PRINT_PREFS_GROUP = 'printing'
+PRINT_PREFGROUP = 'printing'
 PRINTCMD = "lpr"			# Default print command
 
 # Global variables tracking the last contents of the dialog box.
@@ -35,27 +35,23 @@ printcmd = None
 printfile = ""
 fileflag = 0
 imageflag = 0
-
-
-def bool_to_tkbool(v):
-    return v and 1 or 0
+greyscaleflag = 0
 
 
 class PrintDialog:
 
     def __init__(self, context, url, title):
+	global printcmd, printfile, fileflag, imageflag, greyscaleflag
 	self.context = context
 	if printcmd is None:
-	    global printcmd, printfile, fileflag, imageflag
 	    prefs = context.app.prefs
 	    if not prefs:
 		printcmd = PRINTCMD
 	    else:
-		imageflag = prefs.GetBoolean(PRINT_PREFS_GROUP, 'images')
-		imageflag = bool_to_tkbool(imageflag)
-		fileflag = prefs.GetBoolean(PRINT_PREFS_GROUP, 'to-file')
-		fileflag = bool_to_tkbool(fileflag)
-		printcmd = prefs.Get(PRINT_PREFS_GROUP, 'command')
+		imageflag = prefs.GetBoolean(PRINT_PREFGROUP, 'images')
+		fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
+		greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
+		printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
 
 	self.url = url
 	self.title = title
@@ -83,7 +79,7 @@ class PrintDialog:
 	self.file_entry.delete('0', END)
 	self.file_entry.insert(END, printfile)
 
-	#  Image printing toggle:
+	#  Image printing controls:
 	self.imgframe = Frame(self.root)
 	self.imgframe.pack(fill = X)
 	self.imgchecked = IntVar(self.root)
@@ -91,7 +87,17 @@ class PrintDialog:
 	self.image_check = Checkbutton(self.imgframe,
 				       variable = self.imgchecked)
 	self.image_check.pack(side = LEFT)
-	Label(self.imgframe, text = 'Print images?').pack(side = LEFT)
+	Label(self.imgframe, text = 'Print images').pack(side = LEFT)
+
+	self.greyframe = Frame(self.root)
+	self.greyframe.pack(fill = X)
+	self.greychecked = IntVar(self.root)
+	self.greychecked.set(greyscaleflag)
+	self.grey_check = Checkbutton(self.greyframe,
+				      variable = self.greychecked)
+	self.grey_check.pack(side = LEFT)
+	lbl = Label(self.greyframe, text = 'Reduce images to greyscale')
+	lbl.pack(side = LEFT)
 
 	#  Command buttons:
 	fr = Frame(self.root, relief = SUNKEN, height = 4, borderwidth = 2)
@@ -177,21 +183,23 @@ class PrintDialog:
 	    self.context.error_dialog(IOError, msg)
 	    return
 	imgloader = (self.imgchecked.get() and self.image_loader) or None
-	w = PSWriter(fp, self.title, self.url)
+	grey = self.greychecked.get()
+	w = PSWriter(fp, self.title, self.url, grey)
 	f = AbstractFormatter(w)
 	p = PrintingHTMLParser(f, baseurl = self.context.baseurl(),
-			       image_loader = imgloader)
+			       image_loader = imgloader, greyscale = grey)
 	p.feed(infp.read())
 	infp.close()
 	p.close()
 	w.close()
 
     def goaway(self):
-	global printcmd, printfile, fileflag, imageflag
+	global printcmd, printfile, fileflag, imageflag, greyscaleflag
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
 	imageflag = self.imgchecked.get()
+	greyscaleflag = self.greychecked.get()
 	self.root.destroy()
 
     def image_loader(self, url):
@@ -206,11 +214,5 @@ class PrintDialog:
 	except IOError, msg:
 	    self.context.error_dialog(IOError, msg)
 	    return None
-	tmp_fn = mktemp()
-	tmpfp = open(tmp_fn, 'w')
-	tmpfp.write(imgfp.read())
-	imgfp.close()
-	tmpfp.close()
-	photo = PhotoImage(file = tmp_fn)
-	os.unlink(tmp_fn)
-	return photo
+	data = imgfp.read()
+	return data
