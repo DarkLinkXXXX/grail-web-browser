@@ -264,11 +264,17 @@ class Application:
 	}
 
     def find_extension(self, subdir, module):
+	oldpath = sys.path
+	newpath = oldpath[:]
 	subdir = os.path.join(self.graildir, subdir)
-	if subdir not in sys.path:
-	    sys.path.insert(0, subdir)
+	if subdir not in newpath:
+	    newpath.insert(0, subdir)
 	try:
-	    return __import__(module)
+	    try:
+		sys.path = newpath
+		return __import__(module)
+	    finally:
+		sys.path = oldpath
 	except ImportError:
 	    return None
 	except:
