@@ -505,9 +505,9 @@ class Viewer(formatter.AbstractWriter):
 	else:
 	    return None
 
-    def add_subwindow(self, window):
+    def add_subwindow(self, window, align=CENTER):
 	self.subwindows.append(window)
-	self.text.window_create(END, window=window)
+	self.text.window_create(END, window=window, align=align)
 
     def add_subviewer(self, subviewer):
 	self.subviewers.append(subviewer)
