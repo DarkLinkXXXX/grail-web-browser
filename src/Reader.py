@@ -15,10 +15,6 @@ import regsub
 from copy import copy
 
 
-# Buffer size for getdata()
-BUFSIZE = 8*1024
-
-
 # mailcap dictionary
 caps = None
 
