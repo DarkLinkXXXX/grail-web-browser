@@ -230,8 +230,8 @@ class HTMLParser(SGMLParser):
 
     def header_end(self, tag, level):
         self.formatter.pop_font()
-	self.formatter.pop_alignment()
         self.formatter.end_paragraph(1)
+	self.formatter.pop_alignment()
 
     def header_number(self, tag, level, attrs):
 	if self.autonumber is None:
@@ -259,8 +259,8 @@ class HTMLParser(SGMLParser):
 
     def end_p(self, parbreak = 1):
 	if not 'pre' in self.stack:
-	    self.formatter.pop_alignment()
 	    self.formatter.end_paragraph(parbreak)
+	    self.formatter.pop_alignment()
 
     def implied_end_p(self):
 	if 'p' in self.stack:
@@ -288,9 +288,9 @@ class HTMLParser(SGMLParser):
 
     def end_pre(self):
 	self.pop_nofill()
-	self.formatter.pop_alignment()
         self.formatter.end_paragraph(1)
         self.formatter.pop_font()
+	self.formatter.pop_alignment()
 
     def start_xmp(self, attrs):
         self.start_pre(attrs)
