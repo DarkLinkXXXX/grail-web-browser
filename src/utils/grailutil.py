@@ -1,15 +1,26 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.13 $"
+__version__ = "$Revision: 2.14 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
+
+# TBD: hack!  grail.py calculates grail_root, which would be
+# convenient to export to extensions, but you can't `import grail' or
+# `import __main__'.  grail.py isn't designed for that.  You could
+# `from grail import grail_root' but that's kind of gross.  This
+# global holds the value of grail_root which can be had with
+# grailutil.get_grailroot()
+_grail_root = None
 
 # XXX Unix specific stuff
 # XXX (Actually it limps along just find for Macintosh, too)
 
 def getgraildir():
     return getenv("GRAILDIR") or os.path.join(gethome(), ".grail")
+
+def get_grailroot():
+    return _grail_root
 
 def gethome():
     try:
@@ -178,18 +189,19 @@ def conv_exists(val):
 
 def pref_or_getenv(name, group='proxies', type_name='string',
 		   check_ok=None, user=0, factory=0):
-    """The routine is designed to help integrate environement variables with the use
-    of preferences.
+    """Help for integrating environment variables with preferences.
 
-    First check preferences, under 'group', for the component 'name'.  If 'name'
-    is defined as a 'string' and it's NULL, try to read 'name' from the environment.
-    If 'name's defined in the environment, migrate the value to preferences.  Return
-    the value associated with the name,  None if it's not defined in either place
-    (env or prefs... and it's a 'string').  If check_ok is not None, it is expected to
-    be a tuple of valid names. e.g. ('name1', 'name2').  If factory  is TRUE then the
-    value for name is retrieved only from factory defaults and not user
-    preferences and not the environment. If it's not found there,
-    return None. 
+    First check preferences, under 'group', for the component 'name'.
+    If 'name' is defined as a 'string' and it's NULL, try to read
+    'name' from the environment.  If 'name's defined in the
+    environment, migrate the value to preferences.  Return the value
+    associated with the name, None if it's not defined in either place
+    (env or prefs... and it's a 'string').  If check_ok is not None,
+    it is expected to be a tuple of valid names. e.g. ('name1',
+    'name2').  If factory is TRUE then the value for name is retrieved
+    only from factory defaults and not user preferences and not the
+    environment. If it's not found there, return None.
+
     """
     if check_ok and  name not in check_ok:
 	    return None

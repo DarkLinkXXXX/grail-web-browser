@@ -31,6 +31,8 @@ import ni
 import html
 import filetypes
 import grailutil
+# TBD: hack!
+grailutil._grail_root = grail_root
 try:
     import ilu_tk
 except:
