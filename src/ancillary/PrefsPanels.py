@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.14 $"
+__version__ = "$Revision: 2.15 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -83,6 +83,13 @@ class Framework:
     def CreateLayout(self, name, frame):
 	"""Override this method with specific layout."""
 	raise SystemError, "Derived class should override .CreateLayout()"
+
+    # Optional preferences-specific layout method.
+    def UpdateLayout(self, name, frame):
+	"""Called when Factory Defaults or Revert buttons are pushed.
+
+	Override it if you have to do some layout update."""
+	pass
 
     # Optional preferences-specific delete method.
     def Dismiss(self):
@@ -177,14 +184,15 @@ class Framework:
 
     def PrefsRadioButtons(self, frame, title, button_labels,
 			  group, component, typename='string',
-			  label_width=25):
+			  composite=0, label_width=25):
 	"""Convenience for creating radiobutton preferences widget.
 
 	A label and a button are packed in 'frame' arg, using 'title'.
-	List of button_labels is taken for the labels and values for the
-	radiobutton list.
 
-	Optional label_width specifies the left-side space alloted for the
+	Optional 'composite' specifies packing to allow inhabiting frames
+	on the same line as other settings widgets.
+
+	Optional 'label_width' specifies the left-side space alloted for the
 	widget title."""
 
 	f = Frame(frame)
@@ -196,7 +204,16 @@ class Framework:
 			    relief=SUNKEN)
 	    b.pack(side=LEFT)
 
-	f.pack(fill=X, side=TOP, pady='1m')
+	if composite:
+	    use_side=LEFT
+	    use_fill=NONE
+	    use_expand=1
+	else:
+	    use_side=TOP
+	    use_fill=X
+	    use_expand=0
+	    
+	f.pack(fill=use_fill, side=use_side, pady='1m', expand=use_expand)
 
 	self.RegisterUI(group, component, typename, var.get, var.set)
 
@@ -358,7 +375,6 @@ class Framework:
 		    val = typify(val, type_nm)
 		prefsset(g, c, val)
 	except TypeError, ValueError:
-	    print 'got a type error'
 	    # Reject the value registered in the UI, notify, and fail save:
 	    e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
 	    self.app.root.report_callback_exception(e, v, tb)
@@ -373,11 +389,13 @@ class Framework:
 	"""Reinit panel widgets with system-defaults preference db values."""
 	self.set_widgets(factory=1)
 	self.poll_modified()
+	self.UpdateLayout()
 
     def revert_cmd(self):
 	"""Return settings to currently saved ones."""
 	self.set_widgets()
 	self.poll_modified()
+	self.UpdateLayout()
 	
     def cancel_cmd(self, event=None):
 	self.hide()
