@@ -9,16 +9,19 @@ class SearchMenu:
 	self.browser = menu.grail_browser
 	menu.add('command',
 		 label='Find...',
-		 command=self.find_command)
+		 command=self.find_command, underline=0, accelerator="Alt-F")
+	self.browser.root.bind('<Alt-f>', self.find_command)
 	menu.add('command',
 		 label='Find again',
-		 command=self.find_again_command)
+		 command=self.find_again_command,
+		 underline=6, accelerator="Alt-G")
+	self.browser.root.bind('<Alt-g>', self.find_again_command)
 	self.sdialog = None
 
-    def find_command(self):
+    def find_command(self, event=None):
 	self.create_dialog(1)
 
-    def find_again_command(self):
+    def find_again_command(self, event=None):
 	self.create_dialog(0)
 	self.sdialog.search_command()
 
