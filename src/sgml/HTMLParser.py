@@ -4,8 +4,11 @@ See the HTML 2.0 specification:
 http://www.w3.org/hypertext/WWW/MarkUp/html-spec/html-spec_toc.html
 """
 
-
 import sys
+
+if __name__ == '__main__':
+    sys.path.insert(0, '../pythonlib')
+
 import regsub
 import string
 import SGMLLexer
@@ -21,22 +24,18 @@ class HTMLParser(SGMLParser):
     head_only_tags = ('link', 'meta', 'title', 'isindex', 'range',
 		      'base', 'nextid', 'style', 'head')
     autonumber = None
+    savedata = None
+    title = base = anchor = nextid = None
+    nofill = badhtml = 0
+    inhead = 1
 
     def __init__(self, formatter, verbose=0, autonumber=None):
         SGMLParser.__init__(self, verbose)
 	self.restrict(1)
         self.formatter = formatter
-        self.savedata = None
-        self.isindex = 0
-        self.title = None
-        self.base = None
         self.anchor = None
         self.anchorlist = []
-        self.nofill = 0
         self.list_stack = []
-	self.inhead = 1
-	self.badhtml = 0
-	self.nextid = None
 	if autonumber is not None:
 	    self.autonumber = autonumber
 	self.headernumber = HeaderNumber()
@@ -46,29 +45,33 @@ class HTMLParser(SGMLParser):
     # --- Formatter interface, taking care of 'savedata' mode;
     # shouldn't need to be overridden
 
-    def handle_data(self, data):
-        if self.savedata is not None:
-	    self.savedata = self.savedata + data
-	    return
-	self.inhead = 0
-	#    if string.strip(data) != '':
-	#	self.element_close_maybe('head', 'style', 'title')
-	#	self.inhead = 0
-	#    else:
-	#	return
-	if self.nofill:
-	    self.formatter.add_literal_data(data)
-	else:
-	    self.formatter.add_flowing_data(data)
+    def handle_data_head(self, data):
+	if string.strip(data) != '':
+	    self.element_close_maybe('head', 'script', 'style', 'title')
+	    self.inhead = 0
+	    self.handle_data = self.formatter.add_flowing_data
+	    self.handle_data(data)
+
+    handle_data = handle_data_head	# always start in head
+
+    def handle_data_save(self, data):
+	self.savedata = self.savedata + data
 
     # --- Hooks to save data; shouldn't need to be overridden
 
     def save_bgn(self):
         self.savedata = ''
+	self.handle_data = self.handle_data_save
 
     def save_end(self):
         data = self.savedata
-        self.savedata = None
+        self.savedata = None		# in case anyone cheats
+	if self.inhead:
+	    self.handle_data = self.handle_data_head
+	elif self.nofill:
+	    self.handle_data = self.formatter.add_literal_data
+	else:
+	    self.handle_data = self.formatter.add_flowing_data
 	if not self.nofill:
 	    data = string.join(string.split(data))
 	return data
@@ -77,7 +80,7 @@ class HTMLParser(SGMLParser):
 
     def anchor_bgn(self, href, name, type):
         self.anchor = href
-        if self.anchor:
+        if href:
 	    self.anchorlist.append(href)
 
     def anchor_end(self):
@@ -223,11 +226,14 @@ class HTMLParser(SGMLParser):
         self.formatter.end_paragraph(1)
         self.formatter.push_font((AS_IS, AS_IS, AS_IS, 1))
         self.nofill = self.nofill + 1
+	self.handle_data = self.formatter.add_literal_data
 
     def end_pre(self):
         self.formatter.end_paragraph(1)
         self.formatter.pop_font()
         self.nofill = max(0, self.nofill - 1)
+	if not self.nofill:
+	    self.handle_data = self.formatter.add_flowing_data
 
     def start_xmp(self, attrs):
         self.start_pre(attrs)
@@ -266,15 +272,17 @@ class HTMLParser(SGMLParser):
     def start_lh(self, attrs):
 	self.close_paragraph()
 	self.do_br({})
-	self.start_b(attrs)
-	self.start_i(attrs)
+	self.formatter.push_font(('', 1, 1, 0))
+	if not self.list_stack:
+	    self.badhtml = 1
 
     def end_lh(self):
-	self.end_i()
-	self.end_b()
-	compact = self.list_stack and self.list_stack[-1][3]
-	compact = (compact and 1) or 0
-	self.formatter.end_paragraph(not compact)
+	self.formatter.pop_font()
+	if self.list_stack:
+	    not_compact = not self.list_stack[-1][3]
+	else:
+	    not_compact = 1
+	self.formatter.end_paragraph(not_compact)
 
     def start_ul(self, attrs):
 	self.element_close_maybe('p', 'lh')
@@ -556,10 +564,10 @@ class HTMLParser(SGMLParser):
     # --- Unhandled lexical tokens:
 
     def unknown_starttag(self, tag, attrs):
-        pass
+        self.badhtml = 1
 
     def unknown_endtag(self, tag):
-        pass
+        self.badhtml = 1
 
     def unknown_entityref(self, entname, terminator):
 	self.badhtml = 1
@@ -582,11 +590,6 @@ class HTMLParser(SGMLParser):
 	    self.lex_endtag('p')
 
 
-
-def set_header_default_format(level, s):
-    """Vile hackery.
-    """
-    HeaderNumber.formats[level] = s
 
 class HeaderNumber:
     formats = ['',
@@ -641,6 +644,12 @@ class HeaderNumber:
     def set_format(self, level, s):
 	self.formats[level] = s
 
+    def set_default_format(self, level, s):
+	HeaderNumber.formats[level] = s
+
+HeaderNumber.set_default_format = HeaderNumber().set_default_format
+
+
 
 def test():
     import sys
@@ -649,8 +658,8 @@ def test():
     fp = open(file, 'r')
     data = fp.read()
     fp.close()
-    from formatter import DumbWriter, AbstractFormatter
-    w = DumbWriter()
+    from formatter import NullWriter, AbstractFormatter
+    w = NullWriter()
     f = AbstractFormatter(w)
     p = HTMLParser(f)
     p.feed(data)
