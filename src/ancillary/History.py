@@ -132,10 +132,11 @@ class HistoryDialog:
 	    self._history = History()
 	else:
 	    self._history = historyobj
-	# 
+	#
 	self._context = context
 	self._history.set_dialog(self)
 	self._frame = tktools.make_toplevel(self._context.viewer.frame,
+					    class_="History",
 					    title="History Dialog")
 	self._frame.protocol("WM_DELETE_WINDOW", self._close)
 	# get preferences
@@ -154,7 +155,7 @@ class HistoryDialog:
 	btnbar = Frame(self._frame)
 	btnbar.pack(fill=BOTH, side=BOTTOM)
 	gotobtn = Button(btnbar, text='Go To', command=self._goto)
-	gotobtn.pack(side=LEFT)
+	gotobtn.pack(side=LEFT, padx='1m', pady='1m')
 	closebtn = Button(btnbar, text='Close', command=self._close)
 	closebtn.pack(side=LEFT)
 	# radio button for view option
@@ -189,7 +190,7 @@ class HistoryDialog:
 	self._frame.bind('<Alt-W>', self._close)
 	self._frame.bind('<Alt-w>', self._close)
 	tktools.set_transient(self._frame, self._context.root)
-	    
+
     def history(self): return self._history
 
     def _notify(self):
