@@ -1,6 +1,6 @@
 """HTML parser for printing."""
 
-__version__ = '$Revision: 1.8 $'
+__version__ = '$Revision: 1.9 $'
 
 import grailutil                        # top level
 import os
@@ -442,14 +442,23 @@ class PrintingHTMLParser(HTMLParser):
     def start_ul(self, attrs, *args, **kw):
         self.list_check_dingbat(attrs)
         apply(HTMLParser.start_ul, (self, attrs) + args, kw)
+        self.formatter.writer.suppress_indentation()
 
     def end_ul(self):
         HTMLParser.end_ul(self)
         self.formatter.writer.suppress_indentation(0)
 
+    def start_dl(self, attrs):
+        HTMLParser.start_dl(self, attrs)
+        self.formatter.writer.suppress_indentation()
+
     def end_dl(self):
         HTMLParser.end_dl(self)
         self.formatter.writer.suppress_indentation(0)
+
+    def start_ol(self, attrs):
+        HTMLParser.start_ol(self, attrs)
+        self.formatter.writer.suppress_indentation()
 
     def end_ol(self):
         HTMLParser.end_ol(self)
