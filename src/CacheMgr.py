@@ -20,6 +20,20 @@ CacheEmpty = 'Cache Empty'
 CacheReadFailed = 'Cache Item Expired or Missing'
 CacheFileError = 'Cache File Error'
 
+
+try:
+    # Python 1.5.2:
+    from mimetypes import guess_extension
+except ImportError:
+    # This is for users of Python 1.5.1:
+    def guess_extension(type):
+        type = string.lower(type)
+        for ext, stype in mimetypes.types_map.items():
+            if type == stype:
+                return ext
+        return None
+
+
 def parse_cache_control(s):
     def parse_directive(s):
 	i = string.find(s, '=')
@@ -782,7 +796,7 @@ class DiskCache:
 	if self.types.has_key(type):
 	    return self.types[type]
 	else:
-            return mimetypes.guess_extension(type) or ''
+            return guess_extension(type) or ''
 
     def make_file(self,entry,object):
 	"""Write the object's data to disk."""
