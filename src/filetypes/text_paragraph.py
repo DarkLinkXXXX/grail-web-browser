@@ -1,8 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Parser component for text/paragraph documents.
 
 Text/paragraph is for word-wrapped text where each paragraph is a single
@@ -17,7 +12,7 @@ is based on is available at:
 text/paragraph MIME type is only a WORK IN PROGRESS and carries no weight
 as an Internet RFC.
 """
-__version__ = '$Revision: 2.3 $'
+__version__ = '$Revision: 2.4 $'
 
 import formatter
 import re
