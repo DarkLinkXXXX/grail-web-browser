@@ -402,7 +402,7 @@ class GrailHTMLParser(HTMLParser):
 	
 	coords = []
 	
-	terms = map(string.atoi, regsub.split(text, '[, ]+'))
+	terms = map(string.atoi, regsub.split(string.strip(text), '[, ]+'))
 
 	if shape == 'poly':
 	    # list of (x,y) tuples
