@@ -6,6 +6,7 @@ import tktools
 import formatter
 import string
 from Context import Context
+from Cursors import *
 
 
 class Viewer(formatter.AbstractWriter):
@@ -17,13 +18,20 @@ class Viewer(formatter.AbstractWriter):
     """
 
     def __init__(self, master, browser=None, context=None, stylesheet=None,
-		 width=80, height=40):
+		 width=80, height=40, name="", scrolling="auto",
+		 parentviewer=None):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
 	self.context = context or Context(self, browser)
 	self.stylesheet = stylesheet
+	self.name = name
+	self.scrolling = scrolling
+	self.parentviewer = parentviewer
 	self.subwindows = []
 	self.rules = []
+	self.subviewers = []
+	self.resize_interests = [self.__class__.resize_rules]
+	self.reset_interests = []
 	self.create_widgets(width=width, height=height)
 	self.reset_state()
 	self.freeze()
@@ -39,12 +47,27 @@ class Viewer(formatter.AbstractWriter):
 	self.literaltags = ()		# Tags for literal text
 	self.flowingtags = ()		# Tags for flowed text
 
+    def __del__(self):
+	self.close()
+
+    def close(self):
+	self.context.stop()
+	self.clear_reset()
+	frame = self.frame
+	if frame:
+	    self.frame = None
+	    self.text = None
+	    frame.destroy()
+	self.parentviewer = None
+	self.context = None		# XXX close it?
+
     def create_widgets(self, width, height):
+	bars = self.scrolling == "auto" or self.scrolling
 	self.text, self.frame = tktools.make_text_box(self.master,
 						      width=width,
 						      height=height,
-						      hbar=1, vbar=1)
-	self.text.config(padx=10)
+						      hbar=bars, vbar=bars)
+	self.text.config(padx=10, cursor=CURSOR_NORMAL)
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
 	self.text.config(selectbackground='yellow')
@@ -80,21 +103,58 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_bind(tag, '<Enter>', self.anchor_enter)
 	# XXX Don't tag bindings need to be garbage-collected?
 
+    def register_interest(self, interests, func):
+	interests.append(func)
+
+    def unregister_interest(self, interests, func):
+	found = -1
+	for i in range(len(interests)):
+	    if interests[i] == func:
+		found = i
+	if found < 0:
+	    print "resize interest", func, "not registered"
+	    return
+	del interests[found]
+
+    def register_reset_interest(self, func):
+	self.register_interest(self.reset_interests, func)
+
+    def unregister_reset_interest(self, func):
+	self.unregister_interest(self.reset_interests, func)
+
+    def register_resize_interest(self, func):
+	self.register_interest(self.resize_interests, func)
+
+    def unregister_resize_interest(self, func):
+	self.unregister_interest(self.resize_interests, func)
+
     def clear_reset(self):
+	self._atemp = []
+	for func in self.reset_interests[:]:
+	    func(self)
+	# XXX Eventually the following code should be done using interests too
 	subwindows = self.subwindows + self.rules
+	subviewers = self.subviewers
 	self.subwindows = []
 	self.rules = []
+	self.subviewers = []
+	for viewer in subviewers:
+	    viewer.close()
 	for w in subwindows:
 	    w.destroy()
-	self.unfreeze()
-	self.text.config(background=self.default_bg,
-			 foreground=self.default_fg)
-	self.text.delete('1.0', END)
-	self.reset_state()
-	self.freeze()
+	if self.text:
+	    self.unfreeze()
+	    self.text.config(background=self.default_bg,
+			     foreground=self.default_fg)
+	    self.text.delete('1.0', END)
+	    self.reset_state()
+	    self.freeze()
 
     def resize_event(self, event):
-	# Need to reconfigure all the horizontal rules :-(
+	for func in self.resize_interests:
+	    func(self)
+
+    def resize_rules(self):
 	if self.rules:
 	    width = self.rule_width()
 	    for rule in self.rules:
@@ -196,20 +256,31 @@ class Viewer(formatter.AbstractWriter):
 
     def anchor_enter(self, event):
 	url = self.find_tag_url() or '???'
-	self.context.enter(url)
+	url, target = self.split_target(url)
+	if not target:
+	    target = self.context.get_target()
+	if target:
+	    url =  "%s in %s" % (url, target)
+	if not self.context.busy():
+	    self.text.config(cursor=CURSOR_LINK)
+	    self.context.enter(url)
 
     def anchor_leave(self, event):
-	self.context.leave()
+	if not self.context.busy():
+	    self.text.config(cursor=CURSOR_NORMAL)
+	    self.context.leave()
 
     def anchor_click(self, event):
 	url = self.find_tag_url()
 	if url:
+	    url, target = self.split_target(url)
 	    self.add_temp_tag()
-	    self.context.follow(url)
+	    self.context.follow(url, target)
 
     def anchor_click_new(self, event):
 	url = self.find_tag_url()
 	if url:
+	    url, target = self.split_target(url)
 	    self.add_temp_tag()
 	    self.master.update_idletasks()
 	    from Browser import Browser
@@ -218,6 +289,11 @@ class Viewer(formatter.AbstractWriter):
 	    b = Browser(self.master, app)
 	    b.context.load(self.context.get_baseurl(url))
 	    self.remove_temp_tag(histify=1)
+
+    def split_target(self, url):
+	i = string.find(url, '>')
+	if i < 0: return url, ""
+	return url[:i], url[i+1:]
 
     def add_temp_tag(self):
 	start, end = self.find_tag_range()
@@ -284,6 +360,36 @@ class Viewer(formatter.AbstractWriter):
     def add_subwindow(self, window):
 	self.subwindows.append(window)
 	self.text.window_create(END, window=window)
+
+    def make_subviewer(self, master, name="", scrolling="auto"):
+	self.subwindows.append(master)
+	depth = 0
+	v = self
+	while v:
+	    depth = depth + 1
+	    v = v.parentviewer
+	if depth > 5:
+	    return None			# Ridiculous nesting
+	viewer = Viewer(master=master,
+			browser=self.context.browser,
+			stylesheet=self.stylesheet,
+			name=name,
+			scrolling=scrolling,
+			parentviewer=self)
+	viewer.context.set_baseurl(self.context.get_baseurl())
+	self.subviewers.append(viewer)
+	return viewer
+
+    def find_subviewer(self, name):
+	if self.name == name:
+	    return self
+	for v in self.subviewers:
+	    v = v.find_subviewer(name)
+	    if v:
+		return v
+
+    def find_parentviewer(self):
+	return self.parentviewer
 
 
 def test():

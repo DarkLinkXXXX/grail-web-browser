@@ -21,7 +21,7 @@ if hasattr(htmllib.HTMLParser, 'do_isindex'):
 
 class AppletHTMLParser(htmllib.HTMLParser):
 
-    insert_aware_tags = ['param', 'alias', 'insert', 'applet', 'embed']
+    insert_aware_tags = ['param', 'alias', 'applet']
 
     def __init__(self, viewer, reload=0):
 	self.viewer = viewer
@@ -58,13 +58,14 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if not self.insert_active:
 	    htmllib.HTMLParser.handle_data(self, data)
 
-    def anchor_bgn(self, href, name, type):
+    def anchor_bgn(self, href, name, type, target=""):
 	self.formatter.flush_softspace()
 	self.anchor = href
 	atag = utag = htag = otag = None
 	if href:
 	    atag = 'a'
 	    utag = '>' + href
+	    if target: utag = utag + '>' + target
 	    fulluri = self.context.baseurl(href)
 	    if self.app.global_history.inhistory_p(fulluri):
 		atag = 'ahist'
@@ -154,10 +155,13 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def do_base(self, attrs):
 	base = None
+	target = None
         for a, v in attrs:
             if a == 'href':
                 base = v
-	self.context.set_baseurl(base)
+	    if a == 'target':
+		target = v
+	self.context.set_baseurl(base, target)
 
     # New tag: <CENTER> (for Amy)
 
@@ -167,13 +171,23 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def end_center(self):
 	self.formatter.pop_style()
 
-    # New tag: <INSERT> (for the time being, same as <APPLET>)
-
-    def start_insert(self, attrs):
-	self.start_applet(attrs)
-
-    def end_insert(self):
-	self.end_applet()
+    # Duplicated from htmllib.py because we want to have the target attribute
+    def start_a(self, attrs):
+        href = ''
+        name = ''
+        type = ''
+	target = ''
+        for attrname, value in attrs:
+	    value = string.strip(value)
+            if attrname == 'href':
+                href = value
+            if attrname == 'name':
+                name = value
+            if attrname == 'type':
+                type = string.lower(value)
+	    if attrname == 'target':
+		target = value
+        self.anchor_bgn(href, name, type, target)
 
     # New tag: <MAP> (for client side image maps)
 
@@ -215,7 +229,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
 		    url = None
 
 	    try:
-		self.current_map.add_shape(shape, self.parse_area_coords(shape, coords), url)
+		self.current_map.add_shape(
+		    shape, self.parse_area_coords(shape, coords), url)
 	    except IndexError:
 		# wrong number of coordinates
 		# how should this get reported to the user?
@@ -353,11 +368,19 @@ class AppletHTMLParser(htmllib.HTMLParser):
     # Handle HTML extensions
 
     def unknown_starttag(self, tag, attrs):
+	# Look up the function first, so it has a chance to update
+	# the list of insert-aware tags
 	function = self.app.find_html_start_extension(tag)
+	if self.insert_active:
+	    if tag not in self.insert_aware_tags:
+		return
 	if function:
 	    function(self, attrs)
 
     def unknown_endtag(self, tag):
+	if self.insert_active:
+	    if tag not in self.insert_aware_tags:
+		return
 	function = self.app.find_html_end_extension(tag)
 	if function:
 	    function(self)

@@ -3,6 +3,9 @@
 from urlparse import urljoin, urlparse
 from Cursors import *
 import History
+import string
+
+VALID_TARGET_STARTS = string.letters + '_'
 
 
 class Context:
@@ -37,11 +40,18 @@ class Context:
 	self.readers = []
 	self.page = None
 	self.future = -1
-	self.set_url("")
+	self.source = None
+	self._url = self._baseurl = ""
+	self._target = None
 
     def clear_reset(self):
-	self.browser.clear_reset()
-	self.set_url("")
+	self.viewer.clear_reset()
+	if self.on_top():
+	    self.browser.clear_reset()
+	    self.set_url("")
+
+    def on_top(self):
+	return self.browser.context is self
 
     # Load URL, base URL and target
 
@@ -73,7 +83,8 @@ class Context:
 	if baseurl:
 	    self._baseurl = urljoin(url, baseurl)
 	self._target = target
-	self.browser.set_url(self._url)
+	if self.on_top():
+	    self.browser.set_url(self._url)
 
     def set_baseurl(self, baseurl=None, target=None):
 	"""Set the base URL and target for the current page.
@@ -117,15 +128,15 @@ class Context:
 	    return
 	if url[:1] != '#':
 	    url = urljoin(self._baseurl, url)
-	self.message(url, CURSOR_LINK)
+	self.message(url)
 
     def leave(self):
 	"""Clear the message on leaving an anchor, if idle."""
 	if self.readers:
 	    return
-	self.message("", CURSOR_NORMAL)
+	self.message("")
 
-    def follow(self, url):
+    def follow(self, url, target=""):
 	"""Follow a link, given by a relative URL.
 
 	If the relative URL is *just* a fragment id (#name), just
@@ -136,7 +147,9 @@ class Context:
 	    self.viewer.scroll_to(url[1:])
 	    self.viewer.remove_temp_tag(histify=1)
 	    return
-	self.load(self.baseurl(url))
+	if not target:
+	    target = self._target
+	self.load(self.get_baseurl(url), target=target)
 
     # Misc
 
@@ -164,7 +177,8 @@ class Context:
 
     def set_title(self, title):
 	self.app.global_history.remember_url(self._url, title)
-	self.browser.set_title(title)
+	if self.on_top():
+	    self.browser.set_title(title)
 	if self.page:
 	    self.page.set_title(title)
 	    self.history.refresh()
@@ -180,7 +194,7 @@ class Context:
 
     def get_async_image(self, src):
 	if not src: return None
-	url = self.baseurl(src)
+	url = self.get_baseurl(src)
 	if not url: return None
 	app = self.app
 	image = app.get_cached_image(url)
@@ -253,9 +267,20 @@ class Context:
     # Externals for loading pages
 
     def load(self, url, method='GET', params={},
-	     show_source=0, reload=0, scrollpos=None):
+	     show_source=0, reload=0, scrollpos=None,
+	     target="", source=None):
 	# Update state of current page, in case we re-visit it via the
 	# history mechanism.
+	if not source:
+	    source = self.viewer
+	if self.source and self.source is not source:
+	    self.source.remove_temp_tag()
+	self.source = source
+	context = self.find_window_target(target)
+	if context is not self:
+	    context.load(url, method, params, show_source,
+			 reload, scrollpos, "_self", source)
+	    return
 	self.save_page_state()
 	# Start loading a new URL into the window
 	self.stop()
@@ -267,12 +292,61 @@ class Context:
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
-	    self.viewer.remove_temp_tag()
+	    if self.source:
+		self.source.remove_temp_tag()
+		self.source = None
 
-    def post(self, url, data="", params={}):
+    def find_window_target(self, target):
+	"""Return a context gotten from the target; by default self."""
+	context = None
+	if target and target[0] not in VALID_TARGET_STARTS:
+	    target = ""
+	if target == self.viewer.name:
+	    target = ""
+	if target:
+	    if target[0] == "_":
+		if target == "_blank":
+		    newbrowser = self.browser.new_command()
+		    context = newbrowser.context
+		elif target == "_self":
+		    pass
+		elif target == "_parent":
+		    parentviewer = self.viewer.find_parentviewer()
+		    context = parentviewer and parentviewer.context
+		elif target == "_top":
+		    context = self.browser.context
+		target = ""
+	    else:
+		# First try to find the target in the current browser
+		viewer = self.browser.context.viewer.find_subviewer(target)
+		if not viewer:
+		    # Try to find another browser with this name
+		    for browser in self.app.browsers:
+			if browser.viewer.name == target:
+			    viewer = browser.viewer
+			    break
+		if not viewer:
+		    # Try to find a frame inside other browsers
+		    for browser in self.app.browsers:
+			if browser is self.browser: continue
+			viewer = browser.context.viewer.find_subviewer(target)
+			if viewer:
+			    break
+		if not viewer:
+		    # Create a new browser with this name
+		    newbrowser = self.browser.new_command()
+		    viewer = newbrowser.context.viewer
+		    viewer.name = target # XXX Naughty ;-)
+		context = viewer.context
+	if context and context is not self:
+	    context.source = self.source
+	    self.source = None
+	return context or self
+
+    def post(self, url, data="", params={}, target=""):
 	# Post form data
 	self.save_page_state()
-	url = self.baseurl(url)
+	url = self.get_baseurl(url)
 	method = 'POST'
 	self.stop()
 	self.message("Posting to %s" % url, CURSOR_WAIT)
@@ -294,7 +368,9 @@ class Context:
 	if not self.readers:
 	    self.browser.clearstop()
 	    self.message("Done.")
-	    self.viewer.remove_temp_tag()
+	    if self.source:
+		self.source.remove_temp_tag()
+		self.source = None
 
     def busy(self):
 	return not not self.readers

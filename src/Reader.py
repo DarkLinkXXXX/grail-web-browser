@@ -209,6 +209,17 @@ class Reader(BaseReader):
 	    context.message("Saving to %s" % fn)
 	    return
 
+	if headers.has_key('window-target'):
+	    target = headers['window-target']
+	    if target:
+		context = self.context.find_window_target(target)
+		if context is not self.context:
+		    self.context.rmreader(self)
+		    self.context = self.last_context = context
+		    self.context.addreader(self)
+		    self.context.message("Loading %s (target=%s)" %
+					 (self.url, target))
+		    self.viewer = self.context.viewer
 	self.context.clear_reset()
 	self.context.set_url(self.url)
 	self.parser = parserclass(self.viewer, reload=self.reload)

@@ -259,8 +259,6 @@ class Browser:
 	for b in self.user_menus:
 	    b.destroy()
 	self.user_menus[:] = []
-	self.set_url("")
-	self.viewer.clear_reset()
 
     def set_url(self, url):
 	self.set_entry(url)
@@ -271,6 +269,10 @@ class Browser:
 
     def message(self, string = "", cursor = None):
 	msg = self.msg['text']
+	if not string:
+	    name = self.context.viewer.name # XXX Naughty ;-)
+	    if name:
+		string = "Window name = " + name
 	self.msg['text'] = string
 	if not cursor:
 	    if self.context.busy():
@@ -302,6 +304,7 @@ class Browser:
 
     def close(self):
 	self.context.stop()
+	self.viewer.close()
 	self.root.destroy()
 	if self.app:
 	    self.app.del_browser(self)
