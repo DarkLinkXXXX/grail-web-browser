@@ -48,6 +48,7 @@ class BaseReader:
 	self.context.addreader(self)
 
 	self.fno = None   # will be assigned by start
+	self.killed = None
 
 	### only http_access has this delayed startup property
 	try:
@@ -60,6 +61,9 @@ class BaseReader:
 	# when the protocol API is ready to go, it tells the reader
 	# to get busy
 	self.message = "awaiting server response"
+	if self.killed:
+	    print "start() called after a kill"
+	    return
 	self.fno = self.api.fileno()
 	if TkVersion == 4.0 and sys.platform == 'irix5':
 	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
@@ -112,6 +116,7 @@ class BaseReader:
 	self.update_status()
 
     def kill(self):
+	self.killed = 1
 	self.stop()
 	self.handle_error(-1, "Killed", {})
 
@@ -150,7 +155,11 @@ class BaseReader:
 		self.fno = -1
 		tkinter.deletefilehandler(fno)
 	    return
-	self.callback()			# Call via function pointer
+	try:
+	    self.callback()			# Call via function pointer
+	except IOError:
+	    self.context.app.exception_dialog("in BaseReader")
+	    self.kill()
 
     def checkmeta(self):
 	self.message, ready = self.api.pollmeta()
