@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.42 $"
+__version__ = "$Revision: 2.43 $"
 
 try:
 	# See if modern _tkinter is present
@@ -1369,7 +1369,11 @@ class Scale(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		Widget.__init__(self, master, 'scale', cnf, kw)
 	def get(self):
-		return self.tk.getint(self.tk.call(self._w, 'get'))
+		value = self.tk.call(self._w, 'get')
+		try:
+			return self.tk.getint(value)
+		except TclError:
+			return self.tk.getdouble(value)
 	def set(self, value):
 		self.tk.call(self._w, 'set', value)
 
@@ -1394,11 +1398,8 @@ class Scrollbar(Widget):
 class Text(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		Widget.__init__(self, master, 'text', cnf, kw)
-		self.bind('<Delete>', self.bspace)
 	def bbox(self, *args):
 		return self._getints(self._do('bbox', args)) or None
-	def bspace(self, *args):
-		self.delete('insert')
 	def tk_textSelectTo(self, index):
 		self.tk.call('tk_textSelectTo', self._w, index)
 	def tk_textBackspace(self):
@@ -1522,13 +1523,36 @@ class Text(Widget):
 	def yview_pickplace(self, *what):
 		apply(self.tk.call, (self._w, 'yview', '-pickplace')+what)
 
-class OptionMenu(Widget):
+class _setit:
+	def __init__(self, var, value):
+		self.__value = value
+		self.__var = var
+
+	def __call__(self, *args):
+		self.__var.set(self.__value)
+
+class OptionMenu(Menubutton):
 	def __init__(self, master, variable, value, *values):
+		kw = {"borderwidth": 2, "textvariable": variable,
+		      "indicatoron": 1, "relief": RAISED, "anchor": "c",
+		      "highlightthickness": 2}
+		Widget.__init__(self, master, "menubutton", kw)
 		self.widgetName = 'tk_optionMenu'
-		Widget._setup(self, master, {})
-		self.menuname = apply(
-			self.tk.call,
-			(self.widgetName, self._w, variable, value) + values)
+		menu = self.__menu = Menu(self, name="menu", tearoff=0)
+		self.menuname = menu._w
+		menu.add_command(label=value, command=_setit(variable, value))
+		for v in values:
+			menu.add_command(label=v, command=_setit(variable, v))
+		self["menu"] = menu
+
+	def __getitem__(self, name):
+		if name == 'menu':
+			return self.__menu
+		return Widget.__getitem__(self, name)
+
+	def destroy(self):
+		Menubutton.destroy(self)
+		self.__menu = None
 
 class Image:
 	def __init__(self, imgtype, name=None, cnf={}, **kw):
