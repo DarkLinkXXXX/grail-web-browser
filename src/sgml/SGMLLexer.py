@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.23 $"
+__version__ = "$Revision: 1.24 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -218,7 +218,8 @@ class SGMLLexer(SGMLLexerBase):
 	    self.reset()
 
 	def feed(self, data):
-	    self._l.scan(data)
+	    if data:			# never pass an empty string
+		self._l.scan(data)
 
 	def normalize(self, norm):
 	    return self._l.normalize(norm)
@@ -243,17 +244,19 @@ class SGMLLexer(SGMLLexerBase):
 	def close(self):
 	    """Flush any remaining data in the lexer's internal buffer.
 	    """
-	    self._l.scan('')
+	    if self._l:
+		self._l.scan('')
 	    if self.__dict__.has_key('feed'):
 		del self.__dict__['feed']
 
 	def line(self):
-	    return self._l.line()
+	    return self._l and self._l.line() or None
 
 	def setnomoretags(self):
 	    self.nomoretags = 1
 	    self._l.normalize(0)
 	    self._l.scan('')		# flush flex cache - not perfect
+	    self._l = None
 	    self.feed = self.lex_data
 
 	def _lex_got_geref(self, entname, terminator):
@@ -463,7 +466,6 @@ class SGMLLexer(SGMLLexerBase):
 		self.lex_data(rawdata[i:n])
 		i = n
 	    self.rawdata = rawdata[i:]
-	    # XXX if end: check for empty stack
 
 	# Internal -- parse comment, return length or -1 if not terminated
 	def parse_comment(self, i, end):
@@ -472,45 +474,40 @@ class SGMLLexer(SGMLLexerBase):
 		raise RuntimeError, 'unexpected call to parse_comment'
 	    if self._strict:
 		# stricter parsing; this requires legal SGML:
-		pos = i + 2
+		pos = i + len(MDO)
 		datalength = len(rawdata)
 		comments = []
-		while (pos < datalength) and rawdata[pos] != '>':
-		    matchlength = comment.match(rawdata, pos)
+		while (pos < datalength) and rawdata[pos] != MDC:
+		    matchlength, comment = comment_match(rawdata, pos)
 		    if matchlength >= 0:
 			pos = pos + matchlength
-			comments.append(comment.group(1))
-			if pos >= datalength:
-			    return -1	# incomplete; end-of-buffer
+			comments.append(comment)
+		    elif end:
+			self.lex_error("unexpected end of data in comment")
+			comments.append(rawdata[pos+2:])
+			pos = datalength
+		    elif rawdata[pos] != "-":
+			self.lex_error("illegal character in"
+				       " markup declaration: "
+				       + `rawdata[pos]`)
+			pos = pos + 1
 		    else:
-			#  reached end of input buffer or EOF,
-			#  or it's just bad input:
-			if rawdata[pos] != '-' or \
-			   datalength > pos + 2:	#  "-[^-]"...
-			    self.lex_error("illegal character in"
-					   " markup declaration")
-			    pos = pos + 1
-			    continue
-			else:
-			    return -1
+			return -1
 		map(self.lex_comment, comments)
-		q = pos + 1 - i
-	    else:
-		j = commentclose.search(rawdata, i+4)
-		if j < 0:
-		    if end and MDC in rawdata[i+4:]:
+		return pos + len(MDC) - i
+	    # not strict
+	    j = commentclose.search(rawdata, i+4)
+	    if j < 0:
+		if end:
+		    if MDC in rawdata[i:]:
 			j = string.find(rawdata, MDC, i)
 			self.lex_comment(rawdata[i+4: j])
 			return j + len(MDC) - i
-		    elif end:
-			self.lex_comment(rawdata[i+4:])
-			return len(rawdata) - i
-		    else:
-			return -1
-		else:
-		    self.lex_comment(rawdata[i+4: j])
-		    return j + commentclose.match(rawdata, j) - i
-	    return q
+		    self.lex_comment(rawdata[i+4:])
+		    return len(rawdata) - i
+		return -1
+	    self.lex_comment(rawdata[i+4: j])
+	    return j + commentclose.match(rawdata, j) - i
 
 	# Internal -- handle starttag, return length or -1 if not terminated
 	def parse_starttag(self, i):
@@ -604,21 +601,9 @@ class SGMLLexer(SGMLLexerBase):
 	    j = endtag.match(rawdata, i)
 	    if j < 0:
 		return -1
-	    if j < 3:
-		ch = rawdata[i+2]
-		if ch == STAGO:
-		    if self._strict:
-			self.lex_endtag('')
-			return i + 2
-		elif ch == TAGC:
-		    if self._strict:
-			self.lex_endtag('')
-			return i + 3
-		self.lex_data(rawdata[i])
-		return i + 1
 	    j = i + j - 1
-	    if rawdata[j] == '>':
-		j = j+1
+	    if rawdata[j] == TAGC:
+		j = j + 1
 	    self.lex_endtag(self._normfunc(endtag.group(1)))
 	    return j
 
@@ -640,9 +625,9 @@ class SGMLLexer(SGMLLexerBase):
 		    self.lex_limitation("declaration subset not supported")
 		    end_target = ']>'
 		    break
-		k = comment.match(rawdata, i)
+		k, comment = comment_match(rawdata, i)
 		if k > 0:
-		    strs.append(string.strip(comment.group(0)))
+		    strs.append(comment)
 		    i = i + k
 		    continue
 		k = md_string.match(rawdata, i)
@@ -675,6 +660,7 @@ class SGMLLexer(SGMLLexerBase):
 
 if not _sgmllex:
     # Regular expressions used for parsing:
+    OPTIONAL_WHITESPACE = "[ \t\n\r]*"
     interesting = regex.compile('[&<]')
     incomplete = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\|#[0-9]*\)?\|'
 			       '<\([a-zA-Z][^<>]*\|'
@@ -688,10 +674,10 @@ if not _sgmllex:
     processinginstruction = regex.compile('<\?\([^>]*\)' + PIC)
 
     starttagopen = regex.compile(STAGO + '[>a-zA-Z]')
-    shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*[ \t\n\r]*'
-				 + NET)
-    shorttag = regex.compile(STAGO + '\([a-zA-Z][a-zA-Z0-9.-]*\)[ \t\n\r]*'
-			     + NET + '\([^/]*\)' + NET)
+    shorttagopen = regex.compile(STAGO + '[a-zA-Z][a-zA-Z0-9.-]*'
+				 + OPTIONAL_WHITESPACE + NET)
+    shorttag = regex.compile(STAGO + '\([a-zA-Z][a-zA-Z0-9.-]*\)'
+			     + OPTIONAL_WHITESPACE + NET + '\([^/]*\)' + NET)
     endtagopen = regex.compile(ETAGO + '[<>a-zA-Z]')
     endbracket = regex.compile('[<>]')
     endtag = regex.compile(ETAGO +
@@ -703,23 +689,63 @@ if not _sgmllex:
 				      + LIT + '[^"]*' + LIT + '\|'
 				      + LITA + "[^']*" + LITA + '\|'
 				      + COM + '\([^-]\|-[^-]\)*' + COM
-				      + '\)[ \t\n\r]*\)*' + MDC)
-    md_name = regex.compile('\([^> \n\t\r\'"]+\)[ \n\t\r]*')
-    md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)[ \n\t\r]*')
+				      + '\)' + OPTIONAL_WHITESPACE
+				      + '\)*' + MDC)
+    md_name = regex.compile('\([^> \n\t\r\'"]+\)' + OPTIONAL_WHITESPACE)
+    md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)' + OPTIONAL_WHITESPACE)
     commentopen = regex.compile(MDO + COM)
-    legalcomment = regex.compile(MDO + '\(\(' + COM + '\([^-]\|-[^-]\)*'
-				 + COM + '[ \t\n]*\)*\)' + MDC)
-    comment = regex.compile(COM + '\(\([^-]\|-[^-]\)*\)' + COM + '[ \t\n]*')
-    commentclose = regex.compile(COM + '[ \t\n]*' + MDC)
+    commentclose = regex.compile(COM + OPTIONAL_WHITESPACE + MDC)
     tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
-    attrfind = regex.compile( \
+    attrfind = regex.compile(
 	'[ \t\n,]+\([a-zA-Z][a-zA-Z_0-9.-]*\)'	# comma is for compatibility
-	'\([ \t\n]*' + VI + '[ \t\n]*'		# VI
-	'\(\\' + LITA + '[^\']*\\' + LITA
+	'\(' + OPTIONAL_WHITESPACE + VI + OPTIONAL_WHITESPACE	# VI
+	+ '\(\\' + LITA + '[^\']*\\' + LITA
 	+ '\|' + LIT + '[^"]*' + LIT + '\|[-~a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
-    tagend = regex.compile('[ \n\t\f\b]*[<>/]')
+    tagend = regex.compile(OPTIONAL_WHITESPACE + '[<>/]')
+
+    # used below in comment_match()
+    comment_start = regex.compile(COM + "\([^-]*\)-\(.\|\n\)")
+    comment_segment = regex.compile("\([^-]*\)-\(.\|\n\)")
+    comment_whitespace = regex.compile(OPTIONAL_WHITESPACE)
 
     del regex
+
+    def comment_match(rawdata, start):
+	"""Match a legal SGML comment.
+
+	'rawdata'	data buffer
+	'start'		starting index into buffer
+
+	Analyzes SGML comments using very simple regular expressions to
+	ensure that the limits of the regular expression package are not
+	exceeded.  Very long comments with embedded hyphens which cross
+	buffer boundaries can easily generate problems with less-than-
+	ideal RE implementations.
+
+	Returns the number of characters to consume from the input buffer
+	(*not* including the first `start' characters!) and the text of
+	comment located.  If no comment was identified, returns -1 and
+	an empty string.
+	"""
+	matcher = comment_start
+	matchlength = matcher.match(rawdata, start)
+	if matchlength < 0:
+	    return -1, ''
+	pos = start
+	comment = ''
+	while matchlength >= 0:
+	    if matcher.group(2) == "-":
+		# skip any whitespace
+		pos = pos + matchlength \
+		      + comment_whitespace.match(rawdata, pos + matchlength)
+		return pos - start, comment + matcher.group(1)
+	    # only a partial match
+	    comment = "%s%s-%s" % (comment,
+				   matcher.group(1), matcher.group(2))
+	    pos = pos + matchlength
+	    matcher = comment_segment
+	    matchlength = matcher.match(rawdata, pos)
+	return -1, ''
 
 
 #  Test code for the lexer is now located in the test_lexer.py script.
