@@ -76,7 +76,7 @@ styles-common--styles-pre-wrap: none
 # Centered text:
 styles-common--styles-center-justify: center
 # History Anchors:
-styles-common--history-a-foreground: #551A8B
+styles-common--history-a-foreground: #0000EE
 styles-common--history-a-underline: 1
 styles-common--history-ahist-foreground: #551A8B
 styles-common--history-ahist-underline: 1
