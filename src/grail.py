@@ -4,7 +4,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3b2"
+__version__ = "Grail/0.3b3--"
 GRAILVERSION = __version__
 
 # Standard python imports (needed by path munging code)
@@ -72,27 +72,33 @@ Research Initiatives
 
 Version: %s""" % __version__
 
+# Command line usage message
+USAGE = """Usage: %s [options] [url]
+Options:
+    -i, --noimages : inhibit loading of images
+    -g <geom>, --geometry <geom> : initial window geometry""" % sys.argv[0]
+
 def main():
     prefs = GrailPrefs.AllPreferences()
     try:
-	opts, args = getopt.getopt(sys.argv[1:], 'g:i')
+	opts, args = getopt.getopt(sys.argv[1:], 'g:i',
+				   ['geometry=', 'noimages'])
+	if len(args) > 1:
+	    raise getopt.error, "too many arguments"
     except getopt.error, msg:
-	print msg
+	sys.stdout = sys.stderr
+	print "Command line error:", msg
+	print USAGE
 	sys.exit(2)
 
     geometry = prefs.Get('browser', 'initial-geometry')
 
     for o, a in opts:
-	if o == '-i':
+	if o in ('-i', '--noimages'):
 	    load_images = 0
-	if o == '-g':
+	if o in ('-g', '--geometry'):
 	    geometry = a
     if args:
-	if args[1:]:
-	    print "Usage: %s [-g geometry] [-i] [url]" % sys.argv[0]
-	    print "    -g : specify the geometry of the initial window"
-	    print "    -i : inhibit loading of images"
-	    sys.exit(2)
 	url = grailutil.complete_url(args[0])
     else:
 	url = None
