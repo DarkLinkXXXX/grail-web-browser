@@ -34,40 +34,40 @@ debug = 0
 def parseprefs(fp):
     """Parse a Grail preferences file.  See module docstring."""
     groups = {}
-    group = None			# used for continuation line
+    group = None                        # used for continuation line
     lineno = 0
     while 1:
-	line = fp.readline()
-	if not line:
-	    break
-	lineno = lineno + 1
-	if line[0] == '#':
-	    continue
-	if line[0] in ' \t':
-	    # It looks line a continuation line.
-	    if group:
-		# Continue the previous line
-		value = string.strip(line)
-		if value:
-		    if group[cn]:
-			group[cn] = group[cn] + "\n " + value
-		    else:
-			group[cn] = value
-	elif valid.match(line) > 0:
-	    # It's a header line.
-	    groupname, cn, value = valid.group(1, 2, 3)
-	    groupname = string.lower(groupname)
-	    cn = string.lower(cn)
-	    value = string.strip(value)
-	    if not groups.has_key(groupname):
-		groups[groupname] = group = {}
-	    else:
-		group = groups[groupname]
-	    group[cn] = value # XXX Override a previous value
-	elif string.strip(line) != "":
-	    # It's a bad line.  Ignore it.
-	    if debug:
-		print "Error at", lineno, ":", `line`
+        line = fp.readline()
+        if not line:
+            break
+        lineno = lineno + 1
+        if line[0] == '#':
+            continue
+        if line[0] in ' \t':
+            # It looks line a continuation line.
+            if group:
+                # Continue the previous line
+                value = string.strip(line)
+                if value:
+                    if group[cn]:
+                        group[cn] = group[cn] + "\n " + value
+                    else:
+                        group[cn] = value
+        elif valid.match(line) > 0:
+            # It's a header line.
+            groupname, cn, value = valid.group(1, 2, 3)
+            groupname = string.lower(groupname)
+            cn = string.lower(cn)
+            value = string.strip(value)
+            if not groups.has_key(groupname):
+                groups[groupname] = group = {}
+            else:
+                group = groups[groupname]
+            group[cn] = value # XXX Override a previous value
+        elif string.strip(line) != "":
+            # It's a bad line.  Ignore it.
+            if debug:
+                print "Error at", lineno, ":", `line`
 
     return groups
 
@@ -85,9 +85,9 @@ def test():
     global debug
     debug = 1
     if sys.argv[1:]:
-	fn = sys.argv[1]
+        fn = sys.argv[1]
     else:
-	fn = "../grail-defaults"
+        fn = "../grail-defaults"
     fp = open(fn)
     t0 = time.time()
     groups = parseprefs(fp)
@@ -97,16 +97,16 @@ def test():
     groupnames = groups.keys()
     groupnames.sort()
     for groupname in groupnames:
-	print
-	print groupname
-	print '=' * len(groupname)
-	print
-	group = groups[groupname]
-	componentnames = group.keys()
-	componentnames.sort()
-	for cn in componentnames:
-	    value = group[cn]
-	    print cn + ":", `value`
+        print
+        print groupname
+        print '=' * len(groupname)
+        print
+        group = groups[groupname]
+        componentnames = group.keys()
+        componentnames.sort()
+        for cn in componentnames:
+            value = group[cn]
+            print cn + ":", `value`
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ from tktools import *
 
 
 def make_super_text_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1, wrap=WORD, pack=1):
+                  fill=BOTH, expand=1, wrap=WORD, pack=1):
 
     """Create a text box with smooth scrolling."""
 
@@ -24,19 +24,19 @@ def make_super_text_box(parent, width=0, height=0, hbar=0, vbar=1,
     canvas.pack(expand=expand, fill=fill, side=LEFT)
     text = Text(canvas, wrap=wrap, borderwidth=0)
     canvas.create_window(0, 0,
-			 anchor=NW,
-			 tags='theText',
-			 window=text)
+                         anchor=NW,
+                         tags='theText',
+                         window=text)
     if width:
-	text.config(width=width)
-	width = text.winfo_reqwidth()
-	canvas.config(width=width)
-	canvas.itemconfig('theText', width=width)
+        text.config(width=width)
+        width = text.winfo_reqwidth()
+        canvas.config(width=width)
+        canvas.itemconfig('theText', width=width)
     if height:
-	text.config(height=height)
-	height = text.winfo_reqheight()
-	canvas.config(height=height)
-	canvas.itemconfig('theText', height=height)
+        text.config(height=height)
+        height = text.winfo_reqheight()
+        canvas.config(height=height)
+        canvas.itemconfig('theText', height=height)
     set_scroll_commands(text, hbar, None)
     text.vbar = vbar
     set_scroll_commands(canvas, None, vbar)
@@ -59,18 +59,18 @@ def resize_super_text_box(event=None, frame=None):
     info = text.dlineinfo("end-1char")
 ##    print "info:", info
     if info:
-	x, y, w, h, bl = info
-	totheight = y + h
-	canvas.config(scrollregion=(0, 0, width, totheight))
+        x, y, w, h, bl = info
+        totheight = y + h
+        canvas.config(scrollregion=(0, 0, width, totheight))
     else:
-	canvas.config(scrollregion=(0, 0, 0, 0))
+        canvas.config(scrollregion=(0, 0, 0, 0))
 
 
 def test():
     data = "The quick brown fox jumps over the lazy dog.\n" * 25 + "END"
     root = Tk()
     super, frame = make_super_text_box(root, hbar=1, vbar=1,
-				       width=40, height=20, wrap=NONE)
+                                       width=40, height=20, wrap=NONE)
     super.insert(END, data)
     resize_super_text_box(frame=frame)
     root.mainloop()

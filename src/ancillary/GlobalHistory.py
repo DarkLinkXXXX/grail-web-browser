@@ -18,8 +18,8 @@ the Global History, while GrailHTMLParser objects query the history.
 
 TBD:
 
-	1) Read Netscape 2 history files
-	2) Use db to manage the on-disk history mechanism
+        1) Read Netscape 2 history files
+        2) Use db to manage the on-disk history mechanism
 
 """
 
@@ -47,53 +47,53 @@ def now():
 
 class HistoryLineReader:
     def _error(self, line):
-	sys.stderr.write('WARNING: ignoring ill-formed history file line:\n')
-	sys.stderr.write('WARNING: %s\n' % line)
+        sys.stderr.write('WARNING: ignoring ill-formed history file line:\n')
+        sys.stderr.write('WARNING: %s\n' % line)
 
 class NetscapeHistoryReader(HistoryLineReader):
     def parse_line(self, line):
-	try:
-	    fields = string.splitfields(line, '\t')
-	    url = string.strip(fields[0])
-	    timestamp = string.atoi(string.strip(fields[1]))
-	    return (url, '', timestamp or now())
-	except (ValueError, IndexError, TypeError):
-	    self._error(line)
-	    return None
+        try:
+            fields = string.splitfields(line, '\t')
+            url = string.strip(fields[0])
+            timestamp = string.atoi(string.strip(fields[1]))
+            return (url, '', timestamp or now())
+        except (ValueError, IndexError, TypeError):
+            self._error(line)
+            return None
 
 class GrailHistoryReader(HistoryLineReader):
     def parse_line(self, line):
-	url = timestamp = title = ''
-	try:
-	    if GRAIL_RE.match(line) >= 0:
-		url, ts, title = GRAIL_RE.group(1, 2, 3)
-		timestamp = string.atoi(string.strip(ts))
-		return url, title, timestamp or now()
-	except (ValueError, TypeError):
-	    self._error(line)
-	    return None
+        url = timestamp = title = ''
+        try:
+            if GRAIL_RE.match(line) >= 0:
+                url, ts, title = GRAIL_RE.group(1, 2, 3)
+                timestamp = string.atoi(string.strip(ts))
+                return url, title, timestamp or now()
+        except (ValueError, TypeError):
+            self._error(line)
+            return None
 
 class HistoryReader:
     def read_file(self, fp, histobj):
-	pass
-	# read the first line, to determine what type of history file
-	# we're looking at
-	ghist = []
-	line = fp.readline()
-	if regex.match('GRAIL-global-history-file-1', line) >= 0:
-	    linereader = GrailHistoryReader()
-	elif regex.match('MCOM-Global-history-file-1', line) >= 0:
-	    linereader = NetscapeHistoryReader()
-	else:
-	    return
-	while line:
-	    line = fp.readline()
-	    if line:
-		infonode = linereader.parse_line(line)
-		if infonode:
-		    ghist.append(infonode)
-	# now mass update the history object
-	histobj.mass_append(ghist)
+        pass
+        # read the first line, to determine what type of history file
+        # we're looking at
+        ghist = []
+        line = fp.readline()
+        if regex.match('GRAIL-global-history-file-1', line) >= 0:
+            linereader = GrailHistoryReader()
+        elif regex.match('MCOM-Global-history-file-1', line) >= 0:
+            linereader = NetscapeHistoryReader()
+        else:
+            return
+        while line:
+            line = fp.readline()
+            if line:
+                infonode = linereader.parse_line(line)
+                if infonode:
+                    ghist.append(infonode)
+        # now mass update the history object
+        histobj.mass_append(ghist)
 
 
 
@@ -104,94 +104,94 @@ class GlobalHistory:
 
     Public Interface:
 
-    	remember_url(url, title='')
-		Adds the URL to the GlobalHistory and, if TITLE is
-		provided, associates this TITLE with the URL.  Any
-		previous TITLE associated with the URL is discarded.
+        remember_url(url, title='')
+                Adds the URL to the GlobalHistory and, if TITLE is
+                provided, associates this TITLE with the URL.  Any
+                previous TITLE associated with the URL is discarded.
 
-    	lookup_url(url)
-		If the URL is on the GlobalHistory, this returns a
-		tuple of the form: (TITLE, TIMESTAMP) where TITLE is a
-		string previous associated with remember_url(), and
-		TIMESTAMP is an seconds integer.  If the URL is not on
-		the GlobalHistory, the tuple (None, None) is returned.
+        lookup_url(url)
+                If the URL is on the GlobalHistory, this returns a
+                tuple of the form: (TITLE, TIMESTAMP) where TITLE is a
+                string previous associated with remember_url(), and
+                TIMESTAMP is an seconds integer.  If the URL is not on
+                the GlobalHistory, the tuple (None, None) is returned.
 
-    	inhistory_p(url)
-		Returns true if the URL is in the Global History,
-		otherwise false.
+        inhistory_p(url)
+                Returns true if the URL is in the Global History,
+                otherwise false.
 
-    	urls()
-		Return a list, in order of all URLs on the GlobalHistory.
+        urls()
+                Return a list, in order of all URLs on the GlobalHistory.
     """
     def __init__(self, app, readonly=0):
-	self._app = app
-	self._urlmap = {}		# for fast lookup
-	self._history = []		# to maintain order
-    	# first try to load the Grail global history file
-	fp = None
-	try:
-	    try: fp = open(DEFAULT_GRAIL_HIST_FILE)
-	    except IOError:
-		try: fp = open(DEFAULT_NETSCAPE_HIST_FILE)
-		except IOError: pass
-	    if fp:
-		HistoryReader().read_file(fp, self)
-	finally:
-	    if fp: fp.close()
-	if not readonly:
-	    app.register_on_exit(self.on_app_exit)
+        self._app = app
+        self._urlmap = {}               # for fast lookup
+        self._history = []              # to maintain order
+        # first try to load the Grail global history file
+        fp = None
+        try:
+            try: fp = open(DEFAULT_GRAIL_HIST_FILE)
+            except IOError:
+                try: fp = open(DEFAULT_NETSCAPE_HIST_FILE)
+                except IOError: pass
+            if fp:
+                HistoryReader().read_file(fp, self)
+        finally:
+            if fp: fp.close()
+        if not readonly:
+            app.register_on_exit(self.on_app_exit)
 
     def mass_append(self, histlist):
-	histlist.reverse()
-	for url, title, timestamp in histlist:
-	    self._urlmap[url] = (title, timestamp)
-	    self._history.append(url)
+        histlist.reverse()
+        for url, title, timestamp in histlist:
+            self._urlmap[url] = (title, timestamp)
+            self._history.append(url)
 
     def remember_url(self, url, title=''):
-	if not self._urlmap.has_key(url):
-	    self._history.append(url)
-	elif not title:
-	    title, oldts = self._urlmap[url]
-	self._urlmap[url] = (title, now())
-	# Debugging...
-#	print 'remember_url:', url, self._urlmap[url]
+        if not self._urlmap.has_key(url):
+            self._history.append(url)
+        elif not title:
+            title, oldts = self._urlmap[url]
+        self._urlmap[url] = (title, now())
+        # Debugging...
+#       print 'remember_url:', url, self._urlmap[url]
 
     def set_title(self, url, title):
-	if self._urlmap.has_key(url):
-	    old_title, when = self._urlmap[url]
-	else:
-	    when = now()
-	self._urlmap[url] = (title, when)
+        if self._urlmap.has_key(url):
+            old_title, when = self._urlmap[url]
+        else:
+            when = now()
+        self._urlmap[url] = (title, when)
 
     def lookup_url(self, url):
-	if self._urlmap.has_key(url): return self._urlmap[url]
-	else: return None, None
+        if self._urlmap.has_key(url): return self._urlmap[url]
+        else: return None, None
 
     def inhistory_p(self, url):
-	return self._urlmap.has_key(url)
+        return self._urlmap.has_key(url)
 
     def urls(self):
-	return self._history[:]
+        return self._history[:]
 
     def on_app_exit(self):
-	stdout = sys.stdout
-	try:
-	    fp = open(DEFAULT_GRAIL_HIST_FILE, 'w')
-	    sys.stdout = fp
-	    print 'GRAIL-global-history-file-1'
-	    urls = self.urls()
-	    urls.reverse()
-	    expiration = EXPIRATION_SECS and (now() - EXPIRATION_SECS)
-	    for url in urls:
-		title, timestamp = self._urlmap[url]
-		# weed out expired links
-		if expiration and expiration > timestamp:
-		    continue
-		if not title or title == url:
-		    print '%s\t%d' % (url, timestamp)
-		else:
-		    print '%s\t%d\t%s' % (url, timestamp, title)
-	finally:
-	    sys.stdout = stdout
-	    fp.close()
-	self._app.unregister_on_exit(self.on_app_exit)
+        stdout = sys.stdout
+        try:
+            fp = open(DEFAULT_GRAIL_HIST_FILE, 'w')
+            sys.stdout = fp
+            print 'GRAIL-global-history-file-1'
+            urls = self.urls()
+            urls.reverse()
+            expiration = EXPIRATION_SECS and (now() - EXPIRATION_SECS)
+            for url in urls:
+                title, timestamp = self._urlmap[url]
+                # weed out expired links
+                if expiration and expiration > timestamp:
+                    continue
+                if not title or title == url:
+                    print '%s\t%d' % (url, timestamp)
+                else:
+                    print '%s\t%d\t%s' % (url, timestamp, title)
+        finally:
+            sys.stdout = stdout
+            fp.close()
+        self._app.unregister_on_exit(self.on_app_exit)

@@ -1,6 +1,6 @@
 """Tools for using Encapsulated PostScript.
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 #  $Source: /home/john/Code/grail/src/printing/epstools.py,v $
 
 import os
@@ -13,10 +13,10 @@ import utils
 #  Exception which should not propogate outside printing support.
 class EPSError:
     def __init__(self, message):
-	self.message = message
+        self.message = message
 
     def __str__(self):
-	return self.message
+        return self.message
 
 
 class EPSImage:
@@ -24,45 +24,45 @@ class EPSImage:
     __yscale = 1.0
 
     def __init__(self, data, bbox):
-	self.data = data
-	self.bbox = bbox
-	ll_x, ll_y, ur_x, ur_y = bbox
-	self.__width = utils.distance(ll_x, ur_x)
-	self.__height = utils.distance(ll_y, ur_y)
+        self.data = data
+        self.bbox = bbox
+        ll_x, ll_y, ur_x, ur_y = bbox
+        self.__width = utils.distance(ll_x, ur_x)
+        self.__height = utils.distance(ll_y, ur_y)
 
     def reset(self):
-	self.__xscale = self.__yscale = 1.0
+        self.__xscale = self.__yscale = 1.0
 
     def restrict(self, width=None, height=None):
-	w, h = self.get_size()		# current size
-	rf = 1.0			# reduction factor
-	if width and width < w:
-	    rf = width / w
-	if height and height < h:
-	    rf = min(rf, height / h)
-	self.__yscale = self.__yscale * rf
-	self.__xscale = self.__xscale * rf
+        w, h = self.get_size()          # current size
+        rf = 1.0                        # reduction factor
+        if width and width < w:
+            rf = width / w
+        if height and height < h:
+            rf = min(rf, height / h)
+        self.__yscale = self.__yscale * rf
+        self.__xscale = self.__xscale * rf
 
     def get_scale(self):
-	return self.__xscale, self.__yscale
+        return self.__xscale, self.__yscale
 
     def get_size(self):
-	return (self.__width * self.__xscale), \
-	       (self.__height * self.__yscale)
+        return (self.__width * self.__xscale), \
+               (self.__height * self.__yscale)
 
     def set_size(self, width, height):
-	self.__xscale = float(width) / self.__width
-	self.__yscale = float(height) / self.__height
+        self.__xscale = float(width) / self.__width
+        self.__yscale = float(height) / self.__height
 
     def set_width(self, width):
-	aspect = self.__yscale / self.__xscale
-	self.__xscale = float(width) / self.__width
-	self.__yscale = self.__xscale * aspect
+        aspect = self.__yscale / self.__xscale
+        self.__xscale = float(width) / self.__width
+        self.__yscale = self.__xscale * aspect
 
     def set_height(self, height):
-	aspect = self.__xscale / self.__yscale
-	self.__yscale = float(height) / self.__height
-	self.__xscale = self.__yscale * aspect
+        aspect = self.__xscale / self.__yscale
+        self.__yscale = float(height) / self.__height
+        self.__xscale = self.__yscale * aspect
 
 
 #  Dictionary of image converters from key ==> EPS.
@@ -99,12 +99,12 @@ def load_image_file(img_fn, greyscale):
     import tempfile
     eps_fn = tempfile.mktemp()
     try:
-	load_image_pil(img_fn, greyscale, eps_fn)
+        load_image_pil(img_fn, greyscale, eps_fn)
     except (AttributeError, IOError, ImportError):
-	# AttributeError is possible with partial installation of PIL,
-	# and IOError can mean a recognition failure.
-	load_image_internal(img_fn, greyscale, eps_fn)
-    img = load_eps(eps_fn)		# img is (data, bbox)
+        # AttributeError is possible with partial installation of PIL,
+        # and IOError can mean a recognition failure.
+        load_image_internal(img_fn, greyscale, eps_fn)
+    img = load_eps(eps_fn)              # img is (data, bbox)
     os.unlink(eps_fn)
     return img
 
@@ -114,54 +114,54 @@ def load_image_internal(img_fn, greyscale, eps_fn):
     from imghdr import what
     imgtype = what(img_fn)
     if not imgtype:
-	os.unlink(img_fn)
-	raise EPSError('Could not identify image type.')
+        os.unlink(img_fn)
+        raise EPSError('Could not identify image type.')
     cnv_key = (imgtype, (greyscale and 'grey') or 'color')
     if not image_converters.has_key(cnv_key):
-	cnv_key = (imgtype, 'grey')
+        cnv_key = (imgtype, 'grey')
     if not image_converters.has_key(cnv_key):
-	os.unlink(img_fn)
-	raise EPSError('No converter defined for %s images.' % imgtype)
+        os.unlink(img_fn)
+        raise EPSError('No converter defined for %s images.' % imgtype)
     img_command = image_converters[cnv_key]
     img_command = img_command % {'i':img_fn, 'o':eps_fn}
     try:
-	if os.system(img_command + ' 2>/dev/null'):
-	    os.unlink(img_fn)
-	    if os.path.exists(eps_fn):
-		os.unlink(eps_fn)
-	    raise EPSError('Error converting image to EPS.')
+        if os.system(img_command + ' 2>/dev/null'):
+            os.unlink(img_fn)
+            if os.path.exists(eps_fn):
+                os.unlink(eps_fn)
+            raise EPSError('Error converting image to EPS.')
     except:
-	if os.path.exists(img_fn):
-	    os.unlink(img_fn)
-	if os.path.exists(eps_fn):
-	    os.unlink(eps_fn)
-	raise EPSError('Could not run conversion process.')
+        if os.path.exists(img_fn):
+            os.unlink(img_fn)
+        if os.path.exists(eps_fn):
+            os.unlink(eps_fn)
+        raise EPSError('Could not run conversion process.')
     if os.path.exists(img_fn):
-	os.unlink(img_fn)
+        os.unlink(img_fn)
 
 
 def load_image_pil(img_fn, greyscale, eps_fn):
     """Use PIL to generate EPS."""
-    import Image, _imaging		# _imaging to make sure we have a
-    import traceback			# full PIL installation.
+    import Image, _imaging              # _imaging to make sure we have a
+    import traceback                    # full PIL installation.
     try:
-	im = Image.open(img_fn)
-	format = im.format
-	if greyscale and im.mode not in ("1", "L"):
-	    im = im.convert("L")
-	if not greyscale and im.mode == "P":
-	    im = im.convert("RGB")
-	im.save(eps_fn, "EPS")
+        im = Image.open(img_fn)
+        format = im.format
+        if greyscale and im.mode not in ("1", "L"):
+            im = im.convert("L")
+        if not greyscale and im.mode == "P":
+            im = im.convert("RGB")
+        im.save(eps_fn, "EPS")
     except:
-	e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
-	stdout = sys.stdout
-	try:
-	    sys.stdout = sys.stderr
-	    traceback.print_exc()
-	    print "Exception printed from printing.epstools.load_image_pil()"
-	finally:
-	    sys.stdout = stdout
-	raise e, v, tb
+        e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
+        stdout = sys.stdout
+        try:
+            sys.stdout = sys.stderr
+            traceback.print_exc()
+            print "Exception printed from printing.epstools.load_image_pil()"
+        finally:
+            sys.stdout = stdout
+        raise e, v, tb
 
 
 def load_eps(eps_fn):
@@ -175,7 +175,7 @@ def load_eps(eps_fn):
     lines = fp.readlines()
     fp.close()
     try: lines.remove('showpage\n')
-    except: pass			# o.k. if not found
+    except: pass                        # o.k. if not found
     bbox = load_bounding_box(lines)
     return EPSImage(string.joinfields(lines, ''), bbox)
 
@@ -186,11 +186,11 @@ def load_bounding_box(lines):
     from string import lower
     bbox = None
     for line in lines:
-	if len(line) > 21 and lower(line[:15]) == '%%boundingbox: ':
-	    bbox = tuple(map(string.atoi, string.split(line[15:])))
-	    break
+        if len(line) > 21 and lower(line[:15]) == '%%boundingbox: ':
+            bbox = tuple(map(string.atoi, string.split(line[15:])))
+            break
     if not bbox:
-	raise EPSError('Bounding box not specified.')
+        raise EPSError('Bounding box not specified.')
     return bbox
 
 
@@ -201,27 +201,27 @@ def convert_gif_to_eps(cog, giffile, epsfile):
     file is created.  The name of the file created is returned.
     """
     if not image_converters.has_key(('gif', cog)):
-	raise EPSError("No conversion defined for %s GIFs." % cog)
+        raise EPSError("No conversion defined for %s GIFs." % cog)
     try:
-	fp = open(epsfile, 'w')
+        fp = open(epsfile, 'w')
     except IOError:
-	import tempfile
-	filename = tempfile.mktemp()
+        import tempfile
+        filename = tempfile.mktemp()
     else:
-	filename = epsfile
-	fp.close()
+        filename = epsfile
+        fp.close()
     img_command = image_converters[('gif', cog)]
     img_command = img_command % {'i':giffile, 'o':filename}
     try:
-	if os.system(img_command + ' 2>/dev/null'):
-	    if os.path.exists(filename):
-		os.unlink(filename)
-	    raise EPSError('Error converting image to EPS.')
+        if os.system(img_command + ' 2>/dev/null'):
+            if os.path.exists(filename):
+                os.unlink(filename)
+            raise EPSError('Error converting image to EPS.')
     except:
-	if os.path.exists(filename):
-	    os.unlink(filename)
-	raise EPSError('Could not run conversion process: %s.'
-		       % sys.exc_type)
+        if os.path.exists(filename):
+            os.unlink(filename)
+        raise EPSError('Could not run conversion process: %s.'
+                       % sys.exc_type)
     return filename
 
 #

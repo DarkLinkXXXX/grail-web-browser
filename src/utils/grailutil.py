@@ -4,7 +4,7 @@
 
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.21 $"
+__version__ = "$Revision: 2.22 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -32,18 +32,18 @@ def get_grailapp():
 
 def gethome():
     try:
-	home = getenv("HOME")
-	if not home:
-	    import pwd
-	    user = getenv("USER") or getenv("LOGNAME")
-	    if not user:
-		pwent = pwd.getpwuid(os.getuid())
-	    else:
-		pwent = pwd.getpwnam(user)
-	    home = pwent[6]
-	return home
+        home = getenv("HOME")
+        if not home:
+            import pwd
+            user = getenv("USER") or getenv("LOGNAME")
+            if not user:
+                pwent = pwd.getpwuid(os.getuid())
+            else:
+                pwent = pwd.getpwnam(user)
+            home = pwent[6]
+        return home
     except (KeyError, ImportError):
-	return os.curdir
+        return os.curdir
 
 def getenv(s):
     if os.environ.has_key(s): return os.environ[s]
@@ -51,12 +51,12 @@ def getenv(s):
 
 def which(filename, searchlist=None):
     if searchlist is None:
-	import sys
-	searchlist = sys.path
+        import sys
+        searchlist = sys.path
     for dir in searchlist:
-	found = os.path.join(dir, filename)
-	if os.path.exists(found):
-	    return found
+        found = os.path.join(dir, filename)
+        if os.path.exists(found):
+            return found
     return None
 
 def establish_dir(dir):
@@ -64,29 +64,29 @@ def establish_dir(dir):
 
     Returns 1 if successful, 0 otherwise."""
     if os.path.isdir(dir):
-	return 1
+        return 1
     head, tail = os.path.split(dir)
     if not establish_dir(head):
-	return 0
+        return 0
     try:
-	os.mkdir(dir, 0777)
-	return 1
+        os.mkdir(dir, 0777)
+        return 1
     except os.error:
-	return 0
+        return 0
 
 def complete_url(url):
     import urlparse
     scheme, netloc = urlparse.urlparse(url)[:2]
     if not scheme:
-	if not netloc:
-	    # XXX url2pathname/pathname2url???
-	    if os.path.exists(url):
-		import urllib
-		url = "file:" + urllib.quote(url)
-	    else:
-		url = "http://" + url
-	else:
-	    url = "http:" + url
+        if not netloc:
+            # XXX url2pathname/pathname2url???
+            if os.path.exists(url):
+                import urllib
+                url = "file:" + urllib.quote(url)
+            else:
+                url = "http://" + url
+        else:
+            url = "http:" + url
     return url
 
 def nicebytes(n):
@@ -103,18 +103,18 @@ def nicebytes(n):
 
     """
     if n < 1000:
-	if n == 1: return "1 byte"
-	return "%d bytes" % n
+        if n == 1: return "1 byte"
+        return "%d bytes" % n
     n = n * 0.001
     if n < 1000.0:
-	suffix = "K"
+        suffix = "K"
     else:
-	n = n * 0.001
-	if n < 1000.0:
-	    suffix = "M"
-	else:
-	    n = n * 0.001
-	    suffix = "G"
+        n = n * 0.001
+        if n < 1000.0:
+            suffix = "M"
+        else:
+            n = n * 0.001
+            suffix = "G"
     if n < 10.0: r = 2
     elif n < 100.0: r = 1
     else: r = 0
@@ -138,15 +138,15 @@ def extract_attribute(key, dict, default=None, conv=None, delete=1):
 
     """
     if dict.has_key(key):
-	val = dict[key]
-	if delete:
-	    del dict[key]
-	if not conv:
-	    return val
-	try:
-	    return conv(val)
-	except:
-	    return default
+        val = dict[key]
+        if delete:
+            del dict[key]
+        if not conv:
+            return val
+        try:
+            return conv(val)
+        except:
+            return default
     return default
 
 def extract_keyword(key, dict, default=None, conv=None):
@@ -157,12 +157,12 @@ def extract_keyword(key, dict, default=None, conv=None):
     converted value is returned.  CONV is the conversion function.
     """
     if dict.has_key(key):
-	if conv:
-	    try:
-		return conv(dict[key])
-	    except:
-		return default
-	return dict[key]
+        if conv:
+            try:
+                return conv(dict[key])
+            except:
+                return default
+        return dict[key]
     return default
 
 def conv_integer(val, conv=string.atoi, otherlegal=''):
@@ -170,12 +170,12 @@ def conv_integer(val, conv=string.atoi, otherlegal=''):
     l = len(val)
     start = 0
     if val[0] in '+-':
-	start = 1
+        start = 1
     legalchars = string.digits + otherlegal
     for i in range(start, l):
-	if val[i] not in legalchars:
-	    val = val[:i]
-	    break
+        if val[i] not in legalchars:
+            val = val[:i]
+            break
     return conv(val)
 
 def conv_float(val):
@@ -187,11 +187,11 @@ def conv_normstring(val):
 def conv_enumeration(val, mapping_or_list):
     val = conv_normstring(val)
     if type(mapping_or_list) == type([]):
-	if val in mapping_or_list: return val
-	else: return None
+        if val in mapping_or_list: return val
+        else: return None
     else:
-	if mapping_or_list.has_key(val): return mapping_or_list[val]
-	else: return None
+        if mapping_or_list.has_key(val): return mapping_or_list[val]
+        else: return None
 
 def conv_normwhitespace(val):
     return string.join(string.split(val))
@@ -204,8 +204,8 @@ def conv_fontsize(spec):
     """Parse a font size with an optional leading specification.
 
     spec
-	should be a string representing a real number or a pair of real
-	numbers separated by a forward slash.  Whitespace is ignored.
+        should be a string representing a real number or a pair of real
+        numbers separated by a forward slash.  Whitespace is ignored.
 
     This function returns a tuple of the fontsize and leading.  If the
     leading is not specified by `spec', the leading will be the same as
@@ -213,11 +213,11 @@ def conv_fontsize(spec):
 
     """
     if '/' in spec:
-	spec = string.splitfields(spec, '/')
-	if len(spec) != 2:
-	    raise ValueError, "illegal font size specification"
+        spec = string.splitfields(spec, '/')
+        if len(spec) != 2:
+            raise ValueError, "illegal font size specification"
     else:
-	spec = [spec, spec]
+        spec = [spec, spec]
     spec = map(string.atof, map(string.strip, spec))
     return tuple(spec)
 
@@ -227,16 +227,16 @@ def conv_mimetype(type):
     ('type/subtype', {'option': 'value'}).
     """
     if not type:
-	return None, {}
+        return None, {}
     if ';' in type:
-	i = string.index(type, ';')
-	opts = _parse_mimetypeoptions(type[i + 1:])
-	type = type[:i]
+        i = string.index(type, ';')
+        opts = _parse_mimetypeoptions(type[i + 1:])
+        type = type[:i]
     else:
-	opts = {}
+        opts = {}
     fields = string.splitfields(string.lower(type), '/')
     if len(fields) != 2:
-	raise ValueError, "Illegal media type specification."
+        raise ValueError, "Illegal media type specification."
     type = string.joinfields(fields, '/')
     return type, opts
 
@@ -245,24 +245,24 @@ def _parse_mimetypeoptions(options):
     opts = {}
     options = string.strip(options)
     while options:
-	if '=' in options:
-	    pos = string.find(options, '=')
-	    name = string.lower(string.strip(options[:pos]))
-	    value = string.strip(options[pos + 1:])
-	    options = ''
-	    if ';' in value:
-		pos = string.find(value, ';')
-		options = string.strip(value[pos + 1:])
-		value = string.strip(value[:pos])
-	    if name:
-		opts[name] = value
-	else:
-	    options = None
+        if '=' in options:
+            pos = string.find(options, '=')
+            name = string.lower(string.strip(options[:pos]))
+            value = string.strip(options[pos + 1:])
+            options = ''
+            if ';' in value:
+                pos = string.find(value, ';')
+                options = string.strip(value[pos + 1:])
+                value = string.strip(value[:pos])
+            if name:
+                opts[name] = value
+        else:
+            options = None
     return opts
 
 
 def pref_or_getenv(name, group='proxies', type_name='string',
-		   check_ok=None, user=0, factory=0):
+                   check_ok=None, user=0, factory=0):
     """Help for integrating environment variables with preferences.
 
     First check preferences, under 'group', for the component 'name'.
@@ -278,32 +278,32 @@ def pref_or_getenv(name, group='proxies', type_name='string',
 
     """
     if check_ok and  name not in check_ok:
-	    return None
+            return None
 
     app = get_grailapp()
 
     if type_name == 'string':
-	component = app.prefs.Get(group, name, factory=factory)
-	if len(component) or factory:
-	    return component
+        component = app.prefs.Get(group, name, factory=factory)
+        if len(component) or factory:
+            return component
     elif type_name == 'int':
-	component = app.prefs.GetInt(group, name, factory=factory)
-	return component
+        component = app.prefs.GetInt(group, name, factory=factory)
+        return component
     elif type_name == 'Boolean':
-	component = app.prefs.GetBoolean(group, name, factory=factory)
-	return component
+        component = app.prefs.GetBoolean(group, name, factory=factory)
+        return component
     elif type_name == 'float':
-	component = app.prefs.GetFloat(group, name, factory=factory)
-	return component
+        component = app.prefs.GetFloat(group, name, factory=factory)
+        return component
     else:
-	raise ValueError, ('%s not supported - must be one of %s'
-	              % (`type_name`, ['string', 'int', 'float', 'Boolean']))
+        raise ValueError, ('%s not supported - must be one of %s'
+                      % (`type_name`, ['string', 'int', 'float', 'Boolean']))
 
     import os
     try:
-	component = os.environ[name]
+        component = os.environ[name]
     except:
-	return None
+        return None
 
     app.prefs.Set(group, name, component)
     return component

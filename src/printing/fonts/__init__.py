@@ -11,7 +11,7 @@ printing.
 Exported functions:
 
 font_from_name(psfontname)
-	returns a PSFont derived object for metrics calculation
+        returns a PSFont derived object for metrics calculation
 
 """
 
@@ -35,4 +35,4 @@ except NameError:
 else:
     # Backward compatible solution for ni
     for name in ['font_from_name', '__doc__']:
-	setattr(__, name, vars()[name])
+        setattr(__, name, vars()[name])

@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-__version__ = '$Revision: 2.2 $'
+__version__ = '$Revision: 2.3 $'
 #  $Source: /home/john/Code/grail/src/Attic/bookmarks2html.py,v $
 
 import os
@@ -10,7 +10,7 @@ script_name = sys.argv[0]
 while 1:
     script_dir = os.path.dirname(script_name)
     if not os.path.islink(script_name):
-	break
+        break
     script_name = os.path.join(script_dir, os.readlink(script_name))
 script_dir = os.path.join(os.getcwd(), script_dir)
 script_dir = os.path.normpath(script_dir)
@@ -27,39 +27,39 @@ import BookmarksParser
 
 def main():
     try:
-	opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     except getopt.error, message:
-	usage(2, message)
+        usage(2, message)
     for opt, arg in opts:
-	if opt in ("-h", "--help"):
-	    usage()
+        if opt in ("-h", "--help"):
+            usage()
     if len(args) > 2:
-	usage(2, "too many command line arguments")
+        usage(2, "too many command line arguments")
     ifn = ofn = '-'
     if args:
-	ifn = args[0]
-	if ifn != '-':
-	    base, ext = os.path.splitext(ifn)
-	    ofn = base + ".html"
+        ifn = args[0]
+        if ifn != '-':
+            base, ext = os.path.splitext(ifn)
+            ofn = base + ".html"
     if len(args) == 2:
-	ofn = args[1]
+        ofn = args[1]
     if ifn == '-':
-	infile = sys.stdin
+        infile = sys.stdin
     else:
-	try:
-	    infile = open(ifn, 'rb')	# binary in case it's a binary pickle
-	except IOError, (errno, message):
-	    error(1, "could not open %s: %s" % (ifn, message))
+        try:
+            infile = open(ifn, 'rb')    # binary in case it's a binary pickle
+        except IOError, (errno, message):
+            error(1, "could not open %s: %s" % (ifn, message))
     program = os.path.basename(sys.argv[0])
     format = BookmarksParser.get_format(infile)
     if not format:
-	sys.stderr.write(program + ": could not identify input file format")
-	sys.exit(1)
+        sys.stderr.write(program + ": could not identify input file format")
+        sys.exit(1)
     # avoid unneeded conversion: if it's already HTML, just copy it over
     if format[:4] == "html":
-	get_outfile(ofn).write(infile.read())
-	infile.close()
-	return
+        get_outfile(ofn).write(infile.read())
+        infile.close()
+        return
     parser, writer = BookmarksParser.get_handlers(format, ifn)
     writer = BookmarksParser.GrailBookmarkWriter()
     parser.feed(infile.read())
@@ -70,21 +70,21 @@ def main():
 
 def get_outfile(ofn):
     if ofn == '-':
-	outfile = sys.stdout
+        outfile = sys.stdout
     else:
-	try:
-	    outfile = open(ofn, 'w')
-	except IOError, (errno, message):
-	    error(1, "could not open %s: %s" % (ofn, message))
-	print "Writing output to", ofn
+        try:
+            outfile = open(ofn, 'w')
+        except IOError, (errno, message):
+            error(1, "could not open %s: %s" % (ofn, message))
+        print "Writing output to", ofn
     return outfile
 
 
 def usage(err=0, message=''):
     program = os.path.basename(sys.argv[0])
     if message:
-	print "%s: %s" % (program, message)
-	print
+        print "%s: %s" % (program, message)
+        print
     print "usage:", program, "[infile [outfile]]"
     print
     print "\tConvert a Grail bookmarks file to an HTML bookmarks file."

@@ -1,6 +1,6 @@
 """Small utility functions for printing support, mostly for debugging.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/printing/utils.py,v $
 
 import sys
@@ -14,15 +14,15 @@ def find_word_breaks(data):
     #
     prevbrk = -1
     for i in indexes:
-	prevbreaks[i] = prevbrk
-	if data[i] == ' ':
-	    prevbrk = i
+        prevbreaks[i] = prevbrk
+        if data[i] == ' ':
+            prevbrk = i
     #
     indexes.reverse()
     for i in indexes:
-	nextbreaks[i] = nextbrk
-	if data[i] == ' ':
-	    nextbrk = i
+        nextbreaks[i] = nextbrk
+        if data[i] == ' ':
+            nextbrk = i
     #
     return prevbreaks, nextbreaks
 
@@ -31,24 +31,24 @@ _subsystems = {}
 
 def debug(text, subsystem=None):
     if get_debugging(subsystem):
-	if text[-1] <> '\n':
-	    text = text + '\n'
-	sys.stderr.write(text)
-	sys.stderr.flush()
+        if text[-1] <> '\n':
+            text = text + '\n'
+        sys.stderr.write(text)
+        sys.stderr.flush()
 
 
 def set_debugging(flag, subsystem=None):
     if not _subsystems.has_key(subsystem):
-	_subsystems[subsystem] = 0
+        _subsystems[subsystem] = 0
     _subsystems[subsystem] = max(
-	_subsystems[subsystem] + (flag and 1 or -1), 0)
+        _subsystems[subsystem] + (flag and 1 or -1), 0)
 
 
 def get_debugging(subsystem=None):
     if _subsystems.has_key(subsystem):
-	return _subsystems[subsystem]
+        return _subsystems[subsystem]
     if subsystem:
-	return get_debugging()
+        return get_debugging()
     return 0
 
 
@@ -60,12 +60,12 @@ def pt_to_inch(points): return points / 72.0
 def distance(start, end):
     """Returns the distance between two points."""
     if start < 0 and end < 0:
-	return abs(min(start, end) - max(start, end))
+        return abs(min(start, end) - max(start, end))
     elif start >= 0 and end >= 0:
-	return max(start, end) - min(start, end)
+        return max(start, end) - min(start, end)
     else:
-	#  one neg, one pos
-	return max(start, end) - min(start, end)
+        #  one neg, one pos
+        return max(start, end) - min(start, end)
 
 
 def image_loader(url):
@@ -81,9 +81,9 @@ def image_loader(url):
     #
     from urllib import urlopen
     try:
-	imgfp = urlopen(url)
+        imgfp = urlopen(url)
     except IOError, msg:
-	return None
+        return None
     return imgfp.read()
 
 #

@@ -10,7 +10,7 @@ unanticipated exception is encountered.
 
 Use note() to emit an error message to standard error."""
 
-__version__ = "$Revision: 2.5 $"
+__version__ = "$Revision: 2.6 $"
 # $Source: /home/john/Code/grail/src/utils/testing.py,v $
 
 TestFailure = 'TestFailure'
@@ -35,35 +35,35 @@ def exercise(stmt, env, purpose, expected_exception=None, verbose=0):
     import sys
 
     try:
-	if verbose: note("Exercise: exec %s in env", `stmt`)
-	exec stmt in env
-	if expected_exception:
-	    raise TestFailure, ("Unanticipated success, %s (%s)"
-				% (`stmt`, purpose))
-	return
+        if verbose: note("Exercise: exec %s in env", `stmt`)
+        exec stmt in env
+        if expected_exception:
+            raise TestFailure, ("Unanticipated success, %s (%s)"
+                                % (`stmt`, purpose))
+        return
     except:
-	if sys.exc_type == expected_exception:
-	    return
-	else:
-	    raise sys.exc_type, sys.exc_value, sys.exc_traceback
+        if sys.exc_type == expected_exception:
+            return
+        else:
+            raise sys.exc_type, sys.exc_value, sys.exc_traceback
 
 ModEnv = vars()
 def test_exercise(verbose=0):
     """Exercise exercise, and demonstrate usage..."""
     env = ModEnv
     exercise('testee = 1',
-	     env, "Innocuous assignment", None, verbose)
+             env, "Innocuous assignment", None, verbose)
     exercise('if testee != 1: raise SystemError, "env not working"',
-	     env, "Verify assignment", None, verbose)
+             env, "Verify assignment", None, verbose)
     exercise('x(1) = 17',
-	     env, "Expecting basic syntax error", SyntaxError, verbose)
+             env, "Expecting basic syntax error", SyntaxError, verbose)
     exercise('{}[1]',
-	     env, "Expecting basic key error.", KeyError, verbose)
+             env, "Expecting basic key error.", KeyError, verbose)
 
     env['env'] = env
     exercise("""exercise('1', env, 'Falsely expecting syntax error',
-		         SyntaxError, %d)""" % verbose,
-	     env, "Capturing exercise exercise error", TestFailure, verbose)
+                         SyntaxError, %d)""" % verbose,
+             env, "Capturing exercise exercise error", TestFailure, verbose)
 
     print 'test_exercise() passed.'
 

@@ -21,14 +21,14 @@ script_name = sys.argv[0]
 while 1:
     script_dir = os.path.dirname(script_name)
     if not os.path.islink(script_name):
-	break
+        break
     script_name = os.path.join(script_dir, os.readlink(script_name))
 script_dir = os.path.join(os.getcwd(), script_dir)
 script_dir = os.path.normpath(script_dir)
 
 if __name__ == '__main__':
     for path in 'pythonlib', 'utils', 'ancillary', 'sgml_lex', script_dir:
-	sys.path.insert(0, os.path.join(script_dir, path))
+        sys.path.insert(0, os.path.join(script_dir, path))
     # don't load this twice when used as a script:
     sys.modules['html2ps'] = sys.modules['__main__']
 
@@ -44,7 +44,7 @@ import printing.utils
 
 if __name__ == '__main__':
     if sys.argv[1:] and sys.argv[1] == "--profile":
-	del sys.argv[1]
-	printing.main.profile_main()
+        del sys.argv[1]
+        printing.main.profile_main()
     else:
-	printing.main.main()
+        printing.main.main()

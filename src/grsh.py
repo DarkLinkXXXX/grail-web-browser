@@ -17,7 +17,7 @@ if os.path.isdir(d):
     sys.path.insert(0, d)
 for d in ('', '.'):
     if d in sys.path:
-	sys.path.remove(d)
+        sys.path.remove(d)
 del d
 
 # print the banner

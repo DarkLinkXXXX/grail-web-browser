@@ -12,7 +12,7 @@ is based on is available at:
 text/paragraph MIME type is only a WORK IN PROGRESS and carries no weight
 as an Internet RFC.
 """
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 
 import formatter
 import re
@@ -20,20 +20,20 @@ import re
 
 class parse_text_paragraph:
     def __init__(self, viewer, reload=0):
-	self.__fmt = formatter.AbstractFormatter(viewer)
+        self.__fmt = formatter.AbstractFormatter(viewer)
 
     __eol_re = re.compile("[\r\n]+")
 
     def feed(self, data):
-	while data:
-	    m = self.__eol_re.search(data)
-	    if m:
-		self.__fmt.add_flowing_data(data[:m.start()])
-		self.__fmt.end_paragraph(1)
-		data = data[m.end():]
-	    else:
-		self.__fmt.add_flowing_data(data)
-		data = ''
+        while data:
+            m = self.__eol_re.search(data)
+            if m:
+                self.__fmt.add_flowing_data(data[:m.start()])
+                self.__fmt.end_paragraph(1)
+                data = data[m.end():]
+            else:
+                self.__fmt.add_flowing_data(data)
+                data = ''
 
     def close(self):
-	self.__fmt = None
+        self.__fmt = None

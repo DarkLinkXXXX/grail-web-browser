@@ -1,6 +1,6 @@
 """<OBJECT> handler for Python applets.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/filetypes/text_x_python.py,v $
 
 import grailutil
@@ -22,13 +22,13 @@ def embed_text_x_python(parser, attrs):
     vspace = extract('vspace', attrs, 0, conv=string.atoi)
     hspace = extract('hspace', attrs, 0, conv=string.atoi)
     apploader = AppletLoader.AppletLoader(
-	parser, width=width, height=height, menu=menu,
-	classid=classid, codebase=codebase,
-	vspace=vspace, hspace=hspace, align=align, reload=parser.reload1)
+        parser, width=width, height=height, menu=menu,
+        classid=classid, codebase=codebase,
+        vspace=vspace, hspace=hspace, align=align, reload=parser.reload1)
     if apploader.feasible():
-	return AppletEmbedding(apploader)
+        return AppletEmbedding(apploader)
     else:
-	apploader.close()
+        apploader.close()
     return None
 
 
@@ -36,13 +36,13 @@ class AppletEmbedding(HTMLParser.Embedding):
     """Applet interface for use with <OBJECT> / <PARAM> elements."""
 
     def __init__(self, apploader):
-	self.__apploader = apploader
+        self.__apploader = apploader
 
     def param(self, name, value):
-	self.__apploader.set_param(name, value)
+        self.__apploader.set_param(name, value)
 
     def end(self):
-	self.__apploader.go_for_it()
+        self.__apploader.go_for_it()
 
 
 #

@@ -28,30 +28,30 @@ class FileReader(BaseReader):
     filemode = "wb"
 
     def __init__(self, context, api, filename):
-	self.filename = filename
-	self.fp = None
-	BaseReader.__init__(self, context, api)
+        self.filename = filename
+        self.fp = None
+        BaseReader.__init__(self, context, api)
 
     def handle_data(self, data):
- 	try:
-	    if self.fp is None:
-		self.fp = self.open_file()
-	    self.fp.write(data)
-	except IOError, msg:
-	    self.stop()
-	    self.handle_error(-1, "IOError", {'detail': msg})
-	    return
+        try:
+            if self.fp is None:
+                self.fp = self.open_file()
+            self.fp.write(data)
+        except IOError, msg:
+            self.stop()
+            self.handle_error(-1, "IOError", {'detail': msg})
+            return
  
     def open_file(self):
-	return open(self.filename, "wb")
+        return open(self.filename, "wb")
 
     def handle_eof(self):
-	if self.fp:
-	    self.fp.close()
-	self.handle_done()
+        if self.fp:
+            self.fp.close()
+        self.handle_done()
 
     def handle_done(self):
-	pass
+        pass
 
 
 class TempFileReader(FileReader):
@@ -62,27 +62,27 @@ class TempFileReader(FileReader):
     """
 
     def __init__(self, context, api):
-	self.pipeline = None
-	import tempfile
-	filename = tempfile.mktemp()
-	FileReader.__init__(self, context, api, filename)
+        self.pipeline = None
+        import tempfile
+        filename = tempfile.mktemp()
+        FileReader.__init__(self, context, api, filename)
 
     def set_pipeline(self, pipeline):
-	"""New method to select the filter pipeline."""
-	self.pipeline = pipeline
+        """New method to select the filter pipeline."""
+        self.pipeline = pipeline
 
     def getfilename(self):
-	"""New method to return the file name chosen."""
-	return self.filename
+        """New method to return the file name chosen."""
+        return self.filename
 
     def open_file(self):
-	if not self.pipeline:
-	    return FileReader.open_file(self)
-	else:
-	    import os, sys
-	    if not hasattr(os, 'popen'):
-		raise IOError, "pipelines not supported"
-	    try:
-		return os.popen(self.pipeline + ">" + self.filename, "wb")
-	    except os.error, msg:
-		raise IOError, msg, sys.exc_traceback
+        if not self.pipeline:
+            return FileReader.open_file(self)
+        else:
+            import os, sys
+            if not hasattr(os, 'popen'):
+                raise IOError, "pipelines not supported"
+            try:
+                return os.popen(self.pipeline + ">" + self.filename, "wb")
+            except os.error, msg:
+                raise IOError, msg, sys.exc_traceback
