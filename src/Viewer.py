@@ -41,6 +41,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind('<Configure>', self.resize_event)
 	self._atemp = []
 	self.current_index = None
+	self.popup_menu = None
 	self.status = StringVar()
 	self.linkinfo = ""
 	self.frame.bind('<Enter>', self.enter_frame)
@@ -110,6 +111,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind("<Tab>", self.tab_event)
 	self.text.bind("<Shift-Tab>", self.shift_tab_event)
 	self.text.bind("<Button-1>", self.button_1_event)
+	self.text.bind("<Button-3>", self.button_3_event)
 
     def configure_tags(self, stylesheet):
 	self.text.config(stylesheet.default)
@@ -131,7 +133,6 @@ class Viewer(formatter.AbstractWriter):
 	for tag in 'a', 'ahist':
 	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
 	    self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
-	    self.text.tag_bind(tag, '<ButtonRelease-3>', self.anchor_click_new)
 	    self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
 
     def bind_anchors(self, tag):
@@ -202,6 +203,22 @@ class Viewer(formatter.AbstractWriter):
     def button_1_event(self, event):
 	self.context.viewer.text.focus_set()
 	self.current_index = self.text.index(CURRENT) # For anchor_click*
+
+    def button_3_event(self, event):
+	if not self.popup_menu:
+	    self.create_popup_menu()
+	self.popup_menu.tk_popup(event.x_root, event.y_root)
+
+    def create_popup_menu(self):
+	self.popup_menu = menu = Menu(self.text, tearoff=0)
+	menu.add_command(label="Back in frame", command=self.context.go_back)
+	menu.add_command(label="Reload frame",
+			 command=self.context.reload_page)
+	menu.add_command(label="Forward in frame",
+			 command=self.context.go_forward)
+	menu.add_separator()
+	menu.add_command(label="History...",
+			 command=self.context.show_history_dialog)
 
     def resize_event(self, event):
 	for func in self.resize_interests:
@@ -340,6 +357,9 @@ class Viewer(formatter.AbstractWriter):
 	    self.context.follow(url, target)
 
     def anchor_click_new(self, event):
+	here = self.text.index("@%d,%d" % (event.x, event.y))
+	if self.current_index != here:
+	    return
 	url = self.find_tag_url()
 	if url:
 	    url, target = self.split_target(url)
