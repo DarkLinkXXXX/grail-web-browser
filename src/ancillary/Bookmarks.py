@@ -836,7 +836,7 @@ class BookmarksController(OutlinerController):
 	    'statusmsg': StringVar(),
 	    }
 	self.aggressive.set(0)
-	self.addcurloc.set(NEW_AS_CHILD)
+	self.addcurloc.set(NEW_AT_BEG)
 	self.fileformat.set('Automatic')
 	self.statusmsg.set('')
 	self._modflag = False
@@ -1156,7 +1156,7 @@ class BookmarksMenuViewer(OutlinerViewer):
 	self._controller = controller
 	self._depth = 0
 	self._menustack = [parentmenu]
-	root = controller.root()
+	root = controller.root().clone()
 	OutlinerViewer.__init__(self, root)
 	self._follow_all_children_p = True
 
