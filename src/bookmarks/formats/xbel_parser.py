@@ -1,6 +1,6 @@
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.8 $'
+__version__ = '$Revision: 1.9 $'
 
 
 import bookmarks
@@ -16,6 +16,8 @@ class CaptureError(Exception):
 
 
 class CaptureMixin:
+    def __init__(self):
+        pass
 
     def unknown_starttag(self, tag, attrs):
         if self.__capturing:
@@ -110,15 +112,8 @@ def normalize_capture(data, preserve=0, StringType=type("")):
                 queue.append((citem, preserve))
     return data
 
-
 
-try:
-    from xml.parsers.xmllib import XMLParser
-except ImportError:
-    from xmllib import XMLParser
-
-
-class Parser(CaptureMixin, XMLParser):
+class DocumentHandler:
     __folder = None
     __store_node = None
 
@@ -128,7 +123,6 @@ class Parser(CaptureMixin, XMLParser):
         self.__idmap = {}
         self.__missing_ids = {}
         self.__root = self.new_folder()
-        XMLParser.__init__(self)
 
     def get_root(self):
         return self.__root
@@ -301,3 +295,16 @@ class Parser(CaptureMixin, XMLParser):
         if self.capturing() and self.capture_endtag(tag):
             return
         method()
+
+
+try:
+    from xml.parsers.xmllib import XMLParser
+except ImportError:
+    from xmllib import XMLParser
+
+
+class Parser(DocumentHandler, CaptureMixin, XMLParser):
+    def __init__(self, filename):
+        DocumentHandler.__init__(self, filename)
+        CaptureMixin.__init__(self)
+        XMLParser.__init__(self)
