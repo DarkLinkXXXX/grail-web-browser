@@ -46,7 +46,7 @@ browser--default-height:	40
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.10 $"
+__version__ = "$Revision: 2.11 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -65,12 +65,12 @@ verbose = 0
 class Preferences:
     """Get and set fields in a customization-values file."""
 
-    # We maintain an rfc822 snapshot of the file, which we read only once,
-    # and dicts for:
-    #  - new values not yet saved
-    #  - new values saved, but not in read-in db (since it's read only once)
-    #  - and values deleted, so user default values duplicating system
-    #    defaults can be excluded from save.
+    # We maintain an rfc822 snapshot of the file (._db), which we read only
+    # once, and dicts for:
+    #  - ._new: new settings not yet saved
+    #  - ._established: new settings saved and referenced read-in settings
+    #  - ._deleted: deleted settings, so user default values duplicating
+    #               system defaults can be excluded from save.
 
     def __init__(self, filename, readonly=0):
 	"""Initiate from FILENAME with MODE (default 'r' read-only)."""
@@ -109,7 +109,10 @@ class Preferences:
 		if not self._db:
 		    raise KeyError
 		else:
-		    return self._db[key]
+		    got = self._db[key]
+		    # Migrate from rfc822 db obj to faster dict:
+		    self._established[key] = got
+		    return got
 	    except KeyError:
 		raise KeyError, "Preference %s not found" % ((group,
 							      component),)
