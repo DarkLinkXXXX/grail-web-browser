@@ -28,7 +28,7 @@ omitted, the appropriate standard stream is used.
 """
 
 
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 import bookmarks
 import errno
@@ -47,6 +47,7 @@ class Options:
     scrape_links = 0
     export = 0
     export_fields = []
+    info = 0
     search = 0
     keywords = []
     __export_field_map = {
@@ -62,8 +63,9 @@ class Options:
             if valid_output_format(s):
                 self.output_format = s
         opts, self.args = getopt.getopt(
-            sys.argv[1:], "f:ghsx",
-            ["export=", "format=", "guess-type", "help", "scrape", "search="])
+            sys.argv[1:], "f:ghisx",
+            ["export=", "format=", "guess-type", "help", "info",
+             "scrape", "search="])
         for opt, arg in opts:
             if opt in ("-h", "--help"):
                 usage()
@@ -73,6 +75,8 @@ class Options:
                 if not valid_output_format(arg):
                     usage(2, "unknown output format: " + arg)
                 self.output_format = arg
+            elif opt in ("-i", "--info"):
+                self.info = self.info + 1
             elif opt in ("-s", "--scrape"):
                 self.scrape_links = 1
             elif opt == "-x":
@@ -170,12 +174,28 @@ def main():
             setattr(export_options, "remove_" + s, 0)
         walker = exporter.ExportWalker(root, export_options)
         walker.walk()
-    try:
-        writer.write_tree(get_outfile(ofn))
-    except IOError, (err, msg):
-        # Ignore the error if we lost a pipe into another process.
-        if err != errno.EPIPE:
-            raise
+    if options.info:
+        report_info(root)
+    else:
+        try:
+            writer.write_tree(get_outfile(ofn))
+        except IOError, (err, msg):
+            # Ignore the error if we lost a pipe into another process.
+            if err != errno.EPIPE:
+                raise
+
+
+def report_info(root):
+    import collection
+    coll = collection.Collection(root)
+    items = coll.get_type_counts().items()
+    items.sort()
+    total = 0
+    for type, count in items:
+        total = total + count
+        print "%12s: %5d" % (type, count)
+    print "%12s  -----" % ''
+    print "%12s: %5d" % ("Total", total)
 
 
 def guess_bookmarks_type(filename, verbose=0):
