@@ -1,4 +1,4 @@
-#! /depot/sundry/plat/bin/python1.3
+#! /depot/sundry/plat/bin/python
 
 
 """Grail -- an extensible web browser.
@@ -471,14 +471,17 @@ def read_mime_types(file):
     return map
 
 
-if sys.argv[1:2] != ['-p']:
-    main()
-else:
-    del sys.argv[1:2]
+if sys.argv[1:] and sys.argv[1][:2] == '-p':
+    p = sys.argv[1]
+    del sys.argv[1]
+    if p[2:]: n = eval(p[2:])
+    else: n = 10
     import profile
     profile.run('main()', '@grail.prof')
     import pstats
     p = pstats.Stats('@grail.prof')
-    p.strip_dirs().sort_stats('time').print_stats(10)
-    p.print_callers(10)
-##    p.strip_dirs().sort_stats('cum').print_stats(20)
+    p.strip_dirs().sort_stats('time').print_stats(n)
+    p.print_callers(n)
+    p.strip_dirs().sort_stats('cum').print_stats(n)
+else:
+    main()
