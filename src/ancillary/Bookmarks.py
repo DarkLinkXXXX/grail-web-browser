@@ -7,7 +7,10 @@ import os
 from Tkinter import *
 import FileDialog
 from grailutil import *
-from Outliner import OutlinerNode, OutlinerViewer, OutlinerController
+from Outliner import OutlinerViewer, OutlinerController
+from BookmarksParser import BookmarkNode, HTMLBookmarkReader
+from BookmarksParser import NetscapeBookmarkParser, NetscapeBookmarkWriter
+from BookmarksParser import GrailBookmarkWriter, BookmarkFormatError
 import tktools
 import formatter
 from SGMLParser import SGMLParser
@@ -49,9 +52,6 @@ NEW_AT_BEG = 'file-prepend'
 NEW_AT_END = 'file-append'
 NEW_AS_CHILD = 'as-child-or-sib'
 
-BookmarkFormatError = 'BookmarkFormatError'
-PoppedRootError = 'PoppedRootError'
-
 def username():
     try: name = os.environ['NAME'] + "'s"
     except KeyError:
@@ -62,272 +62,6 @@ def username():
 	    name = 'Your'
     return name
 
-
-
-class BookmarkNode(OutlinerNode):
-    """Bookmarks are represented internally as a tree of nodes containing
-    relevent information.
-
-    Methods:
-
-      title()        -- return title
-      uri()          -- return URI string
-      add_date()     -- return bookmark add timestamp
-      last_visited() -- return last visited timestamp
-      description()  -- return description string
-
-        [[self explanatory??]]
-
-      set_title(title)
-      set_uri(uri_string)
-      set_add_date(seconds)
-      set_last_visited(seconds)
-      set_description(string)
-
-    Instance variables:
-
-      No Public Ivars
-    """
-    _uri = ''
-    _islink_p = False
-    _isseparator_p = False
-
-    def __init__(self, title='', uri_string = None,
-		 add_date=None, last_visited=None,
-		 description=''):
-	self._children = []		# performance hack; should call base
-	self._title = title
-	if uri_string:
-	    self._uri = uri_string
-	    self._islink_p = True
-	self._desc = description
-	self._add_date = add_date or time.time()
-	self._visited = last_visited or time.time()
-	self._leaf_p = uri_string or last_visited
-
-    def __repr__(self):
-	return OutlinerNode.__repr__(self) + ' ' + self.title()
-    def leaf_p(self): return self._leaf_p
-
-    def clone(self):
-	newnode = BookmarkNode(self._title, self._uri, self._add_date,
-			       self._visited, self._desc)
-	# TBD: no good way to do this
-	newnode._expanded_p = self._expanded_p
-	newnode._depth = self._depth
-	for child in self._children:
-	    newchild = child.clone()
-	    newchild._parent = newnode
-	    newnode._children.append(newchild)
-	# set derived class attributes
-	newnode._islink_p = self._islink_p
-	newnode._isseparator_p = self._isseparator_p
-	newnode._leaf_p = self._leaf_p
-	return newnode
-
-    def append_child(self, node):
-	OutlinerNode.append_child(self, node)
-	self._leaf_p = False
-    def insert_child(self, node, index):
-	OutlinerNode.insert_child(self, node, index)
-	self._leaf_p = False
-    def del_child(self, node):
-	rtnnode = OutlinerNode.del_child(self, node)
-	if self._islink_p and len(self._children) == 0:
-	    self._leaf_p = True
-	return rtnnode
-
-    def title(self): return self._title
-    def uri(self): return self._uri
-    def add_date(self): return self._add_date
-    def last_visited(self): return self._visited
-    def description(self): return self._desc
-    def islink_p(self): return self._islink_p
-    def isseparator_p(self): return self._isseparator_p
-
-    def set_separator(self):
-	self._isseparator_p = True
-	self._leaf_p = True
-	self._title = '------------------------------'
-
-    def set_title(self, title=''): self._title = title
-    def set_add_date(self, add_date=time.time()): self._add_date = add_date
-    def set_last_visited(self, lastv):
-	self._visited = lastv
-	self._leaf_p = True
-
-    def set_description(self, description=''): self._desc = description
-    def set_uri(self, uri_string=''):
-	self._uri = uri_string
-	if uri_string:
-	    self._islink_p = True
-	    self._leaf_p = True
-
-
-
-class HTMLBookmarkReader:
-    def __init__(self, parser):
-	self._parser = parser
-
-    def read_file(self, fp):
-	self._parser.feed(fp.read())
-	return self._parser._root
-
-
-
-class NetscapeBookmarkParser(SGMLParser):
-    _root = None
-    _current = None
-    _prevleaf = None
-    _storing = 0
-    _buffer = ''
-
-    def __init__(self):
-	SGMLParser.__init__(self)
-
-    def save_bgn(self):
-	self._buffer = ''
-
-    def save_end(self):
-	s, self._buffer = self._buffer, ''
-	return s
-
-    def handle_data(self, data):
-	self._buffer = self._buffer + data
-
-    def handle_starttag(self, tag, method, attrs):
-	method(attrs)
-
-    def _push_new(self):
-	if not self._current: raise BookmarkFormatError, 'file corrupted'
-	newnode = BookmarkNode()
-	self._current.append_child(newnode)
-	self._current = newnode
-
-    def start_h1(self, attrs):
-	self._root = self._current = BookmarkNode()
-	self.save_bgn()
-
-    def end_h1(self):
-	self._current.set_title(self.save_end())
-
-    def start_h3(self, attrs):
-	self._push_new()
-	self.save_bgn()
-	if attrs.has_key('add_date'):
-	    self._current.set_add_date(string.atoi(attrs['add_date']))
-	if attrs.has_key('folded'):
-	    self._current.collapse()
-
-    end_h3 = end_h1
-
-    def do_hr(self, attrs):
-	snode = BookmarkNode()
-	snode.set_separator()
-	self._current.append_child(snode)
-
-    def end_dl(self):
-	if not self._current: raise PoppedRootError
-	self.ddpop()
-	self._current = self._current.parent()
-
-    def do_dd(self, attrs):
-	self.save_bgn()
-	self._storing = 1
-
-    def ddpop(self, *args):
-	if self._storing:
-	    if self._prevleaf:
-		self._prevleaf.set_description(self.save_end())
-	    self._storing = 0
-
-    do_dt = ddpop
-    start_dl = ddpop
-
-    def start_a(self, attrs):
-	self._push_new()
-	self.save_bgn()
-	curnode = self._current		# convenience
-	if attrs.has_key('href'):
-	    curnode.set_uri(attrs['href'])
-	if attrs.has_key('add_date'):
-	    curnode.set_add_date(string.atoi(attrs['add_date']))
-	if attrs.has_key('last_visit'):
-	    curnode.set_last_visited(string.atoi(attrs['last_visit']))
-
-    def end_a(self):
-	self._current.set_title(self.save_end())
-	self._prevleaf = self._current
-	self._current = self._current.parent()
-
-
-class NetscapeBookmarkWriter:
-    def _tab(self, node): return ' ' * (4 * node.depth())
-
-    def _write_description(self, desc):
-	if not desc: return
-	# write the description, sans leading and trailing whitespace
-	print '<DD>%s' % string.strip(desc)
-
-    def _write_separator(self, node):
-	print '%s<HR>' % self._tab(node)
-
-    def _write_leaf(self, node):
-	print '%s<DT><A HREF="%s" ADD_DATE="%d" LAST_VISIT="%d">%s</A>' % \
-	      (self._tab(node), node.uri(), node.add_date(),
-	       node.last_visited(), node.title())
-	self._write_description(node.description())
-
-    def _write_branch(self, node):
-	tab = self._tab(node)
-	if node.expanded_p(): folded = ''
-	else: folded = 'FOLDED '
-	print '%s<DT><H3 %sADD_DATE="%d">%s</H3>' % \
-	      (tab, folded, node.add_date(), node.title())
-
-    def _write_header(self, root):
-	print '<!DOCTYPE NETSCAPE-Bookmark-file-1>'
-	print '<!-- This is an automatically generated file.'
-	print '    It will be read and overwritten.'
-	print '    Do Not Edit! -->'
-	print '<TITLE>%s</TITLE>' % root.title()
-	print '<H1>%s</H1>' % root.title()
-	print '<DL><p>'
-
-    def _rwrite(self, node):
-	tab = '    ' * node.depth()
-	if node.isseparator_p(): self._write_separator(node)
-	elif node.leaf_p(): self._write_leaf(node)
-	else:
-	    self._write_branch(node)
-	    print '%s<DL><p>' % tab
-	    for child in node.children():
-		self._rwrite(child)
-	    print '%s</DL><p>' % tab
-
-    def write_tree(self, root, fp):
-	stdout = sys.stdout
-	try:
-	    sys.stdout = fp
-	    self._write_header(root)
-	    for child in root.children():
-		self._rwrite(child)
-	    print '</DL><p>'
-	finally:
-	    fp.close()
-	    sys.stdout = stdout
-
-class GrailBookmarkWriter(NetscapeBookmarkWriter):
-    def _write_header(self, root):
-	print '<!DOCTYPE GRAIL-Bookmark-file-1>'
-	print '<!-- This is an automatically generated file.'
-	print '    It will be read and overwritten.'
-	print '    Do Not Edit!'
-	print '    NOTE: This format is fully compatible with'
-	print '          Netscape 1.x style bookmarks -->'
-	print '<TITLE>%s</TITLE>' % root.title()
-	print '<H1>%s</H1>' % root.title()
-	print '<DL><p>'
 
 
 class FileDialogExtras:
@@ -383,16 +117,16 @@ class BookmarksIO:
 	    import regex
 	    line1 = fp.readline()
 	    if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkParser()
+		parser = NetscapeBookmarkParser(self._filename)
 		writer = NetscapeBookmarkWriter()
 	    elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkParser()
+		parser = NetscapeBookmarkParser(self._filename)
 		writer = GrailBookmarkWriter()
 	finally:
 	    fp.seek(0)
 	# sanity checking
 	if not parser or not writer:
-	    raise BookmarkFormatError, 'unknown or missing bookmarks file'
+	    raise BookmarkFormatError('unknown or missing bookmarks file')
 	# create the reader
 	reader = HTMLBookmarkReader(parser)
 	return (reader, writer)
@@ -403,7 +137,7 @@ class BookmarksIO:
 	    fp = open(filename, 'r')
 	    reader, writer = self._choose_reader_writer(fp)
 	except IOError, error:
-	    raise BookmarkFormatError, error
+	    raise BookmarkFormatError(error)
 	return (fp, reader, writer)
 
     def load(self, usedefault=False):
@@ -471,7 +205,7 @@ class TkListboxViewer(OutlinerViewer):
 	self._listbox.delete(0, END)
 
     def _insert(self, node, index=None):
-	if index is None: index = 'end'
+	if index is None: index = END
 	self._listbox.insert(index, `node`)
 
     def _delete(self, start, end=None):
@@ -789,28 +523,31 @@ class DetailsDialog:
     def _create_form(self, top):
 	make = tktools.make_labeled_form_entry # convenience
 	lw = 12 # Label width, in "average characters"
-	self._form = [make(top, 'Name', 40, 1, lw)]
+	self._form = []
+	self._add_field(top, 'Name', 40)
 	if self._node.islink_p():
-	    self._form[1:] = [
-		make(top, 'Location', 40, 1, lw),
-		make(top, 'Last Visited', 40, 1, lw),
-		make(top, 'Added On', 40, 1, lw),
-		make(top, 'Description', 40, 5, lw)
-		]
-	    self._form[2][0].config(relief=GROOVE)
-	    self._form[3][0].config(relief=GROOVE)
+	    self._add_field(top, 'Location', 40)
+	    self._add_field(top, 'Last Visited', 40)
+	self._added_on = self._add_field(top, 'Added On', 40)
+	self._description = self._add_field(top, 'Description', 40, 5)
+## 	self._form[2][0].config(relief=GROOVE)
+## 	self._form[3][0].config(relief=GROOVE)
 	self.revert()
+
+    def _add_field(self, master, label, width, height=1):
+	tup = tktools.make_labeled_form_entry(master, label, width, height, 12,
+					      takefocus=0)
+	self._form.append(tup)
+	if type(tup[0]) is type(()):
+	    tup = tup[0]
+	return tup[0]
 
     def _create_buttonbar(self, top):
 	btnbar = Frame(top)
-##	revertbtn = Button(btnbar, text='Revert',
-##			   command=self.revert)
-	donebtn = Button(btnbar, text='OK',
-			 command=self.done)
-	applybtn = Button(btnbar, text='Apply',
-			  command=self.apply)
-	cancelbtn = Button(btnbar, text='Cancel',
-			   command=self.cancel)
+##	revertbtn = Button(btnbar, text='Revert', command=self.revert)
+	donebtn = Button(btnbar, text='OK', command=self.done)
+	applybtn = Button(btnbar, text='Apply', command=self.apply)
+	cancelbtn = Button(btnbar, text='Cancel', command=self.cancel)
 	tktools.unify_button_widths(donebtn, applybtn, cancelbtn)
 ##	revertbtn.pack(side=LEFT)
 	donebtn.pack(side=LEFT)
@@ -821,13 +558,13 @@ class DetailsDialog:
     def revert(self):
 	# first we have to re-enable the read-only fields, otherwise
 	# Tk will just ignore our updates.  blech!
-	if self._node.islink_p():
-	    for entry, frame, label in self._form[2:4]:
-		entry.config(state='normal')
+	for entry, frame, label in self._form[2:]:
+	    if type(entry) is type(()): entry[0].config(state=NORMAL)
+	    else: entry.config(state=NORMAL)
 	# now empty out the text
 	for entry, frame, label in self._form:
-	    if type(entry) == type(()): entry[0].delete(1.0, 'end')
-	    else: entry.delete(0, 'end')
+	    if type(entry) is type(()): entry[0].delete(1.0, END)
+	    else: entry.delete(0, END)
 	# fill in the entry fields
 	node = self._node		# convenience
 	entry = self._form[0][0]	# more convenience
@@ -836,17 +573,16 @@ class DetailsDialog:
 	if node.islink_p():
 	    self._form[1][0].insert(0, node.uri())
 	    self._form[2][0].insert(0, time.ctime(node.last_visited()))
-	    self._form[3][0].insert(0, time.ctime(node.add_date()))
-	    self._form[4][0][0].insert(1.0, node.description())
-	    # make the fields read-only again
-	    for entry, frame, label in self._form[2:4]:
-		entry.config(state='disabled')
+	    self._form[2][0].config(state=DISABLED)
+	self._added_on.insert(0, time.ctime(node.add_date()))
+	self._added_on.config(state=DISABLED)
+	self._description.insert(1.0, node.description())
 
     def apply(self):
 	self._node.set_title(self._form[0][0].get())
 	if self._node.islink_p():
 	    self._node.set_uri(self._form[1][0].get())
-	    self._node.set_description(self._form[4][0][0].get(1.0, 'end'))
+	self._node.set_description(self._form[-1][0][0].get(1.0, END))
 	if self._node is self._controller.root():
 	    self._controller.update_title_node()
 	else:
@@ -1088,7 +824,18 @@ class BookmarksController(OutlinerController):
 	browser = self.get_browser()
 	title = browser.context.get_title()
 	url = browser.context.get_baseurl()
-	self.add_link(url, title)
+	node = self.add_link(url, title)
+	headers = browser.context.get_headers()
+	if headers.has_key("last-modified"):
+	    modified = headers["last-modified"]
+	    if type(modified) is type(''):
+		import ht_time
+		try:
+		    modified = ht_time.parse(modified)
+		except:
+		    pass
+		else:
+		    node.set_last_modified(modified)
 
     def add_link(self, url, title=''):
 	# create a new node to represent this addition and then fit it
@@ -1122,6 +869,7 @@ class BookmarksController(OutlinerController):
 	self.set_modflag(True)
 	self.root_redisplay()
 	self.viewer().select_node(node)
+	return node
 
     def details(self, event=None):
 	node, selection = self._get_selected_node()
@@ -1422,9 +1170,9 @@ class BookmarksMenu:
 
     def post(self, event=None):
 	# delete any old existing bookmark entries
-	last = self._menu.index('end')
+	last = self._menu.index(END)
 	if last > 1:
-	    self._menu.delete(2, 'end')
+	    self._menu.delete(2, END)
 	if self._controller.includepulldown.get():
 	    self._menu.add_separator()
 	    # First make sure the controller has initialized
