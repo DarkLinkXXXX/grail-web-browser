@@ -435,14 +435,12 @@ class Browser:
 	return b
 
     def open_uri_command(self, event=None):
-	if self.busycheck(): return
 	import OpenURIDialog
 	dialog = OpenURIDialog.OpenURIDialog(self.master)
 	uri = dialog.go()
 	if uri: self.load(uri)
 
     def open_file_command(self, event=None):
-	if self.busycheck(): return
 	import FileDialog
 	dialog = FileDialog.LoadFileDialog(self.master)
 	filename = dialog.go()
