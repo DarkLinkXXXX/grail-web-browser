@@ -57,6 +57,7 @@ Research Initiatives
 
 Version: %s""" % __version__
 
+DINGBAT_FONT = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats'
 
 def main():
     prefs = GrailPrefs.AllPreferences()
@@ -222,6 +223,13 @@ class Application:
 	self.browsers = []
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
+	try:
+	    dummy = Label(text = 'dummy', font = DINGBAT_FONT)
+	except TclError:
+	    pass
+	else:
+	    dummy.destroy()
+	    Application.dingbatimages = Application.fontdingbats
 
     def register_on_exit(self, method):
 	self.on_exit_methods.append(method)
@@ -452,9 +460,10 @@ class Application:
 		      strings=('OK',),
 		      )
 
-    dingbatimages = {'circle': ('\x6d', 'dingbat'),
-		     'disc': ('\x6c', 'dingbat'),
-		     'square': ('\x6f', 'dingbat')}
+    dingbatimages = {}
+    fontdingbats = {'circle': ('\x6d', 'dingbat'),
+		    'disc': ('\x6c', 'dingbat'),
+		    'square': ('\x6f', 'dingbat')}
     iconpath = [os.path.join(grail_root, 'icons')]
 
     def load_dingbat(self, entname):
