@@ -1,4 +1,4 @@
-from Tkinter import *
+from Tkinter import Entry
 import string
 import urllib
 
@@ -18,15 +18,15 @@ class IndexWidget:
 
     def __init__(self, parser, prompt, url):
 	self.query_url = url
-	self.parser = parser
-	self.viewer = self.parser.viewer
-	self.context = self.viewer.context
-	self.w = Entry(self.viewer.text)
+	viewer = parser.viewer
+	self.context = viewer.context
+	self.w = Entry(viewer.text)
 	self.w.bind('<Return>', self.submit)
-	self.viewer.send_hor_rule()
-	self.viewer.send_flowing_data(prompt)
-	self.parser.add_subwindow(self.w)
-	self.viewer.send_hor_rule()
+	viewer.send_hor_rule()
+	viewer.send_flowing_data(prompt)
+	parser.add_subwindow(self.w)
+	viewer.send_line_break()
+	viewer.send_hor_rule()
 
     def submit(self, event):
 	data = self.w.get()
