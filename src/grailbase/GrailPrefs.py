@@ -4,13 +4,12 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.22 $"
+__version__ = "$Revision: 2.23 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
 import sys
 import string
-import rfc822
 if __name__ == "__main__":
     sys.path.insert(0, '../utils')
 import grailutil
