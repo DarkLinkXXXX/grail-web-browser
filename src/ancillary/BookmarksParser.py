@@ -218,6 +218,7 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 
     def end_h1(self):
 	self._current.set_title(self.save_end())
+	self._store_node = self._current
 
     def start_h3(self, attrs):
 	self._push_new()
@@ -229,7 +230,6 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 
     def end_h3(self):
 	self.end_h1()
-	self._store_node = self._current
 
     def do_hr(self, attrs):
 	snode = self.new_node()
@@ -321,8 +321,7 @@ class NetscapeBookmarkWriter:
     It will be read and overwritten.
     Do Not Edit! -->
 <TITLE>%(title)s</TITLE>
-<H1>%(title)s</H1>
-<DL><p>"""
+<H1>%(title)s</H1>"""
 
     def _write_header(self, root):
 	print self._header % {'title': root.title()}
@@ -343,6 +342,8 @@ class NetscapeBookmarkWriter:
 	try:
 	    sys.stdout = fp
 	    self._write_header(root)
+	    self._write_description(root.description())
+	    print "<DL><p>"
 	    for child in root.children():
 		self._rwrite(child)
 	    print '</DL><p>'
@@ -358,5 +359,4 @@ class GrailBookmarkWriter(NetscapeBookmarkWriter):
     NOTE: This format is fully compatible with
           Netscape 1.x style bookmarks -->
 <TITLE>%(title)s</TITLE>
-<H1>%(title)s</H1>
-<DL><p>"""
+<H1>%(title)s</H1>"""
