@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.10 1996/04/01 16:07:00 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.11 1996/04/01 17:42:14 bwarsaw Exp $'
 
 
 import string
@@ -174,7 +174,7 @@ class Table(AttrElem):
 			   relief=RAISED)
  	self.container = Canvas(self.frame, relief=FLAT)
 	self.caption = None
-	self.cols = []			## multiple COL or COLGROUP
+	self.cols = []			# multiple COL or COLGROUP
 	self.colgroups = []
 	self.thead = None
 	self.tfoot = None
@@ -252,22 +252,23 @@ class Table(AttrElem):
 		row = row + 1
 
 	# debugging
-	print '==========', id(self)
-	for row in range(rowcount):
-	    print '[', 
-	    for col in range(colcount):
-		element = table[(row, col)]
-		if element == EMPTY:
-		    print 'EMPTY', 
-		elif element == OCCUPIED:
-		    print 'OCCUPIED',
-		else:
-		    print element,
-	    print ']'
-	print '==========', id(self)
+## 	print '==========', id(self)
+## 	for row in range(rowcount):
+## 	    print '[', 
+## 	    for col in range(colcount):
+## 		element = table[(row, col)]
+## 		if element == EMPTY:
+## 		    print 'EMPTY', 
+## 		elif element == OCCUPIED:
+## 		    print 'OCCUPIED',
+## 		else:
+## 		    print element,
+## 	    print ']'
+## 	print '==========', id(self)
 
 	# calculate column widths
-	cellwidths = [0] * colcount
+	cellmaxwidths = [0] * colcount
+	cellminwidths = [0] * colcount
 	cellheights = [0] * rowcount
 	for col in range(colcount):
 	    for row in range(rowcount):
@@ -281,9 +282,48 @@ class Table(AttrElem):
 		# apportion the min/max widths to each of the
 		# consituent columns (this is how Arena does it as per
 		# the latest Table HTML spec).
-		cellwidth = float(cell.width()) / cell.colspan
+		maxwidth = float(cell.maxwidth()) / cell.colspan
+		minwidth = float(cell.minwidth()) / cell.colspan
 		for col_i in range(col, col + cell.colspan):
-		    cellwidths[col_i] = max(cellwidths[col_i], cellwidth)
+		    cellmaxwidths[col_i] = max(cellmaxwidths[col_i], maxwidth)
+		    cellminwidths[col_i] = max(cellminwidths[col_i], minwidth)
+
+	mincanvaswidth = 0
+	maxcanvaswidth = 0
+	for col in range(colcount):
+	    mincanvaswidth = mincanvaswidth + cellminwidths[col]
+	    maxcanvaswidth = maxcanvaswidth + cellmaxwidths[col]
+
+	# now we need to adjust for the available space (i.e. parent
+	# viewer's width).  The Table spec outlines three cases...
+	ptext = self.parentviewer.text
+	viewerwidth = ptext.winfo_reqwidth() - \
+		      2 * string.atof(ptext['padx']) - \
+		      13		# TBD: kludge alert!
+	print 'viewerwidth=', viewerwidth, 'mincanvaswidth=', mincanvaswidth, \
+	      'maxcanvaswidth=', maxcanvaswidth
+	# case 1: the min table width is equal to or wider than the
+	# available space.  Assign min widths and let the user scroll
+	# horizontally.
+	if mincanvaswidth >= viewerwidth:
+	    print 'using min widths:',
+	    cellwidths = cellminwidths
+	# case 2: maximum table width fits within the available space.
+	# set columns to their maximum width.
+	elif maxcanvaswidth < viewerwidth:
+	    print 'using max widths:',
+	    cellwidths = cellmaxwidths
+	# case 3: maximum width of the table is greater than the
+	# available space, but the minimum table width is smaller.
+	else:
+	    print 'using adjusted widths:',
+	    W = viewerwidth - mincanvaswidth
+	    D = maxcanvaswidth - mincanvaswidth
+	    adjustedwidths = [0] * rowcount
+	    for col in range(colcount):
+		d = cellmaxwidths[col] - cellminwidths[col]
+		adjustedwidths[col] = float(cellminwidths[col]) + d * W / D
+	    cellwidths = adjustedwidths
 
 	# calculate column heights.  this should be done *after*
 	# cellwidth calculations, due to side-effects in the cell
@@ -293,13 +333,16 @@ class Table(AttrElem):
 		cell = table[(row, col)]
 		if cell in [EMPTY, OCCUPIED]:
 		    continue
+		cell.situate(width=cellwidths[col])
 		cellheight = float(cell.height()) / cell.rowspan
 		for row_i in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
 
 	canvaswidth = 0
-	for width in cellwidths:
-	    canvaswidth = canvaswidth + width
+	for row in range(rowcount):
+	    print cellwidths[row]
+	    canvaswidth = canvaswidth + cellwidths[row]
+	print 'canvaswidth=', canvaswidth
 
 	ypos = 0
 
@@ -372,7 +415,7 @@ def _get_linecount(tw):
 
 def _get_widths(tw):
     width_max = 0
-    charwidth_max = 0
+##     charwidth_max = 0
     border_x = None
     # get maximum width of cell: the longest line with no line wrapping
     tw['wrap'] = NONE
@@ -383,10 +426,10 @@ def _get_widths(tw):
 	tw.see(index)
 	x, y, w, h, b = tw.dlineinfo(index)
 	width_max = max(width_max, w)
-	if lineno > 1:
-	    charwidth = string.atoi(string.splitfields(
-		tw.index('%s - 1 c' % index), '.')[1])
-	    charwidth_max = max(charwidth_max, charwidth)
+## 	if lineno > 1:
+## 	    charwidth = string.atoi(string.splitfields(
+## 		tw.index('%s - 1 c' % index), '.')[1])
+## 	    charwidth_max = max(charwidth_max, charwidth)
     width_max = width_max + (2 * border_x)
     # get minimum width of cell: longest word
     tw['wrap'] = WORD
@@ -394,7 +437,8 @@ def _get_widths(tw):
     longest_word = reduce(max, map(len, string.split(contents)), 0) + 1
     tw['width'] = longest_word
     width_min = tw.winfo_reqwidth() + (2 * border_x)
-    return charwidth_max, width_min, width_max
+##     return charwidth_max, width_min, width_max
+    return width_min, width_max
 
 def _get_height(tw):
     linecount = _get_linecount(tw)
@@ -451,8 +495,10 @@ class ContainedText(AttrElem):
     def unfreeze(self): self._viewer.unfreeze()
     def close(self): self._viewer.close()
 
-    def width(self):
-	return self._width		# not useful until after finish()
+    def maxwidth(self):
+	return self._maxwidth		# not useful until after finish()
+    def minwidth(self):
+	return self._minwidth		# likewise
 
     def height(self):
 	if self._height is None:
@@ -465,14 +511,13 @@ class ContainedText(AttrElem):
 	tw = self._tw
 	# set the padding before grabbing the width
 	tw['padx'] = padding
-	# TBD: get rid of cmax
-	cmax, self._min_nonaligned, self._maxwidth = _get_widths(tw)
+	min_nonaligned, self._maxwidth = _get_widths(tw)
 	# first approximation of height.  this is the best we can do
 	# without forcing an update_idletasks() fireworks display
 	tw['height'] = _get_linecount(tw) + 1
 	# take into account all embedded windows
 	for sub in self._viewer.subwindows:
-	    self.min_nonaligned = max(self.min_nonaligned, sw['width'])
+	    min_nonaligned = max(min_nonaligned, sw['width'])
 	# initially place the cell in the canvas at position (0,0),
 	# with the maximum width and closest approximation height.
 	# situate() will be called later with the final layout
@@ -482,8 +527,9 @@ class ContainedText(AttrElem):
 	    window=fw, anchor=NW,
 	    width=self._maxwidth,
 	    height=fw['height'])
-	# for export
-	self._width = self._maxwidth
+	# TBD: according to the W3C table spec, minwidth should really
+	# be max(min_left + min_right, min_nonaligned)
+	self._minwidth = min_nonaligned
 
     def situate(self, xdelta=0, ydelta=0, width=None, height=None):
 	self._container.move(self._tag, xdelta, ydelta)
