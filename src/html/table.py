@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.1 1996/03/22 21:34:49 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.2 1996/03/22 22:37:02 bwarsaw Exp $'
 
 
 import string
@@ -38,9 +38,9 @@ class TableSubParser:
     def end_table(self, parser):
 	ti = self._lasttable 
 	if ti:
-	    self._close_cell(parser)
+	    self._finish_cell(parser)
 	    del self._table_stack[-1]
-	    ti.close()
+	    ti.finish()
 
     def start_caption(self, parser, attrs):
 	ti = self._lasttable 
@@ -74,7 +74,7 @@ class TableSubParser:
 
     def _do_body(self, parser, attrs):
 	ti = self._lasttable
-	self._close_cell(parser)
+	self._finish_cell(parser)
 	body = HeadFootBody(attrs)
 	ti.lastbody = body
 	return body
@@ -104,8 +104,8 @@ class TableSubParser:
     def _do_cell(self, parser, attrs):
 	ti = self._lasttable 
 	if ti:
-	    # close any previously opened cell
-	    self._close_cell(parser)
+	    # finish any previously opened cell
+	    self._finish_cell(parser)
 	    # create a new formatter for the cell, made from a new subviewer
 	    cell = ti.lastcell = Cell(ti, parser.viewer, attrs)
 	    cell.viewer.unfreeze()
@@ -117,12 +117,12 @@ class TableSubParser:
 	    if rows:
 		rows[-1].cells.append(cell)
 
-    def _close_cell(self, parser):
-	# implicit close of an open table cell
+    def _finish_cell(self, parser):
+	# implicit finish of an open table cell
 	ti = self._lasttable
 	if ti.lastcell:
 	    ti.lastcell.viewer.freeze()
-	    ti.lastcell.close()
+	    ti.lastcell.finish()
 	    ti.lastcell = None
 	    parser.pop_formatter()
 
@@ -215,7 +215,7 @@ class Table(AttrElem):
 	self.lastbody = None
 	self.lastcell = None
 
-    def close(self):
+    def finish(self):
 	if self.layout == AUTOLAYOUT:
 	    containerwidth = self._autolayout_1()
 	    if self.caption:
@@ -268,6 +268,7 @@ class Table(AttrElem):
 		    # the cell could be empty
 		    if cell.is_empty():
 			table[(row, col)] = EMPTY
+			cell.close()
 		    else:
 			table[(row, col)] = cell
 		    # the cell could span multiple columns
@@ -491,6 +492,9 @@ class Cell(AttrElem):
 	self.rowspan = string.atoi(self.attribute('rowspan') or '1')
 	self.colspan = string.atoi(self.attribute('colspan') or '1')
 
+    def close(self):
+	self.viewer.close()
+
     def __repr__(self):
 	return '"%s"' % self.viewer.text.get(1.0, END)[:-1]
 
@@ -498,7 +502,7 @@ class Cell(AttrElem):
     def height(self): return self._height
     def is_empty(self): return not self.viewer.text.get(1.0, 'end - 1 c')
 
-    def close(self):
+    def finish(self):
 	if self.layout == AUTOLAYOUT:
 	    # get the real true size of the widget
 	    self._width, self._height = _get_real_size(self.viewer.text)
