@@ -51,8 +51,20 @@ def _prepstring(s):
 
 
 
-XBEL_PUBLIC_ID = "+//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN"
-XBEL_SYSTEM_ID = "http://www.python.org/topics/xml/dtds/xbel-1.0.dtd"
+pubid_fmt = "+//IDN python.org//DTD XML Bookmark Exchange Language %s//EN"
+sysid_fmt = "http://www.python.org/topics/xml/dtds/xbel-%s.dtd"
+
+XBEL_1_0_PUBLIC_ID = pubid_fmt % "1.0"
+XBEL_1_0_SYSTEM_ID = sysid_fmt % "1.0"
+XBEL_1_0_ROOT_ELEMENTS = ("xbel", "folder", "bookmark", "alias", "separator")
+
+# not yet released
+XBEL_1_1_PUBLIC_ID = pubid_fmt % "1.1"
+XBEL_1_1_SYSTEM_ID = sysid_fmt % "1.1"
+XBEL_1_1_ROOT_ELEMENTS = XBEL_1_0_ROOT_ELEMENTS + ("link",)
+
+del pubid_fmt
+del sysid_fmt
 
 
 def check_xml_format(buffer):
@@ -61,15 +73,15 @@ def check_xml_format(buffer):
         info = xmlinfo.get_xml_info(buffer)
     except xmlinfo.Error:
         return None
-    if info.doc_elem == "xbel":
+    if info.doc_elem in XBEL_1_0_ROOT_ELEMENTS:
         public_id = info.public_id
         system_id = info.system_id
-        if public_id == XBEL_PUBLIC_ID:
-            if system_id == XBEL_SYSTEM_ID or not system_id:
+        if public_id == XBEL_1_0_PUBLIC_ID:
+            if system_id == XBEL_1_0_SYSTEM_ID or not system_id:
                 return "xbel"
         elif public_id:
             pass
-        elif system_id == XBEL_SYSTEM_ID:
+        elif system_id == XBEL_1_0_SYSTEM_ID:
             return "xbel"
 
 
