@@ -209,7 +209,8 @@ class HistoryDialog:
 	# 
 	self._browser = browser
 	self._history.set_dialog(self)
-	self._frame = Toplevel(browser.root)
+	self._frame = tktools.make_toplevel(self._browser.root,
+					    title="History Dialog")
 	self._viewby = IntVar()
 	self._viewby.set(1)
 	self._viewing = 1
@@ -247,6 +248,7 @@ class HistoryDialog:
 	self._frame.bind("<Down>", self.previous_cmd)
 	self._frame.bind("n", self.previous_cmd)
 	self._frame.bind("N", self.previous_cmd)
+	tktools.set_transient(self._frame, self._browser.root)
 	    
     def history(self): return self._history
 
