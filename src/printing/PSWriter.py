@@ -1,6 +1,6 @@
 """Wrapper for the PSStream to support the standard AbstractWriter interface.
 """
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 #  $Source: /home/john/Code/grail/src/printing/PSWriter.py,v $
 
 import formatter
@@ -89,6 +89,8 @@ class PSWriter(formatter.AbstractWriter):
         self.__pending_indentation = None
 
     def send_indentation(self, width):
+        """Add some 'pended' paragraph indentation which might get cancelled
+        later."""
 ##      utils.debug('send_indentation: %s' % width)
         self.__pending_indentation = width
 
@@ -130,9 +132,11 @@ class PSWriter(formatter.AbstractWriter):
 
     def send_eps_data(self, image, align):
 ##      utils.debug('send_eps_data: <epsdata>, ' + `bbox`)
+        if self.__pending_indentation:
+            self.ps.push_horiz_space(self.__pending_indentation)
+            self.__pending_indentation = None
         self.ps.push_eps(image, align)
         self.__detab_pos = 0
-        self.__pending_indentation = None
 
     def __detab_data(self, data):
         pos = self.__detab_pos
