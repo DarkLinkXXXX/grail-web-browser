@@ -941,26 +941,38 @@ class NewlineScratcher:
     import regex
     __scratch_re = regex.compile("[ \t]*\n")
 
-    __buffer = ''
+    # for new version only:
+##     __buffer = ''
 
     def __init__(self, parser, limit=-1):
 	self.__limit = limit
 	self.__parser = parser
 
     def __call__(self, data):
-	data = self.__buffer + data
-	while "\n" in data and self.__limit != 0:
-	    length = self.__scratch_re.match(data)
-	    if length >= 0:
-		data = data[length:]
-		self.__limit = self.__limit - 1
-	if string.strip(data) or self.__limit == 0:
+	# new version that works better sometimes but can really die badly:
+	# (hopefully fixable!)
+## 	data = self.__buffer + data
+## 	while "\n" in data and self.__limit != 0:
+## 	    length = self.__scratch_re.match(data)
+## 	    if length >= 0:
+## 		data = data[length:]
+## 		self.__limit = self.__limit - 1
+## 	if string.strip(data) or self.__limit == 0:
+## 	    self.__parser.formatter.add_literal_data(data)
+## 	    self.__parser.set_data_handler(
+## 		self.__parser.formatter.add_literal_data)
+## 	    self.__parser = None
+## 	else:
+## 	    self.__buffer = data
+	# old version:
+	while data and data[0] == "\n" and self.__limit != 0:
+	    data = data[1:]
+	    self.__limit = self.__limit - 1
+	if data:
 	    self.__parser.formatter.add_literal_data(data)
 	    self.__parser.set_data_handler(
 		self.__parser.formatter.add_literal_data)
-	    self.__parser = None
-	else:
-	    self.__buffer = data
+	    del self.__parser
 
 
 class HeaderNumber:
