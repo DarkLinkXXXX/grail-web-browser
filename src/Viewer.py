@@ -174,17 +174,21 @@ class Viewer(formatter.AbstractWriter):
     def configure_styles(self):
 	"""Used on widget creation, clear, and as a callback when style
 	preferences change."""
-	selected_style = self.prefs.Get('styles', 'group')
+	size_name = self.prefs.Get('styles', 'size')
+	type_name = self.prefs.Get('styles', 'type')
 	style_ok = 1
-	if not self.stylesheet or (self.current_style != selected_style):
+	if not self.stylesheet or ((self.current_size != size_name)
+				   or (self.current_type != type_name)):
 	    try:
 		self.stylesheet = DefaultStylesheet(self.prefs,
-						    selected_style)
-		self.current_style = selected_style
+						    size_name, type_name)
+		self.current_size = size_name
+		self.current_type = type_name
 	    except UndefinedStyle:
 		style_ok = 0
 	if style_ok:
 	    self.configure_tags(self.stylesheet)
+
 
     def configure_tags(self, stylesheet):
 	if self.text:
