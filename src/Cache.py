@@ -317,8 +317,8 @@ class SharedAPI:
 		    self.fno = -1
 	return self.fno
 
-    def register_reader(self,reader):
-	self.item.api.register_reader(reader)
+    def register_reader(self, reader_start, reader_callback):
+	self.item.api.register_reader(reader_start, reader_callback)
 
     def tk_img_access(self):
 	if hasattr(self.item.api, 'tk_img_access'):
