@@ -1,6 +1,6 @@
 """HTML parser for printing.
 """
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 #  $Source: /home/john/Code/grail/src/printing/PSParser.py,v $
 
 import grailutil			# top level
@@ -207,6 +207,7 @@ class PrintingHTMLParser(HTMLParser):
 		self.formatter.assert_line_data()
 	else:
 	    self.para_bgn(attrs, parbreak=1)
+	self.require_vspace(2)
 
     def end_p(self):
 	if self.settings.paragraph_indent:
@@ -407,13 +408,16 @@ class PrintingHTMLParser(HTMLParser):
 
     def header_number(self, tag, level, attrs):
 	# make sure we have at least 3*fontsize vertical space available:
+	self.require_vspace(3)
+	# now call the base class:
+	HTMLParser.header_number(self, tag, level, attrs)
+
+    def require_vspace(self, factor):
 	ps = self.formatter.writer.ps
 	fontsize = ps._font.font_size()
 	available = ps.get_pageheight() + ps._ypos
-	if available < (3 * fontsize):
+	if available < (factor * fontsize):
 	    ps.push_page_break()
-	# now call the base class:
-	HTMLParser.header_number(self, tag, level, attrs)
 
     def pi_page_break(self, arglist):
 	self.formatter.add_line_break()
