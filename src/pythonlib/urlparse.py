@@ -144,6 +144,18 @@ def urljoin(base, url, allow_framents = 1):
 	return urlunparse((scheme, netloc, path,
 			   params, query, fragment))
 
+def urldefrag(url):
+    """Removes any existing fragment from URL.
+
+    Returns a tuple of the defragmented URL and the fragment.  If
+    the URL contained no fragments, the second element is the
+    empty string.
+    """
+    s, n, p, a, q, frag = urlparse(url)
+    defrag = urlunparse((s, n, p, a, q, ''))
+    return defrag, frag
+
+
 test_input = """
       http://a/b/c/d
 
