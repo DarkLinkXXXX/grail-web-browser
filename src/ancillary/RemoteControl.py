@@ -130,7 +130,7 @@ import os
 import socket
 import regex
 import string
-import tkinter
+from Tkinter import tkinter
 from grailutil import *
 
 # The file structure.  Modeled after X11
