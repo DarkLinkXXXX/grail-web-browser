@@ -50,7 +50,8 @@ class Browser:
 
     """
 
-    def __init__(self, master, app=None, width=80, height=40, hist=None):
+    def __init__(self, master, app=None, width=80, height=40, hist=None,
+		 geometry=None):
 	self.master = master
 	if not app:
 	    import __main__
@@ -63,11 +64,13 @@ class Browser:
 	self.title = ""
 	if hist: self.history = hist
 	else: self.history = History.History(app)
-	self.create_widgets(width=width, height=height)
+	self.create_widgets(width=width, height=height, geometry=geometry)
 	self.history_dialog = None
 
-    def create_widgets(self, width, height):
+    def create_widgets(self, width, height, geometry):
 	self.root = Toplevel(self.master)
+	if geometry:
+	    self.root.geometry(geometry)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
 	self.topframe = Frame(self.root)
 	self.topframe.pack(fill=X)
@@ -78,19 +81,14 @@ class Browser:
 	self.viewer = Viewer(self.root, browser=self,
 			     stylesheet=DefaultStylesheet,
 			     width=width, height=height)
-	self.animate_logo()
+	self.logo_init()
 
     def create_logo(self):
-	self.logo_button = Button(self.topframe,
+	self.logo = Button(self.topframe,
 				  text="Grail",
 				  command=self.stop_command)
-	self.logo_button.pack(side=LEFT)
+	self.logo.pack(side=LEFT, padx=10, pady=10)
 	self.root.bind("<Alt-period>", self.stop_command)
-
-    def animate_logo(self):
-	self.logo_image = AsyncImage(self, FIRST_LOGO_IMAGE)
-	self.logo_image.load_synchronously()
-	self.logo_button.config(image=self.logo_image)
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
@@ -322,10 +320,10 @@ class Browser:
 	return 0
 
     def allowstop(self):
-	pass
+	self.logo_start()
 
     def clearstop(self):
-	pass
+	self.logo_stop()
 
     def stop(self):
 	for reader in self.readers[:]:
@@ -535,6 +533,44 @@ class Browser:
 	self.load(PYTHON_HOME)
 
     # End of commmands
+
+    # Animated logo (XXX generalize???)
+
+    def logo_init(self):
+	self.logo_index = 0
+	self.logo_id = None
+	self.logo_more = None
+	self.logo_images = []
+	self.logo_image = AsyncImage(self, FIRST_LOGO_IMAGE)
+	self.logo_image.load_synchronously()
+	self.logo.config(image=self.logo_image)
+	self.logo_images = [self.logo_image]
+	self.logo_more = self.logo_image.loaded
+
+    def logo_next(self):
+	self.logo_id = None
+	self.logo_id = self.root.after(200, self.logo_next)
+	if self.logo_more:
+	    url = LOGO_IMAGES + "T%d.gif" % len(self.logo_images)
+	    image = AsyncImage(self, url)
+	    image.load_synchronously()
+	    self.logo_more = image.loaded
+	    if self.logo_more:
+		self.logo_images.append(image)
+	if self.logo_images:
+	    self.logo_index = (self.logo_index + 1) % len(self.logo_images)
+	    self.logo.config(image=self.logo_images[self.logo_index])
+
+    def logo_start(self):
+	if not self.logo_id:
+	    self.logo_index = 0
+	    self.logo_next()
+
+    def logo_stop(self):
+	if self.logo_id:
+	    self.root.after_cancel(self.logo_id)
+	    self.logo_id = None
+	self.logo.config(image=self.logo_image)
 
 
 def getenv(s):
