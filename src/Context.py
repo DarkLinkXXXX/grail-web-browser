@@ -289,7 +289,7 @@ class Context:
 	target = urlunparse((s, n, p, a, q, ''))
 	s, n, p, a, q, f = urlparse(self._url)
 	current = urlunparse((s, n, p, a, q, ''))
-	if target == current:
+	if target == current and not reload:
 	    if frag:
 		self.follow('#' + frag)
 	    else:
