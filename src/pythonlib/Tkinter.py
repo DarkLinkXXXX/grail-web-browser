@@ -348,7 +348,8 @@ class Misc:
 		self.tk.call('update', 'idletasks')
 	def bindtags(self, tagList=None):
 		if tagList is None:
-			return splitlist(self.tk.call('bindtags', self._w))
+			return self.tk.splitlist(
+				self.tk.call('bindtags', self._w))
 		else:
 			self.tk.call('bindtags', self._w, tagList)
 	def _bind(self, what, sequence, func, add):
