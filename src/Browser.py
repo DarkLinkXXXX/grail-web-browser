@@ -75,7 +75,11 @@ class Browser:
 	self.root.iconname(title)
 
     def create_widgets(self, width, height, geometry):
-	self.root = Toplevel(self.master, class_='Grail', name='grail')
+	# I'd like to be able to set the widget name here, but I'm not
+	# sure what the correct thing to do is.  Setting it to `grail'
+	# is definitely *not* the right thing to do since this causes
+	# all sorts of problems.
+	self.root = Toplevel(self.master, class_='Grail')
 	self._window_title("Grail: New Browser")
 	if geometry:
 	    self.root.geometry(geometry)
