@@ -1,6 +1,6 @@
 """HTML parser for printing."""
 
-__version__ = '$Revision: 1.11 $'
+__version__ = '$Revision: 1.12 $'
 
 import grailutil                        # top level
 import os
@@ -8,7 +8,7 @@ import string
 import types
 import urlparse
 
-from HTMLParser import HTMLParser
+from sgml.HTMLParser import HTMLParser
 from formatter import AbstractFormatter
 from formatter import AS_IS
 
