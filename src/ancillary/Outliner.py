@@ -5,11 +5,12 @@ False = None
 
 
 class OutlinerNode:
+    _expanded_p = True
+    _parent = None
+    _depth = 0
+
     def __init__(self):
-	self._expanded_p = True
-	self._parent = None
 	self._children = []
-	self._depth = 0
 
     def __repr__(self):
 	tabdepth = self._depth - 1
