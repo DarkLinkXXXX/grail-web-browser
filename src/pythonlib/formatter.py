@@ -50,7 +50,7 @@ class AbstractFormatter:
 	self.softspace = 0
 
     def add_line_break(self):
-	if not self.hard_break and not self.para_end:
+	if not (self.hard_break or self.para_end):
 	    self.writer.send_line_break()
 	self.hard_break = self.nospace = 1
 	self.softspace = 0
@@ -135,7 +135,8 @@ class AbstractFormatter:
     def add_literal_data(self, data):
 	if self.softspace and data[:1] != '\n':
 	    data = ' ' + data
-	self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	self.hard_break = data[-1:] == '\n'
+	self.nospace = self.para_end = self.softspace = 0
 	self.writer.send_literal_data(data)
 
     def flush_softspace(self):
