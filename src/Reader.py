@@ -492,6 +492,7 @@ class TransferDisplay:
 	self.app = old_context.browser.app
 	self.root = Toplevel(
 	    old_context.browser.master, class_="GrailTransfer")
+	self.root.protocol("WM_DELETE_WINDOW", self.stop)
 	import Context
 	self.context = Context.SimpleContext(self, self)
 	self.context._url = self.context._baseurl = url
@@ -514,11 +515,12 @@ class TransferDisplay:
 	#
 	self.content_length = None
 	if headers.has_key('content-length'):
-	    self.content_length = `string.atoi(headers['content-length'])`
+	    self.content_length = string.atoi(headers['content-length'])
 	self.create_widgets(url, filename, self.content_length)
 	#
 	reader.restart(reader.url)
 	reader.bufsize = 8096
+	tktools.set_transient(self.root, old_context.browser.master)
 
     def create_widgets(self, url, filename, content_length):
 	"""Create the widgets in the Toplevel instance."""
@@ -527,23 +529,39 @@ class TransferDisplay:
 	      ).pack(anchor=W, pady='1m')
 	Frame(topfr, borderwidth=1, height=2, relief=SUNKEN
 	      ).pack(fill=X, pady='1m')
-	es = self.make_labeled_field(topfr, "Source:", url)
-	ed = self.make_labeled_field(topfr, "Destination:", filename)
+	self.make_labeled_field(topfr, "Source:", url)['width'] = 45
+	self.make_labeled_field(topfr, "Destination:", filename)
 	Button(botfr, command=self.stop, text="Stop").pack()
 	if content_length:
 	    self.make_progress_bar(content_length, topfr)
-	self.__bytes = self.make_labeled_field(topfr, "Bytes:", "0")
+	frame = Frame(topfr)
+	frame.pack(fill=X)
+	self.__bytes = self.make_labeled_field(frame, "Bytes:", "0", LEFT)
 	if content_length:
+	    self.__bytes['width'] = len(`content_length`) + 2
 	    self.__percent = self.make_labeled_field(
-		topfr, "Complete:", self.__bytespat % 0.0)
+		frame, "Complete:", self.__bytespat % 0.0, LEFT)
 	else:
 	    self.__percent = None
 
-    def make_labeled_field(self, master, labeltext, valuetext=''):
+    __boldpat = regex.compile("-\([a-z]*bold\)-", regex.casefold)
+    __datafont = None
+    def make_labeled_field(self, master, labeltext, valuetext='', side=TOP):
 	frame = Frame(master)
-	frame.pack(pady='1m')
-	Label(frame, anchor=E, text=labeltext, width=10).pack(side=LEFT)
-	value = Label(frame, anchor=W, text=valuetext, width=45)
+	frame.pack(pady='1m', side=side, anchor=W)
+	label = Label(frame, anchor=E, text=labeltext, width=10)
+	label.pack(side=LEFT)
+	value = Label(frame, anchor=W, text=valuetext)
+	if self.__datafont is None:
+	    # try to get a medium-weight version of the font if bold:
+	    font = label['font']
+	    pos = self.__boldpat.search(font) + 1
+	    if pos:
+		end = pos + len(self.__boldpat.group(1))
+		self.__datafont = "%smedium%s" % (font[:pos], font[end:])
+	if self.__datafont:
+	    try: value['font'] = self.__datafont
+	    except TclError: self.__datafont = ''
 	value.pack(side=RIGHT, fill=X, expand=1)
 	return value
 
@@ -553,10 +571,6 @@ class TransferDisplay:
     __progbar = None
     __bytespat = "%.1f%%"
     def make_progress_bar(self, size, frame):
-	try:
-	    size = string.atoi(size)
-	except ValueError:
-	    return
 	self.__bytespat = "%.1f%% of " + grailutil.nicebytes(size)
 	self.__maxsize = 1.0 * size	# make it a float for future calc.
 	f = Frame(frame, relief=SUNKEN, borderwidth=1, background="powderblue",
