@@ -1,5 +1,6 @@
 """Base reader class -- read from a URL in the background."""
 
+import sys
 from Tkinter import *
 
 
@@ -34,7 +35,7 @@ class BaseReader:
 
 	self.callback = self.checkmeta
 	self.fno = self.api.fileno()
-	if TkVersion == 4.0:
+	if TkVersion == 4.0 and sys.platform == 'irix5':
 	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
 
 	self.browser.addreader(self)
@@ -44,6 +45,9 @@ class BaseReader:
 		self.fno, tkinter.READABLE, self.checkapi)
 	else:
 	    self.checkapi_regularly()
+
+    def __repr__(self):
+	return "%s(%s)" % (self.__class__.__name__, self.api)
 
     def kill(self):
 	self.stop()
