@@ -81,6 +81,7 @@ class Viewer(formatter.AbstractWriter):
 	self.spacingtag = None		# Tag specifying spacing
 	self.addtags = ()		# Additional tags (e.g. anchors)
 	self.align = None		# Alignment setting
+	self.pendingdata = ''		# Data 'on hold'
 	self.new_tags()
 
     def __del__(self):
@@ -284,6 +285,9 @@ class Viewer(formatter.AbstractWriter):
 	self.text.update_idletasks()
 
     def new_tags(self):
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
 	self.flowingtags = filter(
 	    None,
 	    (self.align, self.fonttag, self.margintag, self.spacingtag)) \
@@ -338,11 +342,13 @@ class Viewer(formatter.AbstractWriter):
 	self.new_tags()
 
     def send_paragraph(self, blankline):
-	self.text.insert(END, '\n' + '\n'*blankline)
+	self.pendingdata = self.pendingdata + ('\n' * (blankline + 1))
+	#self.text.insert(END, '\n' * (blankline + 1))
 ##	self.text.update_idletasks()
 
     def send_line_break(self):
-	self.text.insert(END, '\n')
+	self.pendingdata = self.pendingdata + '\n'
+	#self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
 
     def send_hor_rule(self, abswidth=None, percentwidth=1.0,
@@ -361,11 +367,14 @@ class Viewer(formatter.AbstractWriter):
 	window._percent = percentwidth
 	if not align:
 	    align = self.align
+	    if self.pendingdata:
+		self.text.insert(END, self.pendingdata)
 	if align:
 	    #  not needed on the left
-	    self.text.insert(END, MIN_IMAGE_LEADER, align)
+	    self.text.insert(END, self.pendingdata + MIN_IMAGE_LEADER, align)
 	self.text.window_create(END, window=window)
-	self.text.insert(END, '\n')
+	self.pendingdata = '\n'
+	#self.text.insert(END, '\n')
 ##	self.text.update_idletasks()
 
     def rule_width(self):
@@ -376,31 +385,40 @@ class Viewer(formatter.AbstractWriter):
 ##	print "Label data:", `data`
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
 	if type(data) is StringType:
-	    self.text.insert(END, '\t%s\t' % data, tags)
+	    self.text.insert(END, self.pendingdata + ('\t%s\t' % data), tags)
+	    self.pendingdata = ''
 	elif type(data) is InstanceType:
 	    #  Some sort of image specified by DINGBAT or SRC
-	    self.text.insert(END, '\t', tags)
+	    self.text.insert(END, self.pendingdata + '\t', tags)
 	    window = Label(self.text, image = data,
 			   background = self.text['background'],
 			   borderwidth = 0)
 	    self.subwindows.append(window)
 	    self.text.window_create(END, window=window)
-	    self.text.insert(END, '\t', tags)
+	    self.pendingdata = '\t'
+	    #self.text.insert(END, '\t', tags)
 	elif type(data) is TupleType:
 	    #  (string, fonttag) pair
 	    if data[1]:
-		self.text.insert(END, '\t', tags)
+		self.text.insert(END, self.pendingdata + '\t', tags)
 		self.text.insert(END, data[0], tags + (data[1],))
-		self.text.insert(END, '\t', tags)
+		self.pendingdata = '\t'
+		#self.text.insert(END, '\t', tags)
 	    else:
-		self.text.insert(END, '\t%s\t' % data[0], tags)
+		self.text.insert(END, self.pending_data +
+				 ('\t%s\t' % data[0], tags))
+		self.pendingdata = ''
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags
-	self.text.insert(END, data, self.flowingtags)
+	#self.text.insert(END, self.pendingdata + data, self.flowingtags)
+	self.pendingdata = self.pendingdata + data
 
     def send_literal_data(self, data):
 ##	print "Literal data:", `data`, self.literaltags
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
 	self.text.insert(END, data, self.literaltags)
 
     # Viewer's own methods
@@ -455,7 +473,6 @@ class Viewer(formatter.AbstractWriter):
 	    self.master.update_idletasks()
 	    from Browser import Browser
 	    from __main__ import app
-	    import urlparse
 	    b = Browser(app.root, app)
 	    b.context.load(self.context.get_baseurl(url))
 	    self.remove_temp_tag(histify=1)
@@ -534,10 +551,16 @@ class Viewer(formatter.AbstractWriter):
 	    return None
 
     def add_subwindow(self, window, align=CENTER):
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
 	self.subwindows.append(window)
 	self.text.window_create(END, window=window, align=align)
 
     def add_subviewer(self, subviewer):
+	if self.pendingdata:
+	    self.text.insert(END, self.pendingdata, self.flowingtags)
+	    self.pendingdata = ''
 	self.subviewers.append(subviewer)
 
     def remove_subviewer(self, subviewer):
