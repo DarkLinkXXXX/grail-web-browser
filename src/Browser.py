@@ -148,6 +148,12 @@ class Browser:
 	self.root.bind("<Alt-p>", self.print_command)
 	self.root.bind("<Alt-P>", self.print_command)
 	self.filemenu.add_separator()
+	self.filemenu.add_command(label="I/O Status Panel...",
+				  command=self.iostatus_command,
+				  underline=0, accelerator="Alt-I")
+	self.root.bind("<Alt-i>", self.iostatus_command)
+	self.root.bind("<Alt-I>", self.iostatus_command)
+	self.filemenu.add_separator()
 	self.filemenu.add_command(label="Close",
 			  command=self.close_command,
 			  underline=0, accelerator="Alt-W")
@@ -413,6 +419,9 @@ class Browser:
 	PrintDialog.PrintDialog(self.context,
 				self.context.get_url(),
 				self.context.get_title())
+
+    def iostatus_command(self, event=None):
+	self.app.open_io_status_panel()
 
     def close_command(self, event=None):
 	# File/Close
