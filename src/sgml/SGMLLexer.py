@@ -1,6 +1,6 @@
-# Copyright (c) CNRI 1996, licensed under terms and conditions of license
-# agreement obtained from handle "hdl:CNRI/19970131120001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:cnri/19980302135001",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
 
 """A lexer for SGML, using derived classes as parser and DTD.
 
@@ -8,7 +8,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.38 $"
+__version__ = "$Revision: 1.39 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 

@@ -1,10 +1,10 @@
-# Copyright (c) CNRI 1996, licensed under terms and conditions of license
-# agreement obtained from handle "hdl:CNRI/19970131120001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:cnri/19980302135001",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
 
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.8 $"
+__version__ = "$Revision: 1.9 $"
 # $Source: /home/john/Code/grail/src/prefpanels/PrintingPanel.py,v $
 
 import grailutil

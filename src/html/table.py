@@ -1,12 +1,12 @@
-# Copyright (c) CNRI 1996, licensed under terms and conditions of license
-# agreement obtained from handle "hdl:CNRI/19970131120001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:cnri/19980302135001",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
 
 """HTML 3.0 <TABLE> tag support.
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.58 1997/09/10 21:50:35 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.59 1998/03/03 15:21:18 guido Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 

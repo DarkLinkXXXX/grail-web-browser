@@ -1,9 +1,9 @@
-# Copyright (c) CNRI 1996, licensed under terms and conditions of license
-# agreement obtained from handle "hdl:CNRI/19970131120001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:cnri/19980302135001",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
 
 """A parser for SGML, using the derived class as static DTD."""
-__version__ = "$Revision: 1.22 $"
+__version__ = "$Revision: 1.23 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed

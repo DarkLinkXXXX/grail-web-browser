@@ -1,6 +1,6 @@
-# Copyright (c) CNRI 1996, licensed under terms and conditions of license
-# agreement obtained from handle "hdl:CNRI/19970131120001",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
+# license agreement obtained from handle "hdl:cnri/19980302135001",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
 
 """Functional interface to Grail user preferences.
 
@@ -8,7 +8,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.26 $"
+__version__ = "$Revision: 2.27 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
