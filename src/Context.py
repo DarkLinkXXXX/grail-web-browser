@@ -57,6 +57,7 @@ class Context:
 	self.notifications = []		# callbacks when no readers left
 	self.image_maps = {}		# For ImageMap
 	self.set_headers({})
+	self.set_postdata(None)
 
     def register_notification(self, callback):
 	if callback not in self.notifications:
@@ -84,6 +85,12 @@ class Context:
 
     def get_headers(self):
 	return self.__headers
+
+    def set_postdata(self, data=None):
+	self.__postdata = data
+
+    def get_postdata(self):
+	return self.__postdata
 
     # Load URL, base URL and target
 
@@ -366,6 +373,7 @@ class Context:
 	# TBD: this is a horrid hack used so that
 	# mailtoAPI.mailto_access can get at the URL of the page that
 	# the user has clicked off of. -baw
+	self.set_postdata(data)
 	global LAST_CONTEXT
 	LAST_CONTEXT = self
 	from Reader import Reader
