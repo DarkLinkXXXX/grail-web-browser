@@ -59,7 +59,7 @@ I think yes, but this means repacking the request.
 # I didn't see a caching of authority handles and/or service handles,
 # this would be a tremendous increase for handle resolution.
 
-import rand
+import whrandom
 import md5
 import os
 import select
@@ -458,17 +458,12 @@ class SessionTag:
 
     session_tag() -- get next session tag
 
-    XXX looks pretty bogus to me (time modulo pid??? gimme a break)
     XXX (and why does it have to be a class anyway?)
 
     """
     def session_tag(self):
 	"""Implemented as in create_session_tag()."""
-	now = time.time()
-	try: seed = now % os.getpid()
-	except: seed = now
-	rand.srand(int(seed))
-	return rand.rand()
+        return whrandom.randint(0, 32767)
 
 
 
