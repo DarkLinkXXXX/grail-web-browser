@@ -1,10 +1,10 @@
 # Copyright (c) CNRI 1996, licensed under terms and conditions of license
-# agreement obtained from handle "hdl:CNRI.License/Grail-Version-0.3",
+# agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 """Simple parser that handles only what's allowed in attribute values.
 """
-__version__ = '$Revision: 1.7 $'
+__version__ = '$Revision: 1.8 $'
 #  $Source: /home/john/Code/grail/src/sgml/SGMLReplacer.py,v $
 
 import regex
