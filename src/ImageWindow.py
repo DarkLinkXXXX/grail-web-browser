@@ -15,7 +15,8 @@ class ImageWindow(Frame):
 	self.image_loaded = 0
 	if width > 0 and height > 0:
 	    self.propagate(0)
-	    self.config(width=width, height=height)
+	    self.config(width=width + 2*borderwidth,
+			height=height + 2*borderwidth)
 	if self.url:
 	    self['background'] ='blue'	# XXX should use style sheet
 	    self.bind('<Enter>', self.enter)
