@@ -1,4 +1,4 @@
-#! /usr/local/bin/python
+#! /usr/bin/env python
 
 # Copyright (c) CNRI 1996, licensed under terms and conditions of license
 # agreement obtained from handle "hdl:CNRI/19970131120001",
