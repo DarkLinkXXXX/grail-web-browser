@@ -11,8 +11,8 @@ import urlparse
 import string
 import tktools
 import formatter
+from ImageMap import MapThunk, MapInfo
 from AppletLoader import AppletLoader
-
 
 # Get rid of do_isindex method so we can implement it as an extension
 if hasattr(htmllib.HTMLParser, 'do_isindex'):
@@ -32,6 +32,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.loaded = []
 	self.insert_stack = []
 	self.insert_active = 0		# Length of insert_stack at activation
+	self.image_maps = {}            # for image maps
+	self.current_map = None
 	self.formatter = formatter.AbstractFormatter(self.viewer)
 	htmllib.HTMLParser.__init__(self, self.formatter)
 
@@ -95,7 +97,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 		try: border = string.atoi(value)
 		except: pass
             if attrname == 'ismap':
-                ismap = value
+                ismap = 'ismap'
             if attrname == 'src':
                 src = value
 	    if attrname == 'width':
@@ -105,14 +107,15 @@ class AppletHTMLParser(htmllib.HTMLParser):
 		try: height = string.atoi(value)
 		except: pass
 	    if attrname == 'usemap':
-		usemap = value
+		# not sure how to assert(value[0] == '#')
+		usemap = MapThunk (self, value[1:])
         self.handle_image(src, alt, usemap or ismap,
 			  align, width, height, border)
 
-    def handle_image(self, src, alt, ismap, align, width, height, border=2):
+    def handle_image(self, src, alt, map, align, width, height, border=2):
 	from ImageWindow import ImageWindow
 	window = ImageWindow(self.viewer, self.anchor,
-			     src, alt, ismap, align,
+			     src, alt, map, align,
 			     width, height, border)
 	self.add_subwindow(window)
 
@@ -171,6 +174,76 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def end_insert(self):
 	self.end_applet()
+
+    # New tag: <MAP> (for client side image maps)
+
+    def start_map(self, attrs):
+	for name, value in attrs:
+	    if name == 'name':
+		name = value
+	self.current_map = MapInfo(self, name)
+
+    def end_map(self):
+	self.image_maps[self.current_map.name] = self.current_map
+	self.current_map = None
+
+    # New tag: <AREA>
+
+    def do_area(self, attrs):
+	"""Handle the <AREA> tag."""
+
+	# use try because we may not have seen a map yet, which means
+	# the <MAP> instance variables haven't been added to the parser
+	try:
+	    if self.current_map:
+		coords = []
+		shape = 'rect'
+		url = ''
+		alt = ''
+
+		for name, val in attrs:
+		    if name == 'shape':
+			shape = val
+		    if name == 'coords':
+			coords = val
+		    if name == 'alt':
+			alt = val
+		    if name == 'href':
+			url = val
+		    if name == 'nohref':  # not sure what the point is
+			url = None
+
+		self.current_map.add_shape(shape, self.parse_area_coords(shape, coords), url)
+	except AttributeError:
+	    pass # ignore, because we're not in a map
+
+    def parse_area_coords(self, shape, text):
+	"""Parses coordinate string into list of numbers.
+
+	Coordinates are stored differently depending on the shape of
+	the object. 
+	"""
+	coords = []
+	terms = []
+
+	string_terms = string.splitfields(text, ',')
+	for i in range(len(string_terms)):
+	    terms.append(string.atoi(string_terms[i]))
+    
+	if shape == 'poly':
+	    # list of (x,y) tuples
+	    while len(terms) > 0:
+		coords.append((terms[0], terms[1]))
+		del terms[0:1]
+	elif shape == 'rect':
+	    # (x,y) tuples for upper left, lower right
+	    coords.append((terms[0], terms[1]))
+	    coords.append((terms[2], terms[3]))
+	elif shape == 'circle':
+	    # (x,y) tuple for center, followed by int for radius
+	    coords.append((terms[0], terms[1]))
+	    coords.append(terms[2])
+	return coords
 
     # New tag: <APPLET>
 
