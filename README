@@ -1,4 +1,4 @@
-GRAIL 0.5
+GRAIL 0.6
 =========
 
 Grail(TM) is a web browser written in Python, an object-oriented
@@ -23,7 +23,7 @@ Licensing issues
 The license of Grail allows essentially unrestricted use and
 redistribution.  The full text of the license can be found in the file
 LICENSE in this directory.  The sources are Copyright (c) CNRI
-1996-1998.  Grail is a registered trademark of CNRI.
+1996-1999.  Grail is a registered trademark of CNRI.
 
 
 Hardware requirements
@@ -43,16 +43,15 @@ There are three steps to take before you can use Grail:
 
 - Install Tcl and Tk.  The versions must be compatible with each other
 and with the Python version you are installing in the next step;
-currently, the oldest Tcl/Tk version supported 8.0.  You can get
-Tcl/Tk it at http://sunscript.sun.com/; or try ftp to ftp.sunlabs.com
-in directory /pub/tcl/.  See also the new commercial Tcl/Tk site,
-http://www.scriptics.com/.
+currently, the oldest Tcl/Tk version supported is 8.0.  You can get
+Tcl/Tk it at http://www.scriptics.com/; or try ftp to ftp.sunlabs.com
+in directory /pub/tcl/.
 
-- Install Python 1.5 (or newer of available), configured for use with
-Tk.  The URL to get Python is http://www.python.org; or try ftp to
+- Install Python 1.5 (or newer if available), configured for use with
+Tk.  The URL to get Python is http://www.python.org/; or try ftp to
 ftp.python.org in directory /pub/python/src/.  You must enable Tk
 support by editing the file Modules/Setup; see the comments in that
-file (search for "tkinter").
+file (search for "tkinter") and the main README that comes with Python.
 
 - Install the Grail sources in a convenient place.  Grail is executed
 directly from its source directory.  If you are using the /usr/local
