@@ -31,7 +31,7 @@ def make_toplevel(master, title=None, class_=None):
 	widget.iconname(title)
     return widget
 
-def set_transient(widget, master, relx=0.5, rely=0.3):
+def set_transient(widget, master, relx=0.5, rely=0.3, expose=1):
     """Make an existing toplevel widget transient for a master.
 
     The widget must exist but should not yet have been placed; in
@@ -56,12 +56,13 @@ def set_transient(widget, master, relx=0.5, rely=0.3):
     x = m_x + (m_width - w_width) * relx
     y = m_y + (m_height - w_height) * rely
     widget.geometry("+%d+%d" % (x, y))
-    widget.deiconify() # Become visible at the desired location
+    if expose:
+	widget.deiconify()	# Become visible at the desired location
     return widget
 
 
 def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
-		    takefocus=None):
+		    takefocus=0, return_corner_frame=0):
 
     """Subroutine to create a frame with scrollbars.
 
@@ -70,8 +71,11 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
     Note: the caller is responsible for setting the x/y scroll command
     properties (e.g. by calling set_scroll_commands()).
 
-    Return a triple containing the hbar, the vbar, and the frame,
-    where hbar and vbar are None if not requested.
+    Return a tuple containing the hbar, the vbar, and the frame, where
+    hbar and vbar are None if not requested.  If the optional argument
+    return_corner_frame is true, then the return value is a 4-tuple
+    with the corner frame appended.
+
     """
     if class_:
 	if name: frame = Frame(parent, class_=class_, name=name)
@@ -83,6 +87,7 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
     if pack:
 	frame.pack(fill=BOTH, expand=1)
 
+    corner = None
     if vbar:
 	if not hbar:
 	    vbar = Scrollbar(frame, takefocus=takefocus)
@@ -94,6 +99,7 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
 	    vbar.pack(in_=vbarframe, expand=1, fill=Y, side=TOP)
 	    sbwidth = vbar.winfo_reqwidth()
 	    corner = Frame(vbarframe, width=sbwidth, height=sbwidth)
+	    corner.propagate(0)
 	    corner.pack(side=BOTTOM)
     else:
 	vbar = None
@@ -105,6 +111,8 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
     else:
 	hbar = None
 
+    if return_corner_frame:
+	return hbar, vbar, frame, corner
     return hbar, vbar, frame
 
 
@@ -274,8 +282,7 @@ def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1,
 
 def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
 		      borderwidth=1):
-    """Create a pair of frames suitable for 'hosting' a dialog.
-    """
+    """Create a pair of frames suitable for 'hosting' a dialog."""
     if name:
 	if class_: frame = Frame(master, class_=class_, name=name)
 	else: frame = Frame(master, name=name)
@@ -294,8 +301,31 @@ def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
     return frame, top, bottom
 
 
+def make_group_frame(master, name=None, label=None, fill=Y,
+		     side=None, expand=None, font=None):
+    """Create nested frames with a border and optional label.
+
+    The outer frame is only used to provide the decorative border, to
+    control packing, and to host the label.  The inner frame is packed
+    to fill the outer frame and should be used as the parent of all
+    sub-widgets.  Only the inner frame is returned.
+
+    """
+    font = font or "-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*"
+    outer = Frame(master, borderwidth=2, relief=GROOVE)
+    outer.pack(expand=expand, fill=fill, side=side)
+    if label:
+	Label(outer, text=label, font=font, anchor=W).pack(fill=X)
+    inner = Frame(master, borderwidth='1m', name=name)
+    inner.pack(expand=1, fill=BOTH, in_=outer)
+    return inner
+
+
 def unify_button_widths(*buttons):
     """Make buttons passed in all have the same width.
+
+    Works for labels and other widgets with the 'text' option.
+
     """
     wid = 0
     for btn in buttons:
