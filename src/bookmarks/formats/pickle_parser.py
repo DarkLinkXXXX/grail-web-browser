@@ -1,12 +1,7 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Parser for Grail's pickled bookmarks.  Old-style bookmarks are
 automatically converted to the current type."""
 
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 import bookmarks
 import bookmarks.nodes

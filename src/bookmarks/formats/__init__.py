@@ -1,8 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Storage handlers for bookmarks in a variety of formats.
 
 Each module in this package contains a parser or writer for some
@@ -38,4 +33,4 @@ builds a boookmarks structure from a general HTML file.
 
 """
 
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'

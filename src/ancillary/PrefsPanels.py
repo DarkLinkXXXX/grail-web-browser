@@ -1,14 +1,9 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Framework for implementing GUI panel dialogs for user preference editing.
 
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.35 $"
-# $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
+__version__ = "$Revision: 2.36 $"
 
 import sys, os
 import imp

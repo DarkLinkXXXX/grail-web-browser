@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 import os
 import string
 import sys
@@ -86,7 +82,7 @@ def get_format(fp):
     format = None
     pos = fp.tell()
     try:
-        line1 = fp.readline()
+        line1 = fp.read(1024)
         for re, fmt in __format_table:
             if re.match(line1):
                 format = fmt

@@ -4,8 +4,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.31 $"
-# $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
+__version__ = "$Revision: 2.32 $"
 
 import os
 import sys

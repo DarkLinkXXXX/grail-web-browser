@@ -1,7 +1,6 @@
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.15 $'
-#  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
+__version__ = '$Revision: 2.16 $'
 
 import regex
 import string
