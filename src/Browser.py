@@ -91,29 +91,29 @@ class Browser:
 	self.filemenu = Menu(self.filebutton)
 	self.filebutton['menu'] = self.filemenu
 
-	self.filemenu.add(COMMAND, label="New",
+	self.filemenu.add_command(label="New",
 			  command=self.new_command,
 			  underline=0, accelerator="Alt-N")
 	self.root.bind("<Alt-n>", self.new_command)
-	self.filemenu.add(COMMAND, label="View source",
+	self.filemenu.add_command(label="View source",
 			  command=self.view_source_command,
 			  underline=0, accelerator="Alt-V")
 	self.root.bind("<Alt-v>", self.view_source_command)
-	self.filemenu.add(SEPARATOR)
-	self.filemenu.add(COMMAND, label="Save As...",
+	self.filemenu.add_separator()
+	self.filemenu.add_command(label="Save As...",
 			  command=self.save_as_command,
 			  underline=0, accelerator="Alt-S")
 	self.root.bind("<Alt-s>", self.save_as_command)
-	self.filemenu.add(COMMAND, label="Print...",
+	self.filemenu.add_command(label="Print...",
 			  command=self.print_command,
 			  underline=0, accelerator="Alt-P")
 	self.root.bind("<Alt-p>", self.print_command)
-	self.filemenu.add(SEPARATOR)
-	self.filemenu.add(COMMAND, label="Close",
+	self.filemenu.add_separator()
+	self.filemenu.add_command(label="Close",
 			  command=self.close_command,
 			  underline=0, accelerator="Alt-W")
 	self.root.bind("<Alt-w>", self.close_command) # Macintosh origins...
-	self.filemenu.add(COMMAND, label="Quit",
+	self.filemenu.add_command(label="Quit",
 			  command=self.quit_command,
 			  underline=0, accelerator="Alt-Q")
 	self.root.bind("<Alt-q>", self.quit_command)
@@ -124,20 +124,20 @@ class Browser:
 	self.histmenu = Menu(self.histbutton)
 	self.histbutton['menu'] = self.histmenu
 
-	self.histmenu.add(COMMAND, label="Back",
+	self.histmenu.add_command(label="Back",
 			  command=self.back_command,
 			  underline=0, accelerator="Alt-Left")
 	self.root.bind("<Alt-Left>", self.back_command)
-	self.histmenu.add(COMMAND, label="Reload",
+	self.histmenu.add_command(label="Reload",
 			  command=self.reload_command,
 			  underline=0, accelerator="Alt-R")
 	self.root.bind("<Alt-r>", self.reload_command)
-	self.histmenu.add(COMMAND, label="Forward",
+	self.histmenu.add_command(label="Forward",
 			  command=self.forward_command,
 			  underline=0, accelerator="Alt-Right")
 	self.root.bind("<Alt-Right>", self.forward_command)
-	self.histmenu.add(SEPARATOR)
-	self.histmenu.add(COMMAND, label="Home",
+	self.histmenu.add_separator()
+	self.histmenu.add_command(label="Home",
 			  command=self.home_command,
 			  underline=0, accelerator="Alt-H")
 	self.root.bind("<Alt-h>", self.home_command)
@@ -175,12 +175,12 @@ class Browser:
 	self.helpmenu = Menu(self.helpbutton)
 	self.helpbutton['menu'] = self.helpmenu
 
-	self.helpmenu.add(COMMAND, label="About Grail",
+	self.helpmenu.add_command(label="About Grail",
 			  command=self.about_command)
-	self.helpmenu.add(SEPARATOR)
-	self.helpmenu.add(COMMAND, label="Grail Home Page",
+	self.helpmenu.add_separator()
+	self.helpmenu.add_command(label="Grail Home Page",
 			  command=self.grail_home_command)
-	self.helpmenu.add(COMMAND, label="Python Home Page",
+	self.helpmenu.add_command(label="Python Home Page",
 			  command=self.python_home_command)
 
     def create_urlbar(self):
