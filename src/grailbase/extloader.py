@@ -1,7 +1,7 @@
 """Simple extension loader.  Specializations should override the get() method
 to do the right thing."""
 
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 import os
 
@@ -13,11 +13,12 @@ class ExtensionLoader:
         self.__extensions = {}
 
     def get(self, name):
-        ext = self.get_extension(name)
-        if ext is None:
+        try:
+            ext = self.get_extension(name)
+        except KeyError:
             ext = self.find(name)
             if ext is not None:
-                self.add_extension(ext)
+                self.add_extension(name, ext)
         return ext
 
     def find(self, name):
@@ -26,8 +27,9 @@ class ExtensionLoader:
     def find_module(self, name):
         realname = "%s.%s" % (self.__name, name)
         d = {}
+        s = "import %s; mod = %s" % (realname, realname)
         try:
-            exec ("import %s; mod = %s" % (realname, realname)) in d
+            exec s in d
         except ImportError:
             mod = None
         else:
@@ -46,7 +48,4 @@ class ExtensionLoader:
         self.__extensions[name] = extension
 
     def get_extension(self, name):
-        try:
-            return self.__extensions[name]
-        except KeyError:
-            return None
+        return self.__extensions[name]
