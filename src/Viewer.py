@@ -15,14 +15,21 @@ class Viewer(formatter.AbstractWriter):
 
     """
 
-    def __init__(self, master, browser=None, stylesheet=None, height=40):
+    def __init__(self, master, browser=None, stylesheet=None,
+		 width=80, height=40):
 	formatter.AbstractWriter.__init__(self)
 	self.master = master
 	self.browser = browser
 	self.stylesheet = stylesheet
 	self.subwindows = []
 	self.rules = []
-	self.create_widgets(height)
+	self.create_widgets(width=width, height=height)
+	self.reset_state()
+	self.freeze()
+	self.text.bind('<Configure>', self.resize_event)
+	self._atemp = []
+
+    def reset_state(self):
 	self.fonttag = None		# Tag specifying font
 	self.margintag = None		# Tag specifying margin
 	self.marginlevel = 0		# Numeric margin level
@@ -31,15 +38,13 @@ class Viewer(formatter.AbstractWriter):
 	self.tags = ()			# Near-final collection of tags
 	self.literaltags = ()		# Tags for literal text
 	self.flowingtags = ()		# Tags for flowed text
-	self.freeze()
-	self.text.bind('<Configure>', self.resize_event)
-	self._atemp = []
 
-    def create_widgets(self, height):
+    def create_widgets(self, width, height):
 	self.text, self.frame = tktools.make_text_box(self.master,
+						      width=width,
 						      height=height,
 						      hbar=1, vbar=1)
-	self.text.config(insertwidth=0, selectbackground='yellow')
+	self.text.config(selectbackground='yellow')
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
 
@@ -75,10 +80,11 @@ class Viewer(formatter.AbstractWriter):
 	    w.destroy()
 	self.unfreeze()
 	self.text.delete('1.0', END)
+	self.reset_state()
 	self.freeze()
 
     def resize_event(self, event):
-	# Needl to reconfigure all the horizontal rools :-(
+	# Need to reconfigure all the horizontal rules :-(
 	if self.rules:
 	    width = self.rule_width()
 	    for rule in self.rules:
