@@ -237,9 +237,6 @@ class AppletLoader:
 	    else:
 		self.codeurl = self.context.get_baseurl(self.codebase,
 							self.codeurl)
-	print "codeurl =", `self.codeurl`
-	print "modname =", `self.modname`
-	print "classname =", `self.classname`
 	    
 
     def get_easy_module(self, mod):
