@@ -3,6 +3,7 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.4/", or file "LICENSE".
 
 import bookmarks
+import bookmarks.collection
 import bookmarks.nodes
 
 import FileDialog
@@ -622,27 +623,31 @@ class DetailsDialog:
         self._frame.bind('<Alt-w>', self.cancel)
         self._frame.bind('<Control-c>', self.cancel)
         self._frame.bind('<Control-C>', self.cancel)
-        self._form[0][0].focus_set()
+        self._title.focus_set()
 
     def _create_form(self, top):
+        is_root = self._node is self._controller.root()
         self._form = []
-        self._add_field(top, 'Name', 40)
+        self._title = self._add_field(top, 'Name', 40)
         if self._node.get_nodetype() == "Bookmark":
-            self._add_field(top, 'Location', 40)
-            self._add_field(top, 'Last Visited', 40)
-        self._added_on = self._add_field(top, 'Added On', 40)
-        if self._node is self._controller.root():
-            # This field has no meaning for the root, but still create it to
-            # keep the special case logic for root from getting more complex.
-            self._form[-1][1].forget()
+            self._location = self._add_field(top, 'Location', 40)
+            self._visited = self._add_field(top, 'Last Visited', 40)
+            self._modified = self._add_field(top, 'Last Modified', 40)
+        else:
+            self._location = None
+            self._visited = None
+            self._modified = None
+        if is_root:
+            self._added_on = None
+        else:
+            self._added_on = self._add_field(top, 'Added On', 40)
         self._description = self._add_field(top, 'Description', 40, 5)
         self.revert()
 
     def _add_field(self, master, label, width, height=1):
-        tup = tktools.make_labeled_form_entry(master, label, width, height, 12,
-                                              takefocus=0)
-        self._form.append(tup)
-        return tup[0]
+        entry, frame, label = tktools.make_labeled_form_entry(
+            master, label, width, height, 12, takefocus=0)
+        return entry
 
     def _create_buttonbar(self, top):
         btnbar = Frame(top)
@@ -656,40 +661,44 @@ class DetailsDialog:
         btnbar.pack(fill=BOTH)
 
     def revert(self):
-        # first we have to re-enable the read-only fields, otherwise
-        # Tk will just ignore our updates.  blech!
-        for entry, frame, label in self._form[2:]:
-            if type(entry) is type(()): entry[0].config(state=NORMAL)
-            else: entry.config(state=NORMAL)
-        # now empty out the text
-        for entry, frame, label in self._form:
-            try:
-                entry.delete(0, END)
-            except TclError:
-                entry.delete(1.0, END)
         # fill in the entry fields
-        node = self._node               # convenience
-        entry = self._form[0][0]        # more convenience
-        entry.insert(0, node.title())
-        entry.select_range(0, END)
-        if node.get_nodetype() == "Bookmark":
-            self._form[1][0].insert(0, node.uri())
-            self._form[2][0].insert(0, time.ctime(node.last_visited()))
-            self._form[2][0].config(state=DISABLED)
-        added = node.add_date()
-        if added:
-            added = time.ctime(added)
-        else:
-            added = ''
-        self._added_on.insert(0, added)
-        self._added_on.config(state=DISABLED)
-        self._description.insert(END, node.description() or "")
+        self._title.delete(0, END)
+        self._title.insert(0, self._node.title())
+        self._title.select_range(0, END)
+        if self._node.get_nodetype() == "Bookmark":
+            self._location.delete(0, END)
+            self._location.insert(0, self._node.uri())
+        self._description.delete(1.0, END)
+        self._description.insert(END, self._node.description() or "")
+        self.update_timestamp_fields()
+
+    def update_timestamp_fields(self):
+        set_timestamp = self._set_timestamp_field
+        if self._visited:
+            set_timestamp(self._visited,  self._node.last_visited())
+        if self._added_on:
+            set_timestamp(self._added_on, self._node.add_date())
+        if self._modified:
+            set_timestamp(self._modified, self._node.last_modified())
+
+    def _set_timestamp_field(self, entry, t):
+        entry.config(state=NORMAL)
+        entry.delete(0, END)
+        if t:
+            entry.insert(0, time.ctime(t))
+        entry.config(state=DISABLED)
 
     def apply(self):
-        self._node.set_title(self._form[0][0].get())
+        self._node.set_title(self._title.get())
         if self._node.get_nodetype() == "Bookmark":
-            self._node.set_uri(self._form[1][0].get())
-        self._node.set_description(self._form[-1][0].get(1.0, END))
+            old_uri = self._node.uri()
+            new_uri = self._location.get()
+            if new_uri != old_uri:
+                collection = self._controller._collection
+                collection.del_node(self._node)
+                self._node.set_uri(new_uri)
+                collection.add_Bookmark(self._node)
+        self._node.set_description(self._description.get(1.0, END))
         if self._node is self._controller.root():
             self._controller.update_title_node()
         else:
@@ -708,7 +717,7 @@ class DetailsDialog:
     def show(self):
         self._frame.deiconify()
         self._frame.tkraise()
-        self._form[0][0].focus_set()
+        self._title.focus_set()
 
     def hide(self):
         # these two calls are order dependent!
@@ -830,6 +839,7 @@ class BookmarksController(OutlinerController):
             root.set_title(username() + " Bookmarks")
             self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
         self.set_root(root)
+        self._collection = bookmarks.collection.Collection(root)
         self._initialized_p = 1
 
     def _on_new_root(self):
@@ -841,6 +851,7 @@ class BookmarksController(OutlinerController):
         node = self.viewer().node(0)
         self.set_modflag(0)
         if node: self.viewer().select_node(node)
+        self._collection = bookmarks.collection.Collection(self.root())
 
     def load(self, usedefault=0):
         root, reader = self._iomgr.load(usedefault=usedefault)
@@ -880,6 +891,26 @@ class BookmarksController(OutlinerController):
     def filename(self): return self._iomgr.filename()
     def dialog_is_visible_p(self):
         return self._dialog and self._dialog.visible_p()
+
+    def get_bookmarks_by_uri(self, uri):
+        self.initialize()
+        return self._collection.get_bookmarks_by_uri(uri)
+
+    def record_visit(self, uri, last_modified):
+        bookmarks = self.get_bookmarks_by_uri(uri)
+        if bookmarks:
+            now = int(time.time())
+            for bookmark in bookmarks:
+                bookmark.set_last_visited(now)
+                if last_modified:
+                    # If we set this unconditionally, we lose information when
+                    # the page is loaded from the cache.  This is a problem
+                    # with the Grail cache machinery, and probably isn't worth
+                    # fixing. ;-(
+                    bookmark.set_last_modified(last_modified)
+                if self._details.has_key(id(bookmark)):
+                    self._details[id(bookmark)].update_timestamp_fields()
+            self.set_modflag(1, quiet=1)
 
     def focus_on_dialog(self):
         self._dialog and self._dialog.show()
@@ -950,9 +981,6 @@ class BookmarksController(OutlinerController):
                 self.viewer().select_node(refnode)
 
     def visit_node(self, node, browser=None):
-        node.set_last_visited(int(time.time()))
-        if self._details.has_key(id(node)):
-            self._details[id(node)].revert()
         if browser is None:
             browser = self.get_browser()
             if browser is None:
@@ -999,6 +1027,9 @@ class BookmarksController(OutlinerController):
     def make_alias(self, event=None):
         node, selection = self._get_selected_node()
         if node and node.get_nodetype() in ("Bookmark", "Folder"):
+            id = node.id()
+            if not id:
+                node.set_id(self._collection.new_id())
             self.insert_node(bookmarks.nodes.Alias(node))
 
     def add_current(self, event=None):
@@ -1032,6 +1063,7 @@ class BookmarksController(OutlinerController):
         node.set_add_date(now)
         node.set_last_visited(now)
         self.insert_node(node)
+        self._collection.add_Bookmark(node)
         if self.autodetails.get():
             self.show_details(node)
         return node
@@ -1107,6 +1139,7 @@ class BookmarksController(OutlinerController):
         newnode = bookmarks.nodes.Folder()
         newnode.set_title('<Category>')
         newnode.set_add_date(int(time.time()))
+        self._collection.add_Folder(newnode)
         self._insert_at_node(node, newnode)
         details = DetailsDialog(self._dialog._frame, newnode, self)
         self._details[id(newnode)] = details
@@ -1137,6 +1170,8 @@ class BookmarksController(OutlinerController):
         if self._details.has_key(id(node)):
             self._details[id(node)].destroy()
             del self._details[id(node)]
+        # remove it from the URI and ID maps
+        self._collection.del_node(node)
 
     ## OutlinerController overloads
 
