@@ -112,6 +112,17 @@ class Browser:
 	self.histmenu.add(COMMAND, label="Home",
 			  command=self.home_command)
 
+	# Create the Search menu
+
+	self.searchbutton = Menubutton(self.mbar, text="Search")
+	self.searchbutton.pack(side=LEFT)
+
+	self.searchmenu = Menu(self.searchbutton)
+	self.searchbutton['menu'] = self.searchmenu
+	self.searchmenu.grail_browser = self # Applet compatibility
+	import SearchMenu
+	SearchMenu.SearchMenu(self.searchmenu)
+
 	# Create Stop button
 
 	self.stopbutton = Button(self.mbar, text="Stop",
