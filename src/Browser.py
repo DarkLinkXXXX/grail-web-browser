@@ -1,18 +1,18 @@
 """Browser class for web browser."""
 
 
+import os
+import regsub
 import string
-import urllib
+import sys
 import urlparse
+
 from Tkinter import *
 import tktools
-import os
-import sys
-from Viewer import Viewer
-from AppletHTMLParser import AppletHTMLParser
+
 from DefaultStylesheet import DefaultStylesheet
-import ProtocolAPI
-import regsub
+from Reader import Reader
+from Viewer import Viewer
 
 
 # URLs of various sorts
@@ -49,11 +49,11 @@ class Browser:
     def __init__(self, master, app=None, height=40):
 	self.master = master
 	self.app = app
-	self.api = None
+	self.reader = None
 	self.url = ""
+	self.title = ""
 	self.history = []
 	self.current = -1
-	self.reload_applets = 0
 	self.create_widgets(height)
 
     def create_widgets(self, height):
@@ -153,11 +153,13 @@ class Browser:
 	self.msg.pack(fill=X, in_=self.msg_frame)
 
     def enter(self, url):
+	if self.busy(): return
 	if url[:1] != '#':
 	    url = urlparse.urljoin(self.url, url)
 	self.message(url, CURSOR_LINK)
 
     def leave(self):
+	if self.busy(): return
 	self.message_clear()
 
     def load_from_entry(self, event):
@@ -174,185 +176,56 @@ class Browser:
 	url = urlparse.urljoin(self.url, url)
 	self.load(url)
 
+    def load(self, url, method='GET', params={},
+	     new=1, show_source=0, reload=0):
+	# Start loading a new URL into the window
+	self.stop("Stopped.")
+	self.message("Loading %s" % url)
+	try:
+	    self.reader = Reader(self, url, method, params,
+				 new, show_source, reload)
+	except IOError, msg:
+	    self.error_dialog(IOError, msg)
+	    self.message_clear()
+	    return
+
     def busy(self):
-	return self.api is not None
+	return self.reader is not None
 
     def busycheck(self):
-	if self.busy():
+	if self.reader:
 	    self.error_dialog('Busy',
 		"Please wait until the transfer is done (or stop it)")
 	    return 1
 	return 0
 
     def allowstop(self):
-	if self.busy():
-	    self.stopbutton['state'] = NORMAL
+	self.stopbutton['state'] = NORMAL
 
-    def stopit(self):
-	if self.busy():
-	    msg, crs = self.message("Stopping...", CURSOR_WAIT)
-	    try:
-		api = self.api
-		self.api = None
-		api.close()
-		self.stopbutton['state'] = DISABLED
-	    finally:
-		self.message(msg, crs)
+    def clearstop(self):
+	self.stopbutton['state'] = DISABLED
 
-    def load(self, url, new=1, show_source=0):
-	# Load a new URL into the window
-	self.stopit()
-	tuple = urlparse.urlparse(url)
-	fragment = tuple[-1]
-	tuple = tuple[:-1] + ("",)
-	url = urlparse.urlunparse(tuple)
-	self.message("Following %s" % url, CURSOR_WAIT)
-	params = {}
-	if self.reload_applets:
-	    params['.reload'] = 1
-	try:
-	    if self.app:
-		self.api = self.app.open_url(url, 'GET', params)
-	    else:
-		self.api = ProtocolAPI.protocol_access(url, 'GET', params)
-	except IOError, msg:
-	    self.error_dialog(IOError, msg)
-	    self.message_clear()
-	    return
-	self.allowstop()
-	self.url = self.title = url
-	self.message("Loading %s" % url, CURSOR_WAIT)
-	self.root.update()
-	if not self.api: return
-	errcode, errmsg, headers = self.api.getmeta()
-	if errcode != 200:
-	    self.error_dialog('Error reply', errmsg)
-	if headers.has_key('content-type'):
-	    content_type = headers['content-type']
-	else:
-	    content_type = None
-	if not content_type:
-	    content_type, content_encoding = self.app.guess_type(url)
-	else:
-	    content_encoding = None
-	if headers.has_key('content-encoding'):
-	    content_encoding = headers['content-encoding']
-	if content_encoding:
-	    # XXX Should fix this
-	    self.error_dialog("Warning",
-			      "unsupported content-encoding: %s"
-			      % content_encoding)
+    def stop(self, msg):
+	reader = self.reader
+	self.reader = None
+	if reader:
+	    reader.stop(msg)
 
-	self.root.title(TITLE_PREFIX + self.title)
-
+    def clear_reset(self, url, new):
 	for b in self.user_menus:
 	    b.destroy()
+	self.url = url
+	self.title = self.url
 	self.user_menus[:] = []
-
 	self.set_entry(self.url)
-
-	self.viewer.clear_reset()
-
-	istext = content_type and content_type[:5] == 'text/'
-	if show_source and istext:
-	    content_type = 'text/plain'
-	if content_type == 'text/html':
-	    parserclass = AppletHTMLParser
-	elif content_type == 'text/plain':
-	    parserclass = TextParser
-	else:
-	    parserclass = self.find_parser_extension(content_type)
-	    if not parserclass and istext:
-		parserclass = TextParser
-
-	if parserclass:
-	    parser = parserclass(self.viewer)
-	else:
-	    parser = None
-
-	if parser:
-	    BUFSIZE = 512
-	    if istext:
-		last_was_cr = 0
-		while 1:
-		    message, ready = self.api.polldata()
-		    self.message(message, CURSOR_WAIT)
-		    self.root.update()
-		    if not self.api: break
-		    buf = self.api.getdata(BUFSIZE)
-		    if not buf: break
-		    if last_was_cr and buf[0] == '\n':
-			buf = buf[1:]
-		    last_was_cr = buf[-1:] == '\r'
-		    if '\r' in buf:
-			if '\n' in buf:
-			    buf = regsub.gsub('\r\n', '\n', buf)
-			if '\r' in buf:
-			    buf = regsub.gsub('\r', '\n', buf)
-		    parser.feed(buf)
-	    else:
-		while 1:
-		    message, ready = self.api.polldata()
-		    self.message(message, CURSOR_WAIT)
-		    self.root.update()
-		    if not self.api: break
-		    buf = self.api.getdata(BUFSIZE)
-		    if not buf: break
-		    parser.feed(buf)
-	    parser.close()
-	else:
-	    self.viewer.send_flowing_data(
-		"Sorry, I'm too stupid to display %s data yet\n" %
-		content_type)
-	    self.viewer.send_flowing_data(
-		"(But it sure would make a nice extension :-)\n")
-	    self.viewer.send_flowing_data(
-		"You can still use the Save As... command to save it!\n")
-
-	self.stopit()
-
-	self.viewer.freeze()
-
-	if parser and hasattr(parser, 'title'):
-	    self.title = parser.title or self.url
 	self.root.title(TITLE_PREFIX + self.title)
-
-	self.message_clear()
-
-	if fragment:
-	    self.viewer.scroll_to(fragment)
-
+	self.viewer.clear_reset()
 	self.set_history(new)
 
-    def find_parser_extension(self, content_type):
-	try:
-	    [type, subtype] = string.splitfields(content_type, '/')
-	except:
-	    return None
-	type = regsub.gsub("[^a-zA-Z0-9_]", "_", type)
-	subtype = regsub.gsub("[^a-zA-Z0-9_]", "_", subtype)
-	modname = type + "_" + subtype
-	# XXX Some of this needs to be moved into the Application class
-	home = getenv("HOME") or os.curdir
-	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
-	mimetypesdir = os.path.join(graildir, "mimetypes")
-	if mimetypesdir not in sys.path: sys.path.insert(0, mimetypesdir)
-	# XXX Hack, hack, hack
-	cmd = "import %s; parser = %s.parse_%s" % (modname, modname, modname)
-	cmd2 = "import %s; parser = %s.parse_%s" % (type, type, type)
-	try:
-	    try:
-		exec cmd
-	    except ImportError:
-		modname = type
-		try:
-		    exec cmd2
-		except ImportError:
-		    return None
-	    return parser
-	except:
-	    self.app.exception_dialog("during import of %s" % modname)
-	    return None
+    def set_title(self, title):
+	self.title = title
+	self.root.title(TITLE_PREFIX + self.title)
+	self.set_history(0)
 
     def set_history(self, new):
 	if new:
@@ -367,17 +240,21 @@ class Browser:
 	if not url: return None
 	return self.app.get_image(url)
 
-    def message(self, string = None, cursor = None):
-	prev = self.msg['text'], self.viewer.get_cursor()
-	if string is not None:
-	    self.msg['text'] = string
-	if cursor is not None:
-	    self.viewer.set_cursor(cursor)
+    def message(self, string = "", cursor = None):
+	msg = self.msg['text']
+	crs = None			# B/W compat hack
+	self.msg['text'] = string
+	if not cursor:
+	    if self.reader:
+		cursor = CURSOR_WAIT
+	    else:
+		cursor = CURSOR_NORMAL
+	self.viewer.set_cursor(cursor)
 	self.root.update_idletasks()
-	return prev
+	return msg, crs
 
     def message_clear(self):
-	self.message("", CURSOR_NORMAL)
+	self.message("")
 
     def error_dialog(self, exception, msg):
 	if self.app:
@@ -389,14 +266,14 @@ class Browser:
 	self.close()
 
     def close(self):
-	self.stopit()
+	self.stop("Closed.")
 	self.root.destroy()
 	if self.app: self.app.maybe_quit()
 
     # Stop command
 
     def stop_command(self):
-	self.stopit()
+	self.stop("Stopped.")
 
     # File menu commands
 
@@ -406,11 +283,13 @@ class Browser:
 
     def view_source_command(self):
 	# File/View Source
+	if self.busycheck(): return
 	b = Browser(self.master, self.app, height=24)
-	b.load(self.url, 1, 1)
+	b.load(self.url, show_source=1, new=1)
 
     def save_as_command(self):
 	# File/Save As...
+	if self.busycheck(): return
 	import FileDialog
 	fd = FileDialog.SaveFileDialog(self.root)
 	file = fd.go()
@@ -439,8 +318,8 @@ class Browser:
 
     def print_command(self):
 	# File/Print...
-	self.error_dialog(SystemError,
-			      "Sorry, printing is not yet supported")
+	if self.busycheck(): return
+	self.error_dialog("Sorry", "Printing will be supported soon")
 
     def close_command(self):
 	# File/Close
@@ -462,25 +341,20 @@ class Browser:
 	    self.root.bell()
 	    return
 	self.current = self.current-1
-	self.load(self.history[self.current][0], 0)
+	self.load(self.history[self.current][0], new=0)
 
     def reload_command(self):
 	if self.current >= len(self.history):
 	    self.root.bell()
 	    return
-	save_reload_applets = self.reload_applets
-	try:
-	    self.reload_applets = 1
-	    self.load(self.history[self.current][0], 0)
-	finally:
-	    self.reload_applets = save_reload_applets
+	self.load(self.history[self.current][0], new=0, reload=1)
 
     def forward_command(self):
 	if self.current+1 >= len(self.history):
 	    self.root.bell()
 	    return
 	self.current = self.current+1
-	self.load(self.history[self.current][0], 0)
+	self.load(self.history[self.current][0], new=0)
 
     # Help menu commands
 
@@ -494,25 +368,6 @@ class Browser:
 	self.load(PYTHON_HOME)
 
     # End of commmands
-
-
-from formatter import AS_IS
-
-
-class TextParser:
-
-    title = ""
-
-    def __init__(self, viewer):
-	self.viewer = viewer
-	self.viewer.new_font((AS_IS, AS_IS, AS_IS, 1))
-
-    def feed(self, data):
-	self.viewer.send_literal_data(data)
-
-    def close(self):
-	pass
-
 
 
 def getenv(s):
