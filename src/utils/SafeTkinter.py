@@ -8,6 +8,7 @@ from Tkinter import CallableTypes, TkVersion, TclVersion, \
      Button, Canvas, Checkbutton, \
      Entry, Frame, Label, Listbox, Menu, Menubutton, Message, Radiobutton, \
      Scale, Scrollbar, Text, Image, PhotoImage, BitmapImage, \
+     OptionMenu, \
      image_names, image_types
 
 # Symbolic constants (easier copied than included)
