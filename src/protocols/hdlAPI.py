@@ -12,7 +12,7 @@ resolved handle (if the handle resolves to a single URL), or to
 generating a piece of HTML which lets the user choose one (if it
 resolves to multiple URLs).
 
-XXX Problems:
+XXX Remaining problems:
 
 	   Issuing a 302 relocate isn't the proper thing to do in the
 	   long term, because it forces the user back into URL space.
@@ -31,9 +31,10 @@ XXX Problems:
 """
 
 import sys
+import string
+import urllib
 import hdllib
 import nullAPI
-
 
 
 # We are currently only concerned with URL type handles.
@@ -44,14 +45,16 @@ HANDLE_TYPES = [hdllib.HDL_TYPE_URL]
 HTML_HEADER = """<HTML>
 
 <HEAD>
-<TITLE>Multiple URLs From Handle</TITLE>
+<TITLE>Ambiguous handle resolution</TITLE>
 </HEAD>
 
 <BODY>
 
-<H1>Multiple URLs</H1>
+<H1>Ambiguous handle resolution</H1>
 
-The handle you have selected resolves to multiple URLs.
+The handle you have selected resolves to multiple data items or to an
+unknown data type.<P>
+
 Please select one from the following list:
 
 <UL>
@@ -78,6 +81,35 @@ def get_local_hash_table(hdl):
 	    key, global_hash_table)
     return local_hash_tables[key]
 
+def parse_handle(hdl):
+    """Parse off options from handle.
+
+    E.g. 'auth.subauth/path;type=url' will return
+    ('auth.subauth.path', {'type': 'url'}).
+
+    This also interprets % quoting in the non-option part.
+
+    """
+    hdl, attrs = urllib.splitattr(hdl)
+    d = {}
+    if attrs:
+	for attr in attrs:
+	    i = string.find(attr, '=')
+	    if i < 0:
+		key, value = attr, None
+	    else:
+		key, value = attr[:i], urllib.unquote(attr[i+1:])
+	    d[string.lower(key)] = value
+    return urllib.unquote(hdl), d
+
+def escape(s):
+    """Replace special characters '&', '<' and '>' by SGML entities."""
+    # From cgi.py
+    import regsub
+    s = regsub.gsub("&", "&amp;", s)	# Must be done first!
+    s = regsub.gsub("<", "&lt;", s)
+    s = regsub.gsub(">", "&gt;", s)
+    return s
 
 class hdl_access(nullAPI.null_access):
 
@@ -85,9 +117,31 @@ class hdl_access(nullAPI.null_access):
 
     def __init__(self, hdl, method, params):
 	nullAPI.null_access.__init__(self, hdl, method, params)
-	# Can ignore methods and params... they should be 'GET' and {}
-	# respectively
-	self._hdl = hdl
+
+	self._hdl, self._attrs = parse_handle(hdl)
+
+	if self._attrs.has_key('type'):
+	    t = string.lower(self._attrs['type'])
+	    mname = "hdl_type_" + t
+	    tname = string.upper(mname)
+	    from __main__ import app
+	    try:
+		m = app.find_extension('protocols', mname)
+		if not m:
+		    raise ImportError, mname
+		types = m.handle_types
+		formatter = m.data_formatter
+	    except (ImportError, AttributeError), msg:
+		self._types = []
+		if hdllib.data_map.has_key(tname):
+		    self._types = [hdllib.data_map[tname]]
+		else:
+		    self._types = []
+	    else:
+		self._types = types
+		if formatter:
+		    self._formatter = formatter
+
 	global global_hash_table
 	if not global_hash_table:
 	    try:
@@ -124,17 +178,38 @@ class hdl_access(nullAPI.null_access):
 
     def getmeta(self):
 	nullAPI.null_access.getmeta(self)
-	if len(self._items) == 1:
-	    flags, uri = self._items[0]
-	    return 302, 'Moved', {'location': uri}
+	self._data = ""
+	self._pos = 0
+	return self._formatter(self)
+
+    def formatter(self, alterego=None):
+	if len(self._items) == 1 and self._items[0][0] == hdllib.HDL_TYPE_URL:
+	    return 302, 'Moved', {'location': self._items[0][1]}
+	if len(self._items) == 0:
+	    self._data = "Handle not resolved to anything\n"
+	    return 404, 'Handle not resolved to anything', {}
 	data = HTML_HEADER
-	for flags, uri in self._items:
-	    text = '<LI><A HREF="%s">%s</A>\n' % (uri, uri)
+	for type, uri in self._items:
+	    if type == hdllib.HDL_TYPE_URL:
+		uri = escape(uri)
+		text = '<LI><A HREF="%s">%s</A>\n' % (uri, uri)
+	    else:
+		if type in (hdllib.HDL_TYPE_SERVICE_POINTER,
+			    hdllib.HDL_TYPE_SERVICE_HANDLE):
+		    uri = hdllib.hexstr(uri)
+		else:
+		    uri = escape(uri)
+		if hdllib.data_map.has_key(type):
+		    type = hdllib.data_map[type][9:]
+		else:
+		    type = str(type)
+		text = '<LI>type=%s, value=%s\n' % (type, uri)
 	    data = data + text
 	data = data + HTML_TRAILER
 	self._data = data
-	self._pos = 0
 	return 200, 'OK', {'content-type': 'text/html'}
+
+    _formatter = formatter
 
     # polldata() is inherited from nullAPI
 
