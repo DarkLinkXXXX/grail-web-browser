@@ -6,7 +6,7 @@ can turn it off again by using the stop() function.  You would do this
 from your Grail initialization file, typically
 $GRAILDIR/user/grailrc.py.
 
-N.B. Only one Grail can be remoted controlled at a time, so if you
+N.B. Only one Grail can be remotely controlled at a time, so if you
 think you might be starting up more than one Grail process, your
 grailrc.py file should catch ClashError, which should just bypass any
 remote control registrations you do.
@@ -204,7 +204,19 @@ class Controller:
 	    # TBD: What do we do with multiple Grail processes?  Which
 	    # one do we remote control?
 	    if os.path.exists(self._filename):
-		raise ClashError
+		# first make sure that the socket is connected to a
+		# live Grail process.  E.g. if Python core dumped, the
+		# exit handler won't run so you'd be dead in the
+		# water.
+		s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+		try:
+		    s.connect(self._filename)
+		    s.send('PING NOACK')
+		    s.close()
+		    raise ClashError
+		except socket.error, (errno, msg):
+		    os.unlink(self._filename)
+		    s.close()
 	    # create the FIFO object
 	    s = self._socket = socket.socket(socket.AF_UNIX,
 					     socket.SOCK_STREAM)
@@ -219,6 +231,7 @@ class Controller:
 	    self._enabled = 1
 	    tkinter.createfilehandler(
 		self._fileno, tkinter.READABLE, self._dispatch)
+	    self.register('PING', self.ping_cmd)
 
     def stop(self):
 	"""Stop listening for remote control commands."""
@@ -262,8 +275,8 @@ class Controller:
 
     def _close(self):
 	self.stop()
-	if self._filename:
-	    os.unlink(self._filename)
+## 	if self._filename:
+## 	    os.unlink(self._filename)
 
     def _dispatch(self, *args):
 	conn, addr = self._socket.accept()
@@ -271,13 +284,13 @@ class Controller:
 	# strip off the command string
 	string.strip(rawdata)
 	if self._cmdre.match(rawdata) < 0:
-	    raise BadCommandError, 'Bad remote command: ' + rawdata
+	    print 'Remote Control: Ignoring badly formatted command:', rawdata
 	# extract the command and args strings
 	command = string.strip(self._cmdre.group(1))
 	argstr = string.strip(self._cmdre.group(2))
 	# look up the command string
 	if not self._cbdict.has_key(command):
-	    raise NoHandlerError, 'No callbacks for command: ' + command
+	    print 'Remote Control: Ignoring unrecognized command:', command
 	cblist = self._cbdict[command]
 	# call all callbacks in list
 	for cb in cblist:
@@ -313,3 +326,7 @@ class Controller:
 
     def load_new_cmd(self, cmdstr, argstr):
 	self._do_load(argstr, in_new_window=1)
+
+    def ping_cmd(self, cmdstr, argstr):
+	if argstr <> 'NOACK':
+	    self._socket.send('ACK')
