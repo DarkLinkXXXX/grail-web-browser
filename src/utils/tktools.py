@@ -121,6 +121,41 @@ def make_form_entry(parent, label):
 
     return entry, frame
 
+# This is a slightly modified version of the function above.  This
+# version does the proper alighnment of labels with their fields.  It
+# should probably eventually replace make_form_entry altogether.
+#
+# The one annoying bug is that the text entry field should be
+# expandable while still aligning the colons.  This doesn't work yet.
+#
+def make_labeled_form_entry(parent, label, entrywidth=20, entryheight=1):
+    """Subroutine to create a form entry.
+
+    Create:
+    - a horizontally filling and expanding frame, containing:
+      - a label on the left, and
+      - a text entry on the right.
+
+    Return the entry widget and the frame widget.
+    """
+    if label[-1] != ':': label = label + ':'
+
+    frame = Frame(parent)
+    frame.pack(fill='x')
+
+    if entryheight == 1:
+	entry = Entry(frame, relief='sunken', border= 2, width=entrywidth)
+	entry.pack(side='right', fill='x')
+	label = Label(frame, text=label)
+	label.pack(side='right')
+    else:
+	label = Label(frame, text=label)
+	label.pack(side='left')
+	entry = make_text_box(frame, entrywidth, entryheight, 1, 1)
+
+    return entry, frame, label
+
+
 
 def flatten(msg):
     """Turn a list or tuple into a single string -- recursively."""
