@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.25 $"
+__version__ = "$Revision: 1.26 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -215,6 +215,9 @@ class SGMLLexer(SGMLLexerBase):
     def strict_p(self):
 	return self._strict
 
+    def cleanup(self):
+	pass
+
     if _sgmllex:
 	def __init__(self):
 	    self.reset()
@@ -232,6 +235,7 @@ class SGMLLexer(SGMLLexerBase):
 			self._pending_data = ''
 		    if self._finish_parse:
 			self._l.scan('')
+			self.cleanup()
 		    self._in_parse = 0
 			
 
@@ -263,6 +267,7 @@ class SGMLLexer(SGMLLexerBase):
 		    self._finish_parse = 1
 		else:
 		    self._l.scan('')
+		    self.cleanup()
 	    if self.__dict__.has_key('feed'):
 		del self.__dict__['feed']
 
@@ -338,6 +343,7 @@ class SGMLLexer(SGMLLexerBase):
 	def close(self):
 	    if not self._in_parse:
 		self.goahead(1)
+		self.cleanup()
 	    else:
 		self._finish_parse = 1
 
@@ -350,6 +356,8 @@ class SGMLLexer(SGMLLexerBase):
 		self._in_parse = 1
 		self.goahead(0)
 		self._in_parse = 0
+		if self._finish_parse:
+		    self.cleanup()
 
 	def normalize(self, norm):
 	    prev = ((self._normfunc is string.lower) and 1) or 0
