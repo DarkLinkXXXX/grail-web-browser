@@ -143,7 +143,6 @@ class DescribableNode(Node):
 class Bookmark(DescribableNode):
     __uri = None
     __last_modified = None
-    __last_response = None
     __last_visited = None
 
 
