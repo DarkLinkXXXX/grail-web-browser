@@ -39,7 +39,8 @@ class MyHTTP(httplib.HTTP):
 	    line = self.file.readline()
 	    if self.debuglevel > 0: print 'reply:', `line`
 	    if replyprog.match(line) < 0:
-		self.headers = None
+		# Not an HTTP/1.0 response.  Fall back to HTTP/0.9.
+		self.headers = {}
 		return -1, line, self.headers
 	    errcode, errmsg = replyprog.group(1, 2)
 	    errcode = string.atoi(errcode)
@@ -80,6 +81,7 @@ class http_access:
 	else:
 	    auth = None
 	self.h = MyHTTP(host)
+##	self.h.set_debuglevel(2)
 	self.h.putrequest(method, selector)
 	self.h.putheader('User-agent', grailversion)
 	if auth:
@@ -105,14 +107,23 @@ class http_access:
 	assert(self.stage == META)
 	errcode, errmsg, headers = self.h.getreply()
 	self.stage = DATA
+	self.readahead = None
+	if errcode == -1:
+	    self.readahead = errmsg
 	return errcode, errmsg, headers
 
     def polldata(self):
 	assert(self.stage == DATA)
+	if self.readahead:
+	    return "reading readahead data", 1
 	return "waiting for data", 1
 
     def getdata(self, maxbytes):
 	assert(self.stage == DATA)
+	if self.readahead:
+	    data = self.readahead
+	    self.readahead = None
+	    return data
 	data = self.h.sock.recv(maxbytes)
 	if not data:
 	    self.stage = DONE
