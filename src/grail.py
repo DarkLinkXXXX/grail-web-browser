@@ -228,11 +228,13 @@ class Application:
 	import Viewer
 	if self._check_font(dingbat_font):
 	    Viewer.DINGBAT_FONT = dingbat_font
-	    Application.dingbatimages = Application.fontdingbats
-	if self._check_font(symbol_font):
-	    Viewer.SYMBOL_FONT = symbol_font
-	    for k, v in Application.fontsymbols.items():
+	    for k, v in Application.fontdingbats.items():
 		Application.dingbatimages[k] = v
+	if self._check_font(symbol_font):
+	    import Greek
+	    Viewer.SYMBOL_FONT = symbol_font
+	    for k, v in Greek.entitydefs.items():
+		Application.dingbatimages[k] = (v, 'symbol')
 	self.root.bind_class("Text", "<Alt-Left>", self.dummy_event)
 	self.root.bind_class("Text", "<Alt-Right>", self.dummy_event)
 
@@ -470,45 +472,16 @@ class Application:
 		      strings=('OK',),
 		      )
 
-    dingbatimages = {}
-    # Faster than widgets:
+    dingbatimages = {'ldots': ('...', None),	# math stuff
+		     'sp': (' ', None),
+		     'thinsp': ('\240', None)
+		     }
+
+    # Faster than widgets if the font is available:
     fontdingbats = {'circle': ('\x6d', 'dingbat'),
 		    'disc': ('\x6c', 'dingbat'),
 		    'square': ('\x6f', 'dingbat')
 		    }
-    # Math stuff, ignored if using widgets:
-    fontsymbols = {'alpha': ('\x61', 'symbol'),
-		   'beta': ('\x62', 'symbol'),
-		   'gamma': ('\x67', 'symbol'),
-		   'delta': ('\x64', 'symbol'),
-		   'vepsilon': ('\x65', 'symbol'),
-		   'epsilon': ('\xce', 'symbol'),
-		   'zeta': ('\x7a', 'symbol'),
-		   'eta': ('\x68', 'symbol'),
-		   'theta': ('\x71', 'symbol'),
-		   'vtheta': ('\x4a', 'symbol'),
-		   'iota': ('\x69', 'symbol'),
-		   'kappa': ('\x6b', 'symbol'),
-		   'lambda': ('\x6c', 'symbol'),
-		   'mu': ('\x6d', 'symbol'),
-		   'nu': ('\x6e', 'symbol'),
-		   'xi': ('\x78', 'symbol'),
-		   'omicron': ('\x6f', 'symbol'),
-		   'pi': ('\x70', 'symbol'),
-		   'varpi': ('\x70', 'symbol'),
-		   'rho': ('\x72', 'symbol'),
-		   'varrho': ('\x72', 'symbol'),
-		   'sigma': ('\x73', 'symbol'),
-		   'vsigma': ('\x56', 'symbol'),
-		   'tau': ('\x74', 'symbol'),
-		   'upsilon': ('\x75', 'symbol'),
-		   'phi': ('\x66', 'symbol'),
-		   'varphi': ('\x66', 'symbol'),
-		   'chi': ('\x63', 'symbol'),
-		   'psi': ('\x79', 'symbol'),
-		   'omega': ('\x77', 'symbol'),
-		   'ldots': ('...', None),
-		   }
 
     iconpath = [os.path.join(grail_root, 'icons')]
 
