@@ -1,6 +1,6 @@
 """Tools for using Encapsulated PostScript.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/printing/epstools.py,v $
 
 import os
@@ -142,8 +142,8 @@ def load_image_internal(img_fn, greyscale, eps_fn):
 
 def load_image_pil(img_fn, greyscale, eps_fn):
     """Use PIL to generate EPS."""
-    import Image
-    import traceback
+    import Image, _imaging		# _imaging to make sure we have a
+    import traceback			# full PIL installation.
     try:
 	im = Image.open(img_fn)
 	format = im.format
@@ -158,6 +158,7 @@ def load_image_pil(img_fn, greyscale, eps_fn):
 	try:
 	    sys.stdout = sys.stderr
 	    traceback.print_exc()
+	    print "Exception printed from printing.epstools.load_image_pil()"
 	finally:
 	    sys.stdout = stdout
 	raise e, v, tb
