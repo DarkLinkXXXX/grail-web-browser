@@ -381,7 +381,6 @@ class PSStream:
 	    vtab = 10.0 * 1.1 * blanklines
 	    self._ofp.write('0 -%f R\n' % vtab)
 	    self._ypos = self._ypos - vtab
-	    print 'push_hard_newline:', self._ypos
 
     def push_vtab(self, distance):
 #	print 'push_vtab:', self._vtab, '+', distance
