@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.19 $"
+__version__ = "$Revision: 2.20 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -206,10 +206,10 @@ class Framework:
 	f = Frame(frame)
 	var = StringVar()
 	self.PrefsWidgetLabel(f, title, label_width=label_width)
-
+	inner = Frame(f, relief=SUNKEN, borderwidth=1)
+	inner.pack(side=LEFT)
 	for bl in button_labels:
-	    b = Radiobutton(f, text=bl, variable=var, value=bl,
-			    relief=SUNKEN)
+	    b = Radiobutton(inner, text=bl, variable=var, value=bl)
 	    b.pack(side=LEFT)
 
 	if composite:
