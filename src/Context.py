@@ -50,7 +50,6 @@ class Context:
 	self.next_status_update = None	# ID of next scheduled status update
 	self.show_source = 0
 	self.applet_group = None
-	self.pending_frag = None
 	self.notifications = []		# callbacks when no readers left
 	self.image_maps = {}		# For ImageMap
 
@@ -145,7 +144,7 @@ class Context:
 	"""Return the default target for this page (which may be None)."""
 	return self._target
 
-    def follow(self, url, target="", pended=0, histify=1):
+    def follow(self, url, target="", histify=1):
 	"""Follow a link, given by a relative URL.
 
 	If the relative URL is *just* a fragment id (#name), just
@@ -154,30 +153,30 @@ class Context:
 	"""
 	newurl, frag = urldefrag(url)
 	current, f = urldefrag(self._url)
-	if frag and (not newurl or newurl == current):
-	    if self.readers:
-		# we're still reading in text, so don't try to scroll
-		# there now, but instead, remember the scroll position
-		# for later when the reader is done.
-		self.pending_frag = frag
-	    else:
-		self.viewer.scroll_to(frag)
-		self.viewer.remove_temp_tag(histify=1)
-		baseurl = self.get_baseurl(url)
-		if not pended:
-		    page = self.page
-		    self.page = None # triggers set_url() to update history
-		    self.set_url(baseurl, histify=histify)
-		    if self.future >= 0:
-			self.page = self.history.page(self.future)
-			self.future = -1
-		    self.page.set_title(page.title())
-		    self.history.refresh()
-		    self.browser.set_title(page.title())
-	    return
-	if not target:
-	    target = self._target
-	self.load(self.get_baseurl(url), target=target)
+	if not target and newurl == current:
+	    self.follow_local_fragment(url, newurl, frag, histify)
+	else:
+	    self.load(self.get_baseurl(url), target=target or self._target)
+
+    def follow_local_fragment(self, url, newurl, frag, histify):
+	if self.readers:
+	    self.readers[-1].fragment = frag
+	if frag:
+	    self.viewer.scroll_to(frag)
+	else:
+	    self.viewer.scroll_to_position(self.page.scrollpos())
+	    self.viewer.clear_selection()
+	self.viewer.remove_temp_tag(histify=1)
+	baseurl = self.get_baseurl(url)
+	page = self.page
+	self.page = None # triggers set_url() to update history
+	self.set_url(baseurl, histify=histify)
+	if self.future >= 0:
+	    self.page = self.history.page(self.future)
+	    self.future = -1
+	self.page.set_title(page.title())
+	self.history.refresh()
+	self.browser.set_title(page.title())
 
     # Misc
 
@@ -309,15 +308,8 @@ class Context:
 	    self.root.bell()
 	    return
 	self.future = future
-	# optimize for fragments
-	target, frag = urldefrag(page.url())
-	current, f = urldefrag(self._url)
-	if target == current and not reload:
-	    if frag and self._url <> page.url():
-		self.follow('#' + frag, histify=0)
-	    else:
-		self.viewer.scroll_to_position(page.scrollpos())
-		self.history.page(self.future)
+	if not reload:
+	    self.follow(page.url(), histify=0)
 	else:
 	    self.load(page.url(), reload=reload, scrollpos=page.scrollpos())
 
@@ -529,9 +521,6 @@ class Context:
 	    if self.source:
 		self.source.remove_temp_tag()
 		self.source = None
-	    if self.pending_frag:
-		self.follow('#' + self.pending_frag, pended=1)
-		self.pending_frag = None
 	    self.notify()
 	self.new_reader_status()
 

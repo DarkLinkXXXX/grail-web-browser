@@ -587,6 +587,9 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_remove(SEL, '1.0', END)
 	self.text.tag_add(SEL, first, last)
 
+    def clear_selection(self):
+	self.text.tag_remove(SEL, '1.0', END)
+
     def parse_range(self, fragment):
 	try:
 	    p = self.range_pattern
