@@ -390,9 +390,13 @@ class HTMLParser(SGMLParser):
 	    del self.list_stack[-1]
 	if self.list_stack:
 	    self.implied_end_p()
+	    if self.formatter.have_label:
+		self.formatter.assert_line_data()
 	    self.formatter.add_line_break()
 	else:
 	    self.close_paragraph()
+	    if self.formatter.have_label:
+		self.formatter.assert_line_data()
 	    self.formatter.end_paragraph(1)
         self.formatter.pop_margin()
 
