@@ -130,8 +130,11 @@ class Browser:
 	self.entry.bind('<Return>', self.load_from_entry)
 
     def create_statusbar(self):
-	self.msg = Label(self.root, anchor='w', font=FONT_MESSAGE)
-	self.msg.pack(fill='x')
+	self.msg_frame = Frame(self.root, height=20)
+	self.msg_frame.pack(fill=X)
+	self.msg_frame.propagate(OFF)
+	self.msg = Label(self.msg_frame, anchor='w', font=FONT_MESSAGE)
+	self.msg.pack(fill='x', in_=self.msg_frame)
 
     def enter(self, url):
 	if url[:1] != '#':
