@@ -1,12 +1,38 @@
+"""Print Dialog for Grail Browser.
+
+This displays a really basic modal dialog, containing:
+
+	- the print command (which should take PostScript from stdin)
+	- a check box for printing to a file
+	- the filename (to receive the PostScript instead)
+	- an OK button
+	- a Cancel button
+
+The last state (print command, check box, filename) is saved in
+globals  variables.
+
+The dialog is modal by virtue of grabbing the focus and running
+the Tk mainloop recursively.
+
+When OK is activated, the HTML file is read using urllib.urlopen() and
+the html2ps.PSWriter class is used to generate the PostScript.
+
+When Cancel is actiavted, the dialog state is still saved.
+
+"""
+
+
 from Tkinter import *
 import tktools
 import os
 
-PRINTCMD = "lpr"
+PRINTCMD = "lpr"			# Default print command
 
+# Global variables tracking the last contents of the dialog box
 printcmd = PRINTCMD
 printfile = ""
 fileflag = 0
+
 
 class PrintDialog:
 
@@ -16,6 +42,7 @@ class PrintDialog:
 	self.title = title
 	self.master = self.browser.root
 	self.root = Toplevel(self.master)
+	self.root.title("Print Dialog")
 	self.cmd_entry, dummyframe = tktools.make_form_entry(
 	    self.root, "Print command:")
 	self.cmd_entry.delete('0', END)
@@ -128,7 +155,7 @@ from htmllib import HTMLParser
 
 class PrintingHTMLParser(HTMLParser):
 
-    # Override HTMLParser internal methods
+    """Class to override HTMLParser's default methods for anchors."""
 
     def anchor_bgn(self, href, name, type):
 	self.anchor = href
