@@ -2,11 +2,12 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.12 1996/04/01 17:49:08 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.13 1996/04/02 23:59:00 bwarsaw Exp $'
 
 
 import string
 import regex
+import grailutil
 from Tkinter import *
 from formatter import AbstractWriter, AbstractFormatter
 from Viewer import Viewer
@@ -27,7 +28,7 @@ class TableSubParser:
 	# get preferences
 	from __main__ import app
 	self._enabled = app.prefs.GetInt('tables', 'enabled')
-	print 'tables are', (self._enabled and '(kinda)' or 'not'), 'enabled'
+	print 'tables are', (self._enabled and 'indeed' or 'not'), 'enabled'
 
     def start_table(self, parser, attrs):
 	# create the table data structure
@@ -134,6 +135,41 @@ class TableSubParser:
 
 
 
+def conv_stdunits(val):
+    """Convert from string representation to Standard Units for Widths.
+
+    pt -- points
+    pi -- picas
+    in -- inches
+    cm -- centimeters
+    mm -- millimeters
+    em -- em units
+    px -- screen pixels (the default)
+    %  -- percentage
+    *  -- CALS rel. widths
+
+    Units representing, or pre-converted to screen pixels are
+    converted to a floating point number.  All other units are
+    represented as a tuple (num, repr).
+
+    Note that only screen pixel and percentage units are currently
+    handled by the table extension.
+
+    """
+    val = string.strip(val)
+    if len(val) <= 0:
+	return 0
+    if val[-1] in ['%', '*']:
+	return (grailutil.conv_float(val[:-1]), '%')
+    if len(val) <= 1:
+	return grailutil.conv_float(val)
+    if val[-2:] in ['pt', 'pi', 'in', 'cm', 'mm', 'em']:
+	return (grailutil.conv_float(val[:-2]), val[-2:])
+    if val[-2:] == 'px':
+	val = val[:-2]
+    return grailutil.conv_float(val)
+
+
 class AttrElem:
     """Base attributed table element.
 
@@ -143,18 +179,21 @@ class AttrElem:
     """
 
     def __init__(self, attrs):
-	# I believe it's safe to `dictionary-ize' the elements in this
-	# list by untupling.
 	self.attrs = {}
+	if type(attrs) == type({}):
+	    attrs = attrs.items()
+	# if its a dictionary, make a shallow copy, otherwise,
+	# dictionary-ize the tuple passed in.
 	for k, v in attrs:
-	    self.attrs[k] = v
+	    self.attrs[string.lower(string.strip(k))] = v
 
-    def attribute(self, attr):
-	if self.attrs.has_key(attr):
-	    return self.attrs[attr]
-	else:
-	    return None
-
+    def attribute(self, attr, conv=None, default=None):
+	if conv is None:
+	    conv = grailutil.conv_integer
+	return grailutil.extract_attribute(attr, self.attrs,
+					   conv=conv,
+					   default=default,
+					   delete=None)
 
 
 class Table(AttrElem):
@@ -166,13 +205,87 @@ class Table(AttrElem):
     def __init__(self, parentviewer, attrs):
 	AttrElem.__init__(self, attrs)
 	self.parentviewer = parentviewer
-	# public ivars
-	self.layout = self.attribute('cols') and FIXEDLAYOUT or AUTOLAYOUT
+	# attributes
+	def conv_align(val):
+	    return grailutil.conv_enumeration(
+		grailutil.conv_normstring(val),
+		['left', 'center', 'right'])
+	self.Aalign = self.attribute('align', conv=conv_align, default='left')
+	self.Awidth = self.attribute('width', conv=conv_stdunits)
+	self.Acols = self.attribute('cols', conv=grailutil.conv_integer)
+	if self.Acols:
+	    self.layout = FIXEDLAYOUT
+	else:
+	    self.layout = AUTOLAYOUT
+	# grok through the myriad of border/frame combinations.  this
+	# is truly grotesque!
+	def conv_frame(val):
+	    return grailutil.conv_enumeration(
+		grailutil.conv_normstring(val),
+		['void', 'above', 'below', 'hsides', 'lhs', 'rhs',
+		 'vsides', 'box', 'border'])
+	Aframe = self.attribute('frame', conv=conv_frame)
+	Aborder = self.attribute('border', conv=grailutil.conv_integer)
+	if Aborder is None:
+	    Aborder = self.attribute('border', conv=grailutil.conv_exists)
+	    if Aborder:
+		Aborder = 2
+	    else:
+		Aborder = 0
+	# Tk can only handle frames or no frames, it can't do
+	# individual or combinations of sides.
+	if Aframe is None:
+	    if Aborder is None:
+		Aframe = 'void'
+		borderwidth = 0
+		relief = FLAT
+	    elif Aborder > 0:
+		Aframe = 'border'
+		borderwidth = Aborder
+		relief = RAISED
+	    else:			# Aborder == 0
+		Aframe = 'void'
+		borderwidth = 0
+		relief = FLAT
+	elif Aframe == 'void':
+	    borderwidth = 0
+	    relief = FLAT
+	else:
+	    if Aborder is None:
+		borderwidth = 2
+	    else:
+		borderwidth = Aborder
+	    relief = RAISED
+	self.Aframe = Aframe
+	self.Aborder = Aborder
+	# now do rules attribute
+	def conv_rules(val):
+	    return grailutil.conv_enumeration(
+		grailutil.conv_normstring(val),
+		['none', 'groups', 'rows', 'cols', 'all'])
+	self.Arules = self.attribute('rules', conv=conv_rules)
+	if self.Arules is None:
+	    if Aborder == 0:
+		self.Arules = 'none'
+	    else:
+		self.Arules = 'all'
+	# cell spacing and padding
+	self.Acellspacing = self.attribute('cellspacing',
+					   conv=conv_stdunits,
+					   default=0)
+	# TBD: horrid kludge, however without this, either the cell
+	# contents will be too narrow, or the canvas placement
+	# coordinates put the cells just a little too far apart.  This
+	# probablyshouldn't be hardcoded, but should be derived from
+	# some widget's borderwidth.
+	self.Acellspacing = self.Acellspacing - 2
+	self.Acellpadding = self.attribute('cellpadding',
+					   conv=conv_stdunits,
+					   default=0)
 	# geometry
-	self.frame = Frame(parentviewer.text,
-			   borderwidth=2,
-			   relief=RAISED)
- 	self.container = Canvas(self.frame, relief=FLAT)
+ 	self.container = Canvas(parentviewer.text,
+				relief=relief,
+				borderwidth=borderwidth)
 	self.caption = None
 	self.cols = []			# multiple COL or COLGROUP
 	self.colgroups = []
@@ -181,13 +294,16 @@ class Table(AttrElem):
 	self.tbodies = []
 	self.lastbody = None
 	self.lastcell = None
+	# register with the parent viewer
+	self.parentviewer.register_reset_interest(self._reset)
+	self.parentviewer.register_resize_interest(self._resize)
 
     def finish(self):
 	if self.layout == AUTOLAYOUT:
 	    self.parentviewer.text.insert(END, '\n')
 	    containerwidth = self._autolayout_1()
 	    self.container.pack()
-	    self.parentviewer.add_subwindow(self.frame)
+	    self.parentviewer.add_subwindow(self.container)
 	    self.parentviewer.text.insert(END, '\n')
 	else:
 	    pass
@@ -214,9 +330,8 @@ class Table(AttrElem):
 		    pending_rowspans = pending_rowspans + rowspans - 1
 		rowcount = rowcount + 1
 		colcount = max(colcount, rowcolumns)
-## 	rowcount = rowcount + pending_rowspans
 
-	print '# of rows=', rowcount, '# of cols=', colcount
+## 	print '# of rows=', rowcount, '# of cols=', colcount
 
 	# populate an empty table
 	for row in range(rowcount):
@@ -282,8 +397,8 @@ class Table(AttrElem):
 		# apportion the min/max widths to each of the
 		# consituent columns (this is how Arena does it as per
 		# the latest Table HTML spec).
-		maxwidth = float(cell.maxwidth()) / cell.colspan
-		minwidth = float(cell.minwidth()) / cell.colspan
+		maxwidth = cell.maxwidth() / cell.colspan
+		minwidth = cell.minwidth() / cell.colspan
 		for col_i in range(col, col + cell.colspan):
 		    cellmaxwidths[col_i] = max(cellmaxwidths[col_i], maxwidth)
 		    cellminwidths[col_i] = max(cellminwidths[col_i], minwidth)
@@ -297,32 +412,29 @@ class Table(AttrElem):
 	# now we need to adjust for the available space (i.e. parent
 	# viewer's width).  The Table spec outlines three cases...
 	ptext = self.parentviewer.text
-	viewerwidth = ptext.winfo_reqwidth() - \
+	viewerwidth = ptext.winfo_width() - \
 		      2 * string.atof(ptext['padx']) - \
 		      13		# TBD: kludge alert!
-	print 'viewerwidth=', viewerwidth, 'mincanvaswidth=', mincanvaswidth, \
-	      'maxcanvaswidth=', maxcanvaswidth
+## 	print 'viewerwidth=', viewerwidth, 'mincanvaswidth=', mincanvaswidth, \
+## 	      'maxcanvaswidth=', maxcanvaswidth
 	# case 1: the min table width is equal to or wider than the
 	# available space.  Assign min widths and let the user scroll
 	# horizontally.
 	if mincanvaswidth >= viewerwidth:
-	    print 'using min widths:',
 	    cellwidths = cellminwidths
 	# case 2: maximum table width fits within the available space.
 	# set columns to their maximum width.
 	elif maxcanvaswidth < viewerwidth:
-	    print 'using max widths:',
 	    cellwidths = cellmaxwidths
 	# case 3: maximum width of the table is greater than the
 	# available space, but the minimum table width is smaller.
 	else:
-	    print 'using adjusted widths:',
 	    W = viewerwidth - mincanvaswidth
 	    D = maxcanvaswidth - mincanvaswidth
-	    adjustedwidths = [0] * rowcount
+	    adjustedwidths = [0] * colcount
 	    for col in range(colcount):
 		d = cellmaxwidths[col] - cellminwidths[col]
-		adjustedwidths[col] = float(cellminwidths[col]) + d * W / D
+		adjustedwidths[col] = cellminwidths[col] + d * W / D
 	    cellwidths = adjustedwidths
 
 	# calculate column heights.  this should be done *after*
@@ -333,57 +445,68 @@ class Table(AttrElem):
 		cell = table[(row, col)]
 		if cell in [EMPTY, OCCUPIED]:
 		    continue
-		cell.situate(width=cellwidths[col])
-		cellheight = float(cell.height()) / cell.rowspan
+		cellwidth = self.Acellspacing * (cell.colspan - 1)
+		for w in cellwidths[col:col + cell.colspan]:
+		    cellwidth = cellwidth + w
+		cell.situate(width=cellwidth)
+		cellheight = cell.height() / cell.rowspan
 		for row_i in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
 
-	canvaswidth = 0
+	canvaswidth = self.Acellspacing * (colcount - 1)
 	for col in range(colcount):
-	    print cellwidths[col]
 	    canvaswidth = canvaswidth + cellwidths[col]
-	print 'canvaswidth=', canvaswidth
 
-	ypos = 0
+	borderwidth = grailutil.conv_integer(self.container['borderwidth'])
+	borderwidth = borderwidth
+	ypos = borderwidth + 2
 
 	# if caption aligns top, then insert it now.  it doesn't need
 	# to be moved, just resized
 	if self.caption and self.caption.align <> 'bottom':
+	    # must widen before calculating height!
+	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
-	    self.caption.situate(width=canvaswidth, height=height)
-	    ypos = ypos + height
+	    self.caption.situate(xdelta=borderwidth+2, ydelta=ypos,
+				 height=height)
+	    ypos = ypos + height + self.Acellspacing
 
 	# now place and size each cell
 	for row in range(rowcount):
-	    xpos = 0
+	    xpos = borderwidth + 2
 	    tallest = 0
 	    for col in range(colcount):
 		cell = table[(row, col)]
 		if cell in [EMPTY, OCCUPIED]:
-		    xpos = xpos + cellwidths[col]
+		    xpos = xpos + cellwidths[col] + self.Acellspacing
 		    continue
-		cellwidth = 0
-		cellheight = 0
-		for span in range(col, col + cell.colspan):
-		    cellwidth = cellwidth + cellwidths[span]
-		for span in range(row, min(rowcount, row + cell.rowspan)):
-		    cellheight = cellheight + cellheights[span]
+		rowspan = min(rowcount, row + cell.rowspan)
+		cellheight = self.Acellspacing * (rowspan - row - 1)
+		for h in cellheights[row:min(rowcount, row + cell.rowspan)]:
+		    cellheight = cellheight + h
 		cell.situate(xdelta=xpos, ydelta=ypos,
-			     width=cellwidth, height=cellheight)
-		xpos = xpos + cellwidths[col]
-	    ypos = ypos + cellheights[row]
+			     height=cellheight)
+		xpos = xpos + cellwidths[col] + self.Acellspacing
+	    ypos = ypos + cellheights[row] + self.Acellspacing
 
 	# if caption aligns bottom, then insert it now.  it needs to
 	# be resized and moved to the proper location.
 	if self.caption and self.caption.align == 'bottom':
+	    # must widen before calculating height!
+	    self.caption.situate(width=canvaswidth)
 	    height = self.caption.height()
-	    self.caption.situate(ydelta=ypos,
-				 width=canvaswidth,
+	    self.caption.situate(xdelta=borderwidth+2, ydelta=ypos,
 				 height=height)
-	    ypos = ypos + height
+	    ypos = ypos + height + self.Acellspacing
 
-	self.container.config(width=canvaswidth, height=ypos)
+	self.container.config(width=canvaswidth, height=ypos+self.Acellspacing)
 	return canvaswidth
+
+    def _reset(self, viewer):
+	print '_reset:', viewer
+
+    def _resize(self, viewer):
+	print '_resize:', viewer
 	    
 
 class Colgroup(AttrElem):
@@ -415,7 +538,6 @@ def _get_linecount(tw):
 
 def _get_widths(tw):
     width_max = 0
-##     charwidth_max = 0
     border_x = None
     # get maximum width of cell: the longest line with no line wrapping
     tw['wrap'] = NONE
@@ -426,37 +548,32 @@ def _get_widths(tw):
 	tw.see(index)
 	x, y, w, h, b = tw.dlineinfo(index)
 	width_max = max(width_max, w)
-## 	if lineno > 1:
-## 	    charwidth = string.atoi(string.splitfields(
-## 		tw.index('%s - 1 c' % index), '.')[1])
-## 	    charwidth_max = max(charwidth_max, charwidth)
     width_max = width_max + (2 * border_x)
     # get minimum width of cell: longest word
     tw['wrap'] = WORD
     contents = tw.get(1.0, END)
     longest_word = reduce(max, map(len, string.split(contents)), 0) + 1
     tw['width'] = longest_word
-    width_min = tw.winfo_reqwidth() + (2 * border_x)
-##     return charwidth_max, width_min, width_max
-    return width_min, width_max
+    width_min = tw.winfo_width() + (2 * border_x)
+    return float(width_min), float(width_max)
 
 def _get_height(tw):
     linecount = _get_linecount(tw)
     tw['height'] = linecount
     tw.update_idletasks()
     tw.see(1.0)
-    x, border_y, w, h, b = tw.dlineinfo(1.0)
+    x, border_y, w, other_h, b = tw.dlineinfo(1.0)
     loopcnt = 0
     while 1:
-	# TBD: loopcnt check is probably unnecessary, but I'm not yet
-	# convinced this algorithm always works.
-	loopcnt = loopcnt + 1
-	if loopcnt > 1000:
-	    raise 'Loop Badness Detected!'
 	tw.see(1.0)
 	info = tw.dlineinfo('end - 1 c')
 	if info:
 	    break
+	# TBD: loopcnt check is probably unnecessary, but I'm not yet
+	# convinced this algorithm always works.
+	loopcnt = loopcnt + 1
+	if loopcnt > 100:
+	    raise 'Infinite table cell height loop detected!  Bad Mojo!'
 	linecount = linecount + 1
 	tw['height'] = linecount
 	tw.update_idletasks()
@@ -465,7 +582,9 @@ def _get_height(tw):
     # that's not correct for the lower border.  I think we can ask the
     # textwidget for it's internal border space, but we may need to
     # add in relief space too.  Close approximation for now...
-    return (2 * border_y) + y + h
+##    return (2 * border_y) + y + h
+    # this seems to work better
+    return y+h+border_y
 
 
 
@@ -517,7 +636,7 @@ class ContainedText(AttrElem):
 	tw['height'] = _get_linecount(tw) + 1
 	# take into account all embedded windows
 	for sub in self._viewer.subwindows:
-	    min_nonaligned = max(min_nonaligned, sub['width'])
+	    min_nonaligned = max(min_nonaligned, string.atof(sub['width']))
 	# initially place the cell in the canvas at position (0,0),
 	# with the maximum width and closest approximation height.
 	# situate() will be called later with the final layout
@@ -547,8 +666,12 @@ class Caption(ContainedText):
     """A table caption element."""
     def __init__(self, table, parentviewer, attrs):
 	ContainedText.__init__(self, table, parentviewer, attrs)
-	self._tw['relief'] = FLAT
-	self.align = string.lower(self.attribute('align') or '')
+	self._tw.config(relief=FLAT, borderwidth=0)
+	def conv_align(val):
+	    return grailutil.conv_enumeration(
+		grailutil.conv_normstring(val),
+		['top', 'bottom', 'left', 'right']) or 'top'
+	self.align = self.attribute('align', conv=conv_align)
 
     def finish(self, padding=0):
 	ContainedText.finish(self, padding=0)
@@ -563,12 +686,26 @@ class Cell(ContainedText):
     def __init__(self, table, parser, attrs):
 	ContainedText.__init__(self, table, parser.viewer, attrs)
 	self._parser = parser
-	self._tw.config(relief=SUNKEN, borderwidth=2)
+	# relief and borderwidth are defined as table tag attributes
+	if table.Arules == 'none':
+	    relief = FLAT
+	    borderwidth = 0
+	# TBD: rules=rows and rules=cols not yet implemented (is it
+	# even possible in Tk?  probably, but could be painful
+	else:
+	    if table.Aframe == 'void':
+		relief = FLAT
+	    else:
+		relief = SUNKEN
+	    borderwidth = table.Aborder
+	self._tw.config(relief=relief, borderwidth=borderwidth)
 	self.layout = table.layout
 	# dig out useful attributes
-	self.cellpadding = string.atoi(table.attribute('cellpadding') or '')
-	self.rowspan = string.atoi(self.attribute('rowspan') or '1')
-	self.colspan = string.atoi(self.attribute('colspan') or '1')
+	self.cellpadding = table.attribute('cellpadding', 0)
+	self.rowspan = self.attribute('rowspan', default=1)
+	self.colspan = self.attribute('colspan', default=1)
+	if self.cellpadding < 0:
+	    self.cellpadding = 0
 	if self.rowspan < 0:
 	    self.rowspan = 1
 	if self.colspan < 0:
