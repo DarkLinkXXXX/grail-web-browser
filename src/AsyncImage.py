@@ -64,8 +64,6 @@ class AsyncImage(PhotoImage):
 	else:
 	    self.reload = 0
 
-    direct_load = ['image/gif']
-
     def load_synchronously(self, context=None):
 	if not self.loaded:
 	    self.start_loading(context)
@@ -90,7 +88,9 @@ class AsyncImage(PhotoImage):
 	    self.blank()
 	    return
 	cached_file, content_type = api.tk_img_access()
-	if cached_file and content_type in self.direct_load:
+	if cached_file \
+	   and ImageTempFileReader.image_filters.has_key(content_type) \
+	   and ImageTempFileReader.image_filters[content_type] == '':
 	    api.close()
 	    self.set_file(cached_file)
 	else:
