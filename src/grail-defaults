@@ -27,6 +27,6 @@ history--view-by: titles
 C:
 C: Printing preferences:
 C:
-printing--images: true
-printing--to-file: false
+printing--images: 1
+printing--to-file: 0
 printing--command: lpr
