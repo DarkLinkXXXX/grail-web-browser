@@ -8,7 +8,7 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 """
 
 
-__version__ = "0.1"
+__version__ = "0.2b1"			# I.e. PRE 0.2
 
 
 import sys
@@ -19,6 +19,7 @@ urllib._urlopener = urllib.URLopener()	# Don't want it too clever
 import tempfile
 import posixpath
 import os
+import traceback
 from Tkinter import *
 import SafeDialog
 import tktools
@@ -65,6 +66,44 @@ def main():
     app.go()
 
 
+class MyURLopener(urllib.URLopener):
+
+    openers = {}
+    
+    def open_unknown(self, fullurl):
+	type, url = urllib.splittype(fullurl)
+	if self.openers.has_key(type):
+	    opener = self.openers[type]
+	else:
+	    opener = self.openers[type] = self.find_extension(type)
+	if opener:
+	    return opener(url)
+	print "Unknown URL type:", type
+	return urllib.URLopener.open_unknown(self, fullurl)
+
+    def find_extension(self, type):
+	home = getenv("HOME") or os.curdir
+	graildir = getenv("GRAILDIR") or os.path.join(home, ".grail")
+	protodir = os.path.join(graildir, "protocols")
+	if protodir not in sys.path: sys.path.insert(0, protodir)
+	cmd = "import %s; opener = %s.open_%s" % (type, type, type)
+	try:
+	    exec cmd
+	    return opener
+	except ImportError:
+	    return None
+	except:
+	    print "-"*40
+	    print "Exception occurred during import of %s:" % type
+	    traceback.print_exc()
+	    print "-"*40
+	    return None
+
+def getenv(s):
+    if os.environ.has_key(s): return os.environ[s]
+    return None
+
+
 class Application:
 
     """The application class represents a group of browser windows."""
@@ -74,6 +113,7 @@ class Application:
 	self.home = DEFAULT_HOME
 	self.image_cache = {}
 	self.rexec = AppletRExec(None, 2)
+	self.urlopener = MyURLopener()
 	self.root = Tk()
 	self.root.withdraw()
 ##	self.quit_button = Button(self.root, text='Quit', command=self.quit)
@@ -146,9 +186,10 @@ class Application:
 	# Open a URL:
 	# - return (fp, url) if successful
 	# - display dialog and return (None, url) for errors
+	#   (no dialog if errors argument is false)
 	# - handle erro code 302 (redirect) silently
 	try:
-	    fp = urllib.urlopen(url)
+	    fp = self.urlopener.open(url)
 	except IOError, msg:
 	    if type(msg) == TupleType and len(msg) == 4:
 		if msg[1] == 302:
