@@ -42,8 +42,8 @@ CURSOR_WAIT = 'watch'
 FONT_MESSAGE = "-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*"
 
 
+
 class Browser:
-
     """A browser window provides the user interface to browse the web.
 
     It is a blatant rip-off of Mosaic's look and feel, with menus,
@@ -51,7 +51,6 @@ class Browser:
     but not least) a viewer widget.
 
     """
-
     def __init__(self, master, app=None, width=80, height=40, hist=None,
 		 geometry=None):
 	self.master = master
@@ -59,13 +58,15 @@ class Browser:
 	    import __main__
 	    try: app = __main__.app
 	    except NameError: pass
-	if app: app.add_browser(self)
+	if app:
+	    app.add_browser(self)
+	    self.global_history = app.global_history
 	self.app = app
 	self.readers = []
-	self.url = ""
-	self.title = ""
+	self._baseurl = ""
+	self._page = None
 	if hist: self.history = hist
-	else: self.history = History.History(app)
+	else: self.history = History.History()
 	self.create_widgets(width=width, height=height, geometry=geometry)
 	self.history_dialog = None
 	# icon set up
@@ -255,15 +256,28 @@ class Browser:
 	self.msg = Label(self.msg_frame, anchor=W, font=FONT_MESSAGE)
 	self.msg.pack(fill=X, in_=self.msg_frame)
 
+    # callbacks for when the pointer enters, leaves, or clicks on an
+    # anchor object.
+
     def enter(self, url):
 	if self.busy(): return
 	if url[:1] != '#':
-	    url = urlparse.urljoin(self.url, url)
+	    url = urlparse.urljoin(self._baseurl, url)
 	self.message(url, CURSOR_LINK)
 
     def leave(self):
 	if self.busy(): return
 	self.message_clear()
+
+    def follow(self, url):
+	if url[:1] == '#':
+	    self.viewer.scroll_to(url[1:])
+	    self.viewer.remove_temp_tag(histify=1)
+	    return
+	url = urlparse.urljoin(self._baseurl, url)
+	self.load(url)
+
+    # setting/getting the URL: entry field
 
     def load_from_entry(self, event):
 	self.load(string.strip(self.entry.get()))
@@ -272,29 +286,37 @@ class Browser:
 	self.entry.delete('0', END)
 	self.entry.insert(END, url)
 
-    def update_form_data(self, reload=0):
-	# if reloading, clear out any form data, otherwise, before we
-	# load another page, save any form data on this page
+    # handle loading pages
+
+    def save_page_state(self, reload=0):
+	if not self._page: return
+	# Save page scroll position
+	self._page.set_scrollpos(self.viewer.scrollpos())
+	# Save form contents unless reloading
 	if hasattr(self, 'forms'):
 	    formdata = []
 	    if not reload:
 		for fi in self.forms:
 		    formdata.append(fi.get())
-	    self.history.set_formdata(self.url, formdata)
+	    self._page.set_formdata(formdata)
+	    # remove the attribute
 	    del self.forms
 
-    def follow(self, url):
-	if url[:1] == '#':
-	    self.viewer.scroll_to(url[1:])
-	    self.viewer.remove_temp_tag(histify=1)
-	    return
-	url = urlparse.urljoin(self.url, url)
-	self.load(url)
+    def read_page(self, url, method, params, new, show_src, reload, data=None):
+	self.global_history.remember_url(url)
+	if not new: self._page = self.history.page()
+	else: self._page = History.PageInfo(url)
+	Reader(self, url, method, params, new, show_src, reload, data,
+	       self._page.scrollpos())
+	if not new: self.history.refresh()
+	else: self.history.append_page(self._page)
 
     def load(self, url, method='GET', params={},
 	     new=1, show_source=0, reload=0):
+	# Update state of current page, in case we re-visit it via the
+	# history mechanism.
+	self.save_page_state()
 	# Start loading a new URL into the window
-	self.update_form_data(reload)
 	self.stop()
 	scheme, netloc = urlparse.urlparse(url)[:2]
 	if not scheme:
@@ -306,26 +328,23 @@ class Browser:
 	    else:
 		url = "http:" + url
 	self.message("Loading %s" % url, CURSOR_WAIT)
-	try:
-	    Reader(self, url, method, params,
-		   new, show_source, reload)
+	try: self.read_page(url, method, params, new, show_source, reload)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
 	    self.viewer.remove_temp_tag()
 
     def post(self, url, data, ctype):
-	self.update_form_data()
+	self.save_page_state()
 	# Post form data
-	url = urlparse.urljoin(self.url, url)
+	url = urlparse.urljoin(self._baseurl, url)
 	method = 'POST'
 	params = {"Content-length": `len(data)`,
 		  "Content-type": ctype,
 		  }
 	self.stop()
 	self.message("Posting to %s" % url, CURSOR_WAIT)
-	try:
-	    Reader(self, url, method, params, 1, 0, 1, data=data)
+	try: self.read_page(url, method, params, 1, 0, 1, data=data)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
@@ -362,27 +381,36 @@ class Browser:
 	for reader in self.readers[:]:
 	    reader.kill()
 
+    # API for getting and setting information about the page the
+    # browser is displaying.  These should correctly update any
+    # secondary dialogs or data structures, such as the history,
+    # browser entry fields, etc.
+
+    def baseurl(self): return self._baseurl
+    def set_baseurl(self, url): self._baseurl = url
+
+    def title(self): return self._page.title()
+    def set_title(self, title='', new=None):
+	if title:
+	    self._page.set_title(title)
+	    self.history.refresh()
+	else: title = self._page.title() or self._page.url()
+	self._window_title(TITLE_PREFIX + title)
+
+    def set_url(self, url):
+	self._baseurl = url
+	self._page.set_url(url)
+	self.set_entry(url)
+
     def clear_reset(self, url, new):
 	for b in self.user_menus:
 	    b.destroy()
-	self.url = url
-	self.title = self.url
 	self.user_menus[:] = []
-	self.set_entry(self.url)
-	self._window_title(TITLE_PREFIX + self.title)
+	# update the url and title
+	self.set_url(url)
 	self.viewer.clear_reset()
-	self.set_history(new)
 
-    def set_title(self, title):
-	self.title = title
-	self._window_title(TITLE_PREFIX + self.title)
-	self.set_history(0)
-
-    def set_history(self, new):
-	if new:
-	    self.history.append_link(self.url, self.title)
-	else:
-	    self.history.set_title(self.url, self.title)
+    # Handle images
 
     def get_image(self, src):
 	image = self.get_async_image(src)
@@ -394,7 +422,7 @@ class Browser:
     def get_async_image(self, src):
 	if not self.app: return None
 	if not src: return None
-	url = urlparse.urljoin(self.url, src)
+	url = urlparse.urljoin(self._baseurl, src)
 	if not url: return None
 	image = self.app.get_cached_image(url)
 	if image:
@@ -459,8 +487,8 @@ class Browser:
 
     def clone_command(self, event=None):
 	b = Browser(self.master, self.app, hist=self.history.clone())
-	if self.url:
-	    b.load(self.url)
+	if self._page.url():
+	    b.load(self._page.url())
 	return b
 
     def open_uri_command(self, event=None):
@@ -478,7 +506,7 @@ class Browser:
     def view_source_command(self, event=None):
 	# File/View Source
 	b = Browser(self.master, self.app, height=24)
-	b.load(self.url, show_source=1)
+	b.load(self._page.url(), show_source=1)
 
     def save_as_command(self, event=None):
 	# File/Save As...
@@ -487,13 +515,13 @@ class Browser:
 	fd = FileDialog.SaveFileDialog(self.root)
 	# give it a default filename on which save within the
 	# current directory
-	urlasfile = string.splitfields(self.url, '/')
+	urlasfile = string.splitfields(self._page.url(), '/')
 	default = urlasfile[-1]
 	# maybe bogus assumption?
 	if not default: default = 'index.html'
 	file = fd.go(default=default)
 	if not file: return
-	api = self.app.open_url(self.url, 'GET', {})
+	api = self.app.open_url(self._page.url(), 'GET', {})
 	errcode, errmsg, params = api.getmeta()
 	if errcode != 200:
 	    self.error_dialog('Error reply', errmsg)
@@ -519,7 +547,7 @@ class Browser:
 	# File/Print...
 	if self.busycheck(): return
 	import PrintDialog
-	PrintDialog.PrintDialog(self, self.url, self.title)
+	PrintDialog.PrintDialog(self, self._page.url(), self._page.title())
 
     def close_command(self, event=None):
 	# File/Close
@@ -536,20 +564,25 @@ class Browser:
 	home = self.app and self.app.home or DEFAULT_HOME
 	self.load(home)
 
-    def back_command(self, event=None):
-	uri = self.history.back()
-	if not uri: self.root.bell()
-	else: self.load(uri, new=0)
-
     def reload_command(self, event=None):
-	link = self.history.link()
-	if not link: self.root.bell()
-	else: self.load(link, new=0, reload=1)
+	page = self.history.page()
+	if not page:
+	    self.root.bell()
+	    return
+	# TBD: debugging
+	elif page <> self._page:
+	    raise 'Internal Insanity', '%s <> %s' % (page, self._page)
+	self.load(page.url(), new=0, reload=1)
 
     def forward_command(self, event=None):
-	uri = self.history.forward()
-	if not uri: self.root.bell()
-	else: self.load(uri, new=0)
+	page = self.history.forward()
+	if not page: self.root.bell()
+	else: self.load(page.url(), new=0)
+
+    def back_command(self, event=None):
+	page = self.history.back()
+	if not page: self.root.bell()
+	else: self.load(page.url(), new=0)
 
     def show_history_command(self, event=None):
 	if not self.history_dialog:

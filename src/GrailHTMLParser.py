@@ -47,8 +47,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    utag = '>' + href
 	    otag = '%%%d' % self.page_tag_count
 	    self.page_tag_count = self.page_tag_count + 1
-	    fulluri = urlparse.urljoin(self.browser.url, href)
-	    if self.browser.history.inhistory_p(fulluri):
+	    fulluri = urlparse.urljoin(self.browser.baseurl(), href)
+	    if self.browser.global_history.inhistory_p(fulluri):
 		htag = 'ahist'
 	ntag = name and '#' + name or None
 	self.formatter.push_style(atag)
@@ -108,7 +108,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
             if a == 'href':
                 base = v
 	if base:
-	    self.browser.url = urlparse.urljoin(self.browser.url, base)
+	    url = urlparse.urljoin(self.browser.baseurl(), base)
+	    self.browser.set_baseurl(url)
 
     # New tag: <CENTER> (for Amy)
 
@@ -167,7 +168,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 		return
 
 	    # Start loading the module source now
-	    dirurl = urlparse.urljoin(self.browser.url, src or '.')
+	    dirurl = urlparse.urljoin(self.browser.baseurl(), src or '.')
 	    modcomps = string.splitfields(mod, '.')
 	    modfile = string.joinfields(modcomps, '/')
 	    modurl = urlparse.urljoin(dirurl, modfile + ".py")
@@ -216,7 +217,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def get_class_proper(self, mod, cls, src):
 	rexec = self.browser.app.rexec
 	rexec.reset_urlpath()
-	url = urlparse.urljoin(self.browser.url, src or '.')
+	url = urlparse.urljoin(self.browser.baseurl(), src or '.')
 	rexec.set_urlpath(url)
 	if self.reload and rexec.modules.has_key(mod) and \
 	   mod not in self.loaded:
