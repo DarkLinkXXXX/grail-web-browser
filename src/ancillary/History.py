@@ -96,15 +96,13 @@ class GlobalHistory:
 		self._hmap[link] = (title, timestamp)
 
     def append_link(self, link, title=None):
-	try:
-	    if not self._hmap.has_key(link) and self._history[-1] <> link:
-		self._hmap[link] = (title, time.time())
-		self._history.append(link)
-		if self._dialog: self._dialog.refresh()
-	except IndexError: pass
+	if not self._hmap.has_key(link):
+	    self._hmap[link] = (title, time.time())
+	    self._history.append(link)
+	    if self._dialog: self._dialog.refresh()
 
     def set_title(self, link, title):
-	timestamp = time.time()
+	timestamp = int(time.time())
 	if self._hmap.has_key(link):
 	    oldtitle, timestamp = self._hmap[link]
 	try:
@@ -117,8 +115,8 @@ class GlobalHistory:
 	    pass
 
     def title(self, link):
-	try: return self._hmap[link][0]
-	except KeyError: return None
+	if self._hmap.has_key(link): return self._hmap[link][0]
+	else: return None
 
     def on_app_exit(self):
 	stdout = sys.stdout
