@@ -46,8 +46,6 @@ import Stylesheet
 from CacheMgr import CacheManager
 from ImageCache import ImageCache
 from Authenticate import AuthenticationManager
-if 0:
-    import dummies
 import GlobalHistory
 
 # Milliseconds between interrupt checks
