@@ -128,6 +128,8 @@ styles-fonts--styles-_tt_b_i-font:
 bookmarks--add-location: file-prepend
 # aggressive-collapse can be 0=false, 1=true
 bookmarks--aggressive-collapse: 0
+# add-to-pulldown can be 0=false, 1=true
+bookmarks--include-in-pulldown: 1
 #
 # History defaults
 #
