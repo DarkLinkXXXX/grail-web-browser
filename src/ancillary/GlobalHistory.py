@@ -10,7 +10,7 @@ aren't currently supported.
 
 There is only one GlobalHistory object per Application object, which
 is where you'll find it.  The Context object inserts new entries into
-the Global History, while AppletHTMLParser objects query the history.
+the Global History, while GrailHTMLParser objects query the history.
 
 TBD:
 
