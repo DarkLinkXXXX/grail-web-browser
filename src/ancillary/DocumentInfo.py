@@ -1,6 +1,6 @@
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import string
@@ -34,12 +34,15 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 	if fragment:
 	    self.add_label_field("Fragment", fragment, "fragment")
 	headers = context.get_headers()
-	if headers.has_key("date") and type(headers["date"]) is not type(''):
+	if headers.has_key("date") and type(headers["date"]) is type(self):
 	    self.add_label_field("", "(Loaded from local cache.)", "cached")
 	items = headers.items()
 	items.sort()
 	s = ""
 	for k, v in items:
+	    if k == 'date' and type(v) is type(self):
+		import ht_time
+		v = ht_time.unparse(v.get_secs())
 	    s = "%s%s:\t%s\n" % (s, k, v)
 	self.add_text_field("Response headers", s, "headers", vbar=0,
 			    takefocus=0, width=60)
