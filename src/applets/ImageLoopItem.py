@@ -1,40 +1,63 @@
-# Java compatibility hack
+# Java compatibility :-)
 
 from Tkinter import *
-import urllib
-import time
 
 class ImageLoopItem:
 
     def __init__(self, master, img='doc:/demo/images/duke/',
-		 pause=3900, align=None, **kw):
+		 pause=3900, delay=100, align=None, **kw):
 	self.master = master
 	self.pause = pause
+	self.delay = delay
 	self.browser = master.grail_browser
-	self.images = []
-	i = 0
 	if img and img[-1] != '/': img.append('/')
-	while 1:
-	    i = i+1
-	    url = "%sT%s.gif" % (img, i)
-	    image = self.browser.get_image(url)
-	    if not image: break
-	    self.images.append(image)
-	self.label = Label(master, text=url)
-	self.label.pack()
+	self.urlpattern = img + "T%d.gif"
+	self.images = []
 	self.index = 0
-	if self.images:
-	    self.update()
+	self.done = 0
+	self.label = Label(master, text="?")
+	self.label.pack()
+	self.loadnext()
+	self.schedule()
+
+    def loadnext(self):
+	url = self.urlpattern % (len(self.images) + 1)
+	image = self.browser.get_async_image(url)
+	if not image:
+	    self.done = 1
+	else:
+	    self.images.append(image)
+
+    def schedule(self):
+	if not self.images: return
+	delay = self.delay
+	if self.done and self.index == 1%len(self.images):
+	    delay = delay + self.pause
+	self.master.after(delay, self.update)
 
     def update(self):
-	if self.index >= len(self.images):
-	    delay = 100 + self.pause
-	    self.index = 0
-	else:
-	    delay = 100
+	image = self.images[self.index]
+	if not self.done:
+	    # Check status of image
+	    if not image.loaded:
+		# Not loaded -- still busy or failed
+		if image.get_load_status() == 'loading':
+		    # Still busy -- come again later
+		    self.schedule()
+		    return
+		# Image loading failed -- we're done
+		self.done = 1
+		del self.images[self.index]
+		self.index = 0
+		self.schedule()
+		return
+	    # Loaded -- start loading the next one
+	    self.loadnext()
+	# We get here only if the image has been successfully loaded
 	try:
-	    self.label['image'] = self.images[self.index]
-	    self.index = self.index + 1
-	    self.master.tk.createtimerhandler(delay, self.update)
-	except:
-	    pass
+	    self.label['image'] = image
+	except TclError:
+	    # The widget probably has been destroyed
+	    return
+	self.index = (self.index + 1) % len(self.images)
+	self.schedule()
