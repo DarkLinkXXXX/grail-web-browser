@@ -442,8 +442,7 @@ class BookmarksIO:
 class IOErrorDialog:
     def __init__(self, master, where, errmsg):
 	msg = 'Bookmark file error encountered %s:' % where
-	self._frame = Toplevel(master)
-	self._frame.title(msg)
+	self._frame = tktools.make_toplevel(master, msg)
 	label = Label(self._frame, text=msg)
 	label.pack()
 	errlabel = Label(self._frame, text=errmsg)
@@ -735,6 +734,8 @@ class BookmarksDialog:
 class DetailsDialog:
     def __init__(self, frame, node, controller):
 	self._frame = frame
+	self._frame.title("Bookmark Details")
+	self._frame.iconname("Bookmark Details")
 	self._node = node
 	self._controller = controller
 	self._create_form()
@@ -783,7 +784,10 @@ class DetailsDialog:
 	    else: entry.delete(0, 'end')
 	# fill in the entry fields
 	node = self._node		# convenience
-	self._form[0][0].insert(0, node.title())
+	entry = self._form[0][0]	# more convenience
+	entry.insert(0, node.title())
+	entry.select_range(0, END)
+	entry.focus_set()
 	if node.islink_p():
 	    self._form[1][0].insert(0, node.uri())
 	    self._form[2][0].insert(0, time.ctime(node.last_visited()))
