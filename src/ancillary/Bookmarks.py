@@ -9,7 +9,10 @@ import sys
 import time
 
 
+InGrail_p = __name__ != '__main__'
 
+
+
 class BookmarkNode(OutlinerNode):
     """Bookmarks are represented internally as a tree of nodes containing
     relevent information.
@@ -165,7 +168,11 @@ class TkListboxWriter(OutlinerViewer):
 
     def update_node(self, node):
 	OutlinerViewer.update_node(self, node)
-	self._listbox.select_set(node.index())
+	self.select_node(node.index())
+
+    def select_node(self, index):
+	self._listbox.select_clear(0, self.count())
+	self._listbox.select_set(index)
 
 
 
@@ -184,9 +191,23 @@ class BookmarkWindow:
 	self._listbox.config(font='fixed')
 	# create the buttons
 	btnframe = Frame(tk)
+	prevbtn = Button(btnframe, text='Previous', command=self.previous)
+	nextbtn = Button(btnframe, text='Next', command=self.next)
+
+	if InGrail_p:
+	    gotobtn = Button(btnframe, text='Go To', command=self.goto)
+	    quitbtn = Button(btnframe, text='Close', command=self.close)
+	else:
+	    quitbtn = Button(btnframe, text='Quit', command=self.quit)
+
+
 	colbtn = Button(btnframe, text='Collapse', command=self.collapse)
 	expbtn = Button(btnframe, text='Expand', command=self.expand)
-	quitbtn = Button(btnframe, text='Quit', command=self.quit)
+	prevbtn.pack(side='left')
+	nextbtn.pack(side='left')
+	if InGrail_p:
+	    gotobtn.pack(side='left')
+
 	colbtn.pack(side='left')
 	expbtn.pack(side='left')
 	quitbtn.pack(side='left')
@@ -204,22 +225,23 @@ class BookmarkWindow:
 	selection = string.atoi(self._listbox.curselection()[0])
 	node = self._writer.node(selection)
 	return node, selection
-	
+
     def collapse(self):
 	node, selection = self._get_selected_node()
-	# This node is only collapsable if it is not the root, it is
-	# an unexpanded branch node, or the aggressive collapse flag
-	# is set.
-	if node.index() == 0 or \
-	   (node.leaf_p() and not self._aggressive_p) or \
-	   not node.expanded_p():
+	# This node is only collapsable if it is an unexpanded branch
+	# node, or the aggressive collapse flag is set.
+	uncollapsable = node.leaf_p() or not node.expanded_p()
+	if uncollapsable and not self._aggressive_p:
 	    return
 	# if the node is a leaf and the aggressive collapse flag is
 	# set, then we really need to find the start of the collapse
 	# operation (some ancestor of the selected node)
-	if node.leaf_p(): node = node.parent()
-	start = node.index() + 1
+	if uncollapsable: node = node.parent()
+	# don't collapse the root
+	if node.index() == 0: return
+	# find the start index
 	node.collapse()
+	start = node.index() + 1
 	# Find the end
 	end = None
 	vnode = node
@@ -248,12 +270,26 @@ class BookmarkWindow:
 	self._writer.expand_node(node)
 	self._writer.update_node(node)
 
+    def previous(self):
+	node, index = self._get_selected_node()
+	if index > 0: index = index - 1
+	self._writer.select_node(index)
+
+    def next(self):
+	node, index = self._get_selected_node()
+	if index < self._writer.count()-1: index = index + 1
+	self._writer.select_node(index)
+
     def quit(self): sys.exit(0)
-    def run(self): self._tkroot.mainloop()
+    def close(self): sys.exit(0)
+
+    def run(self):
+	self._writer.select_node(0)
+	self._tkroot.mainloop()
 
 
 
-if __name__ == '__main__':
-    bookmarks = BookmarkWindow("/tmp/test.html")
-#    bookmarks = BookmarkWindow("~/.netscape-bookmarks.html")
+if not InGrail_p:
+    #bookmarks = BookmarkWindow("/tmp/test.html")
+    bookmarks = BookmarkWindow("~/.netscape-bookmarks.html")
     bookmarks.run()
