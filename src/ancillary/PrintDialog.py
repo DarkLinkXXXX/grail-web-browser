@@ -133,16 +133,19 @@ class PrintDialog:
 	self.file_entry.insert(END, printfile)
 
 	#  Image printing controls:
-	self.imgchecked = self.add_checkbox(
+	self.imgchecked = self.add_html_checkbox(
 	    top, "Print images", imageflag)
-	self.greychecked = self.add_checkbox(
+	self.greychecked = self.add_html_checkbox(
 	    top, "Reduce images to greyscale", greyscaleflag)
 
 	#  Anchor-handling selections:
-	self.footnotechecked = self.add_checkbox(
+	self.footnotechecked = self.add_html_checkbox(
 	    top, "Footnotes for anchors", footnoteflag)
-	self.underchecked = self.add_checkbox(
+	self.underchecked = self.add_html_checkbox(
 	    top, "Underline anchors", underflag)
+
+	if self.ctype != "text/html":
+	    Frame(top, height=8).pack()
 
 	fr = Frame(top)
 	fr.pack(fill=X)
@@ -180,10 +183,11 @@ class PrintDialog:
 	self.check_command()
 	self.root.grab_set()
 
-    def add_checkbox(self, root, description, value):
+    def add_html_checkbox(self, root, description, value):
 	var = BooleanVar(root)
 	var.set(value)
-	Checkbutton(root, text=description, variable=var).pack(anchor=W)
+	if self.ctype == "text/html":
+	    Checkbutton(root, text=description, variable=var).pack(anchor=W)
 	return var
 
     def return_event(self, event):
