@@ -221,9 +221,9 @@ class HTMLParser(SGMLParser):
         if self.list_stack:
 	    [dummy, label, counter] = top = self.list_stack[-1]
 	    top[2] = counter = counter+1
+	    self.formatter.add_label_data(label, counter)
         else:
-	    label, counter = '*', 0
-        self.formatter.add_label_data(label, counter)
+	    self.formatter.add_flowing_data('* ')
 
     def start_ol(self, attrs):
         self.formatter.end_paragraph(not self.list_stack)

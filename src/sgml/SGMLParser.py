@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.6 $"
+__version__ = "$Revision: 1.7 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -43,6 +43,13 @@ class SGMLParser(SGMLLexer):
 	self.omittag = 1		# default to HTML style
 	self.stack = []
 	self.cdata = 0
+
+    def get_stack(self):
+	"""Return current context stack.
+
+	This allows tag implementations to examine their context.
+	"""
+	return tuple(self.stack)
 
     #  The following methods are the interface subclasses need to
     #  override to support any special handling of tags, data, or
