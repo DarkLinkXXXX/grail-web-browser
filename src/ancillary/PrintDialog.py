@@ -7,10 +7,11 @@ This displays a really basic modal dialog, containing:
 	  of a file containing the postscript output will be placed)
 	- a check box for printing to a file
 	- the filename (to receive the PostScript instead)
+	- some options for controlling the output
 	- an OK button
 	- a Cancel button
 
-The last state (print command, check box, filename) is saved in
+The last state (print command, check box, filename, options) is saved in
 globals  variables.
 
 The dialog is modal by virtue of grabbing the focus and running
@@ -21,14 +22,21 @@ the html2ps.PSWriter class is used to generate the PostScript.
 
 When Cancel is actiavted, the dialog state is still saved.
 
+The document to be printed is checked for its MIME type; if it isn't
+text/html but is text/*, text/plain is used as the handler.  If no type
+is known at all (possibly a disk file without a recognized extension),
+an intermediate dialog is used to inform the user that text/plain will
+be assumed, giving the option to cancel.
+
 """
 
 
-from Tkinter import *
 from Cursors import CURSOR_WAIT
+from Tkinter import *
 import os
-import string
 import Reader
+import string
+import tktools
 
 PRINT_PREFGROUP = 'printing'
 PRINTCMD = "lpr"			# Default print command
@@ -71,29 +79,91 @@ def update_options(prefs=None):
 	printcmd = PRINTCMD
 
 
-class PrintDialog:
+def PrintDialog(context, url, title):
+    try:
+	infp = context.app.open_url_simple(url)
+    except IOError, msg:
+	context.error_dialog(IOError, msg)
+	return
+    try:
+	ctype = infp.info()['content-type']
+    except KeyError:
+	MaybePrintDialog(context, url, title, infp)
+	return
 
-    def __init__(self, context, url, title):
-	try:
-	    self.infp = context.app.open_url_simple(url)
-	except IOError, msg:
-	    context.error_dialog(IOError, msg)
-	    return
-	try:
-	    self.ctype = self.infp.info()['content-type']
-	except KeyError:
-	    context.error_dialog("No type",
-			"Documents of unknown type cannot be printed.")
-	    return
+    if ";" in ctype:
+	pos = string.index(ctype, ";")
+	ctype, ctype_params = string.strip(ctype[:pos]), \
+			      string.strip(ctype[pos + 1:])
+    types = string.splitfields(ctype, '/')
+    if types and types[0] == 'text':
+	if types[1] != 'html':
+	    ctype = 'text/plain'
+    if ctype not in ('text/html', 'text/plain'):
+	context.error_dialog("Unprintable document",
+			     "This document cannot be printed.")
+	return
+    RealPrintDialog(context, url, title, infp, ctype)
 
-	types = string.splitfields(self.ctype, '/')
-	if types and types[0] == 'text':
-	    if types[1] != 'html':
-		self.ctype = 'text/plain'
-	if self.ctype not in ('text/html', 'text/plain'):
-	    context.error_dialog("Unprintable document",
-				 "This document cannot be printed.")
-	    return
+
+class MaybePrintDialog:
+
+
+    UNKNOWN_TYPE_MESSAGE = \
+"""No MIME type is known for this
+document.  It will be printed as
+plain text if you elect to continue."""
+
+    def __init__(self, context, url, title, infp):
+	self.__context = context
+	self.__url = url
+	self.__title = title
+	self.__infp = infp
+	top = self.__top = Toplevel(context.browser.root)
+	top.title("Print Action")
+	fr, topfr, botfr = tktools.make_double_frame(top)
+	Label(topfr, bitmap="warning", foreground='darkblue'
+	      ).pack(side=LEFT, fill=Y, padx='2m')
+	# font used by the Tk4 dialog.tcl script:
+	font = "-Adobe-Times-Medium-R-Normal--*-180-*-*-*-*-*-*"
+	try:
+	    label = Label(topfr, text=self.UNKNOWN_TYPE_MESSAGE,
+			  font=font, justify=LEFT)
+	except TclError:
+	    # font not found, use one we are sure exists:
+	    font = context.browser.viewer.text.tag_cget('h2_b', '-font')
+	    label = Label(topfr, text=self.UNKNOWN_TYPE_MESSAGE,
+			  font=font, justify=LEFT)
+	label.pack(side=RIGHT, fill=BOTH, expand=1, padx='1m')
+	b1 = Button(botfr, text="Cancel", command=self.skipit)
+	b1.pack(side=RIGHT)
+	b2 = Button(botfr, text="Print", command=self.doit)
+	b2.pack(side=LEFT)
+	tktools.unify_button_widths(b1, b2)
+	tktools.set_transient(top, context.browser.root)
+
+    def doit(self, event=None):
+	self.__top.destroy()
+	RealPrintDialog(self.__context,
+			self.__url,
+			self.__title,
+			self.__infp,
+			"text/plain")
+	self.__context = None
+	self.__infp = None
+
+    def skipit(self, event=None):
+	self.__context = None
+	self.__top.destroy()
+	self.__infp.close()
+	self.__infp = None
+
+
+class RealPrintDialog:
+
+    def __init__(self, context, url, title, infp, ctype):
+	self.infp = infp
+	self.ctype = ctype
 
 	global printcmd
 	self.context = context
