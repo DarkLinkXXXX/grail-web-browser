@@ -2,14 +2,14 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-# Character width information for PostScript font `Courier'
-# generated from the Adobe Font Metric file `com_____.afm'.  Adobe
+# Character width information for PostScript font `Courier Bold Oblique'
+# generated from the Adobe Font Metric file `cobo____.afm'.  Adobe
 # copyright notice follows:
 #
-# Copyright (c) 1989, 1990, 1991 Adobe Systems Incorporated. All rights reserved.
+# Copyright (c) 1989, 1990, 1991, Adobe Systems Incorporated. All rights reserved.
 #
 import PSFont
-font = PSFont.PSFont('Courier', 'Courier',
+font = PSFont.PSFont('Courier-BoldOblique', 'Courier Bold Oblique',
 [    0,    0,    0,    0,    0,    0,    0,    0,
      0,    0,    0,    0,    0,    0,    0,    0,
      0,    0,    0,    0,    0,    0,    0,    0,
