@@ -272,6 +272,8 @@ class Reader(BaseReader):
 	self.parser.feed(data)
 	self.viewer.freeze()
 
+	self.browser.page_is_good()
+
 	if hasattr(self.parser, 'title'):
 	    title = self.parser.title
 	    if title:

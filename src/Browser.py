@@ -73,6 +73,7 @@ class Browser:
 	self.readers = []
 	self._baseurl = ""
 	self._page = None
+	self._attemptedpage = (None, None) # (PageInfo object, new flag)
 	if hist: self.history = hist
 	else: self.history = History.History()
 	self.create_widgets(width=width, height=height, geometry=geometry)
@@ -315,13 +316,24 @@ class Browser:
 	    del self.forms
 
     def read_page(self, url, method, params, new, show_src, reload, data=None):
-	self.global_history.remember_url(url)
-	if not new: self._page = self.history.page()
-	else: self._page = History.PageInfo(url)
+	if not new:
+	    page = self.history.page()
+	else:
+	    page = History.PageInfo(url)
+	self._attemptedpage = page, new
 	Reader(self, url, method, params, new, show_src, reload, data,
-	       self._page.scrollpos())
-	if not new: self.history.refresh()
-	else: self.history.append_page(self._page)
+	       page.scrollpos())
+
+    def page_is_good(self):
+	page, new = self._attemptedpage
+	if page:
+	    self._page = page
+	    self._attemptedpage = (None, None)
+	    self.global_history.remember_url(page.url())
+	    if new:
+		self.history.append_page(page)
+	    else:
+		self.history.refresh()
 
     def load(self, url, method='GET', params={},
 	     new=1, show_source=0, reload=0):
@@ -408,7 +420,10 @@ class Browser:
 
     def set_url(self, url):
 	self._baseurl = url
-	self._page.set_url(url)
+	page, new = self._attemptedpage
+	if page:
+	    page.set_url(url)
+##	self._page.set_url(url)
 	self.set_entry(url)
 
     def clear_reset(self, url, new):
