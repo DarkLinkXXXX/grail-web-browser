@@ -5,7 +5,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.2 $'
+__version__ = '$Revision: 2.3 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import ni
@@ -131,8 +131,9 @@ class BaseApplication:
 	    handlers[(tag, device)] = (start, do, end)
 	from SGMLParser import TagInfo
 	for (tag, device), (start, do, end) in handlers.items():
-	    taginfo = TagInfo(tag, start, do, end)
-	    self.__taginfo[(tag, device)] = taginfo
+	    if start or do:
+		taginfo = TagInfo(tag, start, do, end)
+		self.__taginfo[(tag, device)] = taginfo
 
     __taginfo = {}
     def __get_taginfo(self, tag, device):
