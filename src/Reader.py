@@ -318,8 +318,8 @@ class Reader(BaseReader):
 class LoginDialog:
 
     def __init__(self, master, netloc, realmvalue):
-	self.root = Toplevel(master)
-	self.root.title("Authentication Dialog")
+	self.root = tktools.make_toplevel(master,
+					  title="Authentication Dialog")
 	self.prompt = Label(self.root,
 			    text="Enter user authentication\nfor %s on %s" %
 			    (realmvalue, netloc))
@@ -338,6 +338,8 @@ class LoginDialog:
 	self.cancel_button.pack(side=RIGHT)
 
 	self.user_passwd = None
+
+	tktools.set_transient(self.root, master)
 
 	self.root.grab_set()
 
