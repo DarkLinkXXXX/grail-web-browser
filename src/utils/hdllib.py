@@ -691,7 +691,8 @@ class HashTable:
 	    digest = md5.new(hdl).digest()
 	    u = xdrlib.Unpacker(digest)
 	    index = u.unpack_uint()
-	    index = int(index >> (32 - self.num_of_bits))
+	    index = (index&0xFFFFFFFFL) >> (32 - self.num_of_bits)
+	    index = int(index)
 	else:
 	    index = 0
 
