@@ -5,13 +5,16 @@ import os
 PRINTCMD = "lpr"
 
 printcmd = PRINTCMD
+printfile = ""
+fileflag = 0
 
 class PrintDialog:
 
-    def __init__(self, browser, url):
+    def __init__(self, browser, url, title):
 	self.browser = browser
-	self.master = self.browser.root
 	self.url = url
+	self.title = title
+	self.master = self.browser.root
 	self.root = Toplevel(self.master)
 	self.cmd_entry, dummyframe = tktools.make_form_entry(
 	    self.root, "Print command:")
@@ -22,14 +25,16 @@ class PrintDialog:
 	self.midframe.pack(side=TOP, fill=X)
 
 	self.checked = IntVar(self.root)
+	self.checked.set(fileflag)
 	self.file_check = Checkbutton(self.midframe,
 				      command=self.check_command,
 				      variable=self.checked)
 	self.file_check.pack(side=LEFT)
 	self.file_entry, dummyframe = tktools.make_form_entry(
 	    self.midframe, "Print to file:")
-	self.file_entry['state'] = DISABLED
 	self.file_entry.pack(side=RIGHT)
+	self.file_entry.delete('0', END)
+	self.file_entry.insert(END, printfile)
 
 	self.botframe = Frame(self.root)
 	self.botframe.pack(side=BOTTOM, fill=X)
@@ -43,7 +48,7 @@ class PrintDialog:
 
 	self.cmd_entry.bind('<Return>', self.return_event)
 	self.file_entry.bind('<Return>', self.return_event)
-	self.cmd_entry.focus_set()
+	self.check_command()
 
 	self.root.grab_set()
 
@@ -94,9 +99,26 @@ class PrintDialog:
 	self.goaway()
 
     def print_to_fp(self, fp):
-	self.browser.error_dialog("Sorry", "Printing will be supported soon")
+	from urllib import urlopen
+	from html2ps import PSWriter
+	from htmllib import HTMLParser
+	from formatter import AbstractFormatter
+	try:
+	    infp = urlopen(self.url)
+	except IOError, msg:
+	    self.browser.error_dialog(IOError, msg)
+	    return
+	w = PSWriter(fp, self.title)
+	f = AbstractFormatter(w)
+	p = HTMLParser(f)
+	p.feed(infp.read())
+	infp.close()
+	p.close()
+	w.close()
 
     def goaway(self):
-	global printcmd
+	global printcmd, printfile, fileflag
 	printcmd = self.cmd_entry.get()
+	printfile = self.file_entry.get()
+	fileflag = self.checked.get()
 	self.root.destroy()
