@@ -161,7 +161,7 @@ plain text if you elect to continue."""
 	top = self.__top = tktools.make_toplevel(context.browser.root)
 	top.title("Print Action")
 	fr, topfr, botfr = tktools.make_double_frame(top)
-	Label(topfr, bitmap="warning", foreground='darkblue'
+	Label(topfr, bitmap="warning", foreground='red'
 	      ).pack(side=LEFT, fill=Y, padx='2m')
 	# font used by the Tk4 dialog.tcl script:
 	font = "-Adobe-Times-Medium-R-Normal--*-180-*-*-*-*-*-*"
