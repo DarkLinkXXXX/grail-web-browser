@@ -125,9 +125,9 @@ class Viewer(formatter.AbstractWriter):
 	for tag, abovetag in stylesheet.priorities.items():
 	    self.text.tag_raise(tag, abovetag)
 	# These are used in aligning rules:
-	self.text.tag_config('ALIGN_LEFT', justify = 'left')
-	self.text.tag_config('ALIGN_RIGHT', justify = 'right')
-	self.text.tag_config('ALIGN_CENTER', justify = 'center')
+	self.text.tag_config('left', justify = 'left')
+	self.text.tag_config('right', justify = 'right')
+	self.text.tag_config('center', justify = 'center')
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level*40
@@ -330,7 +330,7 @@ class Viewer(formatter.AbstractWriter):
 	window._width = abswidth
 	window._percent = percentwidth
 	if align:
-	    align = "ALIGN_" + string.upper(align)
+	    align = string.lower(align)
 	    self.text.insert(END, "\240", align)
 	else:
 	    self.text.insert(END, "\240") # Non-breaking space

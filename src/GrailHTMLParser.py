@@ -369,6 +369,49 @@ class GrailHTMLParser(HTMLParser):
 	else:
 	    return default
 
+    # Heading support for dingbats (iconic entities):
+
+    def start_h1(self, attrs):
+	self.header_bgn('h1', attrs)
+
+    def start_h2(self, attrs):
+	self.header_bgn('h2', attrs)
+
+    def start_h3(self, attrs):
+	self.header_bgn('h3', attrs)
+
+    def start_h4(self, attrs):
+	self.header_bgn('h4', attrs)
+
+    def start_h5(self, attrs):
+	self.header_bgn('h5', attrs)
+
+    def start_h6(self, attrs):
+	self.header_bgn('h6', attrs)
+
+    def header_bgn(self, tag, attrs):
+	self.close_paragraph()
+        self.formatter.end_paragraph(1)
+        self.formatter.push_font((tag, 0, 1, 0))
+	align = self.extract_keyword('align', attrs, conv=string.lower)
+	self.formatter_stack[-1].push_style(align)
+	dingbat = self.extract_keyword('dingbat', attrs)
+	if dingbat:
+	    self.unknown_entityref(dingbat)
+	    self.handle_data(' ')
+	    self.formatter.assert_line_data(0)
+	if attrs.has_key('src'):
+	    self.do_img(attrs)
+	    self.handle_data(' ')
+	    self.formatter.assert_line_data(0)
+
+    def header_end(self):
+        self.formatter.end_paragraph(1)
+	self.formatter.pop_style()
+        self.formatter.pop_font()
+
+    end_h1 = end_h2 = end_h3 = end_h4 = end_h5 = end_h6 = header_end
+
     # Handle HTML extensions
 
     def unknown_starttag(self, tag, attrs):
@@ -391,7 +434,7 @@ class GrailHTMLParser(HTMLParser):
 	if function:
 	    function(self)
 
-    # Handle proposed iconic entities (see W3C working drafts):
+    # Handle proposed iconic entities (see W3C working drafts or HTML 3):
 
     entityimages = {}
 
@@ -399,17 +442,19 @@ class GrailHTMLParser(HTMLParser):
 	try:
 	    img = self.entityimages[entname]
 	except KeyError:
-	    gifname = entname + '.gif'
-	    for p in self.iconpath:
-		p = os.path.join(p, gifname)
-		if os.path.exists(p):
-		    img = PhotoImage(file=p)
-		    self.entityimages[entname] = img
-		    w = Label(self.viewer.text, image = img)
-		    self.add_subwindow(w)
-		    return
-	    self.entityimages[entname] = None
-	    self.handle_data('&%s;' % entname)
+	    pass
 	else:
 	    if img:
 		self.add_subwindow(Label(self.viewer.text, image = img))
+	    return
+	gifname = entname + '.gif'
+	for p in self.iconpath:
+	    p = os.path.join(p, gifname)
+	    if os.path.exists(p):
+		img = PhotoImage(file=p)
+		self.entityimages[entname] = img
+		w = Label(self.viewer.text, image = img)
+		self.add_subwindow(w)
+		return
+	self.entityimages[entname] = None
+	self.handle_data('&%s;' % entname)
