@@ -46,6 +46,7 @@ class BaseReader:
 	# Stuff for status reporting
 	self.nbytes = 0
 	self.maxbytes = 0
+	self.message = "waiting for metadata"
 	self.shorturl = ""
 
 	self.context.addreader(self)
@@ -62,6 +63,8 @@ class BaseReader:
 	    percent = self.nbytes*100/self.maxbytes
 	    status = "%d%% of %s read" % (percent,
 					  grailutil.nicebytes(self.maxbytes))
+	elif not self.nbytes:
+	    status = self.message
 	else:
 	    status = "%s read" % grailutil.nicebytes(self.nbytes)
 	if self.api.iscached():
@@ -136,12 +139,12 @@ class BaseReader:
 	self.callback()			# Call via function pointer
 
     def checkmeta(self):
-	message, ready = self.api.pollmeta()
+	self.message, ready = self.api.pollmeta()
 	if ready:
 	    self.getapimeta()
 
     def checkdata(self):
-	message, ready = self.api.polldata()
+	self.message, ready = self.api.polldata()
 	if ready:
 	    self.getapidata()
 
