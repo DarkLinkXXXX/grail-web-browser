@@ -1125,8 +1125,18 @@ class Scale(Widget):
 class Scrollbar(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
 		Widget.__init__(self, master, 'scrollbar', cnf, kw)
+	def activate(self, index):
+		self.tk.call(self._w, 'activate', index)
+	def delta(self, deltax, deltay):
+		return self.getdouble(self.tk.call(
+			self._w, 'delta', deltax, deltay))
+	def fraction(self, x, y):
+		return self.getdouble(self.tk.call(
+			self._w, 'fraction', x, y))
+	def identify(self, x, y):
+		return self.tk.call(self._w, 'identify', x, y)
 	def get(self):
-		return self._getints(self.tk.call(self._w, 'get'))
+		return self._getdoubles(self.tk.call(self._w, 'get'))
 	def set(self, *args):
 		apply(self.tk.call, (self._w, 'set')+args)
 
