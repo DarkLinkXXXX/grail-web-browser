@@ -191,13 +191,9 @@ class PILAsyncImageSupport(BaseAsyncImage):
     __height = 0
 
     def __init__(self, context, url, reload=0, width=None, height=None, **kw):
-	#
-	# Fake out the ImageTk.PhotoImage.__init__() since we don't have
-	# the needed info yet:
-	#
+	import ImageTk
 	self.setup(context, url, reload)
-	self.image = TkPhotoImage()
-	self._PhotoImage__photo = self.image
+	ImageTk.PhotoImage.__init__(self, "RGB", (width or 1, height or 1))
 	# Make sure these are integers
 	self.__width = width or 0
 	self.__height = height or 0
@@ -256,9 +252,7 @@ class PILAsyncImageSupport(BaseAsyncImage):
 	    w, h = real_size
 	    if w != self.__width or h != self.__height:
 		im = im.resize((self.__width, self.__height))
-	self._PhotoImage__mode = im.mode
-	if im.mode not in ('1', 'L'):
-	    self._PhotoImage__mode = 'RGB'
+	# This appears to be absolutely necessary, but I'm not sure why....
 	self._PhotoImage__size = im.size
 	self.paste(im)
 	w, h = im.size
