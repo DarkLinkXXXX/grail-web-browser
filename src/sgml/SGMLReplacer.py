@@ -1,14 +1,15 @@
 """Simple parser that handles only what's allowed in attribute values.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 #  $Source: /home/john/Code/grail/src/sgml/SGMLReplacer.py,v $
 
 
-import SGMLLexer
 import string
+from SGMLLexer import *
 
 
-class SGMLReplacer(SGMLLexer.SGMLLexer):
+
+class SGMLReplacer(SGMLLexer):
     """Simple lexer for interpreting entity references in attribute values.
 
     Given an attribute from a start tag, passing it through a descendent
@@ -29,34 +30,52 @@ class SGMLReplacer(SGMLLexer.SGMLLexer):
 	    self.entitydefs = entities
 
     def getvalue(self):
-	self.feed('')
+	self.close()
 	return _normalize_whitespace(self._data, self._white)
 
-    def got_stag(self, name, attributes):
+    def lex_starttag(self, name, attributes):
 	raise SGMLError, 'tags in attribute values are illegal'
 
-    got_etag = got_stag
+    def lex_endtag(self, name):
+	raise SGMLError, 'tags in attribute values are illegal'
 
-    def handle_data(self, str):
+    def lex_charref(self, ordinal):
+	if 0 < ordinal < 256:
+	    self._data = self._data + chr(ordinal)
+	else:
+	    self.unknown_charref(ordinal)
+
+    def lex_data(self, str):
 	self._data = self._data + str
 
-    def handle_entityref(self, name):
+    def lex_entityref(self, name):
 	if self.entitydefs.has_key(name):
 	    self._data = self._data + self.entitydefs[name]
 	else:
 	    self.unknown_entityref(name)
 
-    def aux(self, *notused):
-	raise SGMLError, 'markup declarations in attribute values are illegal'
+    named_characters = {'re' : '\r',
+			'rs' : '\n',
+			'space' : ' '}
 
-    def unknown_entityref(self, *notused):
-	pass
+    def lex_namedcharref(self, name):
+	if self.named_characters.has_key(name):
+	    self._data = self._data + self.named_characters[name]
+	else:
+	    self.unknown_namedcharref(name)
 
-    def unknown_namedcharref(self, *notused):
-	pass
+    def lex_pi(self, pi):
+	# Should never be called, but let's make sure we're ok:
+	self._data = '%s%s%s%s' % (self._data, PIO, pi, PIC)
 
-    def unknown_charref(self, *notused):
-	pass
+    def unknown_entityref(self, name):
+	self._data = '%s%s%s%s' % (self._data, ERO, name, REFC)
+
+    def unknown_namedcharref(self, name):
+	self._data = '%s%s%s%s' % (self._data, CRO, name, REFC)
+
+    def unknown_charref(self, ordinal):
+	self._data = '%s%s%s%s' % (self._data, CRO, `ordinal`, REFC)
 
 
 def replace(data, entities = None):

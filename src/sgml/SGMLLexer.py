@@ -1,10 +1,36 @@
-# $Id: SGMLLexer.py,v 1.2 1996/03/15 19:34:37 fdrake Exp $
-"""A lexer, parser for SGML, using the derived class as static DTD.
+# $Id: SGMLLexer.py,v 1.3 1996/03/15 21:15:58 fdrake Exp $
+"""A lexer for SGML, using derived classes as parser and DTD.
 
 This only supports those SGML features used by HTML.
 See W3C tech report: 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
+__version__ = "$Revision: 1.3 $"
+# $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
+
+
+#  These constants are not used in this module, but are provided to
+#  allow other modules to know about the concrete syntax we support.
+
+COM = "--"				# comment start or end
+CRO = "&#"				# character reference open
+REFC = ";"				# reference close
+DSO = "["				# declaration subset open
+DSC = "]"				# declaration subset close
+ERO = "&"				# entity reference open
+LIT = '"'				# literal start or end
+LITA = "'"				# literal start or end (alternative)
+MDO = "<!"				# markup declaration open
+MDC = ">"				# markup declaration close
+MSC = "]]"				# marked section close
+PIO = "<?"				# processing instruciton open
+PIC = ">"				# processing instruction close
+STAGO = "<"				# start tag open
+ETAGO = "</"				# end tag open
+TAGC = ">"				# tag close
+VI = "="				# value indicator
+
+
 # XXX There should be a way to distinguish between PCDATA (parsed
 # character data -- the normal case), RCDATA (replaceable character
 # data -- only char and entity references and end tags are special)
