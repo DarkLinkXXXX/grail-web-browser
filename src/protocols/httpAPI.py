@@ -25,6 +25,8 @@ import __main__
 import select
 import regex
 import StringIO
+import socket
+import sys
 
 
 # Search for blank line following HTTP headers
@@ -68,7 +70,11 @@ class MyHTTP(httplib.HTTP):
 	if self.file:
 	    self.file.close()
 	if self.sock:
-	    self.sock.close()
+	    try:
+		self.sock.close()
+	    except socket.error:
+		# What can you do? :-)
+		pass
 	self.file = None
 	self.sock = None
 
@@ -118,32 +124,42 @@ class http_access:
 	    self.h.close()
 	self.h = None
 
-    def pollmeta(self):
+    def pollmeta(self, timeout=0):
 	assert(self.stage == META)
 	sock = self.h.sock
-	if not select.select([sock.fileno()], [], [], 0)[0]:
-	    return "waiting for metadata", 0
-	new = sock.recv(1024)
+	try:
+	    if not select.select([sock.fileno()], [], [], timeout)[0]:
+		return "waiting for server response", 0
+	except select.error, msg:
+	    raise IOError, msg, sys.exc_traceback
+	try:
+	    new = sock.recv(1024)
+	except socket.error, msg:
+	    raise IOError, msg, sys.exc_traceback
 	if not new:
-	    return "EOF in metadata", 1
+	    return "EOF in server response", 1
 	self.readahead = self.readahead + new
 	if '\n' not in new:
-	    return "receiving metadata", 0
+	    return "receiving server response", 0
 	if not self.line1seen:
 	    i = string.find(self.readahead, '\n')
 	    if i < 0:
-		return "receiving metadata", 0
+		return "receiving server response", 0
 	    self.line1seen = 1
 	    line = self.readahead[:i+1]
 	    if replyprog.match(line) < 0:
-		return "received non-HTTP metadata", 1
+		return "received non-HTTP/1.0 server response", 1
 	i = endofheaders.search(self.readahead)
 	if i >= 0:
-	    return "received metadata", 1
-	return "receiving metadata", 0
+	    return "received server response", 1
+	return "receiving server response", 0
 
     def getmeta(self):
 	assert(self.stage == META)
+	if not self.readahead:
+	    x, y = self.pollmeta(None)
+	    while not y:
+		x, y = self.pollmeta(None)
 	file = StringIO.StringIO(self.readahead)
 	errcode, errmsg, headers = self.h.getreply(file)
 	self.stage = DATA
@@ -153,17 +169,20 @@ class http_access:
     def polldata(self):
 	assert(self.stage == DATA)
 	if self.readahead:
-	    return "reading readahead data", 1
+	    return "processing readahead data", 1
 	return ("waiting for data",
 		len(select.select([self.fileno()], [], [], 0)[0]))
 
     def getdata(self, maxbytes):
 	assert(self.stage == DATA)
 	if self.readahead:
-	    data = self.readahead
-	    self.readahead = None
+	    data = self.readahead[:maxbytes]
+	    self.readahead = self.readahead[maxbytes:]
 	    return data
-	data = self.h.sock.recv(maxbytes)
+	try:
+	    data = self.h.sock.recv(maxbytes)
+	except socket.error, msg:
+	    raise IOError, msg, sys.exc_traceback
 	if not data:
 	    self.stage = DONE
 	    self.close()
