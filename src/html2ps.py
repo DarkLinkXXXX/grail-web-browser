@@ -6,14 +6,21 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.1 1995/09/11 14:26:12 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.2 1995/09/12 18:54:58 bwarsaw Exp $"
 
+import sys
 import string
 import StringIO
 import regsub
 from formatter import *
 
-RECT_DEBUG = 0
+RECT_DEBUG = 1
+DEBUG = 1
+
+def _debug(text):
+    if DEBUG:
+	sys.stderr.write(text)
+	sys.stderr.flush()
 
 
 
@@ -86,6 +93,30 @@ fill_hfm(['|'], 3.15)
 #	raise KeyError, c
 font_metrics['Helvetica'] = helv_charmap
 
+# some of the Helvetica Bold characters are a bit wider than their
+# non-bold parallels.
+helv_bold_charmap = {}
+for c in helv_charmap.keys():
+    helv_bold_charmap[c] = helv_charmap[c]
+
+def fill_hbfm(clist, psz):
+    for c in clist: helv_bold_charmap[c] = psz
+
+fill_hbfm(['!', ':', ';', '[', ']', 'f', 't'], 4.05)
+fill_hbfm(['"'], 5.7375)
+fill_hbfm(['&', 'A', 'B', 'K'], 8.775)
+fill_hbfm(["'", '`', 'i', 'j', 'l'], 3.375)
+fill_hbfm(['?', 'L', 'b', 'd', 'g', 'h', 'n', 'o', 'p', 'q', 'u'], 7.425)
+fill_hbfm(['@'], 11.7)
+fill_hbfm(['J', 'c', 'k', 's', 'v', 'x', 'y'], 6.75)
+fill_hbfm(['^'], 7.0875)
+fill_hbfm(['m'], 10.8)
+fill_hbfm(['r', '{', '}'], 4.725)
+fill_hbfm(['w'], 9.45)
+fill_hbfm(['|'], 3.4875)
+
+font_metrics['Helvetica-Bold'] = helv_bold_charmap
+
 
 font_sizes = {
     'h1': 36,
@@ -96,6 +127,11 @@ font_sizes = {
     'h6': 10
     }
 
+
+ruler = [1, 16, 8, 16, 4, 16, 8, 16, 2, 16, 8, 16, 4, 16, 8, 16]
+ruler = map(lambda(x): 72.0/(x*2.0), ruler)
+
+
 # contants
 PS_HEADER_FILE = 'header.ps'
 ISO_LATIN1_FILE = 'latin1.ps'
@@ -128,6 +164,7 @@ QUOTE_re = '\\(%c\\|%c\\|%s\\)' % (L_PAREN, R_PAREN, B_SLASH)
 
 MAX_ASCII = '\177'
 
+
 
 class PSFont:
     """Manages fonts and associated metrics for PostScript output."""
@@ -135,7 +172,7 @@ class PSFont:
 	# current font is a tuple of size, family, italic, bold
 	self.vfamily = varifamily
 	self.ffamily = fixedfamily
-	self.current_font = (12, 'FONTV', '', '')
+	self.font = (12, 'FONTV', '', '')
 	# TBD: this number is slightly bogus, but the rational is
 	# thus.  The original code was tied fairly closely with X so
 	# it had to map screen resolutions to PostScript.  I don't
@@ -155,10 +192,17 @@ class PSFont:
 	if not vrealname: vrealname = self.vfamily
 	if not frealname: frealname = self.ffamily
 	# gather appropriate metrics
-	try: vmetrics = font_metrics[vrealname]
-	except KeyError: vmetrics = font_metrics['Helvetica']
 	try: fmetrics = font_metrics[frealname]
 	except KeyError: fmetrics = font_metrics['Courier']
+
+	if vbold:
+	    vmetricname = vrealname + '-Bold'
+	    if not font_metrics.has_key(vmetricname):
+		vmetricname = 'Helvetica-Bold'
+	    vmetrics = font_metrics[vmetricname]
+	else:
+	    try: vmetrics = font_metrics[vrealname]
+	    except KeyError: vmetrics = font_metrics['Helvetica']
 	self.metrics = (vmetrics, fmetrics)
 	# calculate font names in PostScript space. Eight fonts are
 	# used, naming scheme is as follows.  All PostScript font
@@ -177,10 +221,7 @@ class PSFont:
 	    'FONTFBI': '%s-%s%s' % (frealname, fbold, fitalic)
 	    }
 	# set the default font
-	self.font = (12, '', '', '')
 	self.set_font((12, 'FONTV', '', ''))
-	# this is probably pretty useful! :-)
-	self.space_width = self.text_width(' ')
 
     def set_font(self, font_tuple):
 	"""Set the current font to that specified by FONT_TUPLE, which is
@@ -220,6 +261,8 @@ class PSFont:
 
 	# set the font
 	font = '%s%s%s' % (new_family, new_bold, new_italic)
+	# set the width of a space, an oft used `constant'
+	self.space_width = self.text_width(' ')
 	return (font, new_sz)
 
     def text_width(self, text):
@@ -231,10 +274,14 @@ class PSFont:
 	else:
 	    pointlen = 0.0
 	    for c in text: pointlen = pointlen + self.metric[c]
-	    return pointlen * self.font[0] / 12.0
+	    cooked = pointlen * self.font_size() / 12.0
+#	    _debug('%20s: raw= %f, cooked= %f\n' %
+#		   (text, pointlen, cooked))
+#           return pointlen * self.font[0] / 12.0
+	    return cooked
 
     def font_size(self):
-	return self.current_font[0]
+	return self.font[0]
 
 
 
@@ -252,6 +299,7 @@ class PSBuffer:
 	self.font = PSFont(varifamily, fixedfamily)
 	# line output buffering
 	self.lbuffer = StringIO.StringIO()
+	self.lwidth = 0.0
 	self.tallest = self.font.font_size()
 
     def flush(self):
@@ -259,8 +307,8 @@ class PSBuffer:
 	if self.lbuffer.tell() > 0:
 	    self.lbuffer.seek(0)
 	    self.obuffer.write(self.lbuffer.read())
-	    self.lbuffer.close()
-	    self.lbuffer = StringIO.StringIO()
+	    self.lbuffer = sys.stdout = StringIO.StringIO()
+	    self.lwidth = 0.0
 
     def set_font(self, font_tuple):
 	"""Change local font to that specified by FONT_TUPLE, where
@@ -275,47 +323,54 @@ class PSBuffer:
 	finally:
 	    sys.stdout = oldstdout
 
-    def _moveto(self, x, y):
-	"""Move to position X, Y, possibly page breaking if necessary."""
-	if x is None: x = self.current_pos[0]
-	if y is None: y = self.current_pos[1]
-	# watch out for page breaks.  TBD: probably not the best place
-	# to put this...
-	if y < -PAGE_HEIGHT:
-	    self._page_break()
-	else:
-	    self.current_pos = (x, y)
-	    oldstdout = sys.stdout
-	    try:
-		sys.stdout = self.obuffer
-		print x, y, "M"
-	    finally: sys.stdout = oldstdout
+    def x(self): return self.current_pos[0]
+    def y(self): return self.current_pos[1]
 
-    def _line_break(self):
-	# slightly larger than the tallest character on the line
+    def _moveto(self, x, y):
+	"""Move PostScripts current position to (X, Y).  No checking is
+	made for that position being visible, nor is page or line breaking
+	performed.  If X or Y is None, then the current position is
+	substituted for that parameter.  The PostScript commands are not
+	buffered.
+	"""
+	if x is None: x = self.x()
+	if y is None: y = self.y()
+	self.current_pos = (x, y)
+	oldstdout = sys.stdout
+	try:
+	    sys.stdout = self.obuffer
+	    print x, y, "M"
+	finally: sys.stdout = oldstdout
+
+    def _line_break(self, trailer_p=None):
+	"""Issue a PostScript line break, flushing the current line
+	buffer if necessary, and issuing page break instructions if
+	necessary.
+	"""
 	vert_space = self.tallest * 1.1
-	self.moveto(0, self.current_pos[1] - vert_space)
+	if self.y() - vert_space < -PAGE_HEIGHT:
+	    self._page_break(trailer_p)
+	self._moveto(0, self.y() - vert_space)
 	self.flush()
 	self.tallest = self.font.font_size()
 
     def _page_break(self, trailer_p=None):
-	self.flush()
 	oldstdout = sys.stdout
 	try:
 	    sys.stdout = self.obuffer
-	    print 0, -PAGE_HEIGHT - 12, "M save"
+	    print 'save', 0, -PAGE_HEIGHT - 12, "M"
 	    print "FONTVI 12 SF"
-	    print "(Page", self.current_page, ") S"
-	    print "restore"
+	    print "(Page", self.current_page, ") S restore"
 	    self.showpage()
 	    if not trailer_p: self.newpage()
 	finally:
 	    sys.stdout = oldstdout
+	self._moveto(0, 0)
 
     def showpage(self):
 	"""Show the current page and restore any changes to the printer
 	state."""
-	self.obuffer.write("showpage restore\n")
+	self.obuffer.write("showpage\n")
 
     def newpage(self):
 	"""Increment the page count and handle the structured comment
@@ -334,34 +389,39 @@ class PSBuffer:
 		print PAGE_WIDTH, 0, "RL"
 		print 0, -PAGE_HEIGHT, "RL"
 		print -PAGE_WIDTH, 0, "RL closepath stroke newpath"
-	    self.moveto(0, 0)
+	    self._moveto(0, 0)
 	finally:
 	    sys.stdout = oldstdout
 	# restore the font
 	self.set_font( (None, None, None, None) )
-	self._line_break()
 
-    def _raw_write(self, text, draw_cmd='S'):
-	"""Writes the TEXT to PostScript.  Handles PostScript quoting
-	of special characters and ISO encodings, but it does not check
-	for whether the text actually fits on the current line, nor
-	does it handle updating the current PostScript position.
+    def _raw_write(self, word, draw_cmd='S'):
+	"""Writes WORD to output buffer sys.stdout.  Handles PostScript
+	quoting and ISO encodings.  Also handles line breaking when current
+	buffered line exceeds page width.
 	"""
+	# calculate line widths
+	wwidth = self.font.text_width(word)
 	# handle quoted characters
-	text = regsub.gsub(QUOTE_re, '\\\\\\1', text)
+	word = regsub.gsub(QUOTE_re, '\\\\\\1', word)
 	# TBD: handle ISO encodings
 	pass
-	# now output the text
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.obuffer
-	    # Note: and/or trick for for ?: constructs
-	    print "(%s)" % text, draw_cmd
-	finally:
-	    sys.stdout = oldstdout
+	# break the line if necessary
+	if self.x() + wwidth + self.lwidth > PAGE_WIDTH:
+	    self._line_break()
+	# now write out the word and trailing space, then re-adjust
+	# the buffered line length
+	print '(%s ) %s' % (word, draw_cmd)
+	self.lwidth = self.lwidth + wwidth + self.font.space_width
 
     def write_text(self, text, underline_p=None):
-	"""Writes a flow of text, which will be rendered in a single style."""
+	"""Writes a flow of words to the PostScript output buffer.  The
+	text written will be rendered in the same style.  Note that
+	output is buffered until the line width is filled.  This facilitates
+	horizontal as well as vertical positioning of the line.  Hard
+	newlines in the text are translated to line breaks, flushing the
+	buffer.
+	"""
 	# note the and/or trick for C's equivalent ?: constructs
 	draw_cmd = underline_p and 'U' or 'S'
 	# start splitting the text up until it fits on the current
@@ -369,32 +429,19 @@ class PSBuffer:
 	# already been normalized.  CR/NL's have been collapsed so
 	# they are only there if really desired -- we'll put in hard
 	# newlines.
-	first_line = 1
-	for line in string.splitfields(text, '\n'):
-	    # add hard newlines
-	    if not first_line: self._line_break()
-	    else: first_line = None
-	    # buffer each line of output
-	    buffer = ''
-	    buffer_width = 0.0
-	    for word in string.splitfields(line, ' '):
-		ww = self.font.text_width(word)
-		# possibly break the line
-		if self.current_pos[0] + buffer_width + ww > PAGE_WIDTH:
-		    self._raw_write(buffer)
-		    self._line_break()
-		    buffer = ''
-		    buffer_width = 0.0
-		# append the current word to the buffer, but don't
-		# write single spaces at the start of a line
-		if word == '' and self.current_pos[0] <= 0:
-		    continue
-		buffer = buffer + word + ' '
-		buffer_width = buffer_width + ww + self.font.space_width
-	    # write the last contents of the buffer
-	    if buffer:
-		self._raw_write(buffer)
-		self.moveto(self.current_pos[0] + buffer_width, None)
+	oldstdout = sys.stdout
+	try:
+	    linecnt = 0
+	    sys.stdout = self.lbuffer
+	    for line in string.splitfields(text, '\n'):
+		# buffer each line of output
+		for word in string.splitfields(line, ' '):
+		    self._raw_write(word)
+		# add hard newlines
+		if linecnt > 0: self._line_break()
+		linecnt = linecnt + 1
+	finally:
+	    sys.stdout = oldstdout
 
     def file_to_buffer(self, filename):
 	fp = open(filename, 'r')
@@ -434,7 +481,7 @@ class PSBuffer:
 	    sys.stdout = oldstdout
 	    
     def trailer(self):
-	self._page_break(1)
+	self._line_break(1)
 	oldstdout = sys.stdout
 	try:
 	    sys.stdout = self.obuffer
@@ -444,6 +491,20 @@ class PSBuffer:
 	finally:
 	    sys.stdout = oldstdout
 
+    def ruler(self):
+	self._line_break()
+	oldstdout = sys.stdout
+	try:
+	    sys.stdout = self.obuffer
+	    print "gsave", 0, self.y(), "M"
+	    print PAGE_WIDTH, 0, "RL stroke"
+	    for p in range(0, 72 * PAGE_WIDTH, 4.5):
+		print p, self.y(), "M"
+		ll = ruler[int((p%72) / 4.5)]
+		print 0, ll, "RL stroke"
+	    print "grestore"
+	finally:
+	    sys.stdout = oldstdout
 
 
 
@@ -483,42 +544,67 @@ class PSWriter(AbstractWriter):
 
 
 
-def test():
-    import sys
-    ps = PSBuffer(sys.stdout)
-    try: title = sys.argv[1]
+def test_args():
+    # set the output file
+    try:
+	filename = sys.argv[1]
+	ofile = open(filename, 'w')
+	ps = PSBuffer(ofile)
+    except:
+	ps = PSBuffer(sys.stdout)
+
+    try: title = sys.argv[2]
     except IndexError: title = None
     ps.header(title)
+    return ps
+
+def test():
+    ps = test_args()
     ps.newpage()
     ps.set_font((12, 0, 0, 1))
-    ps.write_text('Here is a fairly long line of text in fixed width ')
-    ps.write_text('roman font, 12 point size.  Now changing to ')
+    ps.write_text('Here is a fairly long line of text in fixed width')
+    ps.write_text('roman font, 12 point size.  Before I change to a different')
+    ps.write_text('font, I would like to say something... "something".')
+    ps.write_text('Now changing to')
     ps.set_font((18, 0, 0, 1))
-    ps.write_text('18 point font size, but keeping the rest of the ')
-    ps.write_text('characteristics supercalifragilistically the same. ')
-    ps.write_text('Astonishingly enough, ')
-    ps.write_text('I will now change to ')
+    ps.write_text('18 point font size, but')
+    ps.write_text('supercalifragilistic-expiallidocious-anti-disestablishment')
+    ps.write_text('keeping the rest of the')
+    ps.write_text('characteristics')
+    ps.write_text('the same.')
+    ps.write_text('Astonishingly enough,')
+    ps.write_text('I will now change to')
     ps.set_font((24, 1, 1, 0))
-    ps.write_text('24 point, variable width bold italic font, ')
-    ps.write_text('and is it not compelling how beautiful even ')
+    ps.write_text('24 point, variable width bold italic font,')
+    ps.write_text('and is it not compelling how beautiful even')
+    ps.write_text('this obliquely slantified font appears to the naked eye?')
+    ps.write_text('Why should it look the same as')
     ps.set_font((12, 0, 1, 0))
-    ps.write_text('twelve point italic font looks?\n\n' )
-    ps.write_text('Now that I have started a ')
+    ps.write_text('twelve point bold, non-italic (or is that,')
+    ps.write_text('non-oblique) font looks?\n\n')
+    ps.write_text('Now that I have started a')
+    ps.write_text('new paragraph, although not, of course, a new page')
+    ps.write_text('I would like to (say) `speak\' a few things that //I//')
+    ps.write_text('normally wouldn\'t have been able to.  Although now I am')
+    ps.write_text('not starting a')
     ps.set_font((10, 1, 0, 0))
-    ps.write_text('new paragraph, I am beginning a different look ')
-    ps.write_text('to the text that I will be spewing out.  Gosh is this ')
-    ps.write_text('not super hip?  I sure think it is, so who cares ')
-    ps.write_text('what you think, eh? ')
-    ps.showpage()
+    ps.write_text('new paragraph, I am beginning a different look')
+    ps.write_text('to the text that I will be spewing out.  Gosh is this')
+    ps.write_text('not super hip?  I sure think it is, so who cares')
+    ps.write_text('what you think, eh?')
+    ps.write_text('I would actually like to know because, dang it, I am')
+    ps.write_text('really friggin close to finishing at least preliminary')
+    ps.write_text('PostScript support.  Once the formatting rules are done')
+    ps.write_text('then I can begin mapping this stuff to the API required')
+    ps.write_text('by Grail.  By and by, it all looks pretty good, however')
+    ps.write_text('it does appear as if the smaller than twelve point text,')
+    ps.write_text('i.e. the 10 point text you are now looking at,')
+    ps.write_text('is not quite calculated correctly... hmmm!')
     ps.trailer()
     
 
 def metrics_test_1():
-    import sys
-    ps = PSBuffer(sys.stdout)
-    try: title = sys.argv[1]
-    except IndexError: title = None
-    ps.header(title)
+    ps = test_args()
     ps.newpage()
 
     # spew some stuff for metrics
@@ -549,21 +635,33 @@ def metrics_test_1():
 
 
 def metrics_test_2():
-    import sys
-    ps = PSBuffer(sys.stdout)
-    try: title = sys.argv[1]
-    except IndexError: title = None
-    ps.header(title)
+    ps = test_args()
     ps.newpage()
 
-    ps.set_font((12, 0, 0, 0))
     for c in range(32, 127):
-	text = '|' + chr(c) * 40 + '|'
-	ps.write_text(text)
-	ps.line_break()
+	for bold in [0, 1]:
+	    for italic in [0, 1]:
+		ps.set_font((12, bold, italic, 0))
+		text = '|' + chr(c) * 40 + '|\n'
+		ps.write_text(text)
 
     ps.trailer()
 
+
+def metrics_test_3():
+    ps = test_args()
+    ps.newpage()
+    for c in range(32, 127):
+	for s in [8, 10, 12, 14, 18, 24]:
+	    ps.set_font((s, 0, 0, 0))
+	    text = '|' + chr(c) * 10 + '|\n'
+	    ps.write_text(text)
+	    ps.ruler()
 
+    ps.trailer()
+	    
+
+
 if __name__ == '__main__':
-    test()
+    metrics_test_3()
+    #test()
