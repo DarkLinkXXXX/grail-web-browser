@@ -7,6 +7,15 @@ import string
 from types import *
 from Tkinter import *
 
+def _clear_entry_widget(event=None):
+    try:
+	widget = event.widget
+	widget.delete(0, INSERT)
+    except: pass
+def install_keybindings():
+    from __main__ import app
+    app.root.bind_class('Entry', '<Control-u>', _clear_entry_widget)
+
 
 def make_text_box(parent, width=0, height=0, hbar=0, vbar=1):
 
