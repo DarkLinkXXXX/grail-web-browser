@@ -1,7 +1,7 @@
 """Several useful routines that isolate some of the weirdness of Grail-based
 applications.
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
 import os
 
@@ -76,3 +76,22 @@ def establish_dir(dir):
         return 1
     except os.error:
         return 0
+
+
+def conv_mimetype(type):
+    """Convert MIME media type specifications to tuples of
+    ('type/subtype', {'option': 'value'}).
+    """
+    if not type:
+        return None, {}
+    if ';' in type:
+        i = _string.index(type, ';')
+        opts = _parse_mimetypeoptions(type[i + 1:])
+        type = type[:i]
+    else:
+        opts = {}
+    fields = _string.split(_string.lower(type), '/')
+    if len(fields) != 2:
+        raise ValueError, "Illegal media type specification."
+    type = _string.join(fields, '/')
+    return type, opts
