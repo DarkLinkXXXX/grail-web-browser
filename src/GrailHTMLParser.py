@@ -29,7 +29,7 @@ class GrailHTMLParser(HTMLParser):
     insert_aware_tags = ['param', 'alias', 'applet']
     iconpath = ()
 
-    def __init__(self, viewer, reload=0, iconpath=()):
+    def __init__(self, viewer, reload=0, iconpath=(), autonumber=None):
 	if iconpath:
 	    self.iconpath = iconpath
 	self.viewer = viewer
@@ -44,10 +44,11 @@ class GrailHTMLParser(HTMLParser):
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
-	self.headernumber = HeaderNumber()
-	self.autonumber = self.app.prefs.GetBoolean('parsing-html',
-						    'autonumber-headers')
-	HTMLParser.__init__(self, self.formatter_stack[-1])
+	if autonumber is None:
+	    if self.app.prefs.GetBoolean('parsing-html', 'autonumber-headers'):
+		self.autonumber = 1
+	HTMLParser.__init__(self, self.formatter_stack[-1],
+			    autonumber=autonumber)
 	# Hackery so reload status can be reset when all applets are loaded
 	self.reload1 = self.reload and AppletLoader.set_reload(self.context)
 	if self.reload1:
@@ -421,33 +422,13 @@ class GrailHTMLParser(HTMLParser):
 
     # Heading support for dingbats (iconic entities):
 
-    def start_h1(self, attrs):
-	self.header_bgn('h1', 0, attrs)
-
-    def start_h2(self, attrs):
-	self.header_bgn('h2', 1, attrs)
-
-    def start_h3(self, attrs):
-	self.header_bgn('h3', 2, attrs)
-
-    def start_h4(self, attrs):
-	self.header_bgn('h4', 3, attrs)
-
-    def start_h5(self, attrs):
-	self.header_bgn('h5', 4, attrs)
-
-    def start_h6(self, attrs):
-	self.header_bgn('h6', 5, attrs)
-
     def header_bgn(self, tag, level, attrs):
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
 	align = self.extract_keyword('align', attrs, conv=string.lower)
 	self.formatter.push_style(align)
         self.formatter.push_font((tag, 0, 1, 0))
-	if self.autonumber:
-	    self.headernumber.incr(level, attrs)
-	    self.formatter.add_flowing_data(self.headernumber.string(level))
+	self.header_number(tag, level, attrs)
 	dingbat = self.extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
@@ -458,12 +439,10 @@ class GrailHTMLParser(HTMLParser):
 	    self.formatter.send_flowing_data(' ')
 	    self.formatter.assert_line_data(0)
 
-    def header_end(self):
+    def header_end(self, tag, level):
 	self.formatter.pop_style()
         self.formatter.pop_font()
         self.formatter.end_paragraph(1)
-
-    end_h1 = end_h2 = end_h3 = end_h4 = end_h5 = end_h6 = header_end
 
     # List attribute extensions:
 
@@ -539,45 +518,4 @@ class GrailHTMLParser(HTMLParser):
 				     borderwidth = 0))
 	else:
 	    HTMLParser.unknown_entityref(self, entname, terminator)
-
-
-
-class HeaderNumber:
-    def __init__(self):
-	self.numbers = [0, 0, 0, 0, 0, 0]
-	self.formats = ['',
-			'%(h2)d ',
-			'%(h2)d.%(h3)d ',
-			'%(h2)d.%(h3)d.%(h4)d ',
-			'%(h2)d.%(h3)d.%(h4)d.%(h5)d ',
-			'%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d ']
-
-    def incr(self, level, attrs):
-	numbers = self.numbers
-	i = level
-	while i < 5:
-	    i = i + 1
-	    numbers[i] = 0
-	if attrs.has_key('skip'):
-	    try: skip = string.atoi(attrs['skip'])
-	    except: skip = 0
-	else:
-	    skip = 0
-	if attrs.has_key('seqnum'):
-	    try: numbers[level] = string.atoi(attrs['seqnum'])
-	    except: pass
-	    else: return
-	numbers[level] = numbers[level] + 1 + skip
-
-    def string(self, level, format = None):
-	if format is None:
-	    format = self.formats[level]
-	numbers = self.numbers
-	numdict = {'h1': numbers[0],
-		   'h2': numbers[1],
-		   'h3': numbers[2],
-		   'h4': numbers[3],
-		   'h5': numbers[4],
-		   'h6': numbers[5]}
-	return format % numdict
 
