@@ -124,7 +124,9 @@ class Context:
 
 	"""
 	if url and histify:
-	    self.app.global_history.remember_url(url)
+	    # don't lose title if we have one:
+	    title, when = self.app.global_history.lookup_url(url)
+	    self.app.global_history.remember_url(url, title or '')
 	    if not self.page:
 		self.page = History.PageInfo(url)
 		self.history.append_page(self.page)
@@ -293,6 +295,9 @@ class Context:
 	    print "ERROR:", msg
 
     def set_title(self, title):
+	if not title:
+	    title, when = self.app.global_history.lookup_url(self._url)
+	    title = title or ''
 	self.app.global_history.remember_url(self._url, title)
 	if self.on_top():
 	    self.browser.set_title(title)
@@ -339,7 +344,12 @@ class Context:
     # Navigation/history commands
 
     def go_back(self, event=None):
-	self.load_from_history(self.history.peek(-1))
+	if not self.load_from_history(self.history.peek(-1)):
+	    if self.viewer.parent:
+		# go out one level:
+		self.viewer.parent.context.go_back(event)
+	    else:
+		self.root.bell()
 
     def go_forward(self, event=None):
 	self.load_from_history(self.history.peek(+1))
@@ -349,8 +359,7 @@ class Context:
 
     def load_from_history(self, (future, page), reload=0):
 	if not page:
-	    self.root.bell()
-	    return
+	    return 0
 	self.future = future
 	if not reload:
 	    self.follow(page.url(), histify=0, scrollpos=page.scrollpos(),
@@ -358,6 +367,7 @@ class Context:
 	else:
 	    self.load(page.url(), reload=reload, scrollpos=page.scrollpos(),
 		      target="_self")
+	return 1
 
     def show_history_dialog(self):
 	if not self.history_dialog:
@@ -412,16 +422,20 @@ class Context:
 	fd = FileDialog.SaveFileDialog(self.root)
 	# give it a default filename on which save within the
 	# current directory
-	urlasfile = string.splitfields(url, '/')
-	default = urlasfile[-1]
-	# strip trailing query
-	i = string.find(default, '?')
-	if i > 0: default = default[:i]
-	# strip trailing fragment
-	i = string.rfind(default, '#')
-	if i > 0: default = default[:i]
-	# maybe bogus assumption?
-	if not default: default = 'index.html'
+	import urllib
+	if urllib.splittype(url)[0] == "data":
+	    default = ""
+	else:
+	    urlasfile = string.splitfields(url, '/')
+	    default = urlasfile[-1]
+	    # strip trailing query
+	    i = string.find(default, '?')
+	    if i > 0: default = default[:i]
+	    # strip trailing fragment
+	    i = string.rfind(default, '#')
+	    if i > 0: default = default[:i]
+	    # maybe bogus assumption?
+	    if not default: default = 'index.html'
 	file = fd.go(default=default, key="save")
 	if not file: return 0
 	#
@@ -583,7 +597,11 @@ class Context:
 	return self._url
 
     def get_title(self):
-	return self.page and self.page.title() or self.get_url()
+	url = self.get_url()
+	title, when = self.app.global_history.lookup_url(url)
+	if not title:
+	    title = self.page and self.page.title() or url
+	return title
 
 
 
@@ -613,4 +631,11 @@ class SavingReader(Reader.Reader):
 	except IOError, msg:
 	    self.context.error_dialog(IOError, msg)
 	    return
+	#
+	# add to history without destroying any title already known:
+	#
+	history = grailutil.get_grailapp().global_history
+	title, when = history.lookup_url(self.url)
+	history.remember_url(self.url, title or '')
+	#
 	Reader.TransferDisplay(self.last_context, self.__filename, self)
