@@ -1,6 +1,6 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.3 $"
+__version__ = "$Revision: 1.4 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the panel:
@@ -19,15 +19,31 @@ class StylePanel(PrefsPanels.Framework):
 
     def CreateLayout(self, name, frame):
 
-	choices = self.app.prefs.Get('styles', 'allgroups')
+	style_sizes = string.split(self.app.prefs.Get('styles',
+						      'all-sizes'))
+	style_types = string.split(self.app.prefs.Get('styles',
+						      'all-types'))
 
-	# XxX PRELIMINARY, just to show it works!
-	# Style group will use a radiobutton, and we will have selections
-	# for the common styles, like color, underline, etc.
+	self.PrefsRadioButtons(frame, "Font size group:", style_sizes,
+			       'styles', 'size')
+	self.PrefsRadioButtons(frame, "Font Type:", style_types,
+			       'styles', 'type')
+	# Anchors:
+	self.anchor_style_item(Frame(frame), "Fresh",
+			       'styles-a-foreground', 'styles-a-underline')
 
-	self.PrefsEntry(frame,
-			("Default style\n** %s **:\n(%s)" %
-			 (choices, "i know, it should\nbe a radiobutton")),
-			'styles', 'group', entry_width=15)
+	frame.pack()
 
+    def anchor_style_item(self, frame, which, fore_cmpnt, under_cmpnt):
+	f = Frame(frame)
+	self.PrefsWidgetLabel(f, "%s anchor style:" % which)
+	wf = Frame(f, relief=SUNKEN, bd=2)
+	fore_msg = "Foreground color" 
+	self.PrefsEntry(wf, fore_msg,
+			'styles-common', fore_cmpnt,
+			label_width=len(fore_msg) + 2, entry_width=9)
+	under_msg = "Underline"
+	self.PrefsCheckButton(wf, None, under_msg,
+			      'styles-common', under_cmpnt)
+	f.pack(fill=X, side=TOP, pady='1m')
 	frame.pack()
