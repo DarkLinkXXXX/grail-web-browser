@@ -2,14 +2,14 @@
 
 XXX To do
 
-- probably need an interface to get the raw CacheItem instead of the
-  CacheAPI instance, for the history list (which wants stuff cached
+- probably need an interface to get the raw SharedItem instead of the
+  SharedAPI instance, for the history list (which wants stuff cached
   even if the cache decides against it)
 """
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
-CacheItemExpired = 'CacheItem Expired'
+SharedItemExpired = 'SharedItem Expired'
 
 from assert import assert
 import os
@@ -17,7 +17,7 @@ import protocols
 import time
 import copy
 
-class CacheItem:
+class SharedItem:
 
     """A shareable cache item.
 
@@ -25,7 +25,7 @@ class CacheItem:
     getdata() takes an offset argument, and the sequencing
     restrictions are lifted (i.e. you can call anything in any order).
 
-    A CacheItem hides all protocol access from the rest of the
+    A SharedItem hides all protocol access from the rest of the
     system. The reset() method actually calls on the protocol to
     retrieve an object.
 
@@ -35,38 +35,55 @@ class CacheItem:
     """
 
     def __init__(self, url, mode, params, cache, key, data=None,
-		 api=None, last_load=None):  
+		 api=None, reload=None, refresh=None):  
 	self.refcnt = 0
+
+	# store the arguments 
 	self.url = url
 	self.mode = mode
 	self.params = params
 	self.key = key
 	self.postdata = data
-	self.reloading = 0
 	self.cache = cache
 
-	if api:
-	    # loading from the cache
-	    self.api = api
-	    self.meta = api.getmeta()
-	    self.stage = self.api.stage
-	    self.data = []
-	    self.datalen = 0
-	    self.datamap = {}
-	    self.complete = 0
-	    self.incache = 1
-	    if last_load:
-		self.refresh(last_load)
-	else:
-	    # The following two are changed by reset()
+	# status
+	self.reloading = 0
+	self.data = []
+	self.datalen = 0
+	self.datamap = {}
+	self.complete = 0
+
+	# initialize in one of four states
+	# some variables may be initialized in reset or refresh
+
+	if reload:               ## forced reload
 	    self.api = None
 	    self.stage = DONE
-	    self.stored = None  # not used for anything?
 	    self.incache = 0
 	    self.reset()
 
+	elif refresh:            ## check freshness
+	    self.cache_api = api
+	    self.cache_meta = api.getmeta()
+	    self.cache_stage = api.state
+	    self.incache = 1
+	    self.refresh(refresh)
+
+	elif api == None:        ## a POST
+	    self.incache = 0
+	    self.reset()
+
+	else:                    ## read from cache
+	    # loading from the cache
+	    self.api = api
+	    self.meta = api.getmeta()
+	    self.stage = self.api.state
+
+	    # status
+	    self.incache = 1
+
     def __repr__(self):
-	return "CacheItem(%s)<%d>" % (`self.url`, self.refcnt)
+	return "SharedItem(%s)<%d>" % (`self.url`, self.refcnt)
 
     def iscached(self):
 	return self.incache and not self.reloading
@@ -90,57 +107,6 @@ class CacheItem:
 	   and (self.meta and self.meta[0] == 200):
 	    self.cache.add(self,self.reloading)
 	    self.incache = 1
-
-    def reset(self,reload=0):
-	# possible pathes through here:
-	# if item gets created without api = disk_cache_access,
-	#     then we get called with reload = 0
-	# if item needs to be refreshed or is manually reloaded,
-	#     then we get called with reload = 1
-	if self.incache == 0: 
-	    if self.stage != DONE:
-		return
-	    assert(self.api is None)
-	self.api = protocols.protocol_access(self.url,
-					     self.mode, self.params,
-					     data=self.postdata)
-	self.init_new_load(META)
-	self.reloading = reload
-
-    def init_new_load(self,stage):
-	self.meta = None
-	self.data = []
-	self.datalen = 0
-	self.datamap = {}
-	self.stage = stage
-	self.complete = 0
-
-    def refresh(self,when):
-	params = copy.copy(self.params)
-	params['If-Modified-Since'] = when.get_str()
-	api = protocols.protocol_access(self.url,
-					self.mode, params,
-					data=self.postdata)
-	errcode, errmsg, headers = api.getmeta()
-	### which errcode should I try to handle
-	if errcode == 304:
-	    # we win! it hasn't been modified
-	    # but we probably need to delete the api object
-	    api.close()
-	    pass
-	elif errcode == 200:
-	    self.api = api
-	    self.init_new_load(self.stage)
-	    self.meta = (errcode, errmsg, headers)
-	    self.reloading = 1
-	else:
-	    # there may be cases when we get an error response that
-	    # doesn't require us to delete the object (a server busy
-	    # response?). those are *not* handled.
-	    self.api = api
-	    self.init_new_load(self.stage)
-	    self.meta = (errcode, errmsg, headers)
-	    self.reloading = 1
 
     def pollmeta(self):
 	if self.stage == META:
@@ -179,8 +145,9 @@ class CacheItem:
 		self.complete = 1
 	    else:
 		l = len(buf)
-		if l > maxbytes:  # we got more than we wanted,
-		                  # so split into two strings (avoid search)
+		if l > maxbytes:
+		    # we got more than we wanted,
+		    # so split into two strings (avoid search next time)
 		    self.data.append(buf[:maxbytes])
 		    self.datamap[offset] = len(self.data) - 1
 		    self.data.append(buf[maxbytes:])
@@ -188,7 +155,14 @@ class CacheItem:
 		else:
 		    self.data.append(buf)
 		    self.datamap[offset] = len(self.data) - 1
-		    self.datalen = self.datalen + len(buf)
+		self.datalen = self.datalen + l
+
+	if self.datamap.has_key(offset):
+	    showoffset = self.datamap[offset]
+	else:
+	    showoffset = -1
+	print "getdata(%05d,%05d) -> datalen = %05d, id = %03d" \
+	      % (offset, maxbytes, self.datalen, showoffset)
 
 	try:
 	    # the common case
@@ -203,23 +177,9 @@ class CacheItem:
 		self.stage = DATA
 	    elif self.complete == 1 and offset >= self.datalen:
 		return ''
-	    chunk_key = _getdata_search_string_list(offset)
+	    chunk_key, delta = self._getdata_search_string_list(offset)
 	    chunk = self.data[self.datamap[chunk_key]]
 	    return chunk[delta:]
-
-    def _getdata_search_string_list(self, offset):
-	### WARNING: this lookup is costly, please avoid
-	###          cost is O(k), where k is # of chunks
-	###          if you use this a lot, you'll get O(N^2) reads
-	delta = offset
-	chunk_key = None
-	for chunk_offset in self.datamap.keys():
-	    if offset > chunk_offset:
-		diff = offset - chunk_offset
-		if diff <= delta:
-		    delta = diff
-		    chunk_key = chunk_offset
-	return chunk_key
 
     def fileno(self):
 	if self.api:
@@ -241,16 +201,77 @@ class CacheItem:
 	if api:
 	    api.close()
 
+    def _getdata_search_string_list(self, offset):
+	### WARNING: this lookup is costly, please avoid
+	###          cost is O(k), where k is # of chunks
+	###          if you use this a lot, you'll get O(N^2) reads
+	delta = offset
+	chunk_key = None
+	for chunk_offset in self.datamap.keys():
+	    if offset > chunk_offset:
+		diff = offset - chunk_offset
+		if diff <= delta:
+		    delta = diff
+		    chunk_key = chunk_offset
+	return chunk_key, delta
 
-class CacheAPI:
+    def reset(self,reload=0):
+	self.reloading = reload
+	self.api = protocols.protocol_access(self.url,
+					     self.mode, self.params,
+					     data=self.postdata)
+	self.stage = self.api.state
+	self.init_new_load(META)
 
-    """A thin interface to allow multiple threads to share a CacheItem.
+    def init_new_load(self,stage):
+	self.meta = None
+	self.data = []
+	self.datalen = 0
+	self.datamap = {}
+	self.stage = stage
+	self.complete = 0
+
+    def refresh(self,when):
+	params = copy.copy(self.params)
+	params['If-Modified-Since'] = when.get_str()
+	self.api = protocols.protocol_access(self.url,
+					     self.mode, params,
+					     data=self.postdata)
+	self.stage = self.api.state
+	self.hidden_getmeta = self.getmeta
+	self.getmeta = self.refresh_getmeta
+
+    def refresh_getmeta(self):
+	self.meta = self.api.getmeta()
+	### which errcode should I try to handle
+	if self.meta[0] == 304:
+	    # we win! it hasn't been modified
+	    # but we probably need to delete the api object
+	    self.api.close()
+	    self.api = self.cache_api
+	    self.meta = self.api.getmeta()
+	#elif errcode == 200:
+	    # there may be cases when we get an error response that
+	    # doesn't require us to delete the object (a server busy
+	    # response?). those are *not* handled.
+	else:
+	    # forget about the cached stuff
+	    self.cache_api.close()
+	    self.reloading = 1
+
+	self.getmeta = self.hidden_getmeta
+	self.stage = DATA
+	return self.meta
+
+class SharedAPI:
+
+    """A thin interface to allow multiple threads to share a SharedItem.
 
     This has the same API as whatever protocol.protocol_access()
     returns.
     
-    If the last CacheAPI is closed before the CacheItem has finished
-    reading the data, the CacheItem removes itself from the Cache.
+    If the last SharedAPI is closed before the SharedItem has finished
+    reading the data, the SharedItem removes itself from the Cache.
 
     """
 
@@ -265,7 +286,7 @@ class CacheAPI:
 	return self.item and self.item.iscached()
 
     def __repr__(self):
-	return "CacheAPI(%s)" % self.item
+	return "SharedAPI(%s)" % self.item
 
     def __del__(self):
 	self.close()
@@ -287,6 +308,7 @@ class CacheAPI:
     def getdata(self, maxbytes):
 	assert(self.stage == DATA)
 	data = self.item.getdata(self.offset, maxbytes)
+	print "api(%05d) @ %05d. got %05d bytes" % (maxbytes, self.offset, len(data))
 	self.offset = self.offset + len(data)
 	if not data:
 	    self.close()

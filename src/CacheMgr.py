@@ -1,4 +1,4 @@
-from Cache import CacheItem, CacheAPI
+from Cache import SharedItem, SharedAPI
 from assert import assert
 import urlparse
 import string
@@ -33,8 +33,8 @@ class CacheManager:
 
     active = {}: contains an entry for each URL that is open in a
     browser window. this is the shared object list. if there is a
-    request for an active page, a second CacheAPI for the same object
-    is returned. the list stores CacheItems, which contain a reference
+    request for an active page, a second SharedAPI for the same object
+    is returned. the list stores SharedItems, which contain a reference
     count; when that cound reaches zero, it removes itself from the
     list. 
 
@@ -131,7 +131,7 @@ class CacheManager:
 	    if self.active.has_key(key):
 		if reload:
 		    self.active[key].reset()
-		return CacheAPI(self.active[key])
+		return SharedAPI(self.active[key])
 	    return self.open_get(key, url, mode, params, reload, data)
 	elif mode == 'POST':
 	    return self.open_post(key, url, mode, params, reload, data)
@@ -142,14 +142,14 @@ class CacheManager:
 	Performs several steps:
 	1. Check for the URL in the cache.
 	2. If it is in the cache,
-	      1. Create a CacheItem for it.
+	      1. Create a SharedItem for it.
 	      2. Reload the cached copy if reload flag is on.
 	      3. Refresh the page if the freshness test fails.
 	   If it isn't in the cache,
-	      1. Create a CacheItem (which will create a CacheEntry 
+	      1. Create a SharedItem (which will create a CacheEntry 
    	      after the page has been loaded.)
 	3. call activate(), which adds the URL to the shared object
-	list and creates a CacheAPI for the item
+	list and creates a SharedAPI for the item
 	"""
 
 	try:
@@ -159,34 +159,37 @@ class CacheManager:
 	    api = None
 	if api:
 	    # creating reference to cached item
-	    item = CacheItem(url, mode, params, self, key, data, api)
 	    if reload:
-		item.reset(reload)
+		item = SharedItem(url, mode, params, self, key, data, api,
+				 reload=reload)
 		self.touch(key)
 	    elif not self.fresh_p(key):
-		# is this direct reference to the headers dangerous?
-		item.refresh(self.items[key].lastmod)
+		item = SharedItem(url, mode, params, self, key, data, api,
+				 refresh=self.items[key].lastmod)
 		self.touch(key,refresh=1)
+	    else:
+		item = SharedItem(url, mode, params, self, key, data, api)
+		
 	else:
 	    # cause item to be loaded (and perhaps cached)
-	    item = CacheItem(url, mode, params, self, key, data)
+	    item = SharedItem(url, mode, params, self, key, data)
 
 	return self.activate(item)
 
     def open_post(self, key, url, mode, params, reload, data):
 	"""Open a URL with a POST request. Do not cache."""
 	key = self.url2key(url, mode, params)
-	return self.activate(CacheItem(url, mode, params, None, key,
+	return self.activate(SharedItem(url, mode, params, None, key,
 				       data))
 
     def activate(self,item):
-	"""Adds a CacheItem to the shared object list and returns CacheAPI.
+	"""Adds a SharedItem to the shared object list and returns SharedAPI.
 	"""
 	self.active[item.key] = item
-	return CacheAPI(self.active[item.key])
+	return SharedAPI(self.active[item.key])
 
     def deactivate(self,key):
-	"""Removes a CacheItem from the shared object list."""
+	"""Removes a SharedItem from the shared object list."""
 	if self.active.has_key(key):
 	    del self.active[key]
 
@@ -436,7 +439,7 @@ class DiskCacheEntry:
 	Calls cache.get() to update the LRU information.
 
 	Also checks to see if a page with an explicit Expire date has
-	expired; raises a CacheItemExpired if it has.
+	expired; raises a CacheReadFaile if it has.
 	"""
 	if self.expires:
 	    if self.expires and self.expires.get_secs() < time.time():
@@ -595,6 +598,7 @@ class DiskCache:
 	    self.log.close()
 	try:
 	    newpath = os.path.join(self.directory, 'CHECKPOINT')
+	    
 	    newlog = open(newpath, 'w')
 	    newlog.write('3 ' + self.log_version + '\n')
 	    for key in self.use_order:
@@ -854,7 +858,7 @@ class disk_cache_access:
 	    print "io error opening %s: %s" % (filename, err)
 	    # propogate error through
 	    raise IOError, err
-	self.stage = DATA
+	self.state = DATA
 
     def pollmeta(self):
 	return "Ready", 1
