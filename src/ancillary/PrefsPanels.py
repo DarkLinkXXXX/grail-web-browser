@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.13 $"
+__version__ = "$Revision: 2.14 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -17,6 +17,7 @@ if __name__ == "__main__":
 import GrailPrefs
 from GrailPrefs import typify
 
+import urlparse
 from Tkinter import *
 import tktools
 import grailutil
@@ -63,10 +64,15 @@ class Framework:
     Your panel will be included in the Preferences menu bar pulldown, and
     will be posted when its entry is selected."""
 
+    # Override this with the URL for the panel-specific help (which you
+    # must write, or your panel will have only the general help!)
+    HELP_URL = "help/prefs/index.html"
+
     def __init__(self, name, app):
 	"""Invoke from category-specific __init__."""
 	self.collection = {}
 	self.app = app
+	self.helpbrowser = None
 	self.frame = app.root
 	self.name = name
 	self.title = self.name + ' Preferences'
@@ -114,6 +120,7 @@ class Framework:
 	return label
 
     def PrefsEntry(self, parent, label, group, component,
+		   typename='string',
 		   label_width=25, entry_height=1, entry_width=None,
 		   composite=0):
 	"""Convenience for creating preferences entry or text widget.
@@ -134,13 +141,18 @@ class Framework:
 	    use_expand = 1
 	    use_fill = X
 	    use_side = TOP
-	    entry_width = 40
+	    if not entry_width:
+		entry_width = 40
+	    use_bd = 0
+	    use_relief = FLAT
 	else:
 	    use_expand = 0
 	    use_fill = NONE
 	    use_side = LEFT
+	    use_bd = 1
+	    use_relief = SUNKEN
 	# Assemble the widget:
-	frame = Frame(parent)
+	frame = Frame(parent, bd=use_bd, relief=use_relief)
 	self.PrefsWidgetLabel(frame, label, label_width=label_width)
 	if entry_height == 1:
 	    entry = Entry(frame, relief=SUNKEN, border=2, width=entry_width)
@@ -160,8 +172,33 @@ class Framework:
 	frame.pack(fill=use_fill, side=use_side, expand=use_expand)
 	parent.pack(fill=use_fill, side=use_side)
 	# Couple the entry with the pref:
-	self.RegisterUI(group, component, 'string', getter, setter)
+	self.RegisterUI(group, component, typename, getter, setter)
 	return frame
+
+    def PrefsRadioButtons(self, frame, title, button_labels,
+			  group, component, typename='string',
+			  label_width=25):
+	"""Convenience for creating radiobutton preferences widget.
+
+	A label and a button are packed in 'frame' arg, using 'title'.
+	List of button_labels is taken for the labels and values for the
+	radiobutton list.
+
+	Optional label_width specifies the left-side space alloted for the
+	widget title."""
+
+	f = Frame(frame)
+	var = StringVar()
+	self.PrefsWidgetLabel(f, title, label_width=label_width)
+
+	for bl in button_labels:
+	    b = Radiobutton(f, text=bl, variable=var, value=bl,
+			    relief=SUNKEN)
+	    b.pack(side=LEFT)
+
+	f.pack(fill=X, side=TOP, pady='1m')
+
+	self.RegisterUI(group, component, typename, var.get, var.set)
 
     def PrefsCheckButton(self, frame, general, specific, group, component,
 			 label_width=25):
@@ -171,13 +208,25 @@ class Framework:
 	'general' arg for title and of 'specific' arg for button label.
 	The preferences variable is specified by 'group' and 'component'
 	args, and an optional 'label_width' arg specifies how much space
-	should be assigned to the general-label side of the thing."""
+	should be assigned to the general-label side of the thing.
+
+	If the general-lable is None, then the check button is taken as a
+	composite."""
+
 	f = Frame(frame)
+
 	var = StringVar()
-	self.PrefsWidgetLabel(f, general, label_width=label_width)
+
+	if general:
+	    self.PrefsWidgetLabel(f, general, label_width=label_width)
 	cb = Checkbutton(f, text=specific, relief='ridge', bd=1, variable=var)
 	cb.pack(side=LEFT)
-	f.pack(fill=X, side=TOP, pady='1m')
+	if not general:
+	    use_side, use_fill, use_bd = LEFT, NONE, 1
+	else:
+	    use_side, use_fill, use_bd = TOP, X, 0
+	f.pack(fill=use_fill, side=use_side, pady='1m')
+
 	self.RegisterUI(group, component, 'Boolean', var.get, var.set)
 
     def widget_set_func(self, widget):
@@ -241,6 +290,7 @@ class Framework:
 	barbottom = Frame(bar)
 	barbottom.pack(side=BOTTOM)
 	done_btn = Button(bartop, text="OK", command=self.done_cmd)
+	help_btn = Button(bartop, text="Help", command=self.help_cmd)
 	cancel_btn = Button(bartop, text="Cancel", command=self.cancel_cmd)
 	self.apply_btn = Button(barbottom, text="Apply",
 				command=self.apply_cmd)
@@ -249,15 +299,19 @@ class Framework:
 	self.factory_defaults_btn = Button(barbottom,
 					   command=self.factory_defaults_cmd,
 					   text="Factory Defaults")
-	done_btn.pack(side='left')
-	self.apply_btn.pack(side='left')
-	self.revert_btn.pack(side='right')
-	self.factory_defaults_btn.pack(side='right')
-	cancel_btn.pack(side='right')
+	done_btn.pack(side=LEFT, anchor=CENTER)
+	# Can't just use anchor=CENTER to get help button centered - it'll
+	# go to the TOP, above OK and Cancel buttons.  Expanding without
+	# filling does what we want.
+	help_btn.pack(expand=1, side=LEFT)
+	self.apply_btn.pack(side=LEFT)
+	self.revert_btn.pack(side=RIGHT)
+	self.factory_defaults_btn.pack(side=RIGHT)
+	cancel_btn.pack(side=RIGHT, anchor=CENTER)
 
-	bartop.pack(fill='both')
-	barbottom.pack(fill='both')
-	bar.pack(fill='both', side=BOTTOM)
+	bartop.pack(fill=BOTH)
+	barbottom.pack(fill=BOTH)
+	bar.pack(fill=BOTH, side=BOTTOM)
 
     # Operational commands:
     def set_widgets(self, factory=0):
@@ -277,6 +331,20 @@ class Framework:
 	"""Conclude panel: commit and withdraw it."""
 	self.apply_cmd(close=1)
 
+    def help_cmd(self, event=None):
+	"""Dispatch browser on self.help_url."""
+	if not self.app.browsers:
+	    print "No browser left to dislay help."
+	    return
+	browser = self.helpbrowser
+	if not browser or not browser.valid():
+	    import Browser
+	    browser = Browser.Browser(self.app.root, self.app)
+	    self.helpbrowser = browser
+	grailhome = self.app.prefs.Get('landmarks', 'grail-home-page')
+	browser.context.load(urlparse.urljoin(grailhome, self.HELP_URL))
+	browser.root.tkraise()
+
     def apply_cmd(self, event=None, close=0):
 	"""Apply settings from panel to preferences."""
 	self.widget.update_idletasks()
@@ -286,10 +354,11 @@ class Framework:
 	try:
 	    for (g, c), (type_nm, uiget, uiset) in self.collection.items():
 		val = uiget()
-		if type(val) == StringType:
-			val = typify(val, type_nm)
+		if (type(val) == StringType) and (type_nm != 'string'):
+		    val = typify(val, type_nm)
 		prefsset(g, c, val)
 	except TypeError, ValueError:
+	    print 'got a type error'
 	    # Reject the value registered in the UI, notify, and fail save:
 	    e, v, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
 	    self.app.root.report_callback_exception(e, v, tb)
@@ -473,6 +542,7 @@ def standalone():
     class fake_browser:
 	def __init__(self, root):
 	    self.app = self
+	    self.app.browsers = []
 	    self.prefs = GrailPrefs.AllPreferences()
 	    self.root = root
 	    root.report_callback_exception = self.report_callback_exception
