@@ -211,6 +211,7 @@ class Application:
 	self.root.report_callback_exception = self.report_callback_exception
 	self.keep_alive()
 	self.browsers = []
+	self.iostatuspanel = None
 
     def register_on_exit(self, method):
 	self.on_exit_methods.append(method)
@@ -229,6 +230,13 @@ class Application:
 
     def quit(self):
 	self.root.destroy()
+
+    def open_io_status_panel(self):
+	if not self.iostatuspanel:
+	    import IOStatusPanel
+	    self.iostatuspanel = IOStatusPanel.IOStatusPanel(self)
+	else:
+	    self.iostatuspanel.reopen()
 
     def maybe_quit(self):
 	if not self.root.children:
