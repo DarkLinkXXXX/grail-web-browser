@@ -169,13 +169,16 @@ class Viewer(formatter.AbstractWriter):
 	self.configure_tags(self.stylesheet)
 
     def configure_tags(self, stylesheet):
-	self.text.config(stylesheet.default)
-	for tag, cnf in stylesheet.styles.items():
-	    self.text.tag_config(tag, cnf)
-	for tag, cnf in stylesheet.history.items():
-	    self.text.tag_config(tag, cnf)
-	for tag, abovetag in stylesheet.priorities.items():
-	    self.text.tag_raise(tag, abovetag)
+	# Self.text would be gone if the viewer was dismissed, in which
+	# case we need do no work:
+	if self.text:
+	    self.text.config(stylesheet.default)
+	    for tag, cnf in stylesheet.styles.items():
+		self.text.tag_config(tag, cnf)
+	    for tag, cnf in stylesheet.history.items():
+		self.text.tag_config(tag, cnf)
+	    for tag, abovetag in stylesheet.priorities.items():
+		self.text.tag_raise(tag, abovetag)
 
     def configure_tags_fixed(self):
 	# These are used in aligning block-level elements:
