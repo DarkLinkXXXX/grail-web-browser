@@ -380,27 +380,27 @@ class Application:
 	    self.exception_dialog("while importing %s" % module)
 	    return None
 
-    def exception_dialog(self, message=""):
+    def exception_dialog(self, message="", root=None):
 	exc, val, tb = sys.exc_type, sys.exc_value, sys.exc_traceback
-	self.exc_dialog(message, exc, val, tb)
+	self.exc_dialog(message, exc, val, tb, root)
 
-    def report_callback_exception(self, exc, val, tb):
-	self.exc_dialog("in a callback function", exc, val, tb)
+    def report_callback_exception(self, exc, val, tb, root=None):
+	self.exc_dialog("in a callback function", exc, val, tb, root)
 
-    def exc_dialog(self, message, exc, val, tb):
-	def f(s=self, m=message, e=exc, v=val, t=tb):
-	    s._exc_dialog(m, e, v, t)
+    def exc_dialog(self, message, exc, val, tb, root=None):
+	def f(s=self, m=message, e=exc, v=val, t=tb, root=root):
+	    s._exc_dialog(m, e, v, t, root)
 	if TkVersion >= 4.1:
 	    self.root.after_idle(f)
 	else:
 	    self.root.after(0, f)
 
-    def _exc_dialog(self, message, exc, val, tb):
+    def _exc_dialog(self, message, exc, val, tb, root=None):
 	# XXX This needn't be a modal dialog --
 	# XXX should SafeDialog be changed to support callbacks?
 	msg = "An exception occurred " + str(message) + " :\n"
 	msg = msg + str(exc) + " : " + str(val)
-	dlg = SafeDialog.Dialog(self.root,
+	dlg = SafeDialog.Dialog(root or self.root,
 				text=msg,
 				title="Python Exception: " + str(exc),
 				bitmap='error',
