@@ -43,9 +43,6 @@ import TbDialog
 if 0:
     import dummies
 import GlobalHistory
-from GrailHTMLParser import GrailHTMLParser
-
-GrailHTMLParser.iconpath = [os.path.join(grail_root, 'icons')]
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
@@ -210,8 +207,7 @@ class Application:
 	self.login_cache = {}
 	self.rexec_cache = {}
 	self.graildir = grailutil.getgraildir()
-	GrailHTMLParser.iconpath.insert(0, os.path.join(self.graildir,
-							'icons'))
+	self.iconpath.insert(0, os.path.join(self.graildir, 'icons'))
 	self.url_cache = CacheManager(self)
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
@@ -452,6 +448,20 @@ class Application:
 		      default=0,
 		      strings=('OK',),
 		      )
+
+    dingbatimages = {}
+    iconpath = [os.path.join(grail_root, 'icons')]
+
+    def load_dingbat(self, entname):
+	if self.dingbatimages.has_key(entname):
+	    return self.dingbatimages[entname]
+	gifname = grailutil.which(entname + '.gif', self.iconpath)
+	if gifname:
+	    img = PhotoImage(file=gifname)
+	    self.dingbatimages[entname] = img
+	    return img
+	self.dingbatimages[entname] = None
+	return None
 
     def guess_type(self, url):
 	"""Guess the type of a file based on its URL.
