@@ -186,8 +186,8 @@ class Application:
     def set_cached_image(self, url, image):
 	self.image_cache[url] = image
 
-    def open_url(self, url, method, params, reload=0):
-	return self.url_cache.open(url, method, params, reload)
+    def open_url(self, url, method, params, reload=0, data=None):
+	return self.url_cache.open(url, method, params, reload, data=data)
 
     def open_url_simple(self, url):
 	api = self.open_url(url, 'GET', {})

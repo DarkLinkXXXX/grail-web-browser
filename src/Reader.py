@@ -27,7 +27,8 @@ class Reader(BaseReader):
 
     """
 
-    def __init__(self, browser, url, method, params, new, show_source, reload):
+    def __init__(self, browser, url, method, params, new, show_source, reload,
+		 data=None):
 
 	self.last_browser = browser
 	self.method = method
@@ -36,9 +37,9 @@ class Reader(BaseReader):
 	self.new = new
 	self.show_source = show_source
 
-	self.restart(browser, url)
+	self.restart(browser, url, data)
 
-    def restart(self, browser, url):
+    def restart(self, browser, url, data):
 	self.browser = browser
 	self.url = url
 
@@ -54,10 +55,12 @@ class Reader(BaseReader):
 
 	if self.app:
 	    api = self.app.open_url(cleanurl,
-				    self.method, self.params, self.reload)
+				    self.method, self.params, self.reload,
+				    data=data)
 	else:
 	    api = ProtocolAPI.protocol_access(cleanurl,
-					      self.method, self.params)
+					      self.method, self.params,
+					      data=data)
 
 	BaseReader.__init__(self, browser, api)
 

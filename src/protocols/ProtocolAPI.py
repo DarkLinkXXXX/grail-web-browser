@@ -25,7 +25,7 @@ import string
 from urllib import splittype, splithost, splitport
 
 
-def protocol_access(url, mode, params):
+def protocol_access(url, mode, params, data=None):
     scheme, resturl = splittype(url)
     if not scheme:
 	raise IOError, ("protocol error", "no scheme identifier in URL")
@@ -64,7 +64,10 @@ def protocol_access(url, mode, params):
     if not hasattr(m, classname):
 	raise IOError, ("protocol error", "incomplete support for %s" % scheme)
     klass = getattr(m, classname)
-    return klass(resturl, mode, params)
+    if data:
+	return klass(resturl, mode, params, data)
+    else:
+	return klass(resturl, mode, params)
 
 
 def test(url = "http://www.python.org/"):

@@ -162,9 +162,14 @@ class FormInfo:
 		for vv in v:
 		    s = '&' + quote(i.name) + '=' + quote(vv)
 		    query = query + s
-	if string.lower(self.method) == 'get':
-	    url = self.action + '?' + query[1:]
+	query = query[1:]
+	method = string.lower(self.method)
+	if method == 'get':
+	    url = self.action + '?' + query
 	    self.viewer.browser.follow(url)
+	elif method == 'post':
+	    self.viewer.browser.post(self.action, query,
+				     "application/x-www-form-urlencoded")
 	else:
 	    print "*** Form with METHOD=%s not supported ***" % self.method
 

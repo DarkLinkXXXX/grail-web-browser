@@ -57,8 +57,11 @@ class MyHTTP(httplib.HTTP):
 
 class http_access:
 
-    def __init__(self, resturl, mode, params):
-	assert(mode=="GET")
+    def __init__(self, resturl, method, params, data=None):
+	if data:
+	    assert(method=="POST")
+	else:
+	    assert(method=="GET")
 	if type(resturl) == type(()):
 	    host, selector = resturl	# For proxy interface
 	else:
@@ -75,13 +78,15 @@ class http_access:
 	else:
 	    auth = None
 	self.h = MyHTTP(host)
-	self.h.putrequest('GET', selector)
+	self.h.putrequest(method, selector)
 	if auth:
 	    self.h.putheader('Authorization', 'Basic %s' % auth)
 	for key, value in params.items():
 	    if key[:1] != '.':
 		self.h.putheader(key, value)
 	self.h.endheaders()
+	if data:
+	    self.h.send(data)
 	self.stage = META
 
     def close(self):

@@ -35,10 +35,11 @@ class Cache:
     def __init__(self):
 	self.cachedir = {}
 
-    def open(self, url, mode, params, reload=0):
+    def open(self, url, mode, params, reload=0, data=None):
 	key = self.url2key(url, mode, params)
-	if not self.cachedir.has_key(key):
-	    self.cachedir[key] = item = CacheItem(url, mode, params, self, key)
+	if data or not self.cachedir.has_key(key):
+	    self.cachedir[key] = item = CacheItem(url, mode, params,
+						  self, key, data)
 	else:
 	    item = self.cachedir[key]
 	    if reload:
@@ -99,13 +100,14 @@ class CacheItem:
 
     """
 
-    def __init__(self, url, mode, params, cache, key):
+    def __init__(self, url, mode, params, cache, key, data=None):
 	self.refcnt = 0
 	self.url = url
 	self.mode = mode
 	self.params = params
 	self.cache = cache
 	self.key = key
+	self.postdata = data
 	self.reset()
 
     def incref(self):
@@ -129,7 +131,8 @@ class CacheItem:
 
     def reset(self):
 	self.api = ProtocolAPI.protocol_access(self.url,
-					       self.mode, self.params)
+					       self.mode, self.params,
+					       data=self.postdata)
 	self.meta = None
 	self.data = ''
 	self.stage = META
