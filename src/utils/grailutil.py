@@ -1,3 +1,8 @@
+"""Miscellaneous utilities for Grail."""
+
+__version__ = "$Revision: 2.4 $"
+# $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
+
 import os
 
 # XXX Unix specific stuff
@@ -31,6 +36,26 @@ def which(filename):
 	if os.path.exists(found):
 	    return found
     return None
+
+def establish_dir(dir):
+    """Ensure existence of DIR, creating it if necessary.
+
+    Returns 1 if successful, 0 otherwise."""
+    if os.path.isdir(dir):
+	return 1
+    try:
+	if os.path.islink(dir):
+	    curdir = os.path.getcwd()
+	    os.chdir(dir)
+	    os.chdir(curdir)
+	    return 1
+	elif os.path.exists(dir):
+	    return 0
+	else:
+	    os.mkdir(dir, 0755)
+	    return 1
+    except os.error:
+	return 0
 
 def complete_url(url):
     import urlparse
