@@ -240,6 +240,7 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
             self.set_object(None)
             object.end()
 
+    _type_extension_package = "filetypes"
     context = None
     def handle_object(self, attrs):
         if not self.context:            # Ugly, but we don't want to duplicate
@@ -262,13 +263,12 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         if not embedtype:
             return None
         #
-        import copy
         message = extract_keyword('standby', attrs, '')
         message = string.join(string.split(message))
         info = self.context.app.find_type_extension(
-            "filetypes", embedtype)
+            self._type_extension_package, embedtype)
         embedder = info and info.embed
-        obj = embedder and embedder(self, copy.copy(attrs))
+        obj = embedder and embedder(self, attrs.copy())
         if obj:
             if message:
                 self.context.message(message)
