@@ -100,11 +100,13 @@ class FileDialogExtras:
     def set_for_grail(self): self._set_to_file(DEFAULT_GRAIL_BM_FILE)
     def set_for_netscape(self): self._set_to_file(DEFAULT_NETSCAPE_BM_FILE)
 
+
 class BMLoadDialog(FileDialog.LoadFileDialog, FileDialogExtras):
     def __init__(self, master, controller):
         self._controller = controller
         FileDialog.LoadFileDialog.__init__(self, master, 'Load Bookmarks File')
         FileDialogExtras.__init__(self, self.top)
+
 
 class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
     def __init__(self, master, controller):
@@ -118,6 +120,8 @@ class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
 
     def __create_widgets(self, master):
         self.__filetype = StringVar(master)
+        self.__export = BooleanVar(master)
+        self.__export.set(0)
         frame = Frame(self._controls)
         frame.pack(fill=X)
         label = Label(frame, text='File Format:')
@@ -127,6 +131,12 @@ class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
         options["anchor"] = W
         options["width"] = 13
         options.pack(side=RIGHT)
+        ckbox = Checkbutton(self._controls, variable=self.__export,
+                            name="exportCheckbox")
+        ckbox.pack(fill=X)
+
+    def export(self):
+        return self.__export.get()
 
     __charmap_out = string.maketrans(" ", "-")
     __charmap_in = string.maketrans("-", " ")
@@ -276,6 +286,14 @@ class BookmarksIO:
         savefile = saver.go(filename, key="bookmarks")
         if savefile:
             self.set_format(saver.get_filetype())
+            export = saver.export()
+            if export:
+                # remove the added/modified/visited information:
+                import bookmarks.exporter
+                collection = self.__controller._collection.copytree(root)
+                root = collection.get_root()
+                exporter = bookmarks.exporter.ExportWalker(root)
+                exporter.walk()
             self.__save_to_file(root, savefile)
             self.set_filename(savefile)
 
