@@ -243,7 +243,7 @@ class HTMLParser(SGMLParser):
 
     # --- Block Structuring Elements
 
-    def start_p(self, attrs):
+    def start_p(self, attrs, parbreak = 1):
 	if 'pre' in self.stack:
 	    if 'p' in self.stack:
 		while self.stack[-1] != 'p':
@@ -251,7 +251,7 @@ class HTMLParser(SGMLParser):
 		del self.stack[-1]
 	    return
 	self.close_paragraph()
-        self.formatter.end_paragraph(1)
+        self.formatter.end_paragraph(parbreak)
 	align = None
 	if attrs.has_key('align') and attrs['align']:
 	    align = string.lower(attrs['align'])
@@ -272,8 +272,11 @@ class HTMLParser(SGMLParser):
 	    self.end_p(parbreak = 0)
 	self.formatter.add_line_break()
 
-    start_div = start_p
-    end_div = end_p
+    def start_div(self, attrs):
+	self.start_p(attrs, parbreak=0)
+
+    def end_div(self):
+	self.end_p(parbreak=0)
 
     def start_pre(self, attrs):
 	self.close_paragraph()
@@ -691,6 +694,8 @@ class HTMLParser(SGMLParser):
 	    try: wid = max(0, string.atoi(str))
 	    except: pass
 	    else: wid = wid or None
+	if not (wid or percent):
+	    percent = 1.0
 	return wid, percent
 
     # --- Image
