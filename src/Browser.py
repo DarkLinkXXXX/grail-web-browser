@@ -102,10 +102,12 @@ class Browser:
 	# Create menu bar, menus, and menu entries
 
 	# Create menu bar
-	self.mbar = Frame(self.root, name="menubar", class_="Menubar")
-	self.mbar.pack(fill=X, in_=self.topframe)
+	self.mbarframe = Frame(self.root, name="menubar", class_="Menubar")
+	self.mbarframe.pack(fill=X, in_=self.topframe)
+        self.mbar = Menu(self.mbarframe)
+        self.root.config(menu=self.mbar)
 
-	# Create File menu
+	# Create the menus
 	self.create_menu("file")
 	self.create_menu("go")
 	self.histmenu = self.gomenu	# backward compatibility for Ping
@@ -117,13 +119,11 @@ class Browser:
 	self.user_menus = []
 
 	if self.get_helpspec():
-	    self.create_menu("help", side=RIGHT)
+	    self.create_menu("help")
 
-    def create_menu(self, name, side=LEFT):
-	button = Menubutton(self.mbar, name=name)
-	button.pack(side=side)
-	menu = Menu(button, name='menu')
-	button['menu'] = menu
+    def create_menu(self, name):
+	menu = Menu(self.mbar, name=name)
+        self.mbar.add_cascade(label=string.capitalize(name), menu=menu)
 	setattr(self, name + "menu", menu)
 	getattr(self, "create_menu_" + name)(menu)
 
@@ -244,6 +244,13 @@ class Browser:
 	self.logo_stop()
 
     def clear_reset(self):
+        num = len(self.user_menus)
+        if num:
+            last = self.mbar.index(END)
+            if num > 1:
+                self.mbar.delete(last-num+1, last)
+            else:
+                self.mbar.delete(last)
 	for b in self.user_menus:
 	    b.destroy()
 	self.user_menus[:] = []
