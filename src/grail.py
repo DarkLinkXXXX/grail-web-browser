@@ -387,7 +387,7 @@ class Application:
 	# XXX This could actually just create a new Browser window...
 	TbDialog.TracebackDialog(self.root, exc, val, tb)
 
-    def error_dialog(self, exc, msg):
+    def error_dialog(self, exc, msg, root=None):
 	# Display an error dialog.
 	# Return when the user clicks OK
 	# XXX This needn't be a modal dialog
@@ -398,7 +398,7 @@ class Application:
 	    msg = s[2:]
 	else:
 	    msg = str(msg)
-	SafeDialog.Dialog(self.root,
+	SafeDialog.Dialog(root or self.root,
 		      text=msg,
 		      title="Error: " + str(exc),
 		      bitmap='error',

@@ -414,7 +414,7 @@ class Browser:
 
     def error_dialog(self, exception, msg):
 	if self.app:
-	    self.app.error_dialog(exception, msg)
+	    self.app.error_dialog(exception, msg, root=self.root)
 	else:
 	    print "ERROR:", msg
 
