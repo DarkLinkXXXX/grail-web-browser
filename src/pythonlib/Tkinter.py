@@ -1240,10 +1240,10 @@ class Text(Widget):
 		self.tk.call(self._w, 'mark', 'set', markName, index)
 	def mark_unset(self, *markNames):
 		apply(self.tk.call, (self._w, 'mark', 'unset') + markNames)
-	def scan_mark(self, y):
-		self.tk.call(self._w, 'scan', 'mark', y)
-	def scan_dragto(self, y):
-		self.tk.call(self._w, 'scan', 'dragto', y)
+	def scan_mark(self, x, y):
+		self.tk.call(self._w, 'scan', 'mark', x, y)
+	def scan_dragto(self, x, y):
+		self.tk.call(self._w, 'scan', 'dragto', x, y)
 	def search(self, pattern, index, stopindex=None,
 		   forwards=None, backwards=None, exact=None,
 		   regexp=None, nocase=None, count=None):
@@ -1269,6 +1269,8 @@ class Text(Widget):
 	def tag_bind(self, tagName, sequence, func, add=None):
 		return self._bind((self._w, 'tag', 'bind', tagName),
 				  sequence, func, add)
+	def tag_cget(self, tagName, option):
+		return self.tk.call(self._w, 'tag', 'cget', tagName, option)
 	def tag_config(self, tagName, cnf={}, **kw):
 		if type(cnf) == StringType:
 			x = self.tk.split(self.tk.call(
