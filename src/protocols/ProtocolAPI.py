@@ -55,10 +55,8 @@ def protocol_access(url, mode, params, data=None):
 	    print "Sending", url
 	    print "     to", scheme, "proxy", proxy_host
     modname = sanitized + "API"
-    try:
-	m = __import__(modname)
-    except ImportError:
-	m = None
+    from __main__ import app
+    m = app.find_extension('protocols', modname)
     if not m:
 	raise IOError, ("protocol error", "no module for %s" % scheme)
     classname = sanitized + "_access"
