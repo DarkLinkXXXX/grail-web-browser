@@ -184,6 +184,39 @@ class NetscapeBookmarkReader:
 	    if fp: fp.close()
 	return root
 
+class NetscapeBookmarkWriter:
+    LEAF_FMT = '%s<DT><A HREF="%s" ADD_DATE="%d" LAST_VISIT="%d">%s</A>'
+    BRANCH_FMT = '%s<DT><H3 ADD_DATE="%d">%s</H3>'
+
+    def _rwrite(self, node):
+	tab = '    ' * node.depth()
+	if node.leaf_p():
+	    print LEAF_FMT % (tab, node.uri(), node.add_date(),
+			      node.last_visited(), node.title())
+	    if node.description():
+		print '<DD>%s' % node.description()
+	else:
+	    print BRANCH_FMT % (tab, node.add_date(), node.title())
+	    print '%s<DL><p>' % tab
+
+    def write_tree(self, root, filename):
+	stdout = sys.stdout
+	fp = None
+	try:
+	    fp = open(filename, 'w')
+	    sys.stdout = fp
+	    print '<!DOCTYPE NETSCAPE-Bookmark-file-1>'
+	    print '<!-- This is an automatically generated file.'
+	    print '    It will be read and overwritten.'
+	    print '    Do Not Edit! -->'
+	    print '<TITLE>%s</TITLE>' % root.title()
+	    print '<H1>%s</H1>' % root.title()
+	    print '<DL><p>'
+	    self._rwrite(root)
+	finally:
+	    if fp: fp.close()
+	    sys.stdout = stdout
+
 
 class TkListboxWriter(OutlinerViewer):
     _gcounter = 0
@@ -214,9 +247,9 @@ class TkListboxWriter(OutlinerViewer):
 
 
 class BookmarksController:
-    def __init__(self, toplevel, browser):
+    def __init__(self, frame, browser):
 	self._browser = browser
-	self._frame = toplevel
+	self._frame = frame
 	self._aggressive_var = BooleanVar()
 	self._bookmarkfile = DEFAULT_BOOKMARK_FILE
 	self._root = None
@@ -232,6 +265,7 @@ class BookmarksController:
 	    return None
 
     def set_listbox(self, listbox): self._listbox = listbox
+    def set_dialog(self, dialog): self._dialog = dialog
     def set_bookmark_file(self, filename):
 	self._bookmarkfile = filename
 	self.load()
@@ -332,11 +366,9 @@ class BookmarksController:
     def show(self, event=None):
 	if not self._writer:
 	    self._writer = TkListboxWriter(self._root, self._listbox)
-	self._frame.deiconify()
-	self._frame.tkraise()
-	self._listbox.focus_set()
+	self._dialog.show()
 
-    def hide(self, event=None): self._frame.iconify()
+    def hide(self, event=None): self._dialog.hide()
     def quit(self, event=None): sys.exit(0)
 
 
@@ -344,7 +376,7 @@ class BookmarksController:
 class BookmarksDialog:
     def __init__(self, frame, controller):
 	# create the basic controls of the dialog window
-	self._frame = frame
+	self._frame = Toplevel(frame)
 	self._controller = controller
 	self._create_menubar()
 	self._create_listbox()
@@ -462,6 +494,14 @@ class BookmarksDialog:
 
 	btnframe.pack(side='bottom')
 
+    def show(self):
+	self._frame.deiconify()
+	self._frame.tkraise()
+	self._listbox.focus_set()
+
+    def hide(self): self._frame.iconify()
+
+
 
 class DetailsDialog:
     def __init__(self, frame, node, controller):
@@ -576,7 +616,7 @@ class BookmarksMenu:
     def __init__(self, menu):
 	self._menu = menu
 	self._browser = menu.grail_browser
-	self._frame = Toplevel(self._browser.root)
+	self._frame = self._browser.root
 	self._controller = BookmarksController(self._frame, self._browser)
 	self._dialog = None
 	self._load_deferred_p = True
@@ -604,6 +644,7 @@ class BookmarksMenu:
 	self._load()
 	if not self._dialog:
 	    self._dialog = BookmarksDialog(self._frame, self._controller)
+	    self._controller.set_dialog(self._dialog)
 	self._controller.show()
 
     def post(self, event=None):
