@@ -7,6 +7,7 @@ import bookmarks.nodes
 
 import FileDialog
 import os
+import stat
 import string
 import sys
 import time
@@ -23,6 +24,9 @@ DEFAULT_GRAIL_BM_FILE_HTML = base + "html"
 DEFAULT_GRAIL_BM_FILE_XBEL = base + "xml"
 DEFAULT_GRAIL_BM_FILE = DEFAULT_GRAIL_BM_FILE_XBEL
 del base
+
+# Don't change this; this is the only one that makes sense here!
+CACHE_FORMAT = "pickle"
 
 BOOKMARKS_FILES = [
 #    os.path.splitext(DEFAULT_GRAIL_BM_FILE)[0], # "native" pickled format
@@ -153,7 +157,6 @@ class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
 
 
 class BookmarksIO:
-    __filename = None
     __format = None
 
     def __init__(self, frame, controller):
@@ -161,9 +164,12 @@ class BookmarksIO:
         self.__frame = frame
 
     def filename(self):
-        return self.__filename
+        return self.__controller._app.prefs.Get(
+            BMPREFGROUP, "bookmark-file")
     def set_filename(self, filename):
-        self.__filename = filename
+        self.__controller._app.prefs.Set(
+            BMPREFGROUP, "bookmark-file", filename)
+        self.__controller._app.prefs.Save()
 
     def format(self):
         return self.__format
@@ -192,6 +198,41 @@ class BookmarksIO:
             loader = BMLoadDialog(self.__frame, self.__controller)
             fname, ext = os.path.splitext(filename)
             filename = loader.go(filename, "*" + ext, key="bookmarks")
+        cachename = (os.path.splitext(filename)[0]
+                     + bookmarks.get_default_extension(CACHE_FORMAT))
+        if (cachename != filename
+            and os.path.isfile(filename)
+            and os.path.isfile(cachename)):
+            # cache exists; check it for currency:
+            req_mtime = None
+            mtime = 0
+            try:
+                fp = open(cachename)
+                fp.readline()           # skip header
+                fp.readline()           # skip embedded file name
+                mtime = int(string.strip(fp.readline()))
+                fp.close()
+            except IOError:
+                pass
+            else:
+                req_mtime = os.stat(filename)[stat.ST_MTIME]
+            if mtime == req_mtime:
+                # ok, the mtimes match; load the cache
+                parser = bookmarks.get_parser_class(CACHE_FORMAT)(cachename)
+                reader = bookmarks.BookmarkReader(parser)
+                try:
+                    fp = open(cachename, "rb")
+                    root = reader.read_file(fp)
+                except (IOError, bookmarks.BookmarkFormatError):
+                    fp.close()
+                else:
+                    # get format of the original file:
+                    fp = open(filename)
+                    format = bookmarks.get_format(fp)
+                    fp.close()
+                    self.set_filename(filename)
+                    self.set_format(format)
+                    return root, reader
         # load the file
         root = reader = None
         if filename:
@@ -201,12 +242,31 @@ class BookmarksIO:
             self.set_filename(filename)
         return root, reader
 
-    def __save_to_file(self, root, filename=None):
+    def __save_to_file(self, root, filename):
         try: os.rename(filename, filename+'.bak')
         except os.error: pass # no file to backup
-        writer = bookmarks.get_writer_class(self.format())(root)
+        format = self.format()
+        writer = bookmarks.get_writer_class(format)(root)
         fp = open(filename, 'w')
         writer.write_tree(fp)
+        fp.close()
+        # now save a cached copy:
+        if format != CACHE_FORMAT:
+            cachename = (os.path.splitext(filename)[0]
+                         + bookmarks.get_default_extension(CACHE_FORMAT))
+            mtime = os.stat(filename)[stat.ST_MTIME]
+            writer = bookmarks.get_writer_class(CACHE_FORMAT)(root)
+            # these only work on the cache format:
+            writer.set_original_filename(filename)
+            writer.set_original_mtime(mtime)
+            # now write the cache, but just discard it on errors:
+            try:
+                fp = open(cachename, "wb")
+                writer.write_tree(fp)
+                fp.close()
+            except IOError:
+                try: os.unlink(cachename)
+                except: pass
 
     def save(self, root):
         if not self.filename(): self.saveas(root)
@@ -754,7 +814,11 @@ class BookmarksController(OutlinerController):
             return
         # Attempt to read each bookmarks file in the BOOKMARKS_FILES list.
         root = None
-        for file in BOOKMARKS_FILES[:]:
+        filenames = BOOKMARKS_FILES[:]
+        fn = self._iomgr.filename()
+        if fn:
+            filenames.insert(0, fn)
+        for file in filenames:
             self._iomgr.set_filename(file)
             try:
                 root, reader = self._iomgr.load(usedefault=1)
@@ -763,7 +827,7 @@ class BookmarksController(OutlinerController):
                 pass
         if not root:
             root = bookmarks.nodes.Folder()
-            root.set_title(username()+" Bookmarks")
+            root.set_title(username() + " Bookmarks")
             self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
         self.set_root(root)
         self._initialized_p = 1
@@ -916,19 +980,13 @@ class BookmarksController(OutlinerController):
             else:
                 nodetype = snode.get_nodetype()
                 if nodetype in ("Bookmark", "Separator"):
-                    print "parent of", snode, "is:",
                     snode = snode.parent()
-                    print snode
                 elif nodetype == "Alias":
                     if snode.get_refnode().get_nodetype() == "Bookmark":
-                        print "parent of", snode, "is:",
                         snode = snode.parent()
-                        print snode
                     else:
                         # refers to a Folder
-                        print "reference of", snode, "is:",
                         snode = snode.get_refnode()
-                        print snode
                 # snode is a Folder
                 snode.expand()
                 snode.append_child(node)
@@ -1255,7 +1313,6 @@ class BookmarksFormatter:
         self.__fmt_description(node.description())
 
     def fmt_Folder(self, node, alias=0):
-        print "Folder:", node
         id = node.id()
         if id and not alias:
             idtag = "#" + id
