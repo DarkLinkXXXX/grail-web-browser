@@ -20,6 +20,8 @@ class NullFormatter:
     def add_flowing_data(self, data): pass
     def add_literal_data(self, data): pass
     def flush_softspace(self): pass
+    def push_alignment(self, align): pass
+    def pop_alignment(self): pass
     def push_font(self, x): pass
     def pop_font(self): pass
     def push_margin(self, margin): pass
@@ -34,6 +36,8 @@ class AbstractFormatter:
 
     def __init__(self, writer):
 	self.writer = writer		# Output device
+	self.align = None		# Current alignment
+	self.align_stack = []		# Alignment stack
 	self.font_stack = []		# Font state
 	self.margin_stack = []		# Margin state
 	self.spacing = None		# Vertical spacing state
@@ -60,6 +64,8 @@ class AbstractFormatter:
 
     def add_hor_rule(self, abswidth=None, percentwidth=1.0,
 		     height=None, align=None):
+	if not self.hard_break:
+	    self.writer.send_line_break()
 	self.writer.send_hor_rule(abswidth, percentwidth, height, align)
 	self.hard_break = self.nospace = 1
 	self.para_end = self.softspace = 0
@@ -151,6 +157,23 @@ class AbstractFormatter:
 	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
 	    self.writer.send_flowing_data(' ')
 
+    def push_alignment(self, align):
+	if align and align != self.align:
+	    self.writer.new_alignment(align)
+	    self.align = align
+	    self.align_stack.append(align)
+	else:
+	    self.align_stack.append(self.align)
+
+    def pop_alignment(self):
+	if self.align_stack:
+	    del self.align_stack[-1]
+	if self.align_stack:
+	    self.align = align = self.align_stack[-1]
+	    self.writer.new_alignment(align)
+	else:
+	    self.writer.new_alignment(None)
+
     def push_font(self, (size, i, b, tt)):
 	if self.softspace:
 	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
@@ -217,6 +240,7 @@ class AbstractFormatter:
 class NullWriter:
     """Minimal writer interface to use in testing.
     """
+    def new_alignment(self, align): pass
     def new_font(self, font): pass
     def new_margin(self, margin, level): pass
     def new_spacing(self, spacing): pass
@@ -233,6 +257,9 @@ class AbstractWriter:
 
     def __init__(self):
 	pass
+
+    def new_alignment(self, align):
+	print "new_alignment(%s)" % `align`
 
     def new_font(self, font):
 	print "new_font(%s)" % `font`
