@@ -382,7 +382,7 @@ class GrailHTMLParser(HTMLParser):
 	if function:
 	    function(self)
 
-    # Handle proposed iconic entities (see W3C tech. reports):
+    # Handle proposed iconic entities (see W3C working drafts):
 
     entityimages = {}
 
@@ -397,10 +397,10 @@ class GrailHTMLParser(HTMLParser):
 		    img = PhotoImage(file=p)
 		    self.entityimages[entname] = img
 		    w = Label(self.viewer.text, image = img)
-		    self.viewer.add_subwindow(w)
+		    self.add_subwindow(w)
 		    return
 	    self.entityimages[entname] = None
 	    self.handle_data('&%s;' % entname)
 	else:
 	    if img:
-		self.viewer.add_subwindow(Label(self.viewer.text, image = img))
+		self.add_subwindow(Label(self.viewer.text, image = img))
