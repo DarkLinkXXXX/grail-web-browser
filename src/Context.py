@@ -147,18 +147,20 @@ class Context:
     def follow(self, url, target="", histify=1, scrollpos=None):
 	"""Follow a link, given by a relative URL.
 
-	If the relative URL is *just* a fragment id (#name), just
-	scroll there; otherwise do a full load of a new page.
+	If the relative URL is a fragment id (#name) on the current
+	URL, scroll there; otherwise, do a full load of a new page.
 
 	"""
 
 	newurl, frag = urldefrag(url)
 	current, f = urldefrag(self._url)
-	if not target and newurl == current:
-	    self.follow_local_fragment(url, newurl, frag, histify)
-	else:
-	    self.load(self.get_baseurl(url), target=target or self._target,
-		      scrollpos=scrollpos)
+	if newurl == current:
+	    context = self.find_window_target(target)
+	    if context is self:
+		self.follow_local_fragment(url, newurl, frag, histify)
+		return
+	self.load(self.get_baseurl(url), target=(target or self._target),
+		  scrollpos=scrollpos)
 
     def follow_local_fragment(self, url, newurl, frag, histify):
 	if self.readers:
@@ -313,9 +315,11 @@ class Context:
 	    return
 	self.future = future
 	if not reload:
-	    self.follow(page.url(), histify=0, scrollpos=page.scrollpos())
+	    self.follow(page.url(), histify=0, scrollpos=page.scrollpos(),
+			target="_self")
 	else:
-	    self.load(page.url(), reload=reload, scrollpos=page.scrollpos())
+	    self.load(page.url(), reload=reload, scrollpos=page.scrollpos(),
+		      target="_self")
 
     def show_history_dialog(self):
 	if not self.history_dialog:
