@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.19 $"
+__version__ = "$Revision: 1.20 $"
 
 # Base class for the panel:
 import PrefsPanels
@@ -45,6 +45,11 @@ class GeneralPanel(PrefsPanels.Framework):
 
         self.PrefsCheckButton(frame, "Image loading:", "Load inline images",
                               'browser', 'load-images')
+
+        self.PrefsCheckButton(frame,
+                              "Link information:",
+                              "Show title of link target, if known",
+                              'presentation', 'show-link-titles')
 
         self.PrefsCheckButton(frame,
                               "HTML parsing:", "Advanced SGML recognition",
