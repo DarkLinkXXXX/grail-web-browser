@@ -184,8 +184,9 @@ class Viewer(formatter.AbstractWriter):
 	    self.add_temp_tag()
 	    from Browser import Browser
 	    from __main__ import app
+	    import urlparse
 	    b = Browser(self.master, app)
-	    b.load(url)
+	    b.load(urlparse.urljoin(self.browser.url, url))
 
     def add_temp_tag(self):
 	start, end = self.find_tag_range()
