@@ -5,14 +5,54 @@ import string
 from types import *
 from Tkinter import *
 
-def _clear_entry_widget(event=None):
+def _clear_entry_widget(event):
     try:
 	widget = event.widget
 	widget.delete(0, INSERT)
     except: pass
-def install_keybindings():
-    from __main__ import app
-    app.root.bind_class('Entry', '<Control-u>', _clear_entry_widget)
+def install_keybindings(root):
+    root.bind_class('Entry', '<Control-u>', _clear_entry_widget)
+
+
+def make_toplevel(master, title=None, class_=None):
+    """Create a Toplevel widget.
+
+    This is a shortcut for a Toplevel() instantiation plus calls to
+    set the title and icon name of the widget.
+
+    """
+
+    if class_:
+	widget = Toplevel(master, class_=class_)
+    else:
+	widget = Toplevel(master)
+    if title:
+	widget.title(title)
+	widget.iconname(title)
+    return widget
+
+def set_transient(widget, master, relx=0.5, rely=0.3):
+    """Make an existing toplevel widget transient for a master.
+
+    The widget must exist but should not yet have been placed; in
+    other words, this should be called after creating all the
+    subwidget but before letting the user interact.
+    """
+
+    widget.withdraw() # Remain invisible while we figure out the geometry
+    widget.transient(master)
+    widget.update_idletasks() # Actualize geometry information
+    m_width = master.winfo_width()
+    m_height = master.winfo_height()
+    w_width = widget.winfo_reqwidth()
+    w_height = widget.winfo_reqheight()
+    m_x = master.winfo_rootx()
+    m_y = master.winfo_rooty()
+    x = m_x + (m_width - w_width) * relx
+    y = m_y + (m_height - w_height) * rely
+    widget.geometry("+%d+%d" % (x, y))
+    widget.deiconify() # Become visible at the desired location
+    return widget
 
 
 def make_scrollbars(parent, hbar, vbar):
