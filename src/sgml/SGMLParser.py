@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.11 $"
+__version__ = "$Revision: 1.12 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -154,7 +154,7 @@ class SGMLParser(SGMLLexer):
 		if not tag:
 		    raise SGMLError, \
 			  'Cannot start the document with an empty tag.'
-	if not self._tag_methods.has_key('tag'):
+	if not self._tag_methods.has_key(tag):
 	    start, end, do = self._load_tag_handlers(tag)
 	else:
 	    start, end, do = self._tag_methods[tag]

@@ -22,7 +22,7 @@ class HTMLParser(SGMLParser):
 
     doctype = 'html'
     head_only_tags = ('link', 'meta', 'title', 'isindex', 'range',
-		      'base', 'nextid', 'style', 'head')
+		      'base', 'nextid', 'style', 'head', 'html')
     autonumber = None
     savedata = None
     title = base = anchor = nextid = None
