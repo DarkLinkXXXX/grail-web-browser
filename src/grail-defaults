@@ -17,8 +17,8 @@ C: Bookmarks defaults
 C:
 C: add-location can be `file-append', `file-prepend', `as-child-or-sib'
 bookmarks--add-location: file-prepend
-C: aggressive-collapse can be `yes' or `no'
-bookmarks--aggressive-collapse: no
+C: aggressive-collapse can be 0=false, 1=true
+bookmarks--aggressive-collapse: 0
 C:
 C: History defaults
 C:
