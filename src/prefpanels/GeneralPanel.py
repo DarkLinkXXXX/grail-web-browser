@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.11 $"
+__version__ = "$Revision: 1.12 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -41,7 +41,7 @@ class GeneralPanel(PrefsPanels.Framework):
 			label_width=7, entry_width=4, composite=1)
 	f.pack(fill=X, side=TOP, pady='1m')
 
-	self.PrefsEntry(frame, 'Max. connections', 'sockets', 'number', 'int',
+	self.PrefsEntry(frame, 'Max. connections:', 'sockets', 'number', 'int',
 			entry_width=3) 
 
 	self.PrefsCheckButton(frame, "Image loading:", "Load inline images",
@@ -55,6 +55,10 @@ class GeneralPanel(PrefsPanels.Framework):
 			      "Smooth scrolling:",
 			      "Install smooth scrolling hack on new windows",
 			      'browser', 'smooth-scroll-hack')
+
+	self.PrefsCheckButton(frame,
+			      "Distributed objects:", "Enable ILU main loop",
+			      'security', 'enable-ilu')
 
 	frame.pack()
  
