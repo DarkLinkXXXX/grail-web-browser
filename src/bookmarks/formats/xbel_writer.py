@@ -1,6 +1,6 @@
 """XBEL writer."""
 
-__version__ = '$Revision: 1.7 $'
+__version__ = '$Revision: 1.8 $'
 
 import bookmarks
 import bookmarks.iso8601
@@ -41,6 +41,7 @@ class Writer(bookmarks.walker.TreeWalker):
             attrs = '%s id="%s"' % (attrs, node.id())
         #
         if not self.__depth:
+            attrs = ' xmlns="%s"\n     %s' % (bookmarks.XBEL_SYSTEM_ID, attrs)
             fp.write("<xbel%s>\n" % attrs)
             if title:
                 fp.write("%s  <title>%s</title>\n"
