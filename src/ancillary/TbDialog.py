@@ -24,6 +24,7 @@ class TracebackDialog:
 	lines = traceback.format_exception(exc, val, tb)
 	for line in lines:
 	    self.text.insert(END, line + '\n')
+	self.text.yview_pickplace(END)
 	self.text["state"] = DISABLED
 
     def close_command(self):
