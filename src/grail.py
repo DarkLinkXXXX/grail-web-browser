@@ -271,18 +271,9 @@ class Application:
 	self.browsers = []
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
-	dingbat_font = self.prefs.Get('fonts', 'dingbats')
-	symbol_font = self.prefs.Get('fonts', 'symbols')
-	import Viewer
-	if self._check_font(dingbat_font):
-	    Viewer.DINGBAT_FONT = dingbat_font
-	    for k, v in Application.fontdingbats.items():
-		Application.dingbatimages[k] = v
-	if self._check_font(symbol_font):
-	    import Greek
-	    Viewer.SYMBOL_FONT = symbol_font
-	    for k, v in Greek.entitydefs.items():
-		Application.dingbatimages[k] = (v, 'symbol')
+	import Greek
+	for k, v in Greek.entitydefs.items():
+	    Application.dingbatimages[k] = (v, '_sym')
 	self.root.bind_class("Text", "<Alt-Left>", self.dummy_event)
 	self.root.bind_class("Text", "<Alt-Right>", self.dummy_event)
 
@@ -525,13 +516,14 @@ class Application:
 		     'thinsp': ('\240', None)
 		     }
 
-    # Faster than widgets if the font is available:
-    fontdingbats = {'circle': ('\x6d', 'dingbat'),
-		    'disc': ('\x6c', 'dingbat'),
-		    'square': ('\x6f', 'dingbat')
-		    }
-
     iconpath = [os.path.join(grail_root, 'icons')]
+
+    def clear_dingbat(self, entname):
+	if self.dingbatimages.has_key(entname):
+	    del self.dingbatimages[entname]
+
+    def set_dingbat(self, entname, entity):
+	self.dingbatimages[entname] = entity
 
     def load_dingbat(self, entname):
 	if self.dingbatimages.has_key(entname):
