@@ -7,7 +7,7 @@ ftp.adobe.com.  You can get Adobe's AFM files from the same ftp site.
 See the comments at the tail of this file for the little C wrapper I
 wrote to generate the PSFont_*.py files.
 
-This module has it's origins in code contributed by Fredrik Lundh
+This module has its origins in code contributed by Fredrik Lundh
 <Fredrik_Lundh@ivab.se> who contributed the framework for the Grail
 0.2 release.  Thanks Fredrik!
 
