@@ -33,13 +33,14 @@ class PageInfo:
     URL is of any significance.
 
     Third, if the pages contains a BASE tag, this URL is used in
-    resolution of relative urls on this page.  Currently the baseurl
-    information is kept with the browser object.
+    resolution of relative urls on this page.  Currently the base URL
+    information is kept with the context object.
     """
-    def __init__(self, url='', title='', scrollpos=None, formdata=[]):
+    def __init__(self, url='', title='', scrollpos=None, formdata=None):
 	self._url = url
 	self._title = title
 	self._scrollpos = scrollpos
+	if formdata is None: formdata = []
 	self._formdata = formdata
 
     def set_url(self, url): self._url = url
@@ -52,21 +53,29 @@ class PageInfo:
     def scrollpos(self): return self._scrollpos
     def formdata(self): return self._formdata
 
+    def clone(self):
+	return self.__class__(self._url, self._title,
+			      self._scrollpos, self._formdata)
+
 
 
+class DummyHistoryDialog:
+    """Dummy so History can avoid testing for self._dialog != None."""
+    def refresh(self): pass
+    def select(self, index): pass
+
 class History:
     def __init__(self):
-	class DummyDialog:
-	    def refresh(self): pass
-	    def select(self, index): pass
-
 	self._history = []
-	self._dialog = DummyDialog()
+	self._dialog = DummyHistoryDialog()
 	self._current = 0
 
     def clone(self):
 	newhist = History()
-	newhist._history = self._history[:]
+	list = []
+	for page in self._history:
+	    list.append(page.clone())
+	newhist._history = list
 	newhist._current = self._current
 	return newhist
 
@@ -78,6 +87,7 @@ class History:
 	# History' or we might expose the Global History to the user.
 	del self._history[self._current+1:]
 	# Don't append a duplicate of the last entry
+	# XXX Why not?  This could be masking a subtle bug!
 	if not self._history or self._history[-1].url() <> pageinfo.url():
 	    self._history.append(pageinfo)
 	    self._current = len(self._history)-1
@@ -92,23 +102,24 @@ class History:
 	else: return None
 
     def current(self): return self._current
-    def forward(self): return self.page(self.current()+1)
-    def back(self): return self.page(self.current()-1)
+    def forward(self): return self.page(self._current+1)
+    def back(self): return self.page(self._current-1)
     def pages(self): return self._history
     def refresh(self): self._dialog.refresh()
 
 
 
 class HistoryDialog:
-    def __init__(self, browser, historyobj=None):
+    def __init__(self, context, historyobj=None):
 	if not historyobj:
+	    # XXX I guess this is here for testing?  (It's used nowhere.)
 	    self._history = History()
 	else:
 	    self._history = historyobj
 	# 
-	self._browser = browser
+	self._context = context
 	self._history.set_dialog(self)
-	self._frame = tktools.make_toplevel(self._browser.root,
+	self._frame = tktools.make_toplevel(self._context.root,
 					    title="History Dialog")
 	self._viewby = IntVar()
 	self._viewby.set(1)
@@ -147,13 +158,13 @@ class HistoryDialog:
 	self._frame.bind("<Down>", self.previous_cmd)
 	self._frame.bind("n", self.previous_cmd)
 	self._frame.bind("N", self.previous_cmd)
-	tktools.set_transient(self._frame, self._browser.root)
+	tktools.set_transient(self._frame, self._context.root)
 	    
     def history(self): return self._history
 
     def refresh(self):
 	# populate listbox
-	self._listbox.delete(0, 'end')
+	self._listbox.delete(0, END)
 	# view in reverse order
 	pages = self._history.pages()[:]
 	pages.reverse()
@@ -161,9 +172,9 @@ class HistoryDialog:
 	    url = page.url()
 	    title = page.title() or url
 	    if self._viewing == 1:
-		self._listbox.insert('end', title)
+		self._listbox.insert(END, title)
 	    elif self._viewing == 2:
-		self._listbox.insert('end', url)
+		self._listbox.insert(END, url)
 	self.select(self._history.current())
 
     def previous_cmd(self, event=None):
@@ -177,9 +188,9 @@ class HistoryDialog:
 	list = self._listbox.curselection()
 	if len(list) > 0:
 	    selection = string.atoi(list[0])
-	    last = self._listbox.index('end')
+	    last = self._listbox.index(END)
 	    page = self._history.page(last - selection - 1)
-	    if page: self._browser.load(page.url(), new=0)
+	    if page: self._context.load(page.url(), new=0)
 
     def _close(self, event=None):
 	self._frame.withdraw()
@@ -191,8 +202,8 @@ class HistoryDialog:
 	self.refresh()
 
     def select(self, index):
-	last = self._listbox.index('end')
-	self._listbox.select_clear(0, 'end')
+	last = self._listbox.index(END)
+	self._listbox.select_clear(0, END)
 	self._listbox.select_set(last-index-1)
 	self._listbox.activate(last-index-1)
 

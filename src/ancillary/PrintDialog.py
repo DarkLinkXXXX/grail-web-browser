@@ -36,11 +36,11 @@ fileflag = 0
 
 class PrintDialog:
 
-    def __init__(self, browser, url, title):
-	self.browser = browser
+    def __init__(self, context, url, title):
+	self.context = context
 	self.url = url
 	self.title = title
-	self.master = self.browser.root
+	self.master = self.context.root
 	self.root = tktools.make_toplevel(self.master,
 					  title="Print Dialog")
 	self.root.iconname("Print Dialog")
@@ -100,24 +100,24 @@ class PrintDialog:
 	if self.checked.get():
 	    filename = self.file_entry.get()
 	    if not filename:
-		self.browser.error_dialog("No file",
+		self.context.error_dialog("No file",
 					  "Please enter a filename")
 		return
 	    try:
 		fp = open(filename, "w")
 	    except IOError, msg:
-		self.browser.error_dialog(IOError, str(msg))
+		self.context.error_dialog(IOError, str(msg))
 		return
 	else:
 	    cmd = self.cmd_entry.get()
 	    if not cmd:
-		self.browser.error_dialog("No command",
+		self.context.error_dialog("No command",
 					  "Please enter a print command")
 		return
 	    try:
 		fp = os.popen(cmd, "w")
 	    except IOError, msg:
-		self.browser.error_dialog(IOError, str(msg))
+		self.context.error_dialog(IOError, str(msg))
 		return
 	self.root['cursor'] = 'watch'
 	self.cmd_entry['cursor'] = 'watch'
@@ -126,7 +126,7 @@ class PrintDialog:
 	self.print_to_fp(fp)
 	sts = fp.close()
 	if sts:
-	    self.browser.error_dialog("Exit",
+	    self.context.error_dialog("Exit",
 				      "Print command exit status %s" % `sts`)
 	self.goaway()
 
@@ -140,7 +140,7 @@ class PrintDialog:
 	try:
 	    infp = urlopen(self.url)
 	except IOError, msg:
-	    self.browser.error_dialog(IOError, msg)
+	    self.context.error_dialog(IOError, msg)
 	    return
 	w = PSWriter(fp, self.title, self.url)
 	f = AbstractFormatter(w)
