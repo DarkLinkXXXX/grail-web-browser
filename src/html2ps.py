@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.7 1995/09/14 17:30:32 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.8 1995/09/14 17:31:16 bwarsaw Exp $"
 
 import sys
 import string
@@ -15,7 +15,7 @@ import regsub
 from formatter import *
 
 RECT_DEBUG = 0
-DEBUG = 1
+DEBUG = 0
 LP_COMMAND = 'lp -d tps'
 
 def _debug(text):
