@@ -217,6 +217,7 @@ class Reader(BaseReader):
 		context.error_dialog(IOError, msg)
 		return
 	    self.restart(self.url)
+	    self.bufsize = 8096
 	    context.message("Saving to %s" % fn)
 	    return
 

@@ -30,7 +30,6 @@ class BaseReader:
     """
 
     # Tuning parameters
-    bufsize = BUFSIZE
     sleeptime = SLEEPTIME
 
     def __init__(self, context, api):
@@ -38,6 +37,7 @@ class BaseReader:
 	self.api = api
 	self.callback = self.checkmeta
 	self.poller = self.api.pollmeta
+	self.bufsize = BUFSIZE
 	
 	# Stuff for status reporting
 	self.nbytes = 0
