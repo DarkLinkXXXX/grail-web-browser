@@ -5,7 +5,8 @@ from Tkinter import *
 
 
 # Default tuning parameters
-BUFSIZE = 8*1024			# Buffer size for api.getdata()
+# BUFSIZE = 8*1024			# Buffer size for api.getdata()
+BUFSIZE = 512				# Smaller size for better response
 SLEEPTIME = 100				# Milliseconds between regular checks
 
 class BaseReader:
@@ -44,6 +45,7 @@ class BaseReader:
 	    tkinter.createfilehandler(
 		self.fno, tkinter.READABLE, self.checkapi)
 	else:
+##	    print "No fileno() -- check every 100 ms"
 	    self.checkapi_regularly()
 
     def __repr__(self):
@@ -71,7 +73,7 @@ class BaseReader:
 
     def checkapi_regularly(self):
 	if not self.callback:
-	    print "*** checkapi_regularly -- too late ***"
+##	    print "*** checkapi_regularly -- too late ***"
 	    return
 	self.callback()
 	if self.callback:
