@@ -3,13 +3,13 @@
 #
 # Landmarks (various well-known URLs built into Grail)
 #
-landmarks--grail-home-page:	http://monty.cnri.reston.va.us/grail-0.3/
+landmarks--grail-home-page:	http://grail.cnri.reston.va.us/grail/
 # Empty home page, for user to set in their own preferences file:
 landmarks--home-page:
 landmarks--python-home-page:	http://www.python.org/
 landmarks--psa-home-page:	http://www.python.org/psa/
 landmarks--cnri-home-page:	http://www.cnri.reston.va.us/
-landmarks--about-grail-page:	http://monty.cnri.reston.va.us/grail-0.3/about/
+landmarks--about-grail-page:	http://grail.cnri.reston.va.us/grail-0.3/about/
 #
 # Browser defaults
 #
