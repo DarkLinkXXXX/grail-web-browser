@@ -19,7 +19,16 @@ protocol_joiner(scheme)
 
 """
 
-import ProtocolAPI
+# Need different code here for ni than for 1.5 packages
+try:
+    __ # This fails with 1.5 packages, succeeds when using ni
+except NameError:
+    # 1.5 packages
+    from ProtocolAPI import protocol_access, protocol_joiner
+else:
+    # Backward compatible solution for ni
+    import ProtocolAPI
 
-for name in ['protocol_access', 'protocol_joiner', '__doc__']:
-    setattr(__, name, getattr(ProtocolAPI, name))
+    for name in ['protocol_access', 'protocol_joiner']:
+	setattr(__, name, getattr(ProtocolAPI, name))
+    __.__doc__ = __doc__
