@@ -171,3 +171,11 @@ disk-cache--checkpoint: 1
 # Preference panel preferences                
 #                                             
 preferences--panel-order: General Style Cache Applets
+#
+# Proxy default preferences:
+#
+proxies--no_proxy_enabled: 0
+proxies--manual_proxy_enabled: 0
+proxies--no_proxy:
+proxies--ftp_proxy:
+proxies--http_proxy:
