@@ -38,6 +38,9 @@ def norm_uri(uri):
 
 
 class Node:
+    __depth = 0
+    __parent = None
+
     def __init__(self):
         pass
 
@@ -50,8 +53,22 @@ class Node:
     def leaf_p(self):
         return 1
 
+    def depth(self):
+        return self.__depth
+
+    def parent(self):
+        return self.__parent
+
+    def set_parent(self, parent):
+        if parent is None:
+            self.__depth = 0
+        else:
+            self.__depth = parent.depth() + 1
+        self.__parent = parent
+
     def close(self):
-        pass
+        # break circular references:
+        self.__parent = None
 
 
 class Alias(Node):
@@ -62,7 +79,10 @@ class Alias(Node):
         Node.__init__(self)
 
     def idref(self):
-        return self.__ref.id()
+        if self.__ref is None:
+            return None
+        else:
+            return self.__ref.id()
 
     def get_refnode(self):
         return self.__ref
@@ -82,6 +102,7 @@ class DescribableNode(Node):
     description.  This also provides support for maintaining information
     about the date the node was added to the bookmarks collection.
     """
+    __id = None
     __title = None
     __description = None
     __added = None
@@ -89,6 +110,9 @@ class DescribableNode(Node):
 
     def add_date(self):
         return self.__added
+
+    def id(self):
+        return self.__id
 
     def title(self):
         return self.__title
@@ -103,6 +127,9 @@ class DescribableNode(Node):
     def set_add_date(self, added):
         self.__added = added
 
+    def set_id(self, id):
+        self.__id = id
+
     def set_title(self, title):
         self.__title = title
 
@@ -114,15 +141,11 @@ class DescribableNode(Node):
 
 
 class Bookmark(DescribableNode):
-    __id = None
     __uri = None
     __last_modified = None
     __last_response = None
     __last_visited = None
 
-
-    def id(self):
-        return self.__id
 
     def uri(self):
         return self.__uri
@@ -133,9 +156,6 @@ class Bookmark(DescribableNode):
     def last_visited(self):
         return self.__last_visited
 
-
-    def set_id(self, id):
-        self.__id = id
 
     def set_uri(self, uri):
         self.__uri = norm_uri(uri)
@@ -154,25 +174,39 @@ class Folder(DescribableNode):
         self.__children = []
         DescribableNode.__init__(self)
 
+    def close(self):
+        children = self.__children
+        self.__children = []
+        for child in children:
+            child.close()
+        DescribableNode.close(self)
+
     def children(self):
         return self.__children[:]
 
     def set_children(self, children):
         self.__children = map(None, children)
+        for child in self.__children:
+            child.set_parent(self)
+
+    def set_parent(self, parent):
+        DescribableNode.set_parent(self, parent)
+        for child in self.children():
+            child.set_parent(self)
 
     def append_child(self, child):
+        child.set_parent(self)
         self.__children.append(child)
 
     def insert_child(self, child, index):
+        child.set_parent(self)
         self.__children.insert(index, child)
 
     def del_child(self, child):
         try:
-            i = self.__children.index(node)
-            rtnnode = self.__children[i]
-            del self.__children[i]
-            return rtnnode
-        except (ValueError, IndexError):
+            self.__children.remove(child)
+            return child
+        except ValueError:
             return
 
 
