@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.24 $"
+__version__ = "$Revision: 2.25 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -137,7 +137,7 @@ class Framework:
     def PrefsEntry(self, parent, label, group, component,
 		   typename='string',
 		   label_width=25, entry_height=1, entry_width=None,
-		   composite=0):
+		   composite=0, variable=None):
 	"""Convenience for creating preferences entry or text widget.
 
 	A frame is built within the specified parent, and packed with a
@@ -166,10 +166,18 @@ class Framework:
 	frame = Frame(parent, borderwidth=1)
 	self.PrefsWidgetLabel(frame, label, label_width=label_width)
 	if entry_height == 1:
-	    entry = Entry(frame, relief=SUNKEN, border=1, width=entry_width)
+	    entry = Entry(frame, relief=SUNKEN, border=1, width=entry_width,
+			  textvariable=(variable and variable or None))
+	    # note that the variable setting is stripped if None, so this is ok
 	    entry.pack(side=use_side, expand=use_expand, fill=use_fill)
-	    getter, setter = entry.get, self.widget_set_func(entry)
+	    if not variable:
+		getter, setter = entry.get, self.widget_set_func(entry)
+	    else:
+		getter, setter = variable.get, variable.set
 	else:
+	    if variable:
+		raise ValueError, \
+		      "multi-line entry fields may not specify a variable"
 	    entry, garbage = tktools.make_text_box(frame,
 						   width=entry_width,
 						   height=entry_height,
@@ -188,7 +196,7 @@ class Framework:
 
     def PrefsRadioButtons(self, frame, title, button_labels,
 			  group, component, typename='string',
-			  composite=0, label_width=25):
+			  composite=0, label_width=25, variable=None):
 	"""Convenience for creating radiobutton preferences widget.
 
 	A label and a button are packed in 'frame' arg, using 'title'.
@@ -200,12 +208,13 @@ class Framework:
 	widget title."""
 
 	f = Frame(frame)
-	var = StringVar()
+	if not variable:
+	    variable = StringVar()
 	self.PrefsWidgetLabel(f, title, label_width=label_width)
 	inner = Frame(f, relief=SUNKEN, borderwidth=1)
 	inner.pack(side=LEFT)
 	for bl in button_labels:
-	    b = Radiobutton(inner, text=bl, variable=var, value=bl)
+	    b = Radiobutton(inner, text=bl, variable=variable, value=bl)
 	    b.pack(side=LEFT)
 
 	if composite:
@@ -219,10 +228,10 @@ class Framework:
 	    
 	f.pack(fill=use_fill, side=use_side, pady='1m', expand=use_expand)
 
-	self.RegisterUI(group, component, typename, var.get, var.set)
+	self.RegisterUI(group, component, typename, variable.get, variable.set)
 
     def PrefsCheckButton(self, frame, general, specific, group, component,
-			 label_width=25):
+			 label_width=25, variable=None):
 	"""Convenience for creating checkbutton preferences widget.
 
 	A label and a button are packed in 'frame' arg, using text of
@@ -236,11 +245,13 @@ class Framework:
 
 	f = Frame(frame)
 
-	var = StringVar()
+	if not variable:
+	    variable = StringVar()
 
 	if general:
 	    self.PrefsWidgetLabel(f, general, label_width=label_width)
-	cb = Checkbutton(f, text=specific, relief='ridge', bd=1, variable=var)
+	cb = Checkbutton(f, text=specific, relief='ridge', bd=1,
+			 variable=variable)
 	cb.pack(side=LEFT)
 	if not general:
 	    use_side, use_fill, use_bd = LEFT, NONE, 1
@@ -248,7 +259,25 @@ class Framework:
 	    use_side, use_fill, use_bd = TOP, X, 0
 	f.pack(fill=use_fill, side=use_side, pady='1m')
 
-	self.RegisterUI(group, component, 'Boolean', var.get, var.set)
+	self.RegisterUI(group, component, 'Boolean',
+			variable.get, variable.set)
+
+    def PrefsOptionMenu(self, parent, label, group, component, options,
+			label_width=25, menu_width=6, variable=None):
+	fr = Frame(parent)
+	fr.pack(expand=1, fill=X)
+	self.PrefsWidgetLabel(fr, label, label_width=label_width)
+	if not variable:
+	    variable = StringVar()
+	menu = apply(OptionMenu, (fr, variable) + tuple(options))
+	width = reduce(max, map(len, options), menu_width)
+	menu.config(width=width, anchor=W)
+	menu.pack(expand=1, fill=NONE, anchor=W)
+	self.RegisterUI(group, component, 'string',
+			variable.get, variable.set)
+	# This is probably overkill, but gets things updated
+	# when the value actually changes:
+	menu.bind("<Visibility>", self.poll_modified)
 
     def widget_set_func(self, widget):
 	"""Return routine to be used to set widget.
@@ -278,12 +307,12 @@ class Framework:
 	tktools.install_keybindings(widget)
 	widget.bind('<Return>', self.done_cmd)
 	widget.bind('<Key>', self.poll_modified)
-	widget.bind('<Button>', self.poll_modified)
 	widget.bind("<Alt-w>", self.cancel_cmd)
 	widget.bind("<Alt-W>", self.cancel_cmd)
 	widget.bind("<Alt-Control-r>", self.reload_panel_cmd)
 	widget.bind("<Alt-Control-d>", self.toggle_debugging)
-	widget.bind('<Button>', self.poll_modified)
+	widget.bind('<ButtonPress>', self.poll_modified) # same as <Button>
+	widget.bind('<ButtonRelease>', self.poll_modified)
 	widget.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 
 	width=80			# Of the settings frame.
