@@ -2,20 +2,17 @@
 
 
 import os
-import regsub
 import string
 import sys
-import urlparse
 import grailutil
 
 from Tkinter import *
 import tktools
 
 from DefaultStylesheet import DefaultStylesheet
-from Reader import Reader
 from Viewer import Viewer
 from AsyncImage import AsyncImage
-import History
+from Cursors import *
 
 
 # URLs of various sorts
@@ -31,12 +28,6 @@ FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 
 # Window title prefix
 TITLE_PREFIX = "Grail: "
-
-
-# Various cursor shapes (argument to message())
-CURSOR_NORMAL = ''
-CURSOR_LINK = 'hand2'
-CURSOR_WAIT = 'watch'
 
 
 # Font used in message area (default is too heavy)
@@ -61,7 +52,7 @@ class Browser:
     """
     def __init__(self, master, app=None,
 		 width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT,
-		 hist=None, geometry=None):
+		 geometry=None):
 	self.master = master
 	if not app:
 	    import __main__
@@ -70,22 +61,13 @@ class Browser:
 	if app:
 	    app.add_browser(self)
 	self.app = app
-	if hist: self.history = hist
-	else: self.history = History.History()
 	self.create_widgets(width=width, height=height, geometry=geometry)
-	self.history_dialog = None
 	# icon set up
 	iconxbm_file = grailutil.which('icon.xbm')
 	self.root.iconname('Grail')
 	if iconxbm_file:
 	    try: self.root.iconbitmap('@' + iconxbm_file)
 	    except TclError: pass
-
-    def _window_title(self, title):
-	# some window managers don't automatically set the iconname to
-	# the window title.  force this.
-	self.root.title(title)
-	self.root.iconname(title)
 
     def create_widgets(self, width, height, geometry):
 	# I'd like to be able to set the widget name here, but I'm not
@@ -107,7 +89,7 @@ class Browser:
 			     stylesheet=DefaultStylesheet,
 			     width=width, height=height)
 	self.context = self.viewer.context
-	if not getenv("GRAIL_NO_LOGO") and sys.platform != 'mac':
+	if not grailutil.getenv("GRAIL_NO_LOGO") and sys.platform != 'mac':
 	    self.logo_init()
 
     def create_logo(self):
@@ -268,24 +250,10 @@ class Browser:
 	self.msg = Label(self.msg_frame, anchor=W, font=FONT_MESSAGE)
 	self.msg.pack(fill=X, in_=self.msg_frame)
 
-    # setting/getting the URL: entry field
-
-    def load_from_entry(self, event):
-	self.load(string.strip(self.entry.get()))
-
-    def set_entry(self, url):
-	self.entry.delete('0', END)
-	self.entry.insert(END, url)
-
-    # compatibility hacks
-
-    def load(self, url, new=1, reload=0, show_source=0):
-	# XXX This is used in so many places...
-	self.context.load(url, new=new, reload=reload,
-			  show_source=show_source)
+    # --- External interfaces ---
 
     def get_async_image(self, src):
-	# XXX This is here for the 0.2 ImageLoopItem applet
+	# XXX This is here for the 0.2 ImageLoopItem applet only
 	return self.context.get_async_image(src)
 
     def allowstop(self):
@@ -294,19 +262,19 @@ class Browser:
     def clearstop(self):
 	self.logo_stop()
 
-    def set_title(self, title):
-	self._window_title(TITLE_PREFIX + title)
-
-    def set_url(self, url):
-	self.set_entry(url)
-	self.set_title(url)
-
     def clear_reset(self):
 	for b in self.user_menus:
 	    b.destroy()
 	self.user_menus[:] = []
 	self.set_url("")
 	self.viewer.clear_reset()
+
+    def set_url(self, url):
+	self.set_entry(url)
+	self.set_title(url)
+
+    def set_title(self, title):
+	self._window_title(TITLE_PREFIX + title)
 
     def message(self, string = "", cursor = None):
 	msg = self.msg['text']
@@ -317,7 +285,8 @@ class Browser:
 	    else:
 		cursor = CURSOR_NORMAL
 	self.viewer.set_cursor(cursor)
-	self.root.update_idletasks()
+	if cursor == CURSOR_WAIT:
+	    self.root.update_idletasks()
 
     def message_clear(self):
 	self.message("")
@@ -328,8 +297,15 @@ class Browser:
 	else:
 	    print "ERROR:", msg
 
-    def on_delete(self):
-	self.close()
+    # --- Internals ---
+
+    def _window_title(self, title):
+	self.root.title(title)
+	self.root.iconname(title)
+
+    def set_entry(self, url):
+	self.entry.delete('0', END)
+	self.entry.insert(END, url)
 
     def close(self):
 	self.context.stop()
@@ -337,6 +313,22 @@ class Browser:
 	if self.app:
 	    self.app.del_browser(self)
 	    self.app.maybe_quit()
+
+    # --- Callbacks ---
+
+    # WM_DELETE_WINDOW on toplevel
+
+    def on_delete(self):
+	self.close()
+
+    # <Return> in URL entry field
+
+    def load_from_entry(self, event):
+	url = string.strip(self.entry.get())
+	if url:
+	    self.context.load(grailutil.complete_url(url))
+	else:
+	    self.root.bell()
 
     # Stop command
 
@@ -352,28 +344,31 @@ class Browser:
 	return b
 
     def clone_command(self, event=None):
-	b = Browser(self.master, self.app, hist=self.history.clone())
-	url = self.context.get_url()
-	if url:
-	    b.context.load(url)
+	b = Browser(self.master, self.app)
+	b.context.clone_history_from(self.context)
 	return b
 
     def open_uri_command(self, event=None):
 	import OpenURIDialog
 	dialog = OpenURIDialog.OpenURIDialog(self.root)
 	uri = dialog.go()
-	if uri: self.load(uri)
+	if uri:
+	    uri = string.strip(uri)
+	    if uri:
+		self.context.load(grailutil.complete_url(uri))
 
     def open_file_command(self, event=None):
 	import FileDialog
 	dialog = FileDialog.LoadFileDialog(self.master)
 	filename = dialog.go()
-	if filename: self.load('file:' + filename) # XXX quote()
+	if filename:
+	    import urllib
+	    self.context.load('file:' + urllib.quote(filename))
 
     def view_source_command(self, event=None):
 	# File/View Source
 	b = Browser(self.master, self.app, height=24)
-	b.load(self.context.get_url(), show_source=1)
+	b.context.load(self.context.get_url(), show_source=1)
 
     def save_as_command(self, event=None):
 	# File/Save As...
@@ -431,43 +426,29 @@ class Browser:
 
     def home_command(self, event=None):
 	home = self.app and self.app.home or DEFAULT_HOME
-	self.load(home)
+	self.context.load(home)
 
     def reload_command(self, event=None):
-	page = self.history.page()
-	if not page:
-	    self.root.bell()
-	    return
-	self.load(page.url(), new=0, reload=1)
+	self.context.reload_page()
 
     def forward_command(self, event=None):
-	page = self.history.forward()
-	if not page: self.root.bell()
-	else: self.load(page.url(), new=0)
+	self.context.go_forward()
 
     def back_command(self, event=None):
-	page = self.history.back()
-	if not page: self.root.bell()
-	else: self.load(page.url(), new=0)
+	self.context.go_back()
 
     def show_history_command(self, event=None):
-	# XXX This functionality might be in the history object
-	if not self.history_dialog:
-	    self.history_dialog = History.HistoryDialog(self, self.history)
-	else:
-	    self.history_dialog.show()
+	self.context.show_history_dialog()
 
     # Help menu commands
 
-    def about_command(self, event=None):       self.load(ABOUT_GRAIL)
-    def grail_home_command(self, event=None):  self.load(GRAIL_HOME)
-    def python_home_command(self, event=None): self.load(PYTHON_HOME)
-    def psa_home_command(self, event=None):    self.load(PSA_HOME)
-    def cnri_home_command(self, event=None):   self.load(CNRI_HOME)
+    def about_command(self, event=None):       self.context.load(ABOUT_GRAIL)
+    def grail_home_command(self, event=None):  self.context.load(GRAIL_HOME)
+    def python_home_command(self, event=None): self.context.load(PYTHON_HOME)
+    def psa_home_command(self, event=None):    self.context.load(PSA_HOME)
+    def cnri_home_command(self, event=None):   self.context.load(CNRI_HOME)
 
-    # End of commmands
-
-    # Animated logo (XXX generalize???)
+    # --- Animated logo ---
 
     def logo_init(self):
 	self.logo_index = 0
@@ -512,7 +493,7 @@ class Browser:
 	    self.logo_id = None
 	self.logo.config(image=self.logo_image)
 
-    # API for searching
+    # --- API for searching ---
 
     def search_for_pattern(self, pattern,
 			   regex_flag, case_flag, backwards_flag):
@@ -538,11 +519,6 @@ class Browser:
 	    textwidget.tag_add(SEL, hit, "%s + %s chars" % (hit, hitlength))
 	    textwidget.yview_pickplace(SEL_FIRST)
 	return hit
-
-
-def getenv(s):
-    if os.environ.has_key(s): return os.environ[s]
-    return None
 
 
 def test():
