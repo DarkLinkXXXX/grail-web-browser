@@ -120,8 +120,10 @@ class History:
 
 
 HISTORY_PREFGROUP = 'history'
-VIEW_BY_TITLES = 1
-VIEW_BY_URLS = 2
+VIEW_BY_PREF = 'view-by'
+VIEW_BY_TITLES = 'titles'
+VIEW_BY_URLS = 'urls'
+
 
 class HistoryDialog:
     def __init__(self, context, historyobj=None):
@@ -136,16 +138,13 @@ class HistoryDialog:
 	self._frame = tktools.make_toplevel(self._context.viewer.frame,
 					    title="History Dialog")
 	# get preferences
-	self._viewby = IntVar()
+	self._viewby = StringVar()
 	from __main__ import app
-	prefs = app.prefs
+	self._prefs = prefs = app.prefs
+	prefs.AddGroupCallback(HISTORY_PREFGROUP, self._notify)
 	try:
-	    viewby = prefs.Get(HISTORY_PREFGROUP, 'view-by')
-	    if viewby == 'titles':
-		viewby = VIEW_BY_TITLES
-	    elif viewby == 'urls':
-		viewby = VIEW_BY_URLS
-	    else:
+	    viewby = prefs.Get(HISTORY_PREFGROUP, VIEW_BY_PREF)
+	    if viewby not in [VIEW_BY_TITLES, VIEW_BY_URLS]:
 		raise TypeError
 	except (KeyError, TypeError):
 	    viewby = VIEW_BY_TITLES
@@ -189,6 +188,11 @@ class HistoryDialog:
 	tktools.set_transient(self._frame, self._context.root)
 	    
     def history(self): return self._history
+
+    def _notify(self):
+	viewby = self._prefs.Get(HISTORY_PREFGROUP, VIEW_BY_PREF)
+	self._viewby.set(viewby)
+	self.refresh()
 
     def refresh(self):
 	# populate listbox
