@@ -990,13 +990,13 @@ class BookmarksController(OutlinerController):
 
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
-	if filename: self._browser().load('file:' + filename)
+	if filename: self._browser().context.load('file:' + filename)
     def goto_node(self, node):
 	if node and node.leaf_p() and node.uri():
 	    node.set_last_visited(int(time.time()))
 	    if self._details.has_key(id(node)):
 		self._details[id(node)].revert()
-	    self._browser().load(node.uri())
+	    self._browser().context.load(node.uri())
 	    self.viewer().select_node(node)
 	    self.set_modflag(True, quiet=True)
 
@@ -1005,7 +1005,8 @@ class BookmarksController(OutlinerController):
 	# into the tree, updating the listbox
 	now = int(time.time())
 	browser = self._browser()
-	node = BookmarkNode(browser.title(), browser.baseurl(), now, now)
+	node = BookmarkNode(browser.context.get_title(),
+			    browser.context.get_baseurl(), now, now)
 	addlocation = self.addcurloc.get()
 	if addlocation == NEW_AT_END:
 	    # add this node to the end of root's child list.
