@@ -27,7 +27,10 @@ class Dialog(Frame):
 		b.config(relief='ridge', border=4)
 	    b.pack(side='left', fill='both', expand=1)
 	    num = num+1
-	self.root.grab_set()
+	try:
+	    self.root.grab_set()
+	except TclError:
+	    print "*** Grab failed ***"
 	try:
 	    self.root.mainloop()
 	except SystemExit:
