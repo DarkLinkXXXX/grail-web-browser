@@ -469,7 +469,13 @@ class Browser:
 	if self.busycheck(): return
 	import FileDialog
 	fd = FileDialog.SaveFileDialog(self.root)
-	file = fd.go()
+	# give it a default filename on which save within the
+	# current directory
+	urlasfile = string.splitfields(self.url, '/')
+	default = urlasfile[-1]
+	# maybe bogus assumption?
+	if not default: default = 'index.html'
+	file = fd.go(default=default)
 	if not file: return
 	api = self.app.open_url(self.url, 'GET', {})
 	errcode, errmsg, params = api.getmeta()
