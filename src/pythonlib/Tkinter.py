@@ -1329,8 +1329,8 @@ class PhotoImage(Image):
 		apply(Image.__init__, (self, 'photo', name, cnf), kw)
 	def blank(self):
 		self.tk.call(self.name, 'blank')
-	def cget(self):
-		return self.tk.call(self.name, 'cget')
+	def cget(self, option):
+		return self.tk.call(self.name, 'cget', '-' + option)
 	# XXX config
 	def __getitem__(self, key):
 		return self.tk.call(self.name, 'cget', '-' + key)
