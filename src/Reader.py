@@ -385,19 +385,12 @@ class Reader(BaseReader):
 	    print "Exit status", sts, "from command", command
 
     def find_parser_extension(self, content_type):
-	try:
-	    [type, subtype] = string.splitfields(content_type, '/')
-	except:
-	    return None
-	type = regsub.gsub("[^a-zA-Z0-9_]", "_", type)
-	subtype = regsub.gsub("[^a-zA-Z0-9_]", "_", subtype)
 	app = self.context.app
-	for modname in (type + "_" + subtype, type):
-	    m = app.find_extension('filetypes', modname)
-	    if m:
-		pname = "parse_" + modname
-		if hasattr(m, pname):
-		    return getattr(m, pname)
+	modname, mod = app.find_type_extension('filetypes', content_type)
+	if modname:
+	    pname = "parse_" + modname
+	    if hasattr(mod, pname):
+		return getattr(mod, pname)
 	return None
 
 
@@ -489,8 +482,8 @@ LIGHT_BLUE = "#b0e0e6"
 class TransferDisplay:
     """A combined browser / viewer for asynchronous file transfers."""
 
-    def __init__(self, old_context, filename, reader):
-	url = old_context.get_baseurl()
+    def __init__(self, old_context, filename, reader, restart=1):
+	url = old_context.get_url()
 	headers = old_context.get_headers()
 	self.app = old_context.browser.app
 	self.root = tktools.make_toplevel(
@@ -516,9 +509,13 @@ class TransferDisplay:
 	    self.content_length = string.atoi(headers['content-length'])
 	self.create_widgets(url, filename, self.content_length)
 	#
-	reader.restart(reader.url)
+	if restart:
+	    reader.restart(reader.url)
 	reader.bufsize = 8096
 	tktools.set_transient(self.root, old_context.browser.master)
+	history = old_context.app.global_history
+	if not history.inhistory_p(url):
+	    history.remember_url(url)
 
     def create_widgets(self, url, filename, content_length):
 	"""Create the widgets in the Toplevel instance."""
