@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.13 1996/04/02 23:59:00 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.14 1996/04/03 00:34:45 bwarsaw Exp $'
 
 
 import string
@@ -286,6 +286,7 @@ class Table(AttrElem):
  	self.container = Canvas(parentviewer.text,
 				relief=relief,
 				borderwidth=borderwidth)
+
 	self.caption = None
 	self.cols = []			# multiple COL or COLGROUP
 	self.colgroups = []
@@ -604,6 +605,7 @@ class ContainedText(AttrElem):
 			      parent=parentviewer)
 	self._fw = self._viewer.frame
 	self._tw = self._viewer.text
+	self._tw['background'] = parentviewer.text['background']
 	self._width = 0
 	self._height = None		# if None do expensive calculation
 
