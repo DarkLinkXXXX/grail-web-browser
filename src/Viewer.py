@@ -105,6 +105,7 @@ class Viewer(formatter.AbstractWriter):
             # Avoid showing the widget until it's fully constructed:
             self.master.withdraw()
         self.__fonttags_built = {}
+        self.init_presentation()
         self.create_widgets(width=width, height=height)
         self.reset_state()
         self.freeze(1)
@@ -120,7 +121,6 @@ class Viewer(formatter.AbstractWriter):
             self.parent.add_subviewer(self)
         self.message("")
         self.add_styles_callbacks()
-        self.init_presentation()
         if not self.parent:
             # Ok, now show the fully constructed widget:
             self.master.deiconify()
@@ -132,15 +132,15 @@ class Viewer(formatter.AbstractWriter):
         self.prefs.AddGroupCallback('styles-common', self.init_styles)
         self.prefs.AddGroupCallback('styles-fonts', self.init_styles)
         self.prefs.AddGroupCallback('styles', self.init_styles)
-        self.prefs.AddGroupCallback('presentation', self.init_presentation)
+        self.prefs.AddGroupCallback('presentation',
+                                    self.configure_presentation)
 
     def remove_styles_callbacks(self):
-        """Add prefs callbacks so text widget's reconfigured on major changes.
-        """
         self.prefs.RemoveGroupCallback('styles-common', self.init_styles)
         self.prefs.RemoveGroupCallback('styles-fonts', self.init_styles)
         self.prefs.RemoveGroupCallback('styles', self.init_styles)
-        self.prefs.RemoveGroupCallback('presentation', self.init_presentation)
+        self.prefs.RemoveGroupCallback('presentation',
+                                       self.configure_presentation)
 
     def message(self, message):
         if not self.context or self.linkinfo:
@@ -243,6 +243,20 @@ class Viewer(formatter.AbstractWriter):
     def init_presentation(self):
         self.SHOW_TITLES = self.prefs.GetBoolean(
             'presentation',  'show-link-titles')
+        self.hovering_enabled = self.prefs.GetBoolean(
+            'presentation', 'hover-on-links')
+
+    def configure_presentation(self):
+        self.init_presentation()
+        if self.hovering_enabled:
+            foreground = self.prefs.Get(
+                'presentation', 'hover-foreground')
+            underline = self.prefs.Get(
+                'presentation', 'hover-underline')
+        else:
+            foreground = underline = None
+        self.text.tag_configure(
+            'hover', foreground=foreground, underline=underline)
 
     def init_styles(self):
         self.configure_styles(new_styles=1)
@@ -254,6 +268,7 @@ class Viewer(formatter.AbstractWriter):
             self.configure_tags(self.stylesheet)
         except UndefinedStyle:
             pass
+        self.configure_presentation()
 
     def configure_tags(self, stylesheet):
         if self.text:
@@ -298,6 +313,7 @@ class Viewer(formatter.AbstractWriter):
             #
             for tag, cnf in stylesheet.history.items():
                 self.text.tag_configure(tag, cnf)
+            self.text.tag_add('hover', '0.1', '0.1')
             self.text.tag_raise('ahist', 'a')
             self.text.tag_raise('hover', 'ahist')
             self.text.tag_raise('atemp', 'hover')
@@ -305,6 +321,7 @@ class Viewer(formatter.AbstractWriter):
             if not self.parent:
                 self.resize_event()
                 self.set_cursor(current_cursor)
+            self.init_presentation()
 
     def configure_tags_fixed(self):
         # These are used in aligning block-level elements:

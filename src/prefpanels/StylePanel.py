@@ -1,6 +1,6 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.17 $"
+__version__ = "$Revision: 1.18 $"
 
 # Base class for the panel:
 import PrefsPanels
@@ -52,53 +52,55 @@ class StylePanel(PrefsPanels.Framework):
         # Anchors:
 
         v = StringVar(frame)
-        vhover = StringVar(frame)
         f = Frame(frame)
         l = self.PrefsWidgetLabel(f, "Anchors:", label_width=20)
         cb = Checkbutton(f, text="Underline", borderwidth=1,
                          variable=v)
         cb.pack(side=LEFT)
-        cb = Checkbutton(f, text="Underline when Hovering", borderwidth=1,
-                         variable=vhover)
-        cb.pack(side=LEFT)
         f.pack(fill=NONE, pady='1m', anchor=W)
         self.RegisterUI('styles-common', 'history-ahist-underline',
                         'Boolean', v.get, v.set)
-        self.RegisterUI('styles-common', 'history-atemp-underline',
-                        'Boolean', vhover.get, vhover.set)
         self.RegisterUI('styles-common', 'history-a-underline',
                         'Boolean', v.get, v.set)
-        self.RegisterUI('styles-common', 'history-hover-underline',
-                        'Boolean', vhover.get, vhover.set)
 
         # Anchor colors:
 
         f = Frame(frame)
         l = self.PrefsWidgetLabel(f, "", label_width=20)
-        f1 = Frame(f)
-        f1.pack(side=LEFT, expand=1, fill=X)
-        f2 = Frame(f)
-        f2.pack(side=LEFT, expand=1, fill=X)
-        self.__add_color(f1, 'history-a-foreground',
+        self.__add_color(f, 'styles-common', 'history-a-foreground',
                          "Anchor color")
-        Frame(f1, height=6).pack()
-        self.__add_color(f1, 'history-ahist-foreground',
+        self.__add_color(f, 'styles-common', 'history-ahist-foreground',
                          "Visited anchor color")
-        self.__add_color(f2, 'history-atemp-foreground',
+        self.__add_color(f, 'styles-common', 'history-atemp-foreground',
                          "Active anchor color")
-        Frame(f2, height=6).pack()
-        self.__add_color(f2, 'history-hover-foreground',
-                         "Hover color")
+        f.pack(fill=X, pady='1m', anchor=W)
+
+        # Hovering behavior:
+
+        f = Frame(frame)
+        l = self.PrefsWidgetLabel(f, "Hovering:", label_width=20)
+        hovering = BooleanVar(frame)
+        vhover = BooleanVar(frame)
+        Checkbutton(f, text="Enable hovering", borderwidth=1,
+                    variable=hovering).pack(side=LEFT)
+        Checkbutton(f, text="Underline when hovering", borderwidth=1,
+                    variable=vhover).pack(side=LEFT)
+        f.pack(fill=X, pady='1m', anchor=W)
+        self.RegisterUI('presentation', 'hover-on-links',
+                        'Boolean', hovering.get, hovering.set)
+        self.RegisterUI('presentation', 'hover-underline',
+                        'Boolean', vhover.get, vhover.set)
+
+        f = Frame(frame)
+        l = self.PrefsWidgetLabel(f, "", label_width=20)
+        self.__add_color(f, 'presentation', 'hover-foreground',
+                         "Hover  color")
         f.pack(fill=X, pady='1m', anchor=W)
 
         frame.pack()
 
-    def __add_color(self, frame, prefname, description):
-        f = Frame(frame)
-        button = ColorButton(f)
-        button.pack(side=LEFT)
-        self.RegisterUI('styles-common', prefname, 'string',
-                        button.get, button.set)
-        Label(f, text=" " + description).pack(side=LEFT)
-        f.pack(anchor=W)
-        return button
+    def __add_color(self, frame, prefgroup, prefname, description):
+        b = ColorButton(frame)
+        b.pack(side=LEFT)
+        self.RegisterUI(prefgroup, prefname, 'string', b.get, b.set)
+        Label(frame, text=" %s " % description).pack(side=LEFT)
