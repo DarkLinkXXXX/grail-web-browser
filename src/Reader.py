@@ -478,6 +478,7 @@ class TransferDisplay:
 	self.app = old_context.browser.app
 	self.root = Toplevel(
 	    old_context.browser.master, class_="GrailTransfer")
+	import Context
 	self.context = Context.SimpleContext(self, self)
 	self.context._url = self.context._baseurl = url
 	reader.last_context = self.context
