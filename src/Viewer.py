@@ -544,7 +544,7 @@ class Viewer(formatter.AbstractWriter):
 	self.pendingdata = self.pendingdata + data
 
     def send_literal_data(self, data):
-##	print "Literal data:", `data`, self.literaltags
+##	print "Literal data:", `data`, self.flowingtags + ('pre',)
 	self.text.insert(END, self.pendingdata, self.flowingtags,
 			 data, self.flowingtags + ('pre',))
 	self.pendingdata = ''
