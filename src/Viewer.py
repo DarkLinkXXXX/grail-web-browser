@@ -36,7 +36,6 @@ class Viewer(formatter.AbstractWriter):
 	self.marginlevel = 0		# Numeric margin level
 	self.spacingtag = None		# Tag specifying spacing
 	self.addtags = ()		# Additional tags (e.g. anchors)
-	self.tags = ()			# Near-final collection of tags
 	self.literaltags = ()		# Tags for literal text
 	self.flowingtags = ()		# Tags for flowed text
 
@@ -68,13 +67,17 @@ class Viewer(formatter.AbstractWriter):
 	    tabs = "%d right %d left" % (pix-5, pix)
 	    self.text.tag_config('label_%d' % level,
 				 lmargin1=pix-40, tabs=tabs)
+	# Configure anchor tags
+	for tag in 'a', 'ahist':
+	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
+	    self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
+	    self.text.tag_bind(tag, '<ButtonRelease-3>', self.anchor_click_new)
+	    self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
 
     def bind_anchors(self, tag):
+	# Each URL must have a separate binding so moving between
+	# adjacent anchors updates the URL shown in the feedback area
 	self.text.tag_bind(tag, '<Enter>', self.anchor_enter)
-	self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
-	self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
-	self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
-	self.text.tag_bind(tag, '<ButtonRelease-3>', self.anchor_click_new)
 	# XXX Don't tag bindings need to be garbage-collected?
 
     def clear_reset(self):
@@ -104,12 +107,10 @@ class Viewer(formatter.AbstractWriter):
 	self.text['state'] = DISABLED
 
     def new_tags(self):
-	self.tags = filter(None,
-			   (self.fonttag, self.margintag, self.spacingtag) +
-			   self.addtags)
-	self.literaltags = self.tags + ('pre',)
-	self.flowingtags = self.tags
-	#print "New tags:", self.tags
+	self.flowingtags = filter(
+	    None,
+	    (self.fonttag, self.margintag, self.spacingtag)) + self.addtags
+	self.literaltags = self.flowingtags + ('pre',)
 
     def scroll_page_down(self, event=None):
 	self.text.tk.call('tkScrollByPages', self.text.vbar, 'v', 1)
@@ -150,7 +151,7 @@ class Viewer(formatter.AbstractWriter):
 
     def new_styles(self, styles):
 ##	print 'New styles:', styles
-	self.addtags = styles
+	self.addtags = filter(None, styles)
 	self.new_tags()
 
     def send_paragraph(self, blankline):
@@ -232,7 +233,7 @@ class Viewer(formatter.AbstractWriter):
 
     def find_tag_range(self):
 	for tag in self.text.tag_names(CURRENT):
-	    if tag[0] == '%':
+	    if tag[0] == '>':
 		range = self.text.tag_ranges(tag)
 		return range[0], range[1]
 	return None, None
