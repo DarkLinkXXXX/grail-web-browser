@@ -1,4 +1,4 @@
-#! /home/guido/bin.sgi/python
+#! /home/guido/depot/bin/python
 
 
 """Grail -- an extensible web browser.
@@ -10,8 +10,8 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 XXX Bugs:
 - error dialog looks ugly
 - view source
-- bookmarks
-- save
+- bookmarks (no -- that's an ideal extension)
+- save (ditto?)
 - print
 """
 
@@ -180,8 +180,15 @@ class Application:
 	# Display an error dialog.
 	# Return when the user clicks OK
 	# XXX This looks horrible
+	if type(msg) in (ListType, TupleType):
+	    s = ''
+	    for item in msg:
+		s = s + ':\n' + str(item)
+	    msg = s[2:]
+	else:
+	    msg = str(msg)
 	SafeDialog.Dialog(self.root,
-		      text=tktools.flatten(msg),
+		      text=msg,
 		      title=exc,
 		      bitmap='error',
 		      default=0,
