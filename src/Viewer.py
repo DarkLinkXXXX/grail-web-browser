@@ -37,12 +37,11 @@ class Viewer(formatter.AbstractWriter):
 	self.name = name
 	self.scrolling = scrolling
 	self.parent = parent
-	self.align = None
 	self.subwindows = []
 	self.rules = []
 	self.subviewers = []
 	self.resize_interests = [self.__class__.resize_rules]
-	self.reset_interests = []
+	self.reset_interests = [self.__class__.clear_targets]
 	self.current_cursor = CURSOR_NORMAL
 	self.create_widgets(width=width, height=height)
 	self.reset_state()
@@ -84,6 +83,7 @@ class Viewer(formatter.AbstractWriter):
 	self.addtags = ()		# Additional tags (e.g. anchors)
 	self.align = None		# Alignment setting
 	self.pendingdata = ''		# Data 'on hold'
+	self.targets = {}		# Mark names for anchors/footnotes
 	self.new_tags()
 
     def __del__(self):
@@ -496,7 +496,7 @@ class Viewer(formatter.AbstractWriter):
 	list = self.find_tag_ranges()
 	if list:
 	    self._atemp = list
-	    for (start, end) in self._atemp:
+	    for (start, end) in list:
 		self.text.tag_add('atemp', start, end)
 
     def remove_temp_tag(self, histify=0):
@@ -539,30 +539,37 @@ class Viewer(formatter.AbstractWriter):
     def scrollpos(self): return self.text.index('@0,0')
     def scroll_to_position(self, pos): self.text.yview(pos)
 
+    def clear_targets(self):
+	targs = self.targets.keys()
+	if targs:
+	    apply(self.text.mark_unset, tuple(targs))
+
     def add_target(self, fragment):
 	if self.pendingdata:
 	    self.text.insert(END, self.pendingdata, self.flowingtags)
 	    self.pendingdata = ''
 	self.text.mark_set(fragment, END + ' - 1 char')
 	self.text.mark_gravity(fragment, 'left')
+	self.targets[fragment] = 1
 
     def scroll_to(self, fragment):
-	r = self.text.tag_nextrange('#' + fragment, '1.0')
-	if not r:
-	    #  Maybe an empty target; try the mark database:
-	    try:
-		first = self.text.index('#' + fragment)
-	    except TclError:
-		pass			# unknown mark
-	    else:
+	fragment = '#' + fragment
+	if self.targets.has_key(fragment):
+	    r = self.text.tag_nextrange(fragment, '1.0')
+	    if not r:
+		#  Maybe an empty target; try the mark database:
+		try:
+		    first = self.text.index(fragment)
+		except TclError:
+		    return		# unknown mark
 		#  Highlight the entire line:
 		r = (first,
 		     `1 + string.atoi(string.splitfields(first,'.')[0])` \
 		     + '.0')
+	else:
+	    r = self.parse_range(fragment)
 	    if not r:
-		r = self.parse_range(fragment)
-		if not r:
-		    return
+		return
 	first, last = r
 	self.text.yview(first)
 	self.text.tag_remove(SEL, '1.0', END)
@@ -573,7 +580,7 @@ class Viewer(formatter.AbstractWriter):
 	    p = self.range_pattern
 	except AttributeError:
 	    import regex
-	    p = regex.compile('\([0-9]+\.[0-9]+\)-\([0-9]+\.[0-9]+\)')
+	    p = regex.compile('#\([0-9]+\.[0-9]+\)-\([0-9]+\.[0-9]+\)')
 	    self.range_pattern = p
 	if p.match(fragment) == len(fragment):
 	    return p.group(1, 2)
