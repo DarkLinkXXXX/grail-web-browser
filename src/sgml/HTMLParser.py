@@ -266,11 +266,14 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         message = extract_keyword('standby', attrs, '')
         message = string.join(string.split(message))
         for dev in self.get_devicetypes():
-            embedder = self.context.app.find_embedder(dev, embedtype)
+            info = self.context.app.find_type_extension(
+                "html." + dev, embedtype)
+            embedder = info and info.embed
             obj = embedder and embedder(self, copy.copy(attrs))
-            if obj and message:
-                self.context.message(message)
-            return obj
+            if obj:
+                if message:
+                    self.context.message(message)
+                return obj
         return None
 
     def do_param(self, attrs):
@@ -1039,20 +1042,30 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         taginfo = None
         if override:
             # This prefers external definitions over internal definitions:
-            for dev in self.get_devicetypes():
-                taginfo = self.context.app.find_html_extension(tag, dev)
-                if taginfo:
-                    break
-        if not taginfo:
-            taginfo = SGMLHandler.BaseSGMLHandler.get_taginfo(self, tag)
+            taginfo = self.get_extension_taginfo(tag)
+            if taginfo:
+                return taginfo
+        taginfo = SGMLHandler.BaseSGMLHandler.get_taginfo(self, tag)
         if not (taginfo or override):
-            for dev in self.get_devicetypes():
-                taginfo = self.context.app.find_html_extension(tag, dev)
-                if taginfo:
-                    break
+            taginfo = self.get_extension_taginfo(tag)
         if not taginfo and tag in self.UNIMPLEMENTED_CONTAINERS:
-            taginfo = DummyTagInfo(tag)
-        return taginfo
+            return DummyTagInfo(tag)
+        else:
+            return taginfo
+
+    __tagmask = string.maketrans('-.', '__')
+    def get_extension_taginfo(self, tag):
+        tag = string.translate(tag, self.__tagmask) # ??? why ???
+        for dev in self.get_devicetypes():
+            try:
+                loader = self.context.app.get_loader("html." + dev)
+            except KeyError:
+                pass
+            else:
+                taginfo = loader.get(tag)
+                if taginfo:
+                    return taginfo
+        return None
 
     # a few interesting UNICODE values:
     __charrefs = {
@@ -1137,12 +1150,8 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
 
 
 class DummyTagInfo(SGMLParser.TagInfo):
-    container = 0
-
     def __init__(self, tag):
-        self.tag = tag
-        self.start = SGMLParser._nullfunc
-        self.end = SGMLParser._nullfunc
+        SGMLParser.TagInfo.__init__(self, tag, None, None, None)
 
 
 class NewlineScratcher:
