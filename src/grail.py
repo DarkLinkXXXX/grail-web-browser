@@ -191,6 +191,43 @@ class URLReadWrapper:
 	if api:
 	    api.close()
 
+class SocketQueue:
+
+    def __init__(self, max_sockets):
+	self.max = max_sockets
+	self.blocked = []
+	self.callbacks = {}
+	self.open = 0
+
+	self.debug = {}
+
+    def show_state(self,op,arg):
+	print "%s(%s)" % (op, arg)
+	print "%d of %d sockets in use" % (self.open, self.max)
+	print "%d blocked requests" % len(self.blocked)
+	if len(self.blocked) > 0:
+	    print "\t", self.blocked
+
+    def request_socket(self, requestor, callback):
+	if self.open >= self.max:
+	    self.blocked.append(requestor)
+	    self.callbacks[requestor] = callback
+	else:
+	    self.open = self.open + 1
+	    callback()
+	# self.show_state("request_socket", requestor)
+
+    def return_socket(self, owner):
+	if owner in self.blocked:
+	    # died before its time
+	    self.blocked.remove(owner)
+	    del self.callbacks[owner]
+	elif len(self.blocked) > 0:
+	    self.callbacks[self.blocked[0]]()  # apply callback
+	    del self.blocked[0]
+	else:
+	    self.open = self.open - 1
+	# self.show_state("return_socket", owner)
 
 class Application:
 
@@ -201,6 +238,10 @@ class Application:
 	self.prefs = prefs or GrailPrefs.AllPreferences()
 	self.splash = SplashScreen(self)
 	self.load_images = 1		# Overridden by cmd line or pref.
+
+	# socket management
+	self.sq = SocketQueue(5)
+
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
 	self.global_history = GlobalHistory.GlobalHistory(self)

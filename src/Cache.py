@@ -121,6 +121,8 @@ class CacheItem:
 	### which errcode should I try to handle
 	if errcode == 304:
 	    # we win! it hasn't been modified
+	    # but we probably need to delete the api object
+	    api.close()
 	    pass
 	elif errcode == 200:
 	    self.api = api
@@ -254,6 +256,9 @@ class CacheAPI:
 	    if self.fno >= 0:
 		self.fno = os.dup(self.fno)
 	return self.fno
+
+    def register_reader(self,reader):
+	self.item.api.register_reader(reader)
 
     def tk_img_access(self):
 	if hasattr(self.item.api, 'tk_img_access'):

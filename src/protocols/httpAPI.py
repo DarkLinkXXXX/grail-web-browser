@@ -34,10 +34,12 @@ endofheaders = regex.compile("\n[ \t]*\r?\n")
 
 
 # Stages
+# there are now five stages
+WAIT = 'wait'  # waiting for a socket
 META = 'meta'
 DATA = 'data'
 DONE = 'done'
-
+CLOS = 'closed'
 
 class MyHTTP(httplib.HTTP):
 
@@ -82,7 +84,24 @@ class MyHTTP(httplib.HTTP):
 class http_access:
 
     def __init__(self, resturl, method, params, data=None):
+	self.app = __main__.app
+	self.args = (resturl, method, params, data)
+	self.stage = WAIT
+	self.h = None
+	self.reader_callback = None
+	self.app.sq.request_socket(self,self.open)
+
+    def register_reader(self, reader_callback):
+	if self.stage == WAIT:
+	    self.reader_callback = reader_callback
+	else:
+	    # we've been waitin' fer ya
+	    reader_callback()
+
+    def open(self):
+	assert(self.stage == WAIT)
 	grailversion = __main__.__version__
+	resturl, method, params, data = self.args
 	if data:
 	    assert(method=="POST")
 	else:
@@ -104,7 +123,6 @@ class http_access:
 	else:
 	    auth = None
 	self.h = MyHTTP(host)
-##	self.h.set_debuglevel(2)
 	self.h.putrequest(method, selector)
 	self.h.putheader('User-agent', grailversion)
 	if auth:
@@ -118,14 +136,20 @@ class http_access:
 	self.readahead = ""
 	self.stage = META
 	self.line1seen = 0
+	if self.reader_callback:
+	    self.reader_callback()
 
     def close(self):
 	if self.h:
 	    self.h.close()
+	if self.stage != CLOS:
+	    self.app.sq.return_socket(self)
+	    self.stage = CLOS
 	self.h = None
 
     def pollmeta(self, timeout=0):
 	assert(self.stage == META)
+
 	sock = self.h.sock
 	try:
 	    if not select.select([sock.fileno()], [], [], timeout)[0]:
@@ -185,7 +209,7 @@ class http_access:
 	    raise IOError, msg, sys.exc_traceback
 	if not data:
 	    self.stage = DONE
-	    self.close()
+	    # self.close()
 	return data
 
     def fileno(self):

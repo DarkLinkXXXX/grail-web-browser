@@ -36,27 +36,41 @@ class BaseReader:
     def __init__(self, context, api):
 	self.context = context
 	self.api = api
-
 	self.callback = self.checkmeta
 	self.poller = self.api.pollmeta
-	self.fno = self.api.fileno()
-	if TkVersion == 4.0 and sys.platform == 'irix5':
-	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
-
+	
 	# Stuff for status reporting
 	self.nbytes = 0
 	self.maxbytes = 0
-	self.message = "awaiting server response"
 	self.shorturl = ""
+	self.message = "waiting for socket"
 
 	self.context.addreader(self)
+
+	self.fno = None   # will be assigned by start
+
+	### only http_access has this delayed startup property
+	try:
+	    self.api.register_reader(self.start)
+	except AttributeError:
+	    # if the protocol doesn't do that
+	    self.start()
+
+    def start(self):
+	# when the protocol API is ready to go, it tells the reader
+	# to get busy
+	self.message = "awaiting server response"
+	self.fno = self.api.fileno()
+	if TkVersion == 4.0 and sys.platform == 'irix5':
+	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
 
 	if self.fno >= 0:
 	    tkinter.createfilehandler(
 		self.fno, tkinter.READABLE, self.checkapi)
 	else:
-##	    print "No fileno() -- check every 100 ms"
+            # No fileno() -- check every 100 ms
 	    self.checkapi_regularly()
+
 
     def __str__(self):
 	if self.maxbytes:
