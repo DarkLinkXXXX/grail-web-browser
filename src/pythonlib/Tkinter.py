@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.38 $"
+__version__ = "$Revision: 2.39 $"
 
 try:
 	# See if modern _tkinter is present
@@ -1123,7 +1123,7 @@ class Entry(Widget):
 		self.tk.call(self._w, 'selection', 'clear')
 	select_clear = selection_clear
 	def selection_from(self, index):
-		self.tk.call(self._w, 'selection', 'set', index)
+		self.tk.call(self._w, 'selection', 'from', index)
 	select_from = selection_from
 	def selection_present(self):
 		return self.tk.getboolean(
