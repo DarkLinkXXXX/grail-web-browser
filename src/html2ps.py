@@ -293,6 +293,53 @@ class PSFont:
 
 
 
+class EPSImage:
+    def __init__(self, data, bbox):
+	self.data = data
+	self.bbox = bbox
+	self._scale = 1.0
+	ll_x, ll_y, ur_x, ur_y = bbox
+	self._width = distance(ll_x, ur_x)
+	self._height = distance(ll_y, ur_y)
+
+    def set_maxsize(self, xmax, ymax):
+	"""Scale the image to fit within xmax by ymax points.
+
+	The resulting scale factor may be equal to or less than the
+	current scale, but will be no larger.
+	"""
+	scale = self._scale
+	self.set_size(xmax, ymax)
+	self._scale = min(scale, self._scale)
+
+    def set_size(self, xmax, ymax):
+	"""Scale image to be as large as possible within xmax by ymax points.
+
+	The resulting scale factor may be greater than 1.0.
+	"""
+	scale = (1.0 * xmax) / self._width
+	if (scale * self._height) > ymax:
+	    scale = (1.0 * ymax) / self._height
+	self._scale = scale
+
+    def height(self):
+	return self._height * self._scale
+
+    def width(self):
+	return self._width * self._scale
+
+    def scale(self):
+	"""Returns the current scale factor.
+	"""
+	return self._scale
+
+    def set_scale(self, scale = 1.0):
+	"""Set the scaling factor.
+	"""
+	self._scale = 1.0 * scale
+
+
+
 class PSStream:
     def __init__(self, psfont, ofp, title='', url=''):
 	self._font = psfont
@@ -350,33 +397,22 @@ class PSStream:
 	self.print_page_preamble()
 	self.push_font_change(None)
 
-    def push_eps(self, data, bbox, align=None):
+    def push_eps(self, img, align=None):
 	"""Insert encapsulated postscript in stream.
 	"""
-	if not data: return
 	if self._linestr:
 	    self.close_string()
-	ll_x, ll_y, ur_x, ur_y = bbox
-	width = distance(ll_x, ur_x)
-	height = distance(ll_y, ur_y)
 	if align not in ('absmiddle', 'baseline', 'middle', 'texttop', 'top'):
 	    align = 'bottom'
 
 	#  Determine base scaling factor and dimensions:
-	if width > PAGE_WIDTH:
-	    scale = (1.0 * PAGE_WIDTH) / width
-	else:
-	    scale = 1.0
-	if (scale * height) > PAGE_HEIGHT:
-	    scale = (1.0 * PAGE_HEIGHT) / height
-	width = scale * width		# compute the maximum dimensions
-	height = scale * height
+	img.set_maxsize(PAGE_WIDTH, PAGE_HEIGHT)
 
 	#align = 'bottom'		# limitation!
 	extra = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
 	if align == 'absmiddle':
 	    above_portion = below_portion = 0.5
-	    vshift = ((1.0 * self._font.font_size()) / 2)
+	    vshift = ((1.0 * self._font.font_size()) / 2.0)
 	elif align == 'middle':
 	    above_portion = below_portion = 0.5
 	    vshift = 0.0
@@ -391,6 +427,8 @@ class PSStream:
 	    vshift = 1.0 * self._font.font_size()
 	    extra = 0.0
 
+	height = img.height()
+	width = img.width()
 	if width > PAGE_WIDTH - self._xpos:
 	    self.close_line()
 	above = above_portion * height
@@ -402,17 +440,18 @@ class PSStream:
 				 above + self._yshift[-1][0] + vshift + extra)
 	self._descender = max(self._descender, below - self._yshift[-1][0])
 	self._xpos = self._xpos + width
+	ll_x, ll_y, ur_x, ur_y = img.bbox
 	#
 	oldstdout = sys.stdout
 	try:
 	    sys.stdout = self._linefp
 	    #  Translate & scale for image origin:
 	    print 'gsave currentpoint %f sub translate %f dup scale' \
-		  % (below, scale)
+		  % (below, img.scale())
 	    if ll_x or ll_y:
 		#  Have to translate again to make image happy:
 		print '%d %d translate' % (-ll_x, -ll_y)
-	    print data
+	    print img.data
 	    #  Restore context, move to right of image:
 	    print 'grestore', width, '0 R'
 	finally:
@@ -521,9 +560,30 @@ class PSStream:
     def push_label(self, bullet):
 	if self._linestr:
 	    self.close_string()
-	distance = self._font.text_width(bullet) + LABEL_TAB
-	self._linefp.write('gsave CR -%f 0 R (%s) S grestore\n' %
-			   (distance, bullet))
+	if type(bullet) is type(''):
+	    distance = self._font.text_width(bullet) + LABEL_TAB
+	    cooked = regsub.gsub(QUOTE_re, '\\\\\\1', bullet)
+	    self._linefp.write('gsave CR -%f 0 R (%s) S grestore\n' %
+			       (distance, cooked))
+	else:
+	    #  This had better be an EPSImage object!
+	    max_width = TAB_STOP - LABEL_TAB
+	    bullet.set_scale()
+	    bullet.set_maxsize(max_width, self._font.font_size())
+	    width = bullet.width()
+	    height = bullet.height()
+	    distance = width + LABEL_TAB
+	    #  Locate new origin:
+	    vshift = ((1.0 * self._font.font_size()) - height) / 2.0
+	    self._linefp.write("gsave CR -%f %f R currentpoint translate "
+			       "%f dup scale\n"
+			       % (distance, vshift, bullet.scale()))
+	    ll_x, ll_y, ur_x, ur_y = bullet.bbox
+	    if ll_x or ll_y:
+		#  Have to translate again to make image happy:
+		self._linefp.write('%d %d translate\n' % (-ll_x, -ll_y))
+	    self._linefp.write(bullet.data)
+	    self._linefp.write("grestore\n")
 
     def push_hard_newline(self, blanklines=1):
 	self.close_line()
@@ -816,9 +876,9 @@ class PSWriter(AbstractWriter):
 	self.ps.push_literal(1)
 	self.ps.push_string(data)
 
-    def send_eps_data(self, eps_data, bbox, align):
+    def send_eps_data(self, image, align):
 ##	_debug('send_eps_data: <epsdata>, ' + `bbox`)
-	self.ps.push_eps(eps_data, bbox, align)
+	self.ps.push_eps(image, align)
 
 
 
@@ -872,6 +932,8 @@ class PrintingHTMLParser(HTMLParser):
     The underline_anchors flag controls the visual treatment of the
     anchor text in the main document.
     """
+    iconpath = []
+
     def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
 		 greyscale=1, underline_anchors=1):
 	from formatter import AbstractFormatter
@@ -1002,24 +1064,113 @@ class PrintingHTMLParser(HTMLParser):
 	    from urlparse import urljoin, urlparse
 	    imageurl = urljoin(self._baseurl, src)
 	    if self._image_cache.has_key(imageurl):
-		eps_data, bbox = self._image_cache[imageurl]
+		image = self._image_cache[imageurl]
 	    else:
 		try:
-		    eps_data, bbox = self.load_image(imageurl)
+		    image = self.load_image(imageurl)
 		except EPSError:
-		    self._image_cache[imageurl] = ('', None)
-		    eps_data, bbox = '', None
+		    self._image_cache[imageurl] = image = None
 		else:
-		    self._image_cache[imageurl] = (eps_data, bbox)
-	    if not bbox:
+		    self._image_cache[imageurl] = image
+	    if not image:
 		#  previous load resulted in failure:
 		self.handle_data(alt)
 	    else:
 		align = string.lower(align)
-		self.formatter.writer.send_eps_data(eps_data, bbox, align)
+		self.formatter.writer.send_eps_data(image, align)
 		self.formatter.assert_line_data()
 	else:
 	    self.handle_data(alt)
+
+    # List attribute extensions:
+
+    def start_ul(self, attrs):
+	self.list_check_dingbat(attrs)
+	HTMLParser.start_ul(self, attrs)
+
+    def do_li(self, attrs):
+	self.list_check_dingbat(attrs)
+	HTMLParser.do_li(self, attrs)
+
+    def list_check_dingbat(self, attrs):
+	if attrs.has_key('dingbat') and attrs['dingbat']:
+	    img = self.load_dingbat(attrs['dingbat'])
+	    if img: attrs['type'] = img
+
+    # Override make_format():
+    # This allows disc/circle/square to be mapped to images.
+
+    def make_format(self, format, default='disc'):
+	fmt = format or default
+	if fmt in ('disc', 'circle', 'square'):
+	    img = self.load_dingbat(fmt)
+	    return img or HTMLParser.make_format(self, format, default)
+	else:
+	    return HTMLParser.make_format(self, format, default)
+
+    def unknown_entityref(self, entname):
+	dingbat = self.load_dingbat(entname)
+	if dingbat:
+	    dingbat.set_size(self.formatter.writer.ps._font.font_size(),
+			     PAGE_WIDTH)
+	    self.formatter.writer.send_eps_data(dingbat, 'absmiddle')
+	    self.formatter.assert_line_data()
+	else:
+	    self.handle_data('&%s;' % entname)
+
+
+    dingbats = {}			# (name, cog) ==> EPSImage | None
+
+    def load_dingbat(self, entname):
+	"""Load the appropriate EPSImage object for an entity.
+	"""
+	if self._greyscale:
+	    img = self.load_dingbat_cog(entname, 'grey')
+	else:
+	    img = self.load_dingbat_cog(entname, 'color')
+	    if not img:
+		img = self.load_dingbat_cog(entname, 'grey')
+	return img
+
+    def load_dingbat_cog(self, entname, cog):
+	"""Load EPSImage object for an entity with a specified conversion.
+
+	The conversion is not downgraded to grey if 'color' fails.  If the
+	image is not available or convertible, returns None.
+	"""
+	key = (entname, cog)
+	if self.dingbats.has_key(key):
+	    return self.dingbats[key]
+	gifname = entname + '.gif'
+	epsname = os.path.join('eps.' + cog, entname + '.eps')
+	self.dingbats[key] = None
+	for p in self.iconpath:
+	    epsp = os.path.join(p, epsname)
+	    gifp = os.path.join(p, gifname)
+	    if os.path.exists(epsp):
+		self.load_dingbat_eps(key, epsp)
+	    elif os.path.exists(gifp):
+		try:
+		    newepsp = convert_gif_to_eps(cog, gifp, epsp)
+		except:
+		    pass
+		else:
+		    self.load_dingbat_eps(key, newepsp)
+		    if newepsp != epsp:
+			os.unlink(newepsp)
+		break
+	return self.dingbats[key]
+
+    def load_dingbat_eps(self, key, epsfile):
+	"""Loads the EPSImage object and stores in the cache.
+	"""
+	try:
+	    img = load_eps(epsfile)
+	except EPSError:
+	    #  no bounding box
+	    self.dingbats[key] = None
+	else:
+	    self.dingbats[key] = img
 
     def load_image(self, imageurl):
 	"""Load image and return EPS data and bounding box.
@@ -1060,27 +1211,35 @@ class PrintingHTMLParser(HTMLParser):
 		os.unlink(img_fn)
 		if os.path.exists(eps_fn):
 		    os.unlink(eps_fn)
-		raise EPSError, 'Could not convert image to EPS.'
+		raise EPSError, 'Error converting image to EPS.'
 	except:
 	    os.unlink(img_fn)
 	    if os.path.exists(eps_fn):
 		os.unlink(eps_fn)
 	    raise EPSError, 'Could not run conversion process.'
 	os.unlink(img_fn)
-	fp = open(eps_fn)
-	lines = fp.readlines()
-	fp.close()
+	img = load_eps(eps_fn)
 	os.unlink(eps_fn)
-	try:
-	    lines.remove('showpage\n')
-	except:
-	    pass			# o.k. if not found
-	bbox = load_bounding_box(lines)
-	return (string.joinfields(lines, ''), bbox)
+	return img
+
+def load_eps(eps_fn):
+    """Load an EPS image.
+
+    The bounding box is extracted and stored together with the data in an
+    EPSImage object.  If a PostScript `showpage' command is obvious in the
+    file, it is removed.
+    """
+    fp = open(eps_fn)
+    lines = fp.readlines()
+    fp.close()
+    try: lines.remove('showpage\n')
+    except: pass			# o.k. if not found
+    bbox = load_bounding_box(lines)
+    return EPSImage(string.joinfields(lines, ''), bbox)
 
 
 def load_bounding_box(lines):
-    """Determine bounding box for EPS figure given as a sequence of text lines.
+    """Determine bounding box for EPS image given as sequence of text lines.
     """
     from string import lower
     bbox = None
@@ -1091,6 +1250,38 @@ def load_bounding_box(lines):
     if not bbox:
 	raise EPSError, 'Bounding box not specified.'
     return bbox
+
+
+def convert_gif_to_eps(cog, giffile, epsfile):
+    """Convert GIF to EPS using specified conversion.
+
+    The EPS image is stored in `epsfile' if possible, otherwise a temporary
+    file is created.  The name of the file created is returned.
+    """
+    if not image_converters.has_key(('gif', cog)):
+	raise EPSError, "No conversion defined for %s GIFs." % cog
+    try:
+	fp = open(epsfile, 'w')
+    except IOError:
+	import tempfile
+	filename = tempfile.mktemp()
+    else:
+	filename = epsfile
+	fp.close()
+
+    img_command = image_converters[('gif', cog)]
+    img_command = img_command % {'i':giffile, 'o':filename}
+    try:
+	if os.system(img_command + ' 2>/dev/null'):
+	    if os.path.exists(filename):
+		os.unlink(filename)
+	    raise EPSError, 'Error converting image to EPS.'
+    except:
+	if os.path.exists(filename):
+	    os.unlink(filename)
+	raise EPSError, 'Could not run conversion process.'
+
+    return filename
 
 
 def disallow_data_scheme(href, attrs):

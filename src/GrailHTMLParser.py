@@ -201,18 +201,6 @@ class GrailHTMLParser(HTMLParser):
 	except TclError, msg:
 	    pass			# Ignore the error
 
-
-    # Override make_format():
-    # This allows disc/circle/square to be mapped to images.
-
-    def make_format(self, format, default='disc'):
-	fmt = format or default
-	if fmt in ('disc', 'circle', 'square'):
-	    img = self.load_dingbat(fmt)
-	    return img or HTMLParser.make_format(self, format, default)
-	else:
-	    return HTMLParser.make_format(self, format, default)
-
     # Override tag: <BASE HREF=...>
 
     def do_base(self, attrs):
@@ -425,11 +413,11 @@ class GrailHTMLParser(HTMLParser):
 	dingbat = self.extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat)
-	    self.handle_data(' ')
+	    self.formatter.send_flowing_data(' ')
 	    self.formatter.assert_line_data(0)
-	if attrs.has_key('src'):
+	elif attrs.has_key('src'):
 	    self.do_img(attrs)
-	    self.handle_data(' ')
+	    self.formatter.send_flowing_data(' ')
 	    self.formatter.assert_line_data(0)
 
     def header_end(self):
@@ -438,6 +426,32 @@ class GrailHTMLParser(HTMLParser):
         self.formatter.end_paragraph(1)
 
     end_h1 = end_h2 = end_h3 = end_h4 = end_h5 = end_h6 = header_end
+
+    # List attribute extensions:
+
+    def start_ul(self, attrs):
+	self.list_check_dingbat(attrs)
+	HTMLParser.start_ul(self, attrs)
+
+    def do_li(self, attrs):
+	self.list_check_dingbat(attrs)
+	HTMLParser.do_li(self, attrs)
+
+    def list_check_dingbat(self, attrs):
+	if attrs.has_key('dingbat') and attrs['dingbat']:
+	    img = self.load_dingbat(attrs['dingbat'])
+	    if img: attrs['type'] = img
+
+    # Override make_format():
+    # This allows disc/circle/square to be mapped to images.
+
+    def make_format(self, format, default='disc'):
+	fmt = format or default
+	if fmt in ('disc', 'circle', 'square'):
+	    img = self.load_dingbat(fmt)
+	    return img or HTMLParser.make_format(self, format, default)
+	else:
+	    return HTMLParser.make_format(self, format, default)
 
     # Handle HTML extensions
 
@@ -470,13 +484,12 @@ class GrailHTMLParser(HTMLParser):
 	    return self.entityimages[entname]
 	except KeyError:
 	    pass
-	gifname = entname + '.gif'
-	for p in self.iconpath:
-	    p = os.path.join(p, gifname)
-	    if os.path.exists(p):
-		img = PhotoImage(file=p)
-		self.entityimages[entname] = img
-		return img
+	import grailutil
+	gifname = grailutil.which(entname + '.gif', self.iconpath)
+	if gifname:
+	    img = PhotoImage(file=gifname)
+	    self.entityimages[entname] = img
+	    return img
 	self.entityimages[entname] = None
 	return None
 
