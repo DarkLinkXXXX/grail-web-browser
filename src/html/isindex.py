@@ -3,26 +3,26 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 from Tkinter import Entry
+from grailutil import extract_keyword
 import string
 import urllib
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
 def do_isindex(parser, attrs):
-    try:
-	prompt = attrs['prompt']
-    except KeyError:
-	prompt = "This is a searchable index. Enter search keywords:"
-
+    prompt = extract_keyword(
+	'prompt', attrs,
+	"This is a searchable index. Enter search keywords:")
     IndexWidget(parser, prompt,
-		(attrs.has_key('href') and attrs['href']
+		(extract_keyword('href', attrs)
+		 or extract_keyword('action', attrs)
 		 or parser.context.get_baseurl()))
 
 
 class IndexWidget:
 
     def __init__(self, parser, prompt, url):
-	self.query_url = url
+	self.query_url = string.joinfields(string.split(url), '')
 	formatter = parser.formatter
 	viewer = parser.viewer
 	self.context = viewer.context
