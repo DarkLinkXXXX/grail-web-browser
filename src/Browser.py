@@ -448,7 +448,6 @@ class Browser:
 
     def view_source_command(self, event=None):
 	# File/View Source
-	if self.busycheck(): return
 	b = Browser(self.master, self.app, height=24)
 	b.load(self.url, show_source=1)
 
