@@ -520,6 +520,7 @@ class TransferDisplay:
 	history = old_context.app.global_history
 	if not history.inhistory_p(url):
 	    history.remember_url(url)
+	self.root.update_idletasks()
 
     def create_widgets(self, url, filename, content_length):
 	"""Create the widgets in the Toplevel instance."""
