@@ -1,6 +1,6 @@
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 
 import bookmarks
@@ -114,7 +114,6 @@ def normalize_capture(data, preserve=0, StringType=type("")):
 
 try:
     from xml.parsers.xmllib import XMLParser
-    print "Using xml.parsers.xmllib version of XMLParser."
 except ImportError:
     from xmllib import XMLParser
 
