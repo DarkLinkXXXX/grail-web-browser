@@ -7,7 +7,7 @@ import string
 import urlparse
 from Tkinter import *
 import tktools
-from GrailHTMLParser import GrailHTMLParser
+#from GrailHTMLParser import GrailHTMLParser
 from BaseReader import BaseReader
 import regsub
 import copy
@@ -163,6 +163,7 @@ class Reader(BaseReader):
 	if self.show_source and istext:
 	    content_type = 'text/plain'
 	if content_type == 'text/html':
+	    from GrailHTMLParser import GrailHTMLParser
 	    parserclass = GrailHTMLParser
 	elif content_type == 'text/plain':
 	    parserclass = TextParser
