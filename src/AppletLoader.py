@@ -13,6 +13,8 @@ from Bastion import Bastion
 # Pattern for valid CODE attribute; group(2) extracts module name
 codeprog = regex.compile('^\(.*/\)?\([_a-zA-Z][_a-zA-Z0-9]*\)\.py$')
 
+CLEANUP_HANDLER_NAME = "__cleanup__"
+
 
 class AppletLoader:
 
@@ -156,6 +158,9 @@ class AppletLoader:
 	    self.parent = self.make_parent()
 	    self.instance = apply(self.klass, (self.parent,),
 				  self.params)
+	    try: cleanup = getattr(self.instance, CLEANUP_HANDLER_NAME)
+	    except AttributeError: pass
+	    else: CleanupHandler(self.parser.viewer, cleanup)
 	else:
 	    # Asynchronous loading
 	    self.parent = self.make_parent()
@@ -166,7 +171,6 @@ class AppletLoader:
 	"""Return a widget that will be the applet's parent.
 
 	This is either a menu or a frame subwindow of the text widget.
-
 	"""
 	if self.menu:
 	    browser = self.context.browser
@@ -208,6 +212,9 @@ class AppletLoader:
 	self.parser.loaded.append(mod)
 	self.klass = getattr(self.module, self.classname)
 	self.instance = apply(self.klass, (self.parent,), self.params)
+	try: cleanup = getattr(self.instance, CLEANUP_HANDLER_NAME)
+	except AttributeError: pass
+	else: CleanupHandler(self.parser.viewer, cleanup)
 
     def get_defaults(self):
 	"""Internal -- calculate defaults for applet parameters."""
@@ -619,3 +626,19 @@ class ReloadHelper:
 	    if self.rexec:
 		self.rexec.clear_reload()
 		self.rexec = None
+
+class CleanupHandler:
+    """Helper to run an applet's __cleanup__ discipline.
+    """
+    def __init__(self, viewer, handler):
+	self._viewer = viewer
+	self._handler = handler
+	viewer.register_reset_interest(self)
+
+    def __call__(self, *args):
+	import sys
+	try: self._handler()
+	except: sys.exc_traceback = None ## Pulling in show_tb from the loader
+	del self._handler		 ## doesn't work; not sure why.
+	self._viewer.unregister_reset_interest(self)
+	del self._viewer
