@@ -9,6 +9,7 @@ import urllib
 import string
 import tktools
 import formatter
+from BaseReader import BaseReader
 
 
 class AppletHTMLParser(htmllib.HTMLParser):
@@ -22,20 +23,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.browser = self.viewer.browser
 	self.style_stack = []
 	self.loaded = []
-	self.applets = []
 
     def close(self):
-	DT = 100
-	delay = DT
-	for frame, keywords in self.applets:
-	    def doit(self=self, frame=frame, keywords=keywords):
-		C = self.get_class(keywords)
-		if frame == 'menu':
-		    self.menu_applet(C, keywords)
-		else:
-		    self.subwindow_applet(frame, C, keywords)
-	    self.viewer.text.after(delay, doit)
-	    delay = delay + DT
 	htmllib.HTMLParser.close(self)
 
     # Override HTMLParser internal methods
@@ -85,13 +74,62 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def do_app(self, attrs):
 	keywords = self.get_keywords(attrs)
+	mod, cls, src = self.get_mod_class_src(keywords)
 	if keywords.has_key('menu'):
-	    entry = ('menu', keywords)
+	    menuname = keywords['menu']
+	    del keywords['menu']
+	    browser = self.browser
+	    menubutton = Menubutton(browser.mbar, text=menuname)
+	    menubutton.pack(side=LEFT)
+	    menu = AppletMenu(menubutton, self)
+	    menubutton['menu'] = menu
+	    browser.user_menus.append(menubutton)
+	    parent = menu
 	else:
 	    frame = AppletFrame(self.viewer.text, self)
 	    self.add_subwindow(frame)
-	    entry = (frame, keywords)
-	self.applets.append(entry)
+	    parent = frame
+
+	try:
+	    m = None
+	    if not self.reload:
+		m = self.mod_is_loaded(mod)
+		if not m:
+		    stuff = self.mod_is_local(mod)
+		    if stuff:
+			m = self.load_module(mod, stuff)
+	    else:
+		stuff = self.mod_is_local(mod)
+		if stuff:
+		    if mod in self.loaded:
+			file = stuff[0]
+			if file and hasattr(file, 'close'):
+			    file.close()
+			m = self.mod_is_loaded(mod)
+		    else:
+			self.loaded.append(mod)
+			m = self.load_module(mod, stuff)
+	    if m:
+		if not hasattr(m, cls):
+		    raise NameError, \
+			  "module %s has no class %s" % (mod, cls)
+		C = getattr(m, cls)
+		apply(C, (parent,), keywords)
+		return
+	except:
+	    self.show_tb()
+	    return
+
+	# Start loading the module source now
+	dirurl = urlparse.urljoin(self.browser.url, src or '.')
+	modcomps = string.splitfields(mod, '.')
+	modfile = string.joinfields(modcomps, '/')
+	modurl = urlparse.urljoin(dirurl, modfile + ".py")
+	api = self.app.open_url(modurl, 'GET', {}, self.reload)
+	whatnext = (parent, mod, cls, src, keywords, self)
+	reader = ModuleReader(self.browser, api, whatnext)
+
+    # Subroutines for applet creation
 
     def get_keywords(self, attrs):
 	keywords = {}
@@ -105,33 +143,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    keywords[a] = v
 	return keywords
 
-    # Stuff for applet creation -- now called from close()
-
-    def menu_applet(self, C, keywords):
-	menuname = keywords['menu']
-	del keywords['menu']
-	browser = self.browser
-	menubutton = Menubutton(browser.mbar, text=menuname)
-	menubutton.pack(side=LEFT)
-	menu = AppletMenu(menubutton, self)
-	menubutton['menu'] = menu
-	try:
-	    w = apply(C, (menu,), keywords)
-	except:
-	    self.show_tb()
-	    menubutton.destroy()
-	    return
-	browser.user_menus.append(menubutton)
-
-    def subwindow_applet(self, frame, C, keywords):
-	try:
-	    w = apply(C, (frame,), keywords)
-	except:
-	    self.show_tb()
-	    frame.destroy()
-	    return
-
-    def get_class(self, keywords):
+    def get_mod_class_src(self, keywords):
 	cls = None
 	src = ''
 	if keywords.has_key('class'):
@@ -142,18 +154,14 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    del keywords['src']
 	if not cls:
 	    print "*** APP tag has no CLASS attribute"
-	    return None
+	    return None, None, None
 	if '.' in cls:
 	    i = string.rfind(cls, '.')
 	    mod = cls[:i]
 	    cls = cls[i+1:]
 	else:
 	    mod = cls
-	try:
-	    return self.get_class_proper(mod, cls, src)
-	except:
-	    self.show_tb()
-	    return None
+	return mod, cls, src
 
     def get_class_proper(self, mod, cls, src):
 	rexec = self.browser.app.rexec
@@ -173,6 +181,23 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.viewer.browser.message(msg, crs)
 	return getattr(m, cls)
 
+    def mod_is_loaded(self, mod):
+	rexec = self.browser.app.rexec
+	try:
+	    return rexec.modules[mod]
+	except KeyError:
+	    return None
+
+    def mod_is_local(self, mod):
+	rexec = self.browser.app.rexec
+	path = rexec.get_url_free_path()
+	return rexec.loader.find_module(mod, path)
+
+    def load_module(self, mod, stuff):
+	rexec = self.browser.app.rexec
+	rexec.reset_urlpath()
+	return rexec.loader.load_module(mod, stuff)
+
     def show_tb(self):
 	self.app.exception_dialog("during applet loading")
 
@@ -189,6 +214,36 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	function = app.find_html_end_extension(tag)
 	if function:
 	    function(self)
+
+
+class ModuleReader(BaseReader):
+
+    """Load an applet, asynchronously.
+
+    First load an applet's source module into the cache.  Once it's
+    done, invoke the standard mechanism to actually load the module.
+    This will find the source ready for it in the cache.
+
+    """
+
+    def __init__(self, browser, api, whatnext):
+	self.whatnext = whatnext
+	BaseReader.__init__(self, browser, api)
+
+    def handle_data(self, data):
+	pass
+
+    def handle_error(self, errno, errmsg, headers):
+	BaseReader.handle_error(self, errno, errmsg, headers)
+
+    def handle_eof(self):
+	self.stop()
+	parent, mod, cls, src, keywords, parser = self.whatnext
+	try:
+	    C = parser.get_class_proper(mod, cls, src)
+	    apply(C, (parent,), keywords)
+	except:
+	    parser.show_tb()
 
 
 class AppletMagic:
