@@ -74,10 +74,7 @@ def main():
     global app
     app = Application()
     app.load_images = load_images
-    browser = Browser(app.root, app)
-    if geometry:
-	browser.root.geometry(geometry)
-	app.root.update_idletasks()	# Get geometry implemented
+    browser = Browser(app.root, app, geometry=geometry)
     if url:
 	app.home = url
     browser.load(app.home)
@@ -350,7 +347,7 @@ class Application:
 
 	"""
 	base, ext = posixpath.splitext(url)
-	if ext == '.tgz':
+	if ext in ('.tgz', '.taz', '.tz'):
 	    # Special case, can't be encoded in tables
 	    base = base + '.tar'
 	    ext = '.gz'
