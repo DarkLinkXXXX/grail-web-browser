@@ -44,10 +44,6 @@ class ImageWindow(Frame):
 		self.bind('<Leave>', self.leave)
 		self.label.bind('<Motion>', self.motion)
 		self.label.bind('<ButtonRelease-1>', self.follow)
-	    else:
-##		self['background'] = 'black' # XXX for debug
-		self.label.bind('<ButtonRelease-1>', self.toggle_loading_image)
-	self.label.bind('<ButtonRelease-3>', self.toggle_loading_image)
 	self.image = self.context.get_async_image(self.src, reload)
 	if self.image:
 	    self.label['image'] = self.image
@@ -85,15 +81,3 @@ class ImageWindow(Frame):
 	elif self.map:
 	    return self.map.url(event.x,event.y)
 	return self.url, self.target
-
-    def toggle_loading_image(self, event=None):
-	if self.image:
-	    if hasattr(self.image, 'get_load_status'):
-		status = self.image.get_load_status()
-		if status == 'loading':
-		    self.image.stop_loading()
-		else:
-		    self.image.start_loading(reload=1)
-	else:
-	    print "[no image]"
-
