@@ -85,21 +85,31 @@ class BookmarkNode(OutlinerNode):
       No Public Ivars
     """
 
-    def __init__(self, title='', uri_string = '',
+    def __init__(self, title='', uri_string = None,
 		 add_date=None, last_visited=None,
 		 description=''):
 	OutlinerNode.__init__(self)
 	self._title = title
-	self._uri = uri_string
+	if uri_string is None:
+	    self._uri = ''
+	    self._islink_p = False
+	else:
+	    self._uri = uri_string
+	    self._islink_p = True
 	self._desc = description
-	if add_date: self._add_date = add_date
-	else: self._add_date = time.time()
-	if last_visited: self._visited = last_visited
-	else: self._visited = time.time()
-	self._islink_p = not not uri_string
+	if add_date:
+	    self._add_date = add_date
+	else:
+	    self._add_date = time.time()
+	if last_visited:
+	    self._visited = last_visited
+	else:
+	    self._visited = time.time()
 	self._isseparator_p = False
-	if uri_string or last_visited: self._leaf_p = True
-	else: self._leaf_p = False
+	if self._islink_p or last_visited:
+	    self._leaf_p = True
+	else:
+	    self._leaf_p = False
 
     def __repr__(self):
 	return OutlinerNode.__repr__(self) + ' ' + self.title()
@@ -1126,7 +1136,7 @@ class BookmarksController(OutlinerController):
     def insert_entry(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
-	newnode = BookmarkNode('<Entry>', '  ')
+	newnode = BookmarkNode('<Entry>', '')
 	self._insert_at_node(node, newnode)
 	details = self._details[id(newnode)] = \
 		  DetailsDialog(self._frame, newnode, self)
