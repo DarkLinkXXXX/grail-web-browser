@@ -9,7 +9,8 @@ class OpenURIDialog:
     def __init__(self, master):
 	self._frame = tktools.make_toplevel(master,
 					    title="Open Location Dialog")
-	fr, top, btnframe = tktools.make_double_frame(self._frame)
+	fr, top, btnframe = tktools.make_double_frame(
+	    self._frame, relief=FLAT)
 	self._entry, frame, label = tktools.make_labeled_form_entry(
 	    top, 'URI:', 40)
 	self._entry.bind('<Return>', self.okay)
