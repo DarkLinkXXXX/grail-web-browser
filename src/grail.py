@@ -326,6 +326,10 @@ class Application:
 	    raise IOError, ('url open error', errcode, errsmg, meta)
 	return URLReadWrapper(api, meta)
 
+    def get_cache_keys(self):
+	"""For applets."""
+	return self.url_cache.items.keys()
+
     def decode_pipeline(self, fp, content_encoding, error=1):
 	if self.decode_prog.has_key(content_encoding):
 	    prog = self.decode_prog[content_encoding]
