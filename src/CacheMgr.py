@@ -138,6 +138,8 @@ class CacheManager:
 	    elif reload == 1:
 		self.caches[0].add(item)
 
+    cache_protocols = ['http', 'ftp', 'hdl']
+
     def okay_to_cache_p(self,item):
 	"""Check if this item should be cached.
 
@@ -147,13 +149,8 @@ class CacheManager:
 	(scheme, netloc, path, parm, query, frag) = \
 		 urlparse.urlparse(item.url)
 
-	# don't cache logos or local files
-	if scheme == 'logo' or scheme == 'file': 
-	    # is there a better place for this, since it gets called
-	    # so often?
+	if not scheme in self.cache_protocols:
 	    return 0
-	# or should we be cautious and not cache any scheme unless we
-	# know it is okay to cache it?
 
 	code, msg, params = item.meta
 
@@ -169,6 +166,15 @@ class CacheManager:
 	    pragma = params['pragma']
 	    if pragma == 'no-cache':
 		return 0
+
+	if params.has_key('expires'):
+	    expires = params['expires']
+	    if expires == 0:
+		return 0
+
+	# dont' cache a query
+	if query == '':
+	    return 0
 
 	return 1
 

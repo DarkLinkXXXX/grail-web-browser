@@ -100,8 +100,8 @@ class CacheItem:
 
     def cache_update(self):
 	if (self.incache == 0 or self.reloading == 1) \
-	   and not self.postdata and self.meta[0] == 200 \
-	   and self.complete == 1:
+	   and not self.postdata and self.complete == 1 \
+	   and (self.meta and self.meta[0] == 200):
 	    self.cache.add(self,self.reloading)
 	    self.incache = 1
 
@@ -200,9 +200,10 @@ class CacheItem:
 
     def abort(self):
 ##	print " Abort", self.url
-	if self.cache:
+#	if self.cache:
 	    # don't put this baby in the cache
-	    self.cache = None
+#	    self.cache.deactivate(self.key)
+#	    self.cache = None
 	self.finish()
 
     def finish(self):
