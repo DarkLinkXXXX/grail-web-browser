@@ -2,7 +2,9 @@
 
 This displays a really basic modal dialog, containing:
 
-	- the print command (which should take PostScript from stdin)
+	- the print command (which should take PostScript from stdin
+	  or a %s can be placed on the command line where the filename
+	  of a file containing the postscript output will be placed)
 	- a check box for printing to a file
 	- the filename (to receive the PostScript instead)
 	- an OK button
@@ -68,20 +70,18 @@ class PrintDialog:
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
 	global underflag, footnoteflag
 	self.context = context
-	if printcmd is None:
-	    prefs = context.app.prefs
-	    if not prefs:
-		printcmd = PRINTCMD
-	    else:
-		imageflag = prefs.GetBoolean(PRINT_PREFGROUP, 'images')
-		fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
-		greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
-		printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
-		footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP,
+	prefs = context.app.prefs
+	if not prefs:
+	    printcmd = PRINTCMD
+	else:
+	    imageflag = prefs.GetBoolean(PRINT_PREFGROUP, 'images')
+	    fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
+	    greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
+	    printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
+	    footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP,
 						'footnote-anchors')
-		underflag = prefs.GetBoolean(PRINT_PREFGROUP,
+	    underflag = prefs.GetBoolean(PRINT_PREFGROUP,
 					     'underline-anchors')
-
 	self.url = url
 	self.title = title
 	self.master = self.context.root
@@ -204,8 +204,14 @@ class PrintDialog:
 		self.context.error_dialog("No command",
 					  "Please enter a print command")
 		return
+
 	    try:
-		fp = os.popen(cmd, "w")
+		if string.find(cmd, '%s') != -1:
+		    import tempfile
+		    tempname = tempfile.mktemp()
+		    fp = open(tempname, 'w')
+		else:
+		    fp = os.popen(cmd, "w")
 	    except IOError, msg:
 		self.context.error_dialog(IOError, str(msg))
 		return
@@ -215,6 +221,14 @@ class PrintDialog:
 	self.root.update_idletasks()
 	self.print_to_fp(fp)
 	sts = fp.close()
+	if not sts:
+	    try:
+		cmd_parts = string.splitfields(cmd, '%s')
+		cmd = string.joinfields(cmd_parts, tempname)
+		sts = os.system(cmd)
+		os.unlink(tempname)
+	    except NameError:
+		pass
 	if sts:
 	    self.context.error_dialog("Exit",
 				      "Print command exit status %s" % `sts`)
