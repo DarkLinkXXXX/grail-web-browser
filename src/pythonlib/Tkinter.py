@@ -857,7 +857,7 @@ class Canvas(Widget):
 	def dtag(self, *args):
 		self._do('dtag', args)
 	def find(self, *args):
-		return self._getints(self._do('find', args))
+		return self._getints(self._do('find', args)) or ()
 	def find_above(self, tagOrId):
 		return self.find('above', tagOrId)
 	def find_all(self):
@@ -998,12 +998,17 @@ class Listbox(Widget):
 	def bbox(self, *args):
 		return self._getints(self._do('bbox', args)) or None
 	def curselection(self):
+		# XXX Ought to apply self._getints()...
 		return self.tk.splitlist(self.tk.call(
 			self._w, 'curselection'))
 	def delete(self, first, last=None):
 		self.tk.call(self._w, 'delete', first, last)
-	def get(self, index):
-		return self.tk.call(self._w, 'get', index)
+	def get(self, first, last=None):
+		if last:
+			return self.tk.splitlist(self.tk.call(
+				self._w, 'get', first, last))
+		else:
+			return self.tk.call(self._w, 'get', first)
 	def insert(self, index, *elements):
 		apply(self.tk.call,
 		      (self._w, 'insert', index) + elements)
@@ -1300,7 +1305,22 @@ class PhotoImage(Image):
 	def cget(self):
 		return self.tk.call(self.name, 'cget')
 	# XXX config
-	# XXX copy
+	def __getitem__(self, key):
+		return self.tk.call(self.name, 'cget', '-' + key)
+	def copy(self):
+		destImage = PhotoImage()
+		self.tk.call(destImage, 'copy', self.name)
+		return destImage
+	def zoom(self,x,y=''):
+		destImage = PhotoImage()
+		if y=='': y=x
+		self.tk.call(destImage, 'copy', self.name, '-zoom',x,y)
+		return destImage
+	def subsample(self,x,y=''):
+		destImage = PhotoImage()
+		if y=='': y=x
+		self.tk.call(destImage, 'copy', self.name, '-subsample',x,y)
+		return destImage
 	def get(self, x, y):
 		return self.tk.call(self.name, 'get', x, y)
 	def put(self, data, to=None):
