@@ -13,7 +13,8 @@ landmarks--home-page:
 landmarks--python-home-page:	http://www.python.org/
 landmarks--psa-home-page:	http://www.python.org/psa/
 landmarks--cnri-home-page:	http://www.cnri.reston.va.us/
-landmarks--about-grail-page:	http://grail.cnri.reston.va.us/grail-0.3/about/
+landmarks--about-grail-page:	grail:about.html
+landmarks--grail-license-page:	grail:LICENSE
 #
 # Browser defaults
 #
