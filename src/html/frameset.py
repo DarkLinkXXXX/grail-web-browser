@@ -201,7 +201,7 @@ class FrameSet:
             list.append(number)
         return list
 
-    def add_frame(self, src=None, name, marginwidth, marginheight,
+    def add_frame(self, src, name, marginwidth, marginheight,
                   scrolling, noresize):
         viewer = self.make_next_viewer(name, scrolling)
         if viewer:
