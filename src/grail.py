@@ -137,7 +137,10 @@ class Application:
 	    self.quit()
 
     def go(self):
-	self.root.mainloop()
+	try:
+	    self.root.mainloop()
+	except KeyboardInterrupt:
+	    return
 
     def keep_alive(self):
 	# Exercise the Python interpreter regularly so keyboard
@@ -255,8 +258,10 @@ class Application:
     def exc_dialog(self, message, exc, val, tb):
 	def f(s=self, m=message, e=exc, v=val, t=tb):
 	    s._exc_dialog(m, e, v, t)
-##	self.root.after_idle(f)		# XXX Tk 4.1 dependency
-	self.root.after(0, f)		# ### Tk 4.0 hack
+	if TkVersion >= 4.1:
+	    self.root.after_idle(f)
+	else:
+	    self.root.after(0, f)
 
     def _exc_dialog(self, message, exc, val, tb):
 	# XXX This needn't be a modal dialog --
@@ -456,4 +461,14 @@ def getenv(s):
     return None
 
 
-main()
+if sys.argv[1:2] != ['-p']:
+    main()
+else:
+    del sys.argv[1:2]
+    import profile
+    profile.run('main()', '@grail.prof')
+    import pstats
+    p = pstats.Stats('@grail.prof')
+    p.strip_dirs().sort_stats('time').print_stats(10)
+    p.print_callers(10)
+##    p.strip_dirs().sort_stats('cum').print_stats(20)
