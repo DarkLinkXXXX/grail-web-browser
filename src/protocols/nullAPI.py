@@ -25,5 +25,8 @@ class null_access:
 	self.state = DONE
 	return ""
 
+    def fileno(self):
+	return -1
+
     def close(self):
 	pass
