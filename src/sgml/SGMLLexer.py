@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.12 $"
+__version__ = "$Revision: 1.13 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -512,29 +512,23 @@ class SGMLLexer(SGMLLexerBase):
 	# Internal -- parse endtag
 	def parse_endtag(self, i):
 	    rawdata = self.rawdata
-	    j = endbracket.search(rawdata, i+1)
-	    if j < 0:
-		return -1
-	    if j == i + 2:
-		ch = rawdata[j]
+	    j = endtag.match(rawdata, i)
+	    if j < 3:
+		ch = rawdata[i+2]
 		if ch == STAGO:
 		    if self._strict:
 			self.lex_endtag('')
-			return j
-		    else:
-			self.lex_data(rawdata[i])
-			return i + 1
+			return i + 2
 		elif ch == TAGC:
 		    if self._strict:
 			self.lex_endtag('')
 			return i + 3
-		    else:
-			self.lex_data(rawdata[i])
-			return i + 1
-	    tag = self._normfunc(string.strip(rawdata[i+2:j]))
+		self.lex_data(rawdata[i])
+		return i + 1
+	    j = i + j - 1
 	    if rawdata[j] == '>':
 		j = j+1
-	    self.lex_endtag(tag)
+	    self.lex_endtag(self._normfunc(endtag.group(1)))
 	    return j
 
 	def parse_declaration(self, i):
@@ -592,6 +586,9 @@ if not _sgmllex:
 			     + NET + '\([^/]*\)' + NET)
     endtagopen = regex.compile(ETAGO + '[<>a-zA-Z]')
     endbracket = regex.compile('[<>]')
+    endtag = regex.compile(ETAGO +
+			   '\([a-zA-Z][-.a-zA-Z0-9]*\)'
+			   '\([^-.<>a-zA-Z0-9]?[^<>]*\)[<>]')
     special = regex.compile(MDO + '[^>]*' + MDC)
     markupdeclaration = regex.compile(MDO +
 				      '\(\([-.a-zA-Z0-9]+\|'
