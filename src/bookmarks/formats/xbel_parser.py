@@ -1,6 +1,6 @@
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.7 $'
+__version__ = '$Revision: 1.8 $'
 
 
 import bookmarks
@@ -136,7 +136,7 @@ class Parser(CaptureMixin, XMLParser):
     def start_xbel(self, attrs):
         root = self.get_root()
         self.__store_date(root, attrs, "added", "set_add_date")
-        self.__handle_id(root, attrs)
+        self.handle_id(root, attrs)
     def end_xbel(self):
         pass
 
@@ -144,8 +144,7 @@ class Parser(CaptureMixin, XMLParser):
         self.new_folder(attrs)
     def end_folder(self):
         self.__store_node = None
-        self.__folder = self.__context[-1]
-        del self.__context[-1]
+        self.__folder = self.__context.pop()
 
     def start_title(self, attrs):
         self.save_bgn()
@@ -156,7 +155,7 @@ class Parser(CaptureMixin, XMLParser):
     def start_bookmark(self, attrs):
         self.new_bookmark(attrs)
         node = self.__node
-        self.__handle_id(node, attrs)
+        self.handle_id(node, attrs)
         node.set_uri(string.strip(attrs.get("href", "")))
         self.__store_date(node, attrs, "added",    "set_add_date")
         self.__store_date(node, attrs, "visited",  "set_last_visited")
@@ -177,7 +176,7 @@ class Parser(CaptureMixin, XMLParser):
 
     def start_alias(self, attrs):
         alias = bookmarks.nodes.Alias()
-        self.__handle_idref(alias, attrs)
+        self.handle_idref(alias, attrs)
         self.__folder.append_child(alias)
     def end_alias(self):
         pass
@@ -234,10 +233,10 @@ class Parser(CaptureMixin, XMLParser):
                 pass
             else:
                 self.__folder.set_add_date(added)
-        self.__handle_id(self.__folder, attrs)
+        self.handle_id(self.__folder, attrs)
         return self.__folder
 
-    def __handle_id(self, node, attrs, attrname="id", required=0):
+    def handle_id(self, node, attrs, attrname="id", required=0):
         id = attrs.get(attrname)
         if id:
             node.set_id(id)
@@ -250,7 +249,7 @@ class Parser(CaptureMixin, XMLParser):
             raise BookmarkFormatError(self.__filename,
                                       "missing %s attribute" % attrname)
 
-    def __handle_idref(self, node, attrs, attrname="ref", required=1):
+    def handle_idref(self, node, attrs, attrname="ref", required=1):
         idref = attrs.get(attrname)
         if idref:
             if self.__idmap.has_key(idref):
