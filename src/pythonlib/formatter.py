@@ -24,6 +24,7 @@ class NullFormatter:
     def set_spacing(self, spacing): pass
     def push_style(self, *styles): pass
     def pop_style(self, n=1): pass
+    def assert_line_data(self, flag=1): pass
 
 
 class AbstractFormatter:
@@ -180,6 +181,9 @@ class AbstractFormatter:
     def pop_style(self, n=1):
 	del self.style_stack[-n:]
 	self.writer.new_styles(tuple(self.style_stack))
+
+    def assert_line_data(self, flag=1):
+	self.nospace = not flag
 
 
 class AbstractWriter:
