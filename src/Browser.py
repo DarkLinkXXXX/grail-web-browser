@@ -61,9 +61,10 @@ class Browser:
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
 	self.topframe = Frame(self.root)
 	self.topframe.pack(expand=1, fill=X)
-	self.menubar = self.create_menubar()
-	self.urlbar = self.create_urlbar()
-	self.statusbar = self.create_statusbar()
+	self.create_logo()
+	self.create_menubar()
+	self.create_urlbar()
+	self.create_statusbar()
 	self.viewer = Viewer(self.root, self, DefaultStylesheet, height)
 
     def create_logo(self):
