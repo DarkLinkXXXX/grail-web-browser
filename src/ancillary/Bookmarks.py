@@ -788,7 +788,7 @@ class DetailsDialog:
 	self._frame.bind('<Alt-w>', self.cancel)
 	self._frame.bind('<Control-c>', self.cancel)
 	self._frame.bind('<Control-C>', self.cancel)
-	self.show()
+	self._form[0][0].focus_set()
 
     def _create_form(self, top):
 	make = tktools.make_labeled_form_entry # convenience
@@ -867,8 +867,6 @@ class DetailsDialog:
 	self.hide()
 
     def show(self):
-	# update_idletasks() fixes weird resize problem on initial exposure
-	self._frame.update_idletasks()
 	self._frame.deiconify()
 	self._frame.tkraise()
 	self._form[0][0].focus_set()
