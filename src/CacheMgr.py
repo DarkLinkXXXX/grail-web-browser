@@ -425,10 +425,11 @@ class DiskCacheEntry:
         """
 	if not hasattr(self, 'file'):
 	    self.file = ''
-	string = reduce(lambda x,y: str(x) + '\t' + str(y), \
-		 [self.key, self.url, self.file, self.size,
-		  self.date, self.lastmod, self.expires, self.type])
-	return string
+        s = string.join(map(str,
+			    [self.key, self.url, self.file, self.size,
+			     self.date, self.lastmod, self.expires, 
+			     self.type]), '\t')
+	return s
 
     def get(self):
 	"""Create a disk_cache_access API object and return it.
@@ -598,7 +599,9 @@ class DiskCache:
 	    newlog = open(newpath, 'w')
 	    newlog.write('3 ' + self.log_version + '\n')
 	    for key in self.use_order:
-		self.log_entry(self.items[key],alt_log=newlog)
+		self.log_entry(self.items[key],alt_log=newlog,flush=None)
+		# don't flush writes during the checkpoint, because if
+		# we crash it won't matter
 	    newlog.close()
 	    logpath = os.path.join(self.directory, 'LOG')
 	    os.rename(newpath, logpath)
@@ -611,7 +614,7 @@ class DiskCache:
 	logpath = os.path.join(self.directory, 'LOG')
 	self.log = open(logpath, 'a')
 
-    def log_entry(self,entry,delete=0,alt_log=None):
+    def log_entry(self,entry,delete=0,alt_log=None,flush=1):
 	"""Write to the log adds and evictions."""
 	if alt_log:
 	    dest = alt_log
@@ -621,7 +624,8 @@ class DiskCache:
 	    dest.write('1 ' + entry.key + '\n')
 	else:
 	    dest.write('0 ' + entry.unparse() + '\n')
-	dest.flush()
+	if flush:
+	    dest.flush()
 
     def log_use_order(self,key):
 	"""Write to the log changes in use_order."""
