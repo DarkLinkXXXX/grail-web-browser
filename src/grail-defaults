@@ -228,6 +228,10 @@ printing--leading:		0.7
 applets--groups:
 applets--load: all
 #
+# Security preferences
+#
+security--enable-ilu: 0
+#
 # Disk Cache preferences:
 # (directory is relative to $GRAILDIR unless absolute)
 #
