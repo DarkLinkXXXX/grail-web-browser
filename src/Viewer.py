@@ -101,7 +101,7 @@ class Viewer(formatter.AbstractWriter):
 	    self.master.withdraw()
 	self.create_widgets(width=width, height=height)
 	self.reset_state()
-	self.freeze()
+	self.freeze(1)
 	self.text.bind('<Configure>', self.resize_event)
 	self._atemp = []
 	self.current_index = None
