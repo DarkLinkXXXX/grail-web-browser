@@ -52,34 +52,38 @@ class ImageWindow(Frame):
 	    self.label['image'] = self.image
 
     def enter(self, event):
-	url = self.whichurl(event)
+	url, target = self.whichurl(event)
 	if url:
-	    self.context.enter(url)
+	    if target: url = url + " in " + target
+	    self.context.viewer.enter_message(url)
 
     def leave(self, event):
-	self.context.leave()
+	self.context.viewer.leave_message()
 
     def motion(self, event):
-	url = self.whichurl(event)
+	url, target = self.whichurl(event)
 	if url:
-	    self.context.enter(url)
+	    if target: url = url + " in " + target
+	    self.context.viewer.enter_message(url)
+	else:
+	    self.context.viewer.leave_message()
 
     def follow(self, event):
-	url = self.whichurl(event)
+	url, target = self.whichurl(event)
 	if url:
-	    self.context.follow(url)
+	    self.context.follow(url, target=target)
 	else:
-	    self.context.leave()
+	    self.context.viewer.leave_message()
 
     def whichurl(self, event):
 	# perhaps having a usemap and an ismap is a bad idea
 	# because we now need *two* tests for maps when the 
 	# common case might be no map
 	if self.ismap:
-	    return self.url + "?%d,%d" % (event.x, event.y)
+	    return self.url + "?%d,%d" % (event.x, event.y), ""
 	elif self.map:
 	    return self.map.url(event.x,event.y)
-	return self.url
+	return self.url, ""
 
     def toggle_loading_image(self, event=None):
 	if self.image:

@@ -208,12 +208,13 @@ class AppletHTMLParser(HTMLParser):
 	    shape = extract('shape', attrs, 'rect')
 	    coords = extract('coords', attrs, '')
 	    alt = extract('alt', attrs, '')
+	    target = extract('target', attrs, '')
 	    # not sure what the point of NOHREF is
 	    url = extract('nohref', attrs, extract('href', attrs, ''))
 
 	    try:
 		self.current_map.add_shape(
-		    shape, self.parse_area_coords(shape, coords), url)
+		    shape, self.parse_area_coords(shape, coords), url, target)
 	    except IndexError:
 		# wrong number of coordinates
 		# how should this get reported to the user?

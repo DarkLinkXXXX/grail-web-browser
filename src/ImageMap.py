@@ -5,10 +5,11 @@ import string
 class Shape:
     """shaped regions for client-side image maps."""
 
-    def __init__(self, kind, coords, url):
+    def __init__(self, kind, coords, url, target=""):
 	self.kind = kind
 	self.coords = coords
 	self.url = url
+	self.target = target
 
     def pointin(self, x, y):
 	"""predicate: Are x,y coordinates within region?"""
@@ -73,8 +74,8 @@ class MapInfo:
 	self.name = name
 	self.shapes = []
 
-    def add_shape(self, kind, coords, url):
-	self.shapes.append(Shape(kind, coords, url))
+    def add_shape(self, kind, coords, url, target=""):
+	self.shapes.append(Shape(kind, coords, url, target))
 
 
 class MapThunk:
@@ -118,14 +119,14 @@ class MapThunk:
 	if self.waiting == 1:
 	    self.force()
 	    if self.waiting == 1:
-		return None
+		return None, None
 
 	# get the shape and return url
 	shape = self.get_shape(x, y)
 	if shape:
-	    return shape.url
+	    return shape.url, shape.target
 	else:
-	    return None
+	    return None, None
 
     def get_shape(self, x, y):
 	"""Get shape at coords (x,y)."""
