@@ -433,7 +433,7 @@ class Viewer(formatter.AbstractWriter):
 	    from Browser import Browser
 	    from __main__ import app
 	    import urlparse
-	    b = Browser(self.master, app)
+	    b = Browser(app.root, app)
 	    b.context.load(self.context.get_baseurl(url))
 	    self.remove_temp_tag(histify=1)
 
