@@ -114,6 +114,7 @@ class Application:
 	self.home = DEFAULT_HOME
 	self.url_cache = Cache()
 	self.image_cache = {}
+	self.login_cache = {}
 	self.rexec = AppletRExec(None, 2, self)
 	self.graildir = getgraildir()
 	s = \
