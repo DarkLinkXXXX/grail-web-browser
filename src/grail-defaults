@@ -315,3 +315,5 @@ ietf-resolver--document-template:
     http://info.internet.isi.edu/in-notes/%(type)s/files/%(type)s%(number)s.txt
 ietf-resolver--meeting-template:
     ftp://ftp.ietf.org/ietf/%(wg)s/%(wg)s-minutes-%(date)s.txt
+ietf-resolver--internet-draft-template:
+    ftp://ftp.ietf.org/internet-drafts/draft-%(draft)s.%(format)s
