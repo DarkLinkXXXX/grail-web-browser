@@ -17,6 +17,7 @@ import grailutil
 import regsub
 import string
 from types import DictType, StringType
+import SGMLGatherer
 import SGMLLexer
 import SGMLParser
 from formatter import AS_IS
@@ -25,7 +26,7 @@ from formatter import AS_IS
 URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase', 'data']
 
 
-class HTMLParser(SGMLParser.SGMLParser):
+class HTMLParser(SGMLGatherer.BaseSGMLGatherer):
 
     from htmlentitydefs import entitydefs
     new_entities = {
@@ -89,9 +90,8 @@ class HTMLParser(SGMLParser.SGMLParser):
     object_aware_tags = ['param', 'script', 'object', 'a', 'param']
 
     def __init__(self, formatter, verbose=0):
-	self.__taginfo = {}
-        SGMLParser.SGMLParser.__init__(self, verbose)
-	self.restrict(1)
+	self.sgml_parser = SGMLParser.SGMLParser(gatherer=self)
+	self.sgml_parser.restrict(1)
         self.formatter = formatter
         self.anchor = None
         self.anchorlist = []
@@ -99,14 +99,19 @@ class HTMLParser(SGMLParser.SGMLParser):
 	self.object_stack = []
 	self.headernumber = HeaderNumber()
 
+    def feed(self, data):
+	self.sgml_parser.feed(data)
+
     def close(self):
-	SGMLParser.SGMLParser.close(self)
-	#  Clean out circular reference:
-	if self.__dict__.has_key('handle_data'):
-	    del self.__dict__['handle_data']
-	self.__taginfo = {}		# clear circular references
+	self.sgml_parser.close()
+	self.sgml_parser = None
+	self.handle_data = SGMLParser._nullfunc
 
     # ------ Methods used internally; some may be overridden
+
+    def set_data_handler(self, handler):
+	self.handle_data = handler
+	self.sgml_parser.set_data_handler(handler)
 
     # --- Formatter interface, taking care of 'savedata' mode;
     # shouldn't need to be overridden
@@ -114,11 +119,11 @@ class HTMLParser(SGMLParser.SGMLParser):
     def handle_data_head(self, data):
 	if self.suppress_output:
 	    return
-	if string.strip(data) != '':
-	    self.element_close_maybe('head', 'script', 'style', 'title')
+	if string.strip(data):
 	    self.inhead = 0
 	    self.set_data_handler(self.formatter.add_flowing_data)
 	    self.handle_data(data)
+	    self.element_close_maybe('head', 'script', 'style', 'title')
 
     handle_data = handle_data_head	# always start in head
 
@@ -414,16 +419,13 @@ class HTMLParser(SGMLParser.SGMLParser):
 
     def header_bgn(self, tag, level, attrs):
 	self.element_close_maybe('h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p')
-	if self.strict_p():
+	if self.sgml_parser.strict_p():
 	    while self.list_stack:
 		self.badhtml = 1
-		self.lex_endtag(self.list_stack[0][0])
+		self.sgml_parser.lex_endtag(self.list_stack[0][0])
         self.formatter.end_paragraph(1)
-	if attrs.has_key('align'):
-	    align = attrs['align']
-	    if align: align = string.lower(align)
-	else:
-	    align = None
+	align = grailutil.extract_keyword(
+	    'align', attrs, conv=grailutil.conv_normstring)
 	self.formatter.push_alignment(align)
         self.formatter.push_font((tag, 0, 1, 0))
 	self.header_number(tag, level, attrs)
@@ -456,11 +458,14 @@ class HTMLParser(SGMLParser.SGMLParser):
 	self.para_end()
 
     def para_bgn(self, attrs, parbreak=1):
-	if 'pre' in self.stack:
-	    if 'p' in self.stack:
-		while self.stack[-1] != 'p':
-		    self.lex_endtag(self.stack[-1])
-		del self.stack[-1]
+	if self.sgml_parser.has_context('pre'):
+	    if self.sgml_parser.has_context('p'):
+		stack = self.sgml_parser.get_context('p')
+		while stack:
+		    self.sgml_parser.lex_endtag(stack[0])
+		    stack = self.sgml_parser.get_context('p')
+		# XXX this is really evil!
+		del self.sgml_parser.stack[-1]
 	    return
 	self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
         self.formatter.end_paragraph(parbreak)
@@ -471,7 +476,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 	self.formatter.push_alignment(align)
 
     def para_end(self, parbreak=1):
-	if not 'pre' in self.stack:
+	if not self.sgml_parser.has_context('pre'):
 	    if parbreak and self.list_stack:
 		compact = self.list_stack[-1][3]
 		parbreak = not compact
@@ -479,12 +484,14 @@ class HTMLParser(SGMLParser.SGMLParser):
 	    self.formatter.pop_alignment()
 
     def implied_end_p(self):
-	if 'p' in self.stack:
+	if self.sgml_parser.has_context('p'):
 	    #  Remove all but the <P>
-	    while self.stack[-1] != 'p':
-		self.lex_endtag(self.stack[-1])
+	    stack = self.sgml_parser.get_context('p')
+	    while stack:
+		self.sgml_parser.lex_endtag(stack[0])
+		stack = self.sgml_parser.get_context('p')
 	    #  Remove <P> surgically:
-	    del self.stack[-1]
+	    del self.sgml_parser.stack[-1]
 	    self.para_end(parbreak=0)
 	else:
 	    self.formatter.add_line_break()
@@ -523,14 +530,14 @@ class HTMLParser(SGMLParser.SGMLParser):
 
     def start_xmp(self, attrs):
         self.start_pre(attrs)
-        self.setliteral('xmp')		# Tell SGML parser
+        self.sgml_parser.setliteral('xmp')		# Tell SGML parser
 
     def end_xmp(self):
         self.end_pre()
 
     def start_listing(self, attrs):
         self.start_pre(attrs)
-        self.setliteral('listing')	# Tell SGML parser
+        self.sgml_parser.setliteral('listing')	# Tell SGML parser
 
     def end_listing(self):
         self.end_pre()
@@ -586,9 +593,9 @@ class HTMLParser(SGMLParser.SGMLParser):
 	    listtype = self.list_stack[-1][0]
 	    if listtype == 'dl':
 		margin = 'lh'
-	elif 'p' in self.stack:
+	elif self.sgml_parser.has_context('p'):
 	    self.badhtml = 1
-	    self.lex_endtag('p')
+	    self.sgml_parser.lex_endtag('p')
 	self.do_br({})
 	self.formatter.push_font(('', 1, 1, 0))
 	self.formatter.push_margin(margin)
@@ -623,7 +630,7 @@ class HTMLParser(SGMLParser.SGMLParser):
         self.list_stack.append([tag, label, 0,
 				#  Propogate COMPACT once set:
 				compact or attrs.has_key('compact'),
-				len(self.stack) + 1])
+				self.sgml_parser.get_depth() + 1])
 
     def end_ul(self):
         if self.list_stack:
@@ -644,7 +651,7 @@ class HTMLParser(SGMLParser.SGMLParser):
         if not self.list_stack:
 	    self.fake_li(attrs)
 	    return
-	if 'p' in self.stack:		# ugly hack to compact trailing <P>
+	if self.sgml_parser.has_context('p'):	# compact trailing <P>
 	    self.implied_end_p()	# even though list_trim_stack() will
 	self.list_trim_stack()		# close it.
 	[listtype, label, counter, compact, depth] = top = self.list_stack[-1]
@@ -719,7 +726,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 	    except: pass
         self.list_stack.append(['ol', label, start,
 				compact or attrs.has_key('compact'),
-				len(self.stack) + 1])
+				self.sgml_parser.get_depth() + 1])
 
     def end_ol(self):
 	self.end_ul()
@@ -754,7 +761,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 	    self.formatter.end_paragraph(1)
 	self.formatter.push_margin(margin)
         self.list_stack.append(['dl', '', 0, attrs.has_key('compact'),
-				len(self.stack) + 1])
+				self.sgml_parser.get_depth() + 1])
 
     def end_dl(self):
         self.ddpop(not (self.list_stack and self.list_stack[-1][3]))
@@ -769,7 +776,8 @@ class HTMLParser(SGMLParser.SGMLParser):
         self.formatter.push_margin('dd')
 	self.formatter.have_label = 1
 	compact = self.list_stack and self.list_stack[-1][3]
-        self.list_stack.append(['dd', '', 0, compact, len(self.stack) + 1])
+        self.list_stack.append(['dd', '', 0, compact,
+				self.sgml_parser.get_depth() + 1])
 
     def ddpop(self, bl=0):
 	self.element_close_maybe('lh', 'p')
@@ -778,7 +786,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 	    # we're not already in a DL, so imply one.
 	    # this isn't perfect compatibility, but keeps grail from
 	    # dying a horrible death.
-	    self.lex_starttag('dl', {})
+	    self.sgml_parser.lex_starttag('dl', {})
 	    self.badhtml = 1
         if self.list_stack:
 	    if self.list_stack[-1][0] == 'dd':
@@ -792,8 +800,10 @@ class HTMLParser(SGMLParser.SGMLParser):
 	if not self.list_stack:
 	    return
 	depth = self.list_stack[-1][4]
-	while len(self.stack) > depth:
-	    self.lex_endtag(self.stack[depth])
+	stack = self.sgml_parser.get_stack()
+	while len(stack) > depth:
+	    self.sgml_parser.lex_endtag(stack[depth])
+	    stack = self.sgml_parser.get_stack()
 
     # --- Phrase Markup
 
@@ -887,7 +897,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 
     def do_br(self, attrs):
         self.formatter.add_line_break()
-	if 'pre' in self.stack:
+	if self.sgml_parser.has_context('pre'):
 	    self.set_data_handler(NewlineScratcher(self, 1))
 
     def start_nobr(self, attrs):
@@ -1041,7 +1051,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 		if taginfo:
 		    break
 	if not taginfo:
-	    taginfo = SGMLParser.SGMLParser.get_taginfo(self, tag)
+	    taginfo = SGMLGatherer.BaseSGMLGatherer.get_taginfo(self, tag)
 	if not (taginfo or override):
 	    for dev in self.get_devicetypes():
 		taginfo = self.context.app.find_html_extension(tag, dev)
@@ -1088,7 +1098,7 @@ class HTMLParser(SGMLParser.SGMLParser):
 	# normal space, so it'll still be breakable, but it will always
 	# be pushed to the output device.  This means multiple &nbsp;'s
 	# will act as spacers.  Ugh.
-	if self.strict_p():
+	if self.sgml_parser.strict_p():
 	    self.handle_data(' ')
 	else:
 	    self.formatter.flush_softspace()
@@ -1116,12 +1126,12 @@ class HTMLParser(SGMLParser.SGMLParser):
 	closed if they exist on the stack.  Sequence is not important.
 	"""
 	for elem in elements:
-	    if elem in self.stack:
-		self.lex_endtag(elem)
+	    if self.sgml_parser.has_context(elem):
+		self.sgml_parser.lex_endtag(elem)
 
     def close_paragraph(self):
-	if 'p' in self.stack:
-	    self.lex_endtag('p')
+	if self.sgml_parser.has_context('p'):
+	    self.sgml_parser.lex_endtag('p')
 
 
 class DummyTagInfo(SGMLParser.TagInfo):

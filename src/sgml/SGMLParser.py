@@ -2,11 +2,8 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-"""A parser for SGML, using the derived class as static DTD.
-
-
-"""
-__version__ = "$Revision: 1.20 $"
+"""A parser for SGML, using the derived class as static DTD."""
+__version__ = "$Revision: 1.21 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -17,6 +14,7 @@ __version__ = "$Revision: 1.20 $"
 
 import SGMLLexer
 SGMLError = SGMLLexer.SGMLError
+import SGMLGatherer
 import string
 
 
@@ -27,13 +25,17 @@ import string
 # <foo> and </foo>, respectively, or do_foo to handle <foo> by itself.
 
 
+# The SGMLGatherer.BaseSGMLGatherer base class will disappear once the
+# preferred document handler support is used throughout.
 class SGMLParser(SGMLLexer.SGMLLexer):
 
     doctype = ''			# 'html', 'sdl', '...'
 
-    def __init__(self, verbose = 0):
+    def __init__(self, gatherer=None, verbose=0):
 	self.verbose = verbose
-	self.__taginfo = {}
+	if gatherer is None:
+	    gatherer = SGMLGatherer.BaseSGMLGatherer()
+	self.push_handler(gatherer)
 	SGMLLexer.SGMLLexer.__init__(self)
 
     def close(self):
@@ -43,10 +45,11 @@ class SGMLParser(SGMLLexer.SGMLLexer):
     # needed to clean out circular references and empty the stack.
     def cleanup(self):
 	while self.stack:
-	    self.lex_endtag(self.stack[-1])
+	    self.lex_endtag(self.stack[-1][0].tag)
 	self.__taginfo = {}
-	self.set_data_handler(_dummy_data_handler)
+	self.set_data_handler(_nullfunc)
 	SGMLLexer.SGMLLexer.cleanup(self)
+	self.__handler = None
 
     # Interface -- reset this instance.  Loses all unprocessed data.
     def reset(self):
@@ -56,102 +59,88 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	self.omittag = 1		# default to HTML style
 	self.stack = []
 
+    def get_handler(self):
+	return self.__handler
+
+    def push_handler(self, handler):
+	self.__handler = handler
+	self.__taginfo = {}
+	self.set_data_handler(handler.handle_data)
+
+    def get_depth(self):
+	"""Return depth of the element stack."""
+	return len(self.stack)
+
     def get_stack(self):
 	"""Return current context stack.
 
 	This allows tag implementations to examine their context.
 	"""
 	result = []
-	for ti in self.stack:
-	    result.append(ti.tag)
-	return tuple(result)
+	append = result.append
+	for ti, handler, ticache, nhandler in self.stack:
+	    append(ti.tag)
+	return result
 
-    #  The following methods are the interface subclasses need to
-    #  override to support any special handling of tags, data, or
-    #  anomalous conditions.
+    def get_context(self, gi):
+	"""Return the context within the innermost instance of an element
+	specified by a General Identifier.
 
-    # Example -- handle entity reference, no need to override
-    entitydefs = \
-	       {'lt': '<', 'gt': '>', 'amp': '&', 'quot': '"'}
+	The `context' is a sequence of General Indentifiers of elements
+	opened within the innermost instance of an element whose General
+	Identifier is given by `gi'.  If there is no open element with the
+	specified General Identifier, returns `None'.
 
-    def handle_entityref(self, name, terminator):
-	table = self.entitydefs
-	if table.has_key(name):
-	    self.handle_data(table[name])
+	This example demonstrates the expected return values of this method;
+	the document fragment is in HTML:
+
+	    <html>
+	      <title>demonstration of SGMLParser.get_context()</>
+	      <body>
+	        <ol>
+		  <li> Item one:
+		    <ul>
+		      <li> Item in nested <em>list....
+		        (Call parser.get_context(gi) here...)
+
+	    `gi' == 'html' ==> ['body', 'ol', 'li', 'ul', 'li', 'em']
+	    `gi' == 'title' ==> None
+	    `gi' == 'li' ==> ['em']
+	    `gi' == 'ol' ==> ['li', 'ul', 'li', 'em']
+	    `gi' == 'bogus' ==> None
+	"""
+	stack = self.stack
+	depth = len(stack)
+	while depth:
+	    depth = depth - 1
+	    if stack[depth][0].tag == gi:
+		context = stack[depth + 1:]
+		break
 	else:
-	    self.unknown_entityref(name, terminator)
+	    # no such context
+	    return None
+	for i in range(len(context)):
+	    context[i] = context[i][0].tag
+	return context
 
-
-    def handle_data(self, data):
-	"""
-	"""
-	pass
-
-    def handle_endtag(self, tag, method):
-	"""
-	"""
-	method(self)
-
-    def handle_starttag(self, tag, method, attributes):
-	"""
-	"""
-	method(self, attributes)
-
-    def unknown_charref(self, ordinal, terminator):
-	"""
-	"""
-	pass
-
-    def unknown_endtag(self, tag):
-	"""
-	"""
-	pass
-
-    def unknown_entityref(self, ref, terminator):
-	"""
-	"""
-	pass
-
-    def unknown_namedcharref(self, ref, terminator):
-	"""
-	"""
-	pass
-
-    def unknown_starttag(self, tag, attrs):
-	"""
-	"""
-	pass
-
-    def report_unbalanced(self, tag):
-	"""
-	"""
-	pass
-
+    def has_context(self, gi):
+	for entry in self.stack:
+	    if entry[0].tag == gi:
+		return 1
+	return 0
 
     #  The remaining methods are the internals of the implementation and
     #  interface with the lexer.  Subclasses should rarely need to deal
     #  with these.
 
     def lex_data(self, data):
-	self.handle_data(data)
+	self.__handler.handle_data(data)
 
     def set_data_handler(self, handler):
 	self.handle_data = handler
 	if hasattr(self, '_l'):
 	    self._l.data_cb = handler
 	self.lex_data = handler
-
-    def get_taginfo(self, tag):
-	start = do = end = None
-	klass = self.__class__
-	if hasattr(klass, "start_" + tag):
-	    start = getattr(klass, "start_" + tag)
-	    if hasattr(klass, "end_" + tag):
-		end = getattr(klass, "end_" + tag)
-	elif hasattr(klass, "do_" + tag):
-	    do = getattr(klass, "do_" + tag)
-	if start or do:
-	    return TagInfo(tag, start, do, end)
 
     def lex_starttag(self, tag, attrs):
 	#print 'received start tag', `tag`
@@ -169,36 +158,46 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	if self.__taginfo.has_key(tag):
 	    taginfo = self.__taginfo[tag]
 	else:
-	    taginfo = self.get_taginfo(tag)
+	    taginfo = self.__handler.get_taginfo(tag)
 	    self.__taginfo[tag] = taginfo
 	if not taginfo:
-	    self.unknown_starttag(tag, attrs)
+	    self.__handler.unknown_starttag(tag, attrs)
 	elif taginfo.container:
 	    self.lasttag = tag
-	    self.handle_starttag(tag, taginfo.start, attrs)
-	    self.stack.append(taginfo)
+	    handler = self.__handler
+	    ticache = self.__taginfo
+	    handler.handle_starttag(tag, taginfo.start, attrs)
+	    self.stack.append((taginfo, handler, ticache, self.__handler))
 	else:
-	    self.handle_starttag(tag, taginfo.start, attrs)
-	    self.handle_endtag(tag, taginfo.end)
+	    handler = self.__handler
+	    ticache = self.__taginfo
+	    handler.handle_starttag(tag, taginfo.start, attrs)
+	    handler.handle_endtag(tag, taginfo.end)
+	    self.__handler = handler
+	    self.__taginfo = ticache
 
     def lex_endtag(self, tag):
 	stack = self.stack
 	if tag:
 	    found = None
 	    for i in range(len(stack)):
-		if stack[i].tag == tag:
+		if stack[i][0].tag == tag:
 		    found = i
 	    if found is None:
-		self.report_unbalanced(tag)
+		self.__handler.report_unbalanced(tag)
 		return
-	else:
+	elif stack:
 	    found = len(stack) - 1
-	    if found < 0:
-		self.report_unbalanced(tag)
-		return
+	else:
+	    self.__handler.report_unbalanced(tag)
+	    return
 	while len(stack) > found:
-	    taginfo = stack[-1]
-	    self.handle_endtag(taginfo.tag, taginfo.end)
+	    taginfo, handler, ticache, nhandler = stack[-1]
+	    if handler is not nhandler:
+		nhandler.close()
+	    handler.handle_endtag(taginfo.tag, taginfo.end)
+	    self.__handler = handler
+	    self.__taginfo = ticache
 	    del stack[-1]
 
 
@@ -208,18 +207,18 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 
     def lex_namedcharref(self, name, terminator):
 	if self.named_characters.has_key(name):
-	    self.handle_data(self.named_characters[name])
+	    self.__handler.handle_data(self.named_characters[name])
 	else:
-	    self.unknown_namedcharref(name, terminator)
+	    self.__handler.unknown_namedcharref(name, terminator)
 
     def lex_charref(self, ordinal, terminator):
 	if 0 < ordinal < 256:
-	    self.handle_data(chr(ordinal))
+	    self.__handler.handle_data(chr(ordinal))
 	else:
-	    self.unknown_charref(ordinal, terminator)
+	    self.__handler.unknown_charref(ordinal, terminator)
 
     def lex_entityref(self, name, terminator):
-	self.handle_entityref(name, terminator)
+	self.__handler.handle_entityref(name, terminator)
 
 
 from types import StringType
@@ -252,9 +251,4 @@ def _nullfunc(*args, **kw):
     pass
 
 
-def _dummy_data_handler(data):
-    # Dummy handler used in clearing circular references.
-    pass
-
-
-#  The test code is now located in test_parser.py.
+#  The test code is located in test_parser.py.
