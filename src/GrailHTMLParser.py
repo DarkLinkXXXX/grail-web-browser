@@ -560,19 +560,7 @@ class GrailHTMLParser(HTMLParser):
     # Heading support for dingbats (iconic entities):
 
     def header_bgn(self, tag, level, attrs):
-	self.element_close_maybe('h1', 'h2', 'h3', 'h4', 'h5', 'h6')
-	if self.strict_p():
-	    self.close_paragraph()
-	    while self.list_stack:
-		self.badhtml = 1
-		self.lex_endtag(self.list_stack[0][0])
-        self.formatter.end_paragraph(1)
-	align = extract_keyword('align', attrs, conv=string.lower)
-	self.formatter.push_alignment(align)
-	self.viewer.flush()
-        self.formatter.push_font((tag, 0, 1, 0))
-	self.header_number(tag, level, attrs)
-	#HTMLParser.header_bgn(self, tag, level, attrs)
+	HTMLParser.header_bgn(self, tag, level, attrs)
 	dingbat = extract_keyword('dingbat', attrs)
 	if dingbat:
 	    self.unknown_entityref(dingbat, '')
