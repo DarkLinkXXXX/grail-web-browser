@@ -32,9 +32,10 @@ import posixpath
 import traceback
 import mimetools
 from Tkinter import *
+import GrailPrefs
 import SafeDialog
 import tktools
-from Browser import Browser, DEFAULT_HOME
+from Browser import Browser
 import SafeTkinter
 from AppletRExec import AppletRExec
 from Cache import Cache
@@ -59,13 +60,16 @@ Version: %s""" % __version__
 
 
 def main():
+    prefs = GrailPrefs.AllPreferences()
     try:
 	opts, args = getopt.getopt(sys.argv[1:], 'g:i')
     except getopt.error, msg:
 	print msg
 	sys.exit(2)
+
     geometry = None
-    load_images = 1
+    load_images = prefs.GetBoolean('browser', 'load-images')
+
     for o, a in opts:
 	if o == '-i':
 	    load_images = 0
@@ -82,12 +86,14 @@ def main():
 	url = None
     global app
     app = Application()
+    app.prefs = prefs
     app.load_images = load_images
     browser = Browser(app.root, app, geometry=geometry)
-    if url:
-	app.home = grailutil.complete_url(url)
     if sys.platform != 'mac':
-    	browser.context.load(app.home)
+	if url:
+	    browser.context.load(url)
+	else:
+	    browser.home_command()
     SafeTkinter._castrate(app.root.tk)
     tktools.install_keybindings(app.root)
     # Make everybody who's still using urllib.urlopen go through the cache
@@ -183,7 +189,6 @@ class Application:
 	self.root = Tk(className='Grail')
 	self.splash = SplashScreen(self.root)
 	self.load_images = 1
-	self.home = DEFAULT_HOME
 	# initialize on_exit_methods before global_history
 	self.on_exit_methods = []
 	self.global_history = GlobalHistory.GlobalHistory(self)
