@@ -1,6 +1,6 @@
 """Bookmarks and History preferences panel."""
 
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 # $Source: /home/john/Code/grail/src/prefpanels/BookmarksPanel.py,v $
 
 import PrefsPanels
@@ -28,26 +28,27 @@ class BookmarksPanel(PrefsPanels.Framework):
 	addcurloc = StringVar()
 	addcur_frame = Frame(bmframe)
 	addcur_frame.pack()
-	label = Label(addcur_frame, text='Add Current Page:')
-	label.pack(side=LEFT, anchor=E)
+	label = Label(addcur_frame, text='Add Current Page:', width=25,
+		      anchor=E)
+	label.pack(side=LEFT, anchor=NE)
 	choices_frame = Frame(addcur_frame, relief=SUNKEN, borderwidth=1)
 	choices_frame.pack(side=LEFT)
 
 	prepends = Radiobutton(choices_frame, text='Prepends to File',
 			       variable=addcurloc,
 			       value=NEW_AT_BEG)
-	prepends.pack(fill=BOTH, expand=1)
+	prepends.pack(anchor=W)
 
 	appends = Radiobutton(choices_frame, text='Appends to File',
 			      variable=addcurloc,
 			      value=NEW_AT_END)
-	appends.pack(fill=BOTH, expand=1)
+	appends.pack(anchor=W)
 
 	childsib = Radiobutton(choices_frame,
 			       text="As Selection's Child or Sibling",
 			       variable=addcurloc,
 			       value=NEW_AS_CHILD)
-	childsib.pack(fill=BOTH, expand=1)
+	childsib.pack(anchor=W)
 
 	self.PrefsCheckButton(bmframe, "Browser's Pulldown Menu:",
 			      'Includes Bookmark Entries',
