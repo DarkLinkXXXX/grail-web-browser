@@ -3,6 +3,7 @@
 
 # Standard/builtin Python modules
 import string
+from string import joinfields, splitfields, find, rfind
 
 # A classification of schemes ('' means apply by default)
 uses_relative = ['ftp', 'http', 'gopher', 'nntp', 'wais', 'file',
@@ -88,7 +89,7 @@ def urljoin(base, url, allow_framents = 1):
 	if not base:
 		return url
 	bscheme, bnetloc, bpath, bparams, bquery, bfragment = \
-		  urlparse(base, '', allow_framents)
+		urlparse(base, '', allow_framents)
 	scheme, netloc, path, params, query, fragment = \
 		urlparse(url, bscheme, allow_framents)
 	# XXX Unofficial hack: default netloc to bnetloc even if
@@ -98,9 +99,9 @@ def urljoin(base, url, allow_framents = 1):
 	   scheme in uses_netloc and bscheme in uses_netloc:
 	   netloc = bnetloc
 	   # Strip the port number
-	   i = string.find(netloc, '@')
+	   i = find(netloc, '@')
 	   if i < 0: i = 0
-	   i = string.find(netloc, ':', i)
+	   i = find(netloc, ':', i)
 	   if i >= 0:
 		   netloc = netloc[:i]
 	if scheme != bscheme or scheme not in uses_relative:
@@ -115,15 +116,12 @@ def urljoin(base, url, allow_framents = 1):
 		return urlunparse((scheme, netloc, path,
 				   params, query, fragment))
 	if not path:
-		path = bpath
-		if not query:
-			query = bquery
-		return urlunparse((scheme, netloc, path,
-				   params, query, fragment))
-	i = string.rfind(bpath, '/')
+		return urlunparse((scheme, netloc, bpath,
+				   params, query or bquery, fragment))
+	i = rfind(bpath, '/')
 	if i >= 0:
 		path = bpath[:i] + '/' + path
-	segments = string.splitfields(path, '/')
+	segments = splitfields(path, '/')
 	if segments[-1] == '.':
 		segments[-1] = ''
 	while '.' in segments:
@@ -140,8 +138,7 @@ def urljoin(base, url, allow_framents = 1):
 			break
 	if len(segments) >= 2 and segments[-1] == '..':
 		segments[-2:] = ['']
-	path = string.joinfields(segments, '/')
-	return urlunparse((scheme, netloc, path,
+	return urlunparse((scheme, netloc, joinfields(segments, '/'),
 			   params, query, fragment))
 
 def urldefrag(url):
