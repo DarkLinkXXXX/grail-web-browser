@@ -176,17 +176,7 @@ class FormInfo:
 	method = string.lower(self.method)
 	data = ''
 	if enctype == URLENCODED:
-	    for i in self.inputs:
-		# unnamed inputs shouldn't get submitted
-		if not i.name: continue
-		v = i.get()
-		if v:
-		    if type(v) != type([]):
-			v = [v]
-		    for vv in v:
-			s = '&' + quote(i.name) + '=' + quote(vv)
-			data = data + s
-	    data = data[1:]
+	    data = self.make_urlencoded_data()
 	elif enctype == FORM_DATA and method == 'post':
 	    ctype, data = self.make_form_data()
 	if method == 'get' and enctype == URLENCODED:
@@ -202,6 +192,19 @@ class FormInfo:
 	else:
 	    print "*** Form with METHOD=%s and ENCTYPE=%s not supported ***" % (
 		  self.method, self.enctype)
+
+    def make_urlencoded_data(self):
+	data = ''
+	for i in self.inputs:
+	    if not i.name: continue
+	    v = i.get()
+	    if v:
+		if type(v) != type([]):
+		    v = [v]
+		for vv in v:
+		    s = '&' + quote(i.name) + '=' + quote(vv)
+		    data = data + s
+	return data[1:]
 
     def make_form_data(self):
 	import ArrayIO
@@ -327,19 +330,22 @@ class FormInfo:
 	    self.getopt('size')
 
 	def setup(self):
-	    self.w = Entry(self.viewer.text)
-	    self.w.bind('<Return>', self.return_event)
+	    self.w = self.entry = Entry(self.viewer.text)
+	    self.setup_entry()
+
+	def setup_entry(self):
+	    self.entry.bind('<Return>', self.return_event)
 	    if self.size:
-		self.w['width'] = self.size
+		self.entry['width'] = self.size
 	    if self.show:
-		self.w['show'] = self.show
+		self.entry['show'] = self.show
 
 	def reset(self):
-	    self.w.delete(0, END)
-	    self.w.insert(0, self.value)
+	    self.entry.delete(0, END)
+	    self.entry.insert(0, self.value)
 
 	def get(self):
-	    return self.w.get()
+	    return self.entry.get()
 
 	def set(self, value):
 	    text = ''
@@ -348,8 +354,8 @@ class FormInfo:
 	    elif type(value) == type([]) and len(value) > 0:
 		text = value[0]
 		del value[0]
-	    self.w.delete(0, END)
-	    self.w.insert(0, text)
+	    self.entry.delete(0, END)
+	    self.entry.insert(0, text)
 
 	def return_event(self, event):
 	    self.fi.submit_command()
@@ -440,9 +446,21 @@ class FormInfo:
 
     class InputFile(InputText):
 
-	# XXX Should display an entry widget and a "Browse..." button
+	def setup(self):
+	    self.w = Frame(self.viewer.text)
+	    self.entry = Entry(self.w)
+	    self.entry.pack(side=LEFT)
+	    self.setup_entry()
+	    self.browse = Button(self.w, text="Browse...",
+				 command=self.browse_command)
+	    self.browse.pack(side=RIGHT)
 
-	pass
+	def browse_command(self):
+	    import FileDialog
+	    fd = FileDialog.LoadFileDialog(self.browse)
+	    filename = fd.go(self.entry.get())
+	    if filename:
+		self.set(filename)
 
 
 class Select:
