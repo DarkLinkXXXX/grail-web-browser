@@ -8,7 +8,7 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 """
 
 
-__version__ = "0.2a2"			# PRE 0.2; alpha == lacking features
+__version__ = "0.2a3"			# PRE 0.2; alpha == lacking features
 
 
 import sys
@@ -258,6 +258,8 @@ class Application:
 	self.root.after(0, f)		# ### Tk 4.0 hack
 
     def _exc_dialog(self, message, exc, val, tb):
+	# XXX This needn't be a modal dialog --
+	# XXX should SafeDialog be changed to support callbacks?
 	msg = "An exception occurred " + str(message) + " :\n"
 	msg = msg + str(exc) + " : " + str(val)
 	dlg = SafeDialog.Dialog(self.root,
@@ -271,12 +273,13 @@ class Application:
 	    self.traceback_dialog(exc, val, tb)
 
     def traceback_dialog(self, exc, val, tb):
-	# XXX This should actually just create a new Browser window...
+	# XXX This could actually just create a new Browser window...
 	TbDialog.TracebackDialog(self.root, exc, val, tb)
 
     def error_dialog(self, exc, msg):
 	# Display an error dialog.
 	# Return when the user clicks OK
+	# XXX This needn't be a modal dialog
 	if type(msg) in (ListType, TupleType):
 	    s = ''
 	    for item in msg:
