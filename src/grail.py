@@ -8,7 +8,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3b3"
+__version__ = "Grail/0.3" # Final!
 GRAILVERSION = __version__
 
 # Standard python imports (needed by path munging code)
