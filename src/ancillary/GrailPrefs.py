@@ -18,7 +18,7 @@ exception.
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.2 $"
+__version__ = "$Revision: 2.3 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -171,11 +171,22 @@ class AllPreferences:
     def GetFloat(self, group, pref):
 	return self._GetTyped(group, pref, string.atof, "float")
     def GetBoolean(self, group, pref):
-	got = self._GetTyped(group, pref, string.atoi, "Boolean")
-	if got not in (0, 1):
+	# implements enhanced Tcl 7.x notion of boolean value,
+	# specifically:
+	# Python None (false) == 'false', 'no', 'off', 0
+	# Python 1     (true) == 'true', 'yes', 'on', non-zero
+	valstr = string.lower(string.strip(self.Get(group, pref)))
+	if valstr in ['false', 'no', 'off']:
+	    return None
+	elif valstr in ['true', 'yes', 'on']:
+	    return 1
+	# check numeric values
+	try:
+	    val = string.atoi(valstr)
+	    return (val and 1 or None)
+	except ValueError:
 	    raise TypeError, ('%s not %s: %s'
 			      % ((group, pref), "Boolean", `val`))
-	return got
 
     # Editing utensils.
 
