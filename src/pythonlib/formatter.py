@@ -48,11 +48,10 @@ class AbstractFormatter:
 	self.hard_break = 1
 
     def end_paragraph(self, blankline):
+	if not self.hard_break:
+	    self.writer.send_line_break()
 	if not self.para_end:
-	    if self.hard_break:
-		self.writer.send_paragraph(0)
-	    else:
-		self.writer.send_paragraph((blankline and 1) or 0)
+	    self.writer.send_paragraph((blankline and 1) or 0)
 	self.hard_break = self.nospace = self.para_end = 1
 	self.softspace = 0
 
