@@ -4,6 +4,7 @@ import sys
 import string
 from Tkinter import *
 import urlparse
+import grailutil
 
 
 # Default tuning parameters
@@ -59,9 +60,12 @@ class BaseReader:
     def __str__(self):
 	if self.maxbytes:
 	    percent = self.nbytes*100/self.maxbytes
-	    status = `percent` + "% of " + nicebytes(self.maxbytes)
+	    status = "%d%% of %s read" % (percent,
+					  grailutil.nicebytes(self.maxbytes))
 	else:
-	    status = "%s read" % nicebytes(self.nbytes)
+	    status = "%s read" % grailutil.nicebytes(self.nbytes)
+	if self.api.iscached():
+	    status = status + " (cached)"
 	if not self.shorturl:
 	    tuple = urlparse.urlparse(self.api._url_)
 	    path = tuple[2]
@@ -69,7 +73,7 @@ class BaseReader:
 	    if i >= 0:
 		path = path[i+1:]
 	    self.shorturl = path or self.api._url_
-	return "[Loading %s: %s]" % (self.shorturl, status)
+	return "%s: %s" % (self.shorturl, status)
 
     def __repr__(self):
 	return "%s(...%s)" % (self.__class__.__name__, self.api)
@@ -196,26 +200,3 @@ class BaseReader:
     def handle_eof(self):
 	# Called after self.stop() has been called
 	pass
-
-
-def nicebytes(n):
-    if n < 1000:
-	if n <= 1:
-	    if n == 1: return "1 byte"
-	    if n == 0: return "no bytes"
-	    if n < 0: return "%d bytes" % n
-	return "%d bytes" % n
-    n = n * 0.001
-    if n < 1000.0:
-	suffix = "K"
-    else:
-	n = n * 0.001
-	if n < 1000.0:
-	    suffix = "M"
-	else:
-	    n = n * 0.001
-	    suffix = "G"
-    if n < 10.0: r = 2
-    elif n < 100.0: r = 1
-    else: r = 0
-    return "%.*f" % (r, n) + suffix
