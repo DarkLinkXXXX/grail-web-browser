@@ -70,7 +70,7 @@ def main():
 	print msg
 	sys.exit(2)
 
-    geometry = None
+    geometry = prefs.Get('browser', 'initial-geometry')
     load_images = prefs.GetBoolean('browser', 'load-images')
 
     for o, a in opts:
