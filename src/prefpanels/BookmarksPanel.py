@@ -4,15 +4,23 @@
 
 """Bookmarks and History preferences panel."""
 
-__version__ = '$Revision: 1.8 $'
+__version__ = '$Revision: 1.9 $'
 # $Source: /home/john/Code/grail/src/prefpanels/BookmarksPanel.py,v $
 
 import PrefsPanels
 from Tkinter import *
 import tktools
-from Bookmarks import NEW_AT_BEG, NEW_AT_END, NEW_AS_CHILD, \
-                      BMPREFGROUP, COLLAPSE_PREF, INCLUDE_PREF, ADDLOC_PREF
 
+from BookmarksGUI import \
+     NEW_AT_BEG, \
+     NEW_AT_END, \
+     NEW_AS_CHILD, \
+     BMPREFGROUP, \
+     COLLAPSE_PREF, \
+     INCLUDE_PREF, \
+     ADDLOC_PREF, \
+     AUTO_DETAILS_PREF, \
+     BUTTONS_PREF
 
 
 class BookmarksPanel(PrefsPanels.Framework):
@@ -22,8 +30,7 @@ class BookmarksPanel(PrefsPanels.Framework):
     HELP_URL = 'help/prefs/bookmarks.html'
 
     def CreateLayout(self, name, frame):
-        bmframe = Frame(frame)
-        bmframe.pack(fill=BOTH, expand=1)
+        bmframe = frame
 
         self.PrefsCheckButton(bmframe, 'Bookmark Headers:',
                               'Collapse Aggressively',
@@ -56,9 +63,20 @@ class BookmarksPanel(PrefsPanels.Framework):
                                value=NEW_AS_CHILD, anchor=W)
         childsib.pack(fill=X)
 
+        self.RegisterUI(BMPREFGROUP, ADDLOC_PREF, 'string',
+                        addcurloc.get, addcurloc.set)
+
+        autodetails = BooleanVar(bmframe)
+        w = Checkbutton(f, text="Open Details Dialog", anchor=W,
+                        variable=autodetails)
+        w.pack(fill=X)
+        self.RegisterUI(BMPREFGROUP, AUTO_DETAILS_PREF, 'Boolean',
+                        autodetails.get, autodetails.set)
+
+        self.PrefsCheckButton(bmframe, 'Bookmarks Dialog:',
+                              'Show Optional Buttons',
+                              BMPREFGROUP, BUTTONS_PREF)
+
         self.PrefsCheckButton(bmframe, "Browser's Pulldown Menu:",
                               'Includes Bookmark Entries',
                               BMPREFGROUP, INCLUDE_PREF)
-
-        self.RegisterUI(BMPREFGROUP, ADDLOC_PREF, 'string',
-                        addcurloc.get, addcurloc.set)
