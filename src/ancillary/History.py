@@ -145,4 +145,6 @@ class HistoryDialog:
 	self._listbox.select_set(last-index-1)
 	self._listbox.activate(last-index-1)
 
-    def show(self): self._frame.deiconify()
+    def show(self):
+	self._frame.deiconify()
+	self._frame.tkraise()
