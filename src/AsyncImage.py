@@ -72,7 +72,10 @@ class AsyncImage(PhotoImage):
 	if context: self.context = context
 	if self.reader:
 	    return
-	self['file'] = makestopsign()
+	try:
+	    self['file'] = makestopsign()
+	except TclError:
+	    pass
 	try:
 	    api = self.context.app.open_url(self.url, 'GET', {},
 					    reload) # Through cache
@@ -134,9 +137,14 @@ def makestopsign():
 def _makestopsign():
     import tempfile
     tfn = tempfile.mktemp()
-    f = open(tfn, 'wb')
-    f.write(STOPDATA)
-    f.close()
+    try:
+	f = open(tfn, 'wb')
+	f.write(STOPDATA)
+	f.close()
+    except IOError:
+	print "Error creating temporary file! ",
+	print "Make sure", tempfile.gettempdir(), "is writable."
+	return ""
     return tfn
 
 def _cleanup(chain=None):
