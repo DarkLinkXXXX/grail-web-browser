@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.48 1996/09/17 20:46:45 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.49 1996/09/26 14:59:23 fdrake Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -23,6 +23,7 @@ BadMojoError = 'Bad Mojo!  Infinite loop in cell height calculation.'
 
 CELLGEOM_RE = regex.compile('%sx%s\+%s\+%s' % (('\([-+]?[0-9]+\)',) * 4))
 
+DEFAULT_VALIGN = 'top'
 
 
 # ----- HTML tag parsing interface
@@ -303,11 +304,7 @@ class Table(AttrElem):
 	self._parenttable = parenttable
 	self._cleared = None
 	# alignment
-	def conv_align(val):
-	    return grailutil.conv_enumeration(
-		grailutil.conv_normstring(val),
-		['left', 'center', 'right'])
-	self.Aalign = self.attribute('align', conv=conv_align)
+	self.Aalign = self.attribute('align', conv=conv_halign)
 	# this call enforces alignment of the table by inserting a
 	# special invisible character right before the embedded window
 	# which is the table's container canvas.
@@ -383,7 +380,7 @@ class Table(AttrElem):
 					   conv=conv_stdunits,
 					   default=0)
 	# vertical alignment of cell content
-	self.Avalign = self.attribute('valign', default='top',
+	self.Avalign = self.attribute('valign', default=DEFAULT_VALIGN,
 				      conv=conv_valign)
 	# background
 	parbgcolor = parentviewer.text['background']
@@ -785,10 +782,12 @@ class Table(AttrElem):
 
 
 class ColumnarElem(AttrElem):
+    # base class for COL, COLGROUP
     def __init__(self, attrs):
 	AttrElem.__init__(self, attrs)
 	self.Ahalign = self.attribute('align', conv=conv_halign, default=None)
-	self.Avalign = self.attribute('valign', conv=conv_valign, default=None)
+	self.Avalign = self.attribute('valign', conv=conv_valign,
+				      default=DEFAULT_VALIGN)
 
 class Colgroup(ColumnarElem):
     """A column group."""
@@ -819,7 +818,7 @@ class TR(AttrElem):
     _accepting = 1
 
     def __init__(self, attrs, bgcolor=None, honor_colors=None,
-		 valign=''):
+		 valign=DEFAULT_VALIGN):
 	AttrElem.__init__(self, attrs)
 	self.Ahalign = self.attribute('align', conv=conv_halign)
 	self.Avalign = self.attribute('valign', conv=conv_valign,
@@ -929,7 +928,11 @@ class ContainedText(AttrElem):
 	self._embedheight = 0
 
     def new_formatter(self):
-	return AbstractFormatter(self._viewer)
+	formatter = AbstractFormatter(self._viewer)
+	# set parskip to prevent blank line at top of cell if the content
+	# starts with a <P> or header element.
+	formatter.parskip = 1
+	return formatter
 
     def freeze(self): self._viewer.freeze()
     def unfreeze(self): self._viewer.unfreeze()
@@ -1062,12 +1065,8 @@ class Cell(ContainedText):
 	self._tw.config(relief=FLAT, borderwidth=0)
 	self._fw.config(relief=relief, borderwidth=1)
 	# horizontal alignment
-	halign = self.attribute('align', conv=grailutil.conv_normstring)
-	if halign:
-	    halign = grailutil.conv_enumeration(halign,
-			['left', 'center', 'right'])
-	else:
-	    halign = table.lastbody.trows[-1].Ahalign
+	halign = self.attribute('align', conv=conv_halign,
+				default=table.lastbody.trows[-1].Ahalign)
 	self.Ahalign = halign
 	if halign:
 	    self._viewer.new_alignment(halign)
