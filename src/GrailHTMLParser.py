@@ -165,6 +165,12 @@ class GrailHTMLParser(HTMLParser):
 		# this color is known to work already
 		rule.config(background=self.viewer.text['foreground'])
 	    rule.config(relief=FLAT)
+	    size = extract_keyword('size', attrs, 2,
+				   conv=grailutil.conv_integer)
+	    if size == 1:
+		# could not actually set it to 1 unless it was flat; do it now:
+		width = string.atoi(rule.cget('width'))
+		rule.config(borderwidth=0, height=1, width=width+2)
 	elif color:
 	    self.configcolor('background', color, widget=rule)
 
