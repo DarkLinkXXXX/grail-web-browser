@@ -6,6 +6,9 @@ unanticipated exception is encountered.
 
 Use note() to emit an error message to standard error."""
 
+__version__ = "$Revision: 2.2 $"
+# $Source: /home/john/Code/grail/src/utils/testing.py,v $
+
 TestFailure = 'TestFailure'
 
 def note(msg, *args):
