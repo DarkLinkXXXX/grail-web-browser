@@ -2,7 +2,6 @@ import regex
 import regsub
 import string
 import sys
-from string import split, join
 from types import StringType
 
 
@@ -133,22 +132,24 @@ class AbstractFormatter:
 	    return string.upper(label)
         return label
 
-    def add_flowing_data(self, data, whitespace=string.whitespace,
-			 join = join, split = split):
+    def add_flowing_data(self, data,
+			 # These are only here to load them into locals:
+			 whitespace = string.whitespace,
+			 join = string.join, split = string.split):
 	if not data: return
 	# The following looks a bit convoluted but is a great improvement over
 	# data = regsub.gsub('[' + string.whitespace + ']+', ' ', data)
 	prespace = data[:1] in whitespace
 	postspace = data[-1:] in whitespace
 	data = join(split(data))
-	if self.nospace and prespace:
-	    if not data: return
-	    prespace = 0
-	elif self.softspace:
-	    prespace = 1
-	    data = ' ' + data
-	elif prespace:
-	    data = ' ' + data
+	if self.nospace and not data:
+	    return
+	elif prespace or self.softspace:
+	    if not data:
+		if not self.nospace: self.softspace = 1
+		return
+	    if not self.nospace:
+		data = ' ' + data
 	self.hard_break = self.nospace = self.para_end = self.have_label = 0
 	self.softspace = postspace
 	self.writer.send_flowing_data(data)
