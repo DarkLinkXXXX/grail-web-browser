@@ -3,9 +3,32 @@
 The use of 'url' in the method names is a historical accident.
 
 """
-__version__ = '$Revision: 1.1 $'
+__version__ = '$Revision: 1.2 $'
 
-from urlparse import urljoin
+import urlparse
+__default_joiner = urlparse.urljoin
+del urlparse
+
+import re
+__typematch = re.compile('^([^/:]+):').match
+del re
+
+def __splittype(url):
+    match = __typematch(url)
+    if match:
+        scheme = match.group(1)
+        return scheme, url[len(scheme) + 1:]
+    return None, url
+
+
+def _urljoin(a, b):
+    sa = __splittype(a)
+    sb = __splittype(b)
+    if sa and (sa == sb or not sb):
+        import protocols
+        joiner = protocols.protocol_joiner(sa)
+        if joiner: return joiner(a, b)
+    return __default_joiner(a, b)
 
 
 class URIContext:
@@ -14,7 +37,7 @@ class URIContext:
     def __init__(self, url="", baseurl=""):
         self.__url = url or ""
         if url and baseurl:
-            self.__baseurl = urljoin(url, baseurl)
+            self.__baseurl = _urljoin(url, baseurl)
         else:
             self.__baserl = baseurl or ""
 
@@ -31,7 +54,7 @@ class URIContext:
         """
         self.__url = url
         if baseurl:
-            self.__baseurl = urljoin(url, baseurl)
+            self.__baseurl = _urljoin(url, baseurl)
         else:
             self.__baseurl = url
 
@@ -47,7 +70,7 @@ class URIContext:
         url = self.__baseurl or self.__url
         for rel in relurls:
             if rel:
-                url = urljoin(url, rel)
+                url = _urljoin(url, rel)
         return url
 
     def set_baseurl(self, baseurl):
@@ -56,4 +79,4 @@ class URIContext:
         The base URI is taken relative to the existing base URI.
 
         """
-        self.__baseurl = urljoin(self.__baseurl or self.__url, baseurl)
+        self.__baseurl = _urljoin(self.__baseurl or self.__url, baseurl)
