@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 from Tkinter import *
 import tktools
 
@@ -16,9 +12,11 @@ class IOStatusPanel:
     def create_widgets(self):
         self.top = tktools.make_toplevel(self.app.root,
                                          title="Grail: I/O Status",
-                                         class_="Grail")
-        self.closebutton = Button(self.top, text="Close", command=self.close)
-        self.closebutton.pack(side=BOTTOM)
+                                         class_="IOStatusPanel")
+        self.closebutton = Button(self.top, name="close", command=self.close,
+                                  default="active")
+        self.closebutton.pack(side=BOTTOM, pady='1m', padx='1m', anchor=E)
+        self.closebutton.focus_set()
         self.infobox, self.frame = tktools.make_list_box(self.top, width=40)
         self.infobox.pack(expand=1, fill=BOTH, side=TOP)
         self.top.protocol('WM_DELETE_WINDOW', self.close)
