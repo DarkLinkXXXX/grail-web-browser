@@ -61,10 +61,10 @@ class http_access:
 
     def __init__(self, resturl, method, params, data=None):
 	grailversion = __main__.__version__
-	if data is not None:
+	if data:
 	    assert(method=="POST")
 	else:
-	    assert(method=="GET")
+	    assert(method in ("GET", "POST"))
 	if type(resturl) == type(()):
 	    host, selector = resturl	# For proxy interface
 	else:
