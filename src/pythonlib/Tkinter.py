@@ -1,7 +1,11 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-import tkinter
-from tkinter import TclError
+try:
+	import _tkinter
+	tkinter = _tkinter # b/w compat
+except ImportError:
+	import tkinter
+TclError = tkinter.TclError
 from types import *
 from Tkconstants import *
 
@@ -558,6 +562,15 @@ class Tk(Misc, Wm):
 			baseName = os.path.basename(sys.argv[0])
 			if baseName[-3:] == '.py': baseName = baseName[:-3]
 		self.tk = tkinter.create(screenName, baseName, className)
+		try:
+			# Disable event scanning except for Command-Period
+			import MacOS
+			MacOS.EnableAppswitch(0)
+		except ImportError:
+			pass
+		else:
+			# Work around nasty MacTk bug
+			self.update()
 		# Version sanity checks
 		tk_version = self.tk.getvar('tk_version')
 		if tk_version != tkinter.TK_VERSION:
@@ -934,8 +947,12 @@ class Canvas(Widget):
 	def type(self, tagOrId):
 		return self.tk.call(self._w, 'type', tagOrId) or None
 	def xview(self, *args):
+		if not args:
+			return self._getdoubles(self.tk.call(self._w, 'xview'))
 		apply(self.tk.call, (self._w, 'xview')+args)
 	def yview(self, *args):
+		if not args:
+			return self._getdoubles(self.tk.call(self._w, 'yview'))
 		apply(self.tk.call, (self._w, 'yview')+args)
 
 class Checkbutton(Widget):
@@ -1049,8 +1066,12 @@ class Listbox(Widget):
 	def size(self):
 		return self.tk.getint(self.tk.call(self._w, 'size'))
 	def xview(self, *what):
+		if not what:
+			return self._getdoubles(self.tk.call(self._w, 'xview'))
 		apply(self.tk.call, (self._w, 'xview')+what)
 	def yview(self, *what):
+		if not what:
+			return self._getdoubles(self.tk.call(self._w, 'yview'))
 		apply(self.tk.call, (self._w, 'yview')+what)
 
 class Menu(Widget):
@@ -1267,7 +1288,13 @@ class Text(Widget):
 	def window_names(self):
 		return self.tk.splitlist(
 			self.tk.call(self._w, 'window', 'names'))
+	def xview(self, *what):
+		if not what:
+			return self._getdoubles(self.tk.call(self._w, 'xview'))
+		apply(self.tk.call, (self._w, 'xview')+what)
 	def yview(self, *what):
+		if not what:
+			return self._getdoubles(self.tk.call(self._w, 'yview'))
 		apply(self.tk.call, (self._w, 'yview')+what)
 	def yview_pickplace(self, *what):
 		apply(self.tk.call, (self._w, 'yview', '-pickplace')+what)
