@@ -80,6 +80,18 @@ script choose the Python interpreter, e.g.
     exec /usr/local/bin/python /usr/local/lib/grail/grail.py ${1+"$@"}
 
 
+There's one additional optional step: if you want a slightly faster
+HTML parser (and don't we all want that... :-), and your Python
+supports dynamic loading of modules fromn shared libraries
+(e.g. Solaris, SunOS, IRIX, some Linux versions), you can enter the
+subdirectory sgml_lex and build the alternative SGML parser written in
+C there.  Unless you're at Solaris, you should edit the Makefile and
+edit the configuration section (it's really simple).  Then run "make".
+Grail will automatically use the C parser the next time it starts; it
+will print "Connolly's parser" at startup instead of "Guido's parser",
+to indicate that it is using the C parser.
+
+
 Using Grail
 -----------
 
