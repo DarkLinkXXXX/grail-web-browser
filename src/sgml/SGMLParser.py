@@ -6,7 +6,7 @@
 
 
 """
-__version__ = "$Revision: 1.19 $"
+__version__ = "$Revision: 1.20 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -33,7 +33,7 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 
     def __init__(self, verbose = 0):
 	self.verbose = verbose
-	self._tag_methods = {}
+	self.__taginfo = {}
 	SGMLLexer.SGMLLexer.__init__(self)
 
     def close(self):
@@ -44,12 +44,8 @@ class SGMLParser(SGMLLexer.SGMLLexer):
     def cleanup(self):
 	while self.stack:
 	    self.lex_endtag(self.stack[-1])
-	for k in self._tag_methods.keys():
-	    del self._tag_methods[k]
-	self._tag_methods = None
-	if hasattr(self, '_l'):
-	    self._l.data_cb = _dummy_data_handler
-	self.lex_data = _dummy_data_handler
+	self.__taginfo = {}
+	self.set_data_handler(_dummy_data_handler)
 	SGMLLexer.SGMLLexer.cleanup(self)
 
     # Interface -- reset this instance.  Loses all unprocessed data.
@@ -59,14 +55,16 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	self.restrict(1)		# impose user-agent compatibility
 	self.omittag = 1		# default to HTML style
 	self.stack = []
-	self.cdata = 0
 
     def get_stack(self):
 	"""Return current context stack.
 
 	This allows tag implementations to examine their context.
 	"""
-	return tuple(self.stack)
+	result = []
+	for ti in self.stack:
+	    result.append(ti.tag)
+	return tuple(result)
 
     #  The following methods are the interface subclasses need to
     #  override to support any special handling of tags, data, or
@@ -92,12 +90,12 @@ class SGMLParser(SGMLLexer.SGMLLexer):
     def handle_endtag(self, tag, method):
 	"""
 	"""
-	method()
+	method(self)
 
     def handle_starttag(self, tag, method, attributes):
 	"""
 	"""
-	method(attributes)
+	method(self, attributes)
 
     def unknown_charref(self, ordinal, terminator):
 	"""
@@ -134,10 +132,6 @@ class SGMLParser(SGMLLexer.SGMLLexer):
     #  interface with the lexer.  Subclasses should rarely need to deal
     #  with these.
 
-    # For derived classes only -- enter literal mode (CDATA)
-    def setliteral(self, *args):
-	self.cdata = 1 #@@ finish implementing this...
-
     def lex_data(self, data):
 	self.handle_data(data)
 
@@ -147,21 +141,17 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	    self._l.data_cb = handler
 	self.lex_data = handler
 
-
-    def _load_tag_handlers(self, tag):
-	try:
-	    start = getattr(self, 'start_' + tag)
-	except AttributeError:
-	    start = end = do = None
-	    if hasattr(self, 'do_' + tag):
-		do = getattr(self, 'do_' + tag)
-	else:
-	    end = do = None
-	    if hasattr(self, 'end_' + tag):
-		end = getattr(self, 'end_' + tag)
-	tuple = start, end, do
-	self._tag_methods[tag] = tuple
-	return tuple
+    def get_taginfo(self, tag):
+	start = do = end = None
+	klass = self.__class__
+	if hasattr(klass, "start_" + tag):
+	    start = getattr(klass, "start_" + tag)
+	    if hasattr(klass, "end_" + tag):
+		end = getattr(klass, "end_" + tag)
+	elif hasattr(klass, "do_" + tag):
+	    do = getattr(klass, "do_" + tag)
+	if start or do:
+	    return TagInfo(tag, start, do, end)
 
     def lex_starttag(self, tag, attrs):
 	#print 'received start tag', `tag`
@@ -176,40 +166,39 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 		if not tag:
 		    raise SGMLError, \
 			  'Cannot start the document with an empty tag.'
-	try:
-	    start, end, do = self._tag_methods[tag]
-	except KeyError:
-	    start, end, do = self._load_tag_handlers(tag)
-
-	if do:
-	    self.handle_starttag(tag, do, attrs)
-	elif start:
-	    self.lasttag = tag
-	    self.handle_starttag(tag, start, attrs)
-	    self.stack.append(tag)
+	if self.__taginfo.has_key(tag):
+	    taginfo = self.__taginfo[tag]
 	else:
+	    taginfo = self.get_taginfo(tag)
+	    self.__taginfo[tag] = taginfo
+	if not taginfo:
 	    self.unknown_starttag(tag, attrs)
+	elif taginfo.container:
+	    self.lasttag = tag
+	    self.handle_starttag(tag, taginfo.start, attrs)
+	    self.stack.append(taginfo)
+	else:
+	    self.handle_starttag(tag, taginfo.start, attrs)
+	    self.handle_endtag(tag, taginfo.end)
 
     def lex_endtag(self, tag):
 	stack = self.stack
-	if not tag:
+	if tag:
+	    found = None
+	    for i in range(len(stack)):
+		if stack[i].tag == tag:
+		    found = i
+	    if found is None:
+		self.report_unbalanced(tag)
+		return
+	else:
 	    found = len(stack) - 1
 	    if found < 0:
 		self.report_unbalanced(tag)
 		return
-	else:
-	    if tag not in stack:
-		self.report_unbalanced(tag)
-		return
-	    for i in range(len(stack)):
-		if stack[i] == tag: found = i
 	while len(stack) > found:
-	    tag = stack[-1]
-	    start, end, do = self._tag_methods[tag]
-	    if end:
-		self.handle_endtag(tag, end)
-	    else:
-		self.unknown_endtag(tag)
+	    taginfo = stack[-1]
+	    self.handle_endtag(taginfo.tag, taginfo.end)
 	    del stack[-1]
 
 
@@ -233,9 +222,38 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 	self.handle_entityref(name, terminator)
 
 
+from types import StringType
+
+class TagInfo:
+    as_dict = 1
+    container = 1
+
+    def __init__(self, tag, start, do, end):
+	self.tag = tag
+	if start:
+	    self.start = start
+	    self.end = end or _nullfunc
+	else:
+	    self.container = 0
+	    self.start = do
+	    self.end = _nullfunc
+
+    def __cmp__(self, other):
+	if type(other) is StringType:
+	    return cmp(self.tag, other)
+	if type(other) is type(self):
+	    return cmp(self.tag, other.tag)
+	raise TypeError, "incomparable values"
+
+
+def _nullfunc(*args, **kw):
+    # Dummy end tag handler for situations where no handler is provided
+    # or allowed.
+    pass
+
+
 def _dummy_data_handler(data):
-    """Dummy handler used in clearing circular references.
-    """
+    # Dummy handler used in clearing circular references.
     pass
 
 
