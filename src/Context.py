@@ -20,20 +20,6 @@ VALID_TARGET_STARTS = string.letters + '_'
 LAST_CONTEXT = None
 
 
-default_joiner = urljoin
-
-def urljoin(a, b):
-    ta = urlparse(a)
-    tb = urlparse(b)
-    sa = ta[0]
-    sb = tb[0]
-    if sa and (sa == sb or not sb):
-        import protocols
-        joiner = protocols.protocol_joiner(sa)
-        if joiner: return joiner(a, b)
-    return default_joiner(a, b)
-
-
 class Context(URIContext):
 
     """Context for browsing operations.
@@ -157,10 +143,6 @@ class Context(URIContext):
         URIContext.set_baseurl(self, baseurl)
         if target:
             self._target = target
-
-    def baseurl(self):               # XXX Backwards compatibility
-        return self.get_baseurl()
-    # XXX see: GrailHTMLParser, AppletLoader, Viewer, isindex
 
     def get_target(self):
         """Return the default target for this page (which may be None)."""
