@@ -8,7 +8,8 @@ This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 """
 
 
-__version__ = "0.2a3"			# PRE 0.2; alpha == lacking features
+# Version string in a form ready for the User-agent HTTP header
+__version__ = "Grail/0.2a4"		# PRE 0.2; alpha == lacking features
 
 
 import sys
