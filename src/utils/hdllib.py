@@ -145,6 +145,7 @@ for key, value in data_map.items():
 error_codes = """
 HP_OK = 0
 HDL_ERR_OK = 0
+HP_HANDLE_NOT_FOUND = 5
 HDL_ERR_INVALID	= -1
 HDL_ERR_TIMEOUT = -2
 HDL_ERR_REDIRECTED = -3
@@ -806,13 +807,22 @@ class HashTable:
 		if self.debug: print "bad reply type"
 		continue
 
-	    if not 1 <= sequence <= total:
+	    if not 1 <= sequence <= total and not err:
 		if self.debug: print "bad sequence number"
 		continue
 
 	    expected = total
-
+	    
 	    if err != HP_OK:
+		if self.debug:
+		    print 'err: ', err
+		# TODO - Once were correctly traversing all the handle servers
+		# we need to to insure the handle's indeed not found, we probably
+		# won't want to return here.  Because HP_HANDLE_NOT_FOUND
+		# may mean we need to look on a different handle server
+		if err == HP_HANDLE_NOT_FOUND:
+		    return HDL_ERR_DOES_NOT_EXIST, None
+
 		error_body = u.unpack_error_body(err)
 		if self.debug:
 		    print "Error body:", error_body
