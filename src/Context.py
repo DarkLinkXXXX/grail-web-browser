@@ -1,6 +1,6 @@
 """Context class."""
 
-from urlparse import urljoin, urlparse
+from urlparse import urljoin, urlparse, urlunparse
 from Cursors import *
 import History
 import string
@@ -151,6 +151,9 @@ class Context:
 	if url[:1] == '#':
 	    self.viewer.scroll_to(url[1:])
 	    self.viewer.remove_temp_tag(histify=1)
+	    baseurl = self.get_baseurl(url)
+	    self.page = None
+	    self.set_url(baseurl)
 	    return
 	if not target:
 	    target = self._target
@@ -277,11 +280,23 @@ class Context:
 	self.load_from_history(self.history.peek(0), reload=1)
 
     def load_from_history(self, (future, page), reload=0):
-	self.future = future
 	if not page:
 	    self.root.bell()
 	    return
-	self.load(page.url(), reload=reload, scrollpos=page.scrollpos())
+	self.future = future
+	# optimize for fragments
+	s, n, p, a, q, frag = urlparse(page.url())
+	target = urlunparse((s, n, p, a, q, ''))
+	s, n, p, a, q, f = urlparse(self._url)
+	current = urlunparse((s, n, p, a, q, ''))
+	if target == current:
+	    if frag:
+		self.follow('#' + frag)
+	    else:
+		self.viewer.scroll_to_position(page.scrollpos())
+		self.history.page(self.future)
+	else:
+	    self.load(page.url(), reload=reload, scrollpos=page.scrollpos())
 
     def show_history_dialog(self):
 	if not self.history_dialog:
