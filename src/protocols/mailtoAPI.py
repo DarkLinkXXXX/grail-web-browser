@@ -1,44 +1,18 @@
-"""mailto: URI scheme."""
+"""mailto: URI scheme handler."""
 
 from Tkinter import *
 import tktools
 import os
 
 from __main__ import app
-from assert import assert
+from nullAPI import null_access
 
 
-META, DATA, DONE = 'META', 'DATA', 'DONE'
-
-class mailto_access:
+class mailto_access(null_access):
 
     def __init__(self, url, method, params):
+	null_access.__init__(self, url, method, params)
 	toplevel = MailDialog(app.root, url)
-	self.state = META
-
-    def pollmeta(self):
-	assert(self.state == META)
-	return "Ready", 1
-
-    def getmeta(self):
-	assert(self.state == META)
-	self.state = DATA
-	return 204, "No data", {}
-
-    def polldata(self):
-	assert(self.state == DATA)
-	return "Ready", 1
-
-    def getdata(self, maxbytes):
-	assert(self.state == DATA)
-	self.state = DONE
-	return ""
-
-    def fileno(self):
-	return -1
-
-    def close(self):
-	pass
 
 
 SENDMAIL = "/usr/lib/sendmail -t" # XXX
