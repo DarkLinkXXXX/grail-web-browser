@@ -56,14 +56,15 @@ class CacheManager:
 	self.caches = []
 	self.items = {}
 	self.active = {}
-	disk = DiskCache(self, self.app.prefs.GetInt('disk-cache',
+	self.disk = DiskCache(self, self.app.prefs.GetInt('disk-cache',
 						     'size') * 1024,
 			 self.app.prefs.Get('disk-cache', 'directory'))
 
 	# read preferences to determine when pages should be checked
 	# for freshness -- once per session, every n secs, or never
 	fresh_type = self.app.prefs.Get('disk-cache', 'freshness-test-type')
-	fresh_rate = self.app.prefs.Get('disk-cache', 'freshness-test-period')
+	fresh_rate = self.app.prefs.Get('disk-cache', 
+					'freshness-test-period') * 3600
 
 	if fresh_type == 'per session':
 	    self.fresh_p = lambda key, self=self: \
@@ -601,13 +602,16 @@ class DiskCache:
 
 	def walk_erase_unknown(known,dir,files):
 	    for file in files:
-		if not file in known:
+		if not known.has_key(file):
 		    path = os.path.join(dir,file)
 		    if os.path.isfile(path):
 			os.unlink(path)
 
 	files = map(lambda entry:entry.file, self.items.values())
-	os.path.walk(self.directory, walk_erase_unknown, files)
+	file_dict = { 'LOG': 1 }
+	for file in files:
+	    file_dict[file] = 1
+	os.path.walk(self.directory, walk_erase_unknown, file_dict)
 
     def get(self,key):
 	"""Update and log use_order."""
