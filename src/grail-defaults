@@ -7,21 +7,10 @@
 #
 # Landmarks (various well-known URLs built into Grail)
 #
-landmarks--grail-home-page:	http://grail.cnri.reston.va.us/grail/
 # Empty home page, for user to set in their own preferences file:
 landmarks--home-page:
-landmarks--python-home-page:	http://www.python.org/
-landmarks--psa-home-page:	http://www.python.org/psa/
-landmarks--cnri-home-page:	http://www.cnri.reston.va.us/
-landmarks--about-grail-page:	grail:about.html
-landmarks--grail-license-page:	grail:LICENSE
-#
-landmark-names--grail-home-page:	Grail Home Page
-landmark-names--python-home-page:	Python Home Page
-landmark-names--psa-home-page:	The Python Software Activity (PSA)
-landmark-names--cnri-home-page:	CNRI Home Page
-landmark-names--about-grail-page:	About Grail
-landmark-names--grail-license-page:	Grail License
+# Default home page if home-page is empty:
+landmarks--default-home-page:	grail:about.html
 #
 # Browser defaults
 #
@@ -36,9 +25,29 @@ browser--show-splash:		1
 browser--smooth-scroll-hack:	0
 browser--enable-pil:		0
 browser--license-agreed-to:	0
-# Use the hyphen to insert a separator in the Help menu:
-browser--landmarks:	about-grail-page grail-license-page
-	- grail-home-page python-home-page psa-home-page cnri-home-page
+#
+# Help menu contents
+#
+# - Entries are two lines.
+# - First line is label to be displayed in menu.
+# - Second line is URL to be loaded.
+# - If the label is a single hyphen, this creates a menu separator
+#   and no second line should be given.
+#
+browser--help-menu:
+	About Grail
+		grail:about.html
+	Grail License
+		grail:LICENSE
+	-
+	Grail Home Page
+		http://grail.cnri.reston.va.us/grail/
+	Python Home Page
+		http://www.python.org/
+	Python Software Activity (PSA)
+		http://www.python.org/psa/
+	CNRI Home Page
+		http://www.cnri.reston.va.us/
 #
 # Presentation defaults
 #
