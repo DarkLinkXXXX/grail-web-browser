@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.4 1995/09/19 16:20:16 bwarsaw Exp $
+$Id: html2ps.py,v 2.5 1995/09/21 20:54:21 bwarsaw Exp $
 """
 
 
@@ -23,7 +23,7 @@ from formatter import *
 
 # debugging
 RECT_DEBUG = 0
-DEBUG = 0
+DEBUG = 1
 
 def _debug(text):
     if DEBUG:
@@ -521,6 +521,7 @@ class PSQueue:
 	tallest = self.font.font_size()
 	in_literal_p = 0
 	for tag, info in self.queue:
+	    _debug('breaking: (%s, %s)\n' % (tags[tag], info))
 	    if tag == START:
 		nq.push_font_change(None)
 		self.font.set_font(None)
@@ -543,6 +544,7 @@ class PSQueue:
 		tallest = 0
 		mark = nq.mark()
 	    elif tag == HR:
+		nq.push_vtab(tallest * 1.1, mark)
 		nq.push_vtab(HR_TOP_MARGIN)
 		nq.push_horiz_rule()
 		nq.push_vtab(HR_BOT_MARGIN)
@@ -557,8 +559,9 @@ class PSQueue:
 		    info = self.font.text_width(info) + LABEL_TAB
 		nq.push_label(info)
 	    elif tag == LITERAL:
-		in_literal_p = info
-		nq.push_literal(info)
+		if in_literal_p != info:
+		    in_literal_p = info
+		    nq.push_literal(info)
 	    elif tag == SPACE:
 		# spaces at the beginning of the line are thrown away,
 		# unless we are in literal text
@@ -613,6 +616,7 @@ class PSQueue:
 	render_cmd = 'S'
 	ypos = 0.0
 	for tag, info in self.queue:
+	    _debug('writing: (%s, %s)\n' % (tags[tag], info))
 	    if tag == START:
 		self._header(info)
 		self._start_page(self.curpage)
@@ -645,8 +649,8 @@ class PSQueue:
 	    elif tag == VERT_TAB:
 		if ypos - info < -PAGE_HEIGHT:
 		    self._end_page()
-		    self._start_page(self.curpage)
 		    self.curpage = self.curpage + 1
+		    self._start_page(self.curpage)
 		    ypos = 0.0
 		else:
 		    ypos = ypos - info
@@ -683,10 +687,6 @@ class PSQueue:
 	    print "FONTVI 12 SF"
 	    print "(Page", self.curpage, ") S restore"
 	    print "showpage"
-	    if not trailer:
-		self.curpage = self.curpage + 1
-		print '%%Page:', self.curpage, self.curpage
-		print '0 0 M'
 	finally:
 	    sys.stdout = stdout
 
