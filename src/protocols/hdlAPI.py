@@ -131,14 +131,14 @@ class hdl_access(nullAPI.null_access):
 	nullAPI.null_access.__init__(self, hdl, method, params)
 
 	self._hdl, self._attrs = parse_handle(hdl)
+	self.app = grailutil.get_grailapp()
 
 	if self._attrs.has_key('type'):
 	    t = string.lower(self._attrs['type'])
 	    mname = "hdl_type_" + t
 	    tname = string.upper(mname)
-	    app = grailutil.get_grailapp()
 	    try:
-		m = app.find_extension('protocols', mname)
+		m = self.app.find_extension('protocols', mname)
 		if not m:
 		    self._msgattrs["title"] = (
 			"hdlAPI: Could not load %s data type handler" % mname)
@@ -170,6 +170,10 @@ class hdl_access(nullAPI.null_access):
 	    replyflags, self._items = self._hashtable.get_data(
 		self._hdl, self._types)
 	except hdllib.Error, inst:
+	    try:
+		hdl_errors = self.app.find_extension('protocols', 'hdl_errors')
+	    except (ImportError, AttributeError), msg:
+		hdl_errors = None
 	    if inst.err == hdllib.HP_HANDLE_NOT_FOUND:
 		#print "Retry using a local handle server"
 		try:
@@ -179,7 +183,11 @@ class hdl_access(nullAPI.null_access):
 			self._hdl, self._types)
 		except hdllib.Error, inst:
 		    # (Same comment as below)
-		    raise IOError, inst, sys.exc_traceback
+		    if hdl_errors:
+			replyflags, self._items = hdl_errors.exception_handler(self._hdl,
+						  self._types, inst, sys.exc_traceback)
+		    else:
+			raise IOError, inst, sys.exc_traceback
 		else:
 		    return 'Ready', 1
 	    # Catch all errors and raise an IOError.  The Grail
@@ -187,7 +195,11 @@ class hdl_access(nullAPI.null_access):
 	    # allowed to raise.
 	    # Because the hdllib.Error instance is passed, no
 	    # information is lost.
-	    raise IOError, inst, sys.exc_traceback
+	    if hdl_errors:
+		replyflags, self._items = hdl_errors.exception_handler(self._hdl,
+					  self._types, inst, sys.exc_traceback)
+	    else:
+		raise IOError, inst, sys.exc_traceback
 	else:
 	    return 'Ready', 1
 
