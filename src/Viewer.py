@@ -132,10 +132,10 @@ class Viewer(formatter.AbstractWriter):
 	if self.parent:
 	    self.text.config(background=self.parent.text['background'],
 			     foreground=self.parent.text['foreground'])
-	self.text.config(padx=10, cursor=self.current_cursor)
+	self.text.config(padx=10, cursor=self.current_cursor,
+			 selectbackground='yellow', insertwidth=0)
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
-	self.text.config(selectbackground='yellow', insertwidth=0)
 	self.configure_styles()
 	if self.parent:
 	    link = self.parent.text.tag_config('a', 'foreground')[-1]
@@ -419,7 +419,7 @@ class Viewer(formatter.AbstractWriter):
 	self.prepare_for_insertion(align)
 	self.add_subwindow(window)
 	del self.subwindows[-1]
-	self.pendingdata = '\n'
+	self.send_line_break()
 ##	self.text.update_idletasks()
 
     def rule_width(self):
@@ -644,9 +644,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.window_create(index, window=window, align=align)
 
     def add_subviewer(self, subviewer):
-	if self.pendingdata:
-	    self.text.insert(END, self.pendingdata, self.flowingtags)
-	    self.pendingdata = ''
+	self.flush()
 	self.subviewers.append(subviewer)
 
     def remove_subviewer(self, subviewer):
