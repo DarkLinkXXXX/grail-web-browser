@@ -22,8 +22,8 @@ class NullFormatter:
     def push_margin(self, margin): pass
     def pop_margin(self): pass
     def set_spacing(self, spacing): pass
-    def push_style(self, style): pass
-    def pop_style(self): pass
+    def push_style(self, *styles): pass
+    def pop_style(self, n=1): pass
 
 
 class AbstractFormatter:
@@ -172,13 +172,13 @@ class AbstractFormatter:
 	self.spacing = spacing
 	self.writer.new_spacing(spacing)
 
-    def push_style(self, style):
-	self.style_stack.append(style)
+    def push_style(self, *styles):
+	for style in styles:
+	    self.style_stack.append(style)
 	self.writer.new_styles(tuple(self.style_stack))
 
-    def pop_style(self):
-	if self.style_stack:
-	    del self.style_stack[-1]
+    def pop_style(self, n=1):
+	del self.style_stack[-n:]
 	self.writer.new_styles(tuple(self.style_stack))
 
 
