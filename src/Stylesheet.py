@@ -34,6 +34,8 @@ class Stylesheet:
 	fparms_dict['italic'] = self.get_italic()
 
 	self.dictify_group(self.prefs.GetGroup('styles-common'))
+	self.dictify_list(['styles', 'center', 'justify', 'center'])
+	self.dictify_list(['styles', 'pre', 'wrap', 'none'])
 
 	# Map the selected font and size onto the fonts group:
 	fonts = self.prefs.GetGroup('styles-fonts')
@@ -86,6 +88,21 @@ class Stylesheet:
 				       + " can't get valid family.")
 	return tname
 
+    def dictify_list(self, fields):
+	"""Incorporate a list of fields as a style."""
+	d = self.attrs
+	while fields:
+	    f = fields[0]
+	    del fields[0]
+	    if len(fields) == 1:
+		# terminal:
+		d[f] = fields[0]
+	    elif d.has_key(f):
+		d = d[f]
+	    else:
+		d[f] = newd = {}
+		d = newd
+
     def dictify_group(self, glist, attr=None):
 	"""Incorporate entries in preferences GetGroup list to self.attrs."""
 	attrs = self.attrs
@@ -112,8 +129,10 @@ def test():
     sys.path = ['./utils', './ancillary'] + sys.path
     import GrailPrefs
     prefs = GrailPrefs.AllPreferences()
-    sheet = Stylesheet(prefs, 'basic', 'helvetica')
+    sheet = Stylesheet(prefs)
     print sheet.styles['h5_b']['font']
+    print sheet.styles['pre']['wrap']
+    print sheet.styles['center']['justify']
 
 if __name__ == "__main__":
     test()
