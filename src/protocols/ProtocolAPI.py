@@ -86,11 +86,11 @@ def protocol_access(url, mode, params, data=None):
 	    list = map(string.strip, string.split(no_proxy, ","))
 	    url_host, url_remains = splithost(resturl)
 	    url_host = string.lower(url_host or '')
-	    if url_host in list:
+	    if proxy_exception(url_host, list):
 		do_proxy = 0
 	    else:
 		url_host, url_port = splitport(url_host)
-		if url_host in list:
+		if proxy_exception(url_host, list):
 		    do_proxy = 0
 	if do_proxy:
 	    proxy_scheme, proxy_resturl = splittype(proxy)
@@ -137,6 +137,19 @@ def test(url = "http://www.python.org/"):
 	    if not data:
 		break
     api.close()
+
+def proxy_exception(host, list):
+    """Return 1 if host is contained in list or host's suffix matches an entry in list
+    that begins with a leading dot."""
+    for exception in list:
+	if host == exception:
+	    return 1
+	try:
+	    if exception[0] == '.' and host[-len(exception):] == exception:
+		return 1
+	except IndexError:
+	    pass
+    return 0
 
 def valid_proxy(proxy):
     """Return 1 if the proxy string looks loke a valid url, for an proxy URL else return 0."""
