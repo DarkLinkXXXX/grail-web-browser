@@ -1267,6 +1267,10 @@ class Text(Widget):
 		return self._bind((self._w, 'tag', 'bind', tagName),
 				  sequence, func, add)
 	def tag_config(self, tagName, cnf={}, **kw):
+		if type(cnf) == StringType:
+			x = self.tk.split(self.tk.call(
+				self._w, 'tag', 'configure', tagName, '-'+cnf))
+			return (x[0][1:],) + x[1:]
 		apply(self.tk.call, 
 		      (self._w, 'tag', 'configure', tagName)
 		      + self._options(cnf, kw))
@@ -1293,6 +1297,11 @@ class Text(Widget):
 	def window_cget(self, index, option):
 		return self.tk.call(self._w, 'window', 'cget', index, option)
 	def window_config(self, index, cnf={}, **kw):
+		if type(cnf) == StringType:
+			x = self.tk.split(self.tk.call(
+				self._w, 'window', 'configure',
+				index, '-'+cnf))
+			return (x[0][1:],) + x[1:]
 		apply(self.tk.call, 
 		      (self._w, 'window', 'configure', index)
 		      + self._options(cnf, kw))
