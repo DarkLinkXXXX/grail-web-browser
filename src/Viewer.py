@@ -1,5 +1,5 @@
-"""Viewer class."""
-
+"""Viewer class.
+"""
 
 from Tkinter import *
 import tktools
@@ -10,6 +10,7 @@ from Cursors import *
 from types import StringType
 
 
+DINGBAT_FONT = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats'
 MIN_IMAGE_LEADER = "\240"		# Non-breaking space
 
 
@@ -145,8 +146,8 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('left', justify = 'left')
 	self.text.tag_config('right', justify = 'right')
 	self.text.tag_config('center', justify = 'center')
-	self.text.tag_config('dingbat',
-			     font = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats')
+	if DINGBAT_FONT:
+	    self.text.tag_config('dingbat', font = DINGBAT_FONT)
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level*40

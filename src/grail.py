@@ -43,6 +43,7 @@ import TbDialog
 if 0:
     import dummies
 import GlobalHistory
+import Viewer
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
@@ -56,8 +57,6 @@ Corporation for National
 Research Initiatives
 
 Version: %s""" % __version__
-
-DINGBAT_FONT = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats'
 
 def main():
     prefs = GrailPrefs.AllPreferences()
@@ -224,9 +223,9 @@ class Application:
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
 	try:
-	    dummy = Label(text = 'dummy', font = DINGBAT_FONT)
+	    dummy = Label(text = 'dummy', font = Viewer.DINGBAT_FONT)
 	except TclError:
-	    pass
+	    Viewer.DINGBAT_FONT = None
 	else:
 	    dummy.destroy()
 	    Application.dingbatimages = Application.fontdingbats
