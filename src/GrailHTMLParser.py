@@ -360,12 +360,26 @@ class GrailHTMLParser(HTMLParser):
 	http_equiv = extract_keyword("http-equiv", attrs,
 				     conv=grailutil.conv_normstring)
 	key = name or http_equiv
+	if not key:
+	    self.badhtml = 1
+	    return
 	content = extract_keyword("content", attrs, conv=string.strip)
 	item = (name, http_equiv, content)
 	if self._metadata.has_key(key):
 	    self._metadata[key].append(item)
 	else:
 	    entries = self._metadata[key] = [item]
+	if key == "grail:parse-mode":
+	    content = grailutil.conv_normstring(content)
+	    strict = self.strict_p()
+	    if content == "strict" and not strict:
+		self.restrict(0)
+		self.context.message("Entered strict parsing mode on"
+				     " document request.")
+	    elif content == "forgiving" and strict:
+		self.restrict(1)
+		self.context.message("Exited strict parsing mode on"
+				     " document request.")
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
@@ -639,6 +653,12 @@ class GrailHTMLParser(HTMLParser):
 
     # Handle HTML extensions
 
+    # We don't implement these, but we want to know that they go in pairs,
+    # just in case we're in "strict" mode.
+    UNIMPLEMENTED_CONTAINERS = [
+	'big', 'fig', 'font', 'lang', 'note', 'small', 'span', 'sub', 'sup',
+	]
+
     def unknown_starttag(self, tag, attrs):
 	# Look up the function first, so it has a chance to update
 	# the list of object aware tags
@@ -646,11 +666,14 @@ class GrailHTMLParser(HTMLParser):
 	    if tag not in self.object_aware_tags:
 		return
 	function, as_dict, has_end = self.app.find_html_start_extension(tag)
-	if function:
+	if function or tag in self.UNIMPLEMENTED_CONTAINERS:
 	    id = attrs.has_key('id') and attrs['id'] or None
-	    if not as_dict:
-		attrs = attrs.items()
-	    function(self, attrs)
+	    if function:
+		if not as_dict:
+		    attrs = attrs.items()
+		function(self, attrs)
+	    else:
+		has_end = 1
 	    if id:
 		self.register_id(id)
 	    if has_end:
