@@ -256,6 +256,18 @@ class NetscapeBookmarkWriter:
 	    fp.close()
 	    sys.stdout = stdout
 
+class GrailBookmarkWriter(NetscapeBookmarkWriter):
+    def _write_header(self, root):
+	print '<!DOCTYPE GRAIL-Bookmark-file-1>'
+	print '<!-- This is an automatically generated file.'
+	print '    It will be read and overwritten.'
+	print '    Do Not Edit!'
+	print '    NOTE: This format is fully compatible with'
+	print '          Netscape 1.x style bookmarks -->'
+	print '<TITLE>%s</TITLE>' % root.title()
+	print '<H1>%s</H1>' % root.title()
+	print '<DL><p>'
+
 
 class FileDialogExtras:
     def __init__(self, frame):
@@ -311,7 +323,7 @@ class BookmarksIO:
 		writer = NetscapeBookmarkWriter()
 	    elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
 		parser = NetscapeBookmarkHTMLParser()
-		writer = NetscapeBookmarkWriter()
+		writer = GrailBookmarkWriter()
 	finally:
 	    fp.seek(0)
 	# sanity checking
@@ -351,7 +363,11 @@ class BookmarksIO:
 	writer.write_tree(root, fp)
 
     def save(self, writer, root):
-	self._save_to_file_with_writer(writer, root, self._filename)
+	if not self._filename:
+	    self._filename = DEFAULT_GRAIL_BM_FILE
+	    self.saveas(writer, root)
+	else:
+	    self._save_to_file_with_writer(writer, root, self._filename)
 
     def saveas(self, writer, root):
 	saver = BMSaveDialog(self._frame, self._controller)
@@ -535,6 +551,23 @@ class BookmarksDialog:
 			    command=self._controller.collapse_top)
 #	editmenu.add_command(label="Collapse All",
 #			    command=self._controller.collapse_all)
+	editmenu.add_separator()
+	editmenu.add_command(label='Insert Separator',
+			     command=self._controller.insert_separator)
+	editmenu.add_command(label='Insert Header',
+			     command=self._controller.insert_header)
+	editmenu.add_command(label='Insert Entry',
+			     command=self._controller.insert_entry)
+	editmenu.add_command(label='Remove Entry',
+			     command=self._controller.remove_entry)
+	editmenu.add_command(label='Shift Entry Left',
+			     command=self._controller.shift_left)
+	editmenu.add_command(label='Shift Entry Right',
+			     command=self._controller.shift_right)
+	editmenu.add_command(label='Shift Entry Up',
+			     command=self._controller.shift_up)
+	editmenu.add_command(label='Shift Entry Down',
+			     command=self._controller.shift_down)
 	editbtn.config(menu=editmenu)
 
     def _create_listbox(self):
@@ -692,7 +725,7 @@ class BookmarksController:
 	self._dialog = None
 	self._details = {}
 	self._listbox = None
-	self._bookmarkfile = None
+	self._writer = GrailBookmarkWriter()
 	self._tkvars = {
 	    'aggressive': BooleanVar(),
 	    'addcurloc':  IntVar(),
@@ -815,7 +848,9 @@ class BookmarksController:
 	    self._viewer.select_node(selection+1)
 
     def load_default(self):
-	self._root, reader, self._writer = self._iomgr.load(True)
+	try: self._root, reader, self._writer = self._iomgr.load(True)
+	except BookmarkFormatError:
+	    self._root = BookmarkNode(username()+"'s Bookmarks")
 
     def load(self):
 	self._root, reader, self._writer = self._iomgr.load()
@@ -912,6 +947,35 @@ class BookmarksController:
     def hide(self, event=None): self._dialog.hide()
     def quit(self, event=None): sys.exit(0)
 
+    def insert_separator(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	newnode = BookmarkNode()
+	newnode.set_separator()
+	if node.leaf_p():
+	    parent = node.parent()
+	    children = parent.children()
+	    nodei = children.index(node)
+	    if nodei == len(children): parent.append_child(newnode)
+	    else: parent.insert_child(newnode, nodei+1)
+	else:
+	    # Mimic Netscape behavior: when a separator is added to a
+	    # header, the node is added as the header's first child.
+	    # If the header is collapsed, it is first expanded.
+	    if not node.expanded_p(): self._expand_node(node)
+	    parent = node.parent()
+	    parent.insert_child(newnode, 0)
+	if self._viewer:
+	    self._viewer.insert_nodes(node.index(), [newnode])
+
+    def insert_header(self, event=None): pass
+    def insert_entry(self, event=None): pass
+    def remove_entry(self, event=None): pass
+    def shift_left(self, event=None): pass
+    def shift_right(self, event=None): pass
+    def shift_up(self, event=None): pass
+    def shift_down(self, event=None): pass
+
 
 
 class BookmarksMenuLeaf:
@@ -965,10 +1029,10 @@ class BookmarksMenu:
 	self._menu.config(tearoff='No', postcommand=self.post)
 	# fill in the static part of the menu
 	self._menu.add_command(label='Add Current',
-			       command=self._controller.add_current,
+			       command=self.add_current,
 			       underline=0, accelerator='Alt-A')
-	self._browser.root.bind('<Alt-a>', self._controller.add_current)
-	self._browser.root.bind('<Alt-A>', self._controller.add_current)
+	self._browser.root.bind('<Alt-a>', self.add_current)
+	self._browser.root.bind('<Alt-A>', self.add_current)
  	self._menu.add_command(label='Bookmarks Viewer...',
 			       command=self.show,
 			       underline=0, accelerator='Alt-B')
@@ -990,7 +1054,9 @@ class BookmarksMenu:
 	    viewer.populate()
 
     def show(self, event=None):
-	if not self._controller.root():
-	    try: self._controller.load_default()
-	    except BookmarkFormatError: pass
+	if not self._controller.root(): self._controller.load_default()
 	self._controller.show()
+
+    def add_current(self, event=None):
+	if not self._controller.root(): self._controller.load_default()
+	self._controller.add_current()

@@ -19,6 +19,8 @@ class OutlinerNode:
 	else: tag = '-'
 	return (' ' * (tabdepth * 3)) + tag
 
+    def close(self): self._parent = None
+
     def append_child(self, node):
 	self._children.append(node)
 	node._parent = self
@@ -71,6 +73,13 @@ class OutlinerViewer:
 	self._gcounter = 0
 	self._follow_all_children_p = False
 
+    def _close(self, node):
+	node.close()
+	for child in node.children():
+	    self._close(child)
+
+    def __del__(self): self._close(self._root)
+
     def _insert(self, node, index=None):
 	"""Derived class specialization"""
 	pass
@@ -93,7 +102,7 @@ class OutlinerViewer:
     def populate(self):
 	self._populate(self._root)
 
-    def insert_nodes(self, at_index, node_list, before_p=None):
+    def insert_nodes(self, at_index, node_list, before_p=False):
 	if not before_p: at_index = at_index + 1
 	nodecount = len(node_list)
 	for node in node_list:
