@@ -1278,7 +1278,9 @@ class BookmarksMenuViewer(OutlinerViewer):
 	    del self._menustack[depth:]
 	# get the current menu we're building
 	menu = self._menustack[depth-1]
-	if node.leaf_p():
+	if node.isseparator_p():
+	    menu.add_separator()
+	elif node.leaf_p():
 	    leaf = BookmarksMenuLeaf(node, self._controller)
 	    menu.add_command(label=node.title(), command=leaf.goto)
 	else:
