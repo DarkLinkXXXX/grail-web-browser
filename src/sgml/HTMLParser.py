@@ -107,6 +107,16 @@ class HTMLParser(SGMLParser):
     def do_nextid(self, attrs): # Deprecated
         pass
 
+    def start_style(self, attrs):
+	"""Disable display of document data -- this is a style sheet.
+	"""
+	self.savedata = ''
+
+    def end_style(self):
+	"""Re-enable data display.
+	"""
+	self.savedata = None
+
     # ------ Body elements
 
     # --- Headings
@@ -161,7 +171,10 @@ class HTMLParser(SGMLParser):
 
     # --- Block Structuring Elements
 
-    def do_p(self, attrs):
+    def start_p(self, attrs):
+        self.formatter.end_paragraph(1)
+
+    def end_p(self):
         self.formatter.end_paragraph(1)
 
     def start_pre(self, attrs):
