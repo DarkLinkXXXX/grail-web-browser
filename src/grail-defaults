@@ -23,3 +23,8 @@ C: add-location can be `file-append', `file-prepend', `as-child-or-sib'
 bookmarks--add-location: file-prepend
 C: aggressive-collapse can be `yes' or `no'
 bookmarks--aggressive-collapse: no
+C:
+C: History defaults
+C:
+C: view-by can be 'titles', 'urls'
+history--view-by: titles
