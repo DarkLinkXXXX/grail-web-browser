@@ -21,6 +21,7 @@ from urllib import splithost
 import mimetools
 from assert import assert
 from httplib import replyprog
+import __main__
 
 
 # Stages
@@ -58,6 +59,7 @@ class MyHTTP(httplib.HTTP):
 class http_access:
 
     def __init__(self, resturl, method, params, data=None):
+	grailversion = __main__.__version__
 	if data:
 	    assert(method=="POST")
 	else:
@@ -79,6 +81,7 @@ class http_access:
 	    auth = None
 	self.h = MyHTTP(host)
 	self.h.putrequest(method, selector)
+	self.h.putheader('User-agent', grailversion)
 	if auth:
 	    self.h.putheader('Authorization', 'Basic %s' % auth)
 	for key, value in params.items():
