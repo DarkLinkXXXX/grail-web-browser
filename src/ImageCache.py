@@ -2,7 +2,6 @@
 # agreement obtained from handle "hdl:CNRI/19970131120001",
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
-from assert import assert
 
 class ImageCache:
     
