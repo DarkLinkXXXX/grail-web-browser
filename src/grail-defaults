@@ -72,7 +72,8 @@ tables--enabled: 1
 C:
 C: Applet preferences
 C:
-applet--groups:
+applets--groups:
+applets--load: all
 C:
 C: Disk Cache preferences:
 C: (directory is relative to $GRAILDIR unless absolute)

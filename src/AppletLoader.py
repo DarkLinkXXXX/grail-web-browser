@@ -94,6 +94,16 @@ class AppletLoader:
 
     def feasible(self):
 	"""Test whether we should try load the applet."""
+	prefs = self.app.prefs
+	mode = prefs.Get("applets", "load")
+	if mode == "none":
+	    return 0
+	if mode == "some":
+	    key = get_key(self.context)
+	    rawgroups = prefs.Get("applets", "groups")
+	    groups = map(string.lower, string.split(rawgroups))
+	    if key not in groups:
+		return 0
 	return self.code and codeprog.match(self.code) == len(self.code)
 
     def set_param(self, name, value):
@@ -470,7 +480,7 @@ def _get_key(context):
     url = context.get_url()
     app = context.app
     prefs = app.prefs
-    rawgroups = prefs.Get("applet", "groups")
+    rawgroups = prefs.Get("applets", "groups")
     groups = map(string.lower, string.split(rawgroups))
     list = []
     for group in groups:
