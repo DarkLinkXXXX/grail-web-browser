@@ -1,6 +1,6 @@
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.1 $"
+__version__ = "$Revision: 1.2 $"
 # $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
 
 # Base class for the dialog:
@@ -71,8 +71,10 @@ class CachePanel(PrefsDialogs.Framework):
 	f = Frame(top_frame)
 	l = Label(f, text="Size:")
 	e = Entry(f, relief=SUNKEN, width=8)
+	l2 = Label(f, text="KB")
 
 	l.pack(side=LEFT)
+	l2.pack(side=RIGHT)
 	e.pack(side=RIGHT)
 	f.pack(side=LEFT)
 
