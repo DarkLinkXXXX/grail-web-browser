@@ -13,9 +13,7 @@ from urlparse import urljoin
 from Stylesheet import UndefinedStyle
 
 
-DINGBAT_FONT = None
-SYMBOL_FONT = None
-MIN_IMAGE_LEADER = "\240"		# Non-breaking space
+MIN_IMAGE_LEADER = "\240"		# Non-spacing space
 INDENTATION_WIDTH = 40			# Pixels / indent level
 
 class Viewer(formatter.AbstractWriter):
@@ -185,13 +183,24 @@ class Viewer(formatter.AbstractWriter):
 		self.set_cursor(CURSOR_WAIT)
 
 	    self.text.config(stylesheet.default)
-
+	    sym = self.context.app.load_dingbat('disc')
 	    for tag, cnf in stylesheet.styles.items():
 		try:
 		    self.text.tag_config(tag, cnf)
 		except TclError:
-		    # We should get here when display lacks dingbat font.
-		    pass
+		    if tag == '_ding' and type(sym) is TupleType:
+			sym.context.app.clear_dingbat('disc')
+			sym.context.app.clear_dingbat('circle')
+			sym.context.app.clear_dingbat('square')
+			del stylesheet.styles['_ding']
+		else:
+		    if tag == '_ding' \
+		       and type(sym) in (InstanceType, NoneType):
+			set_dingbat = self.context.app.set_dingbat
+			set_dingbat('disc', ('\x6c', '_ding'))
+			set_dingbat('circle', ('\x6d', '_ding'))
+			set_dingbat('square', ('\x6f', '_ding'))
+			del stylesheet.styles['_ding']
 	    for tag, cnf in stylesheet.history.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, abovetag in stylesheet.priorities.items():
@@ -212,12 +221,6 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('overstrike', overstrike = 1)
 	self.text.tag_config('red', foreground = 'red')
 	self.text.tag_config('ins', foreground = 'darkgreen')
-	#  Special fonts:
-	if DINGBAT_FONT:
-	    self.text.tag_config('dingbat', font = DINGBAT_FONT,
-				 offset = 1)
-	if SYMBOL_FONT:
-	    self.text.tag_config('symbol', font = SYMBOL_FONT)
 	# Configure margin tags
 	for level in range(1, 20):
 	    pix = level * INDENTATION_WIDTH
@@ -281,6 +284,7 @@ class Viewer(formatter.AbstractWriter):
 	for w in subwindows:
 	    w.destroy()
 	if self.text:
+	    self.pendingdata = ''
 	    self.unfreeze()
 	    self.text.delete('1.0', END)
 	    self.freeze()
@@ -472,7 +476,7 @@ class Viewer(formatter.AbstractWriter):
 	elif data_type is TupleType:
 	    #  (string, fonttag) pair
 	    data, fonttag = data
-	    if data:
+	    if fonttag:
 		self.text.insert(END, self.pendingdata, self.flowingtags,
 				 '\t', tags,
 				 data, tags + (fonttag,))
