@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.11 1996/04/01 17:42:14 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.12 1996/04/01 17:49:08 bwarsaw Exp $'
 
 
 import string
@@ -339,9 +339,9 @@ class Table(AttrElem):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
 
 	canvaswidth = 0
-	for row in range(rowcount):
-	    print cellwidths[row]
-	    canvaswidth = canvaswidth + cellwidths[row]
+	for col in range(colcount):
+	    print cellwidths[col]
+	    canvaswidth = canvaswidth + cellwidths[col]
 	print 'canvaswidth=', canvaswidth
 
 	ypos = 0
@@ -517,7 +517,7 @@ class ContainedText(AttrElem):
 	tw['height'] = _get_linecount(tw) + 1
 	# take into account all embedded windows
 	for sub in self._viewer.subwindows:
-	    min_nonaligned = max(min_nonaligned, sw['width'])
+	    min_nonaligned = max(min_nonaligned, sub['width'])
 	# initially place the cell in the canvas at position (0,0),
 	# with the maximum width and closest approximation height.
 	# situate() will be called later with the final layout
