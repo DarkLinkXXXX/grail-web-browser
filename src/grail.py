@@ -49,6 +49,7 @@ import tempfile
 import posixpath
 from Tkinter import *
 import tktools
+import session
 import BaseApplication
 import GrailPrefs
 import Stylesheet
@@ -231,6 +232,7 @@ class Application(BaseApplication.BaseApplication):
     def __init__(self, prefs=None, display=None):
         self.root = Tk(className='Grail', screenName=display)
         self.root.withdraw()
+        self.session = session.Session()
         resources = os.path.join(script_dir, "Grail.ad")
         if os.path.isfile(resources):
             self.root.option_readfile(resources, "startupFile")
@@ -284,8 +286,12 @@ class Application(BaseApplication.BaseApplication):
             try: m()
             except: pass
 
-    def add_browser(self, browser): self.browsers.append(browser)
+    def add_browser(self, browser):
+        self.browsers.append(browser)
+        self.session.add_window(browser.root)
+
     def del_browser(self, browser):
+        self.session.del_window(browser.root)
         try: self.browsers.remove(browser)
         except ValueError: pass
 
