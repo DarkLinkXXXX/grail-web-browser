@@ -4,7 +4,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 
 # To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.21 $"
+__version__ = "$Revision: 2.22 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -139,7 +139,11 @@ class AllPreferences:
 				1)
 
     def AddGroupCallback(self, group, callback):
-	"""Register callback to be invoked when saving GROUP changed prefs."""
+	"""Register callback to be invoked when saving GROUP changed prefs.
+
+	Each callback will be invoked only once per concerned group per
+	save (even if multiply registered for that group), and callbacks
+	within a group will be invoked in the order they were registered."""
 	if self.callbacks.has_key(group):
 	    if callback not in self.callbacks[group]:
 		self.callbacks[group].append(callback)
@@ -252,7 +256,8 @@ class AllPreferences:
 	for group in pending_groups:
 	    if self.callbacks.has_key(group):
 		for callback in callbacks[group]:
-		    # Ensure each callback is invoked only once per save: 
+		    # Ensure each callback is invoked only once per save,
+		    # in order:
 		    if not did_callbacks.has_key(callback):
 			did_callbacks[callback] = 1
 			apply(callback, ())
