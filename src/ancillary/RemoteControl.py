@@ -1,32 +1,7 @@
 """Remote control of Grail.
 
-By default, remote control of Grail is stopped.  You can turn remote
-control on by using start() function in this module.  Likewise, you
-can turn it off again by using the stop() function.  You would do this
-from your Grail initialization file, typically
-$GRAILDIR/user/grailrc.py.
-
-N.B. Only one Grail can be remotely controlled at a time, so if you
-think you might be starting up more than one Grail process, your
-grailrc.py file should catch ClashError, which should just bypass any
-remote control registrations you do.
-
-Remote control is based on a simple string command protocol.  When the
-remote controller sees a string show up on it's socket, it parses for
-the first space delimited word, which provides the name of the
-command.  You must register handlers for all valid command strings.
-If Grail encounters a command string it doesn't know about, it
-displays an error dialog.
-
-To register new command string handlers, use the register() function.
-Likewise there is an unregister function().  Two convenience routines
-are provided for you, register_loads() and unregister_loads().
-
-On security: there is no real security model here.  You need to use
-your own head about this.  This class operates in unprotected mode,
-so be very careful what you open up.  Unix domain sockets are used
-so only the Grail user on the local host should be able to send
-commands to this interface.  Still how secure is that?
+NOTE NOTE NOTE: See <http://monty.cnri.reston.va.us/grail-0.3/help/rc.html>
+for details on this interface.
 
 On Unix systems with the DISPLAY environment variable set, the socket
 file name will typically be /tmp/.grail-unix/$USER-$DISPLAY, and the
@@ -38,10 +13,9 @@ TBD: this should also be made a preference.
 This module essentially opens the socket and registers it with Tk so
 when data is readable on it, registered callbacks are executed.  This
 is a really simple minded string based protocol, with a synchronous
-server model.  It's also only one-way.  Right now, it doesn't send any
-data back to the client.  Commands are limited to 1024 bytes.
+server model.  Commands are limited to 1024 bytes.
 
-TBD: Port this to non-Unix systems.
+TBD: Port this to non-Unix systems, use CCI and ILU.
 
 Exported functions:
 
