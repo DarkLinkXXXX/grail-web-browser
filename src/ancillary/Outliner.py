@@ -175,6 +175,9 @@ class OutlinerController:
 	self._backup.close()
 	self._root = newroot
 	self._backup = newroot.clone()
+    def update_backup(self):
+	self._backup.close()
+	self._backup = self._root.clone()
     def root_redisplay(self):
 	self._viewer.clear()
 	self._viewer.populate()

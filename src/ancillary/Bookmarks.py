@@ -21,6 +21,7 @@ DEFAULT_GRAIL_BM_FILE = os.path.join(getgraildir(), 'grail-bookmarks.html')
 BOOKMARKS_FILES = [
     DEFAULT_GRAIL_BM_FILE,
     DEFAULT_NETSCAPE_BM_FILE,
+    os.path.join(gethome(), '.netscape/bookmarks.html'), # Netscape 2.0
     ]
 
 # allow for a separate environment variable GRAIL_BOOKMARKS_FILE, and
@@ -623,11 +624,11 @@ class BookmarksDialog:
 			     underline=7, accelerator='H')
 	self._frame.bind('h', self._controller.insert_header)
 	self._frame.bind('H', self._controller.insert_header)
-	editmenu.add_command(label='Insert Entry',
+	editmenu.add_command(label='Insert Link Entry',
 			     command=self._controller.insert_entry,
-			     underline=7, accelerator='E')
-	self._frame.bind('e', self._controller.insert_entry)
-	self._frame.bind('E', self._controller.insert_entry)
+			     underline=10, accelerator='K')
+	self._frame.bind('k', self._controller.insert_entry)
+	self._frame.bind('K', self._controller.insert_entry)
 	editmenu.add_separator()
 	editmenu.add_command(label='Remove Entry',
 			     command=self._controller.remove_entry,
@@ -919,6 +920,7 @@ class BookmarksController(OutlinerController):
 	if not self.set_modflag: return
 	self._iomgr.save(self._writer, self._root)
 	self.set_modflag(False)
+	self.update_backup()
 	if self._dialog and not exiting:
 	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
@@ -926,6 +928,7 @@ class BookmarksController(OutlinerController):
 	# always save-as, even if unmodified
 	self._iomgr.saveas(self._writer, self._root)
 	self.set_modflag(False)
+	self.update_backup()
 	if self._dialog:
 	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
