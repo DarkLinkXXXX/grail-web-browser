@@ -6,7 +6,6 @@ class ImageTempFileReader(TempFileReader):
 
     def __init__(self, context, api, image):
 	self.image = image
-	self.image.reader = self
 	TempFileReader.__init__(self, context, api)
 
     def handle_meta(self, errcode, errmsg, headers):
@@ -95,7 +94,7 @@ class AsyncImage(PhotoImage):
 	else:
 	    # even if the item is in the cache, use the ImageTempFile
 	    # to handle the proper type coercion
-	    ImageTempFileReader(self.context, api, self)
+	    self.reader = ImageTempFileReader(self.context, api, self)
 
     def stop_loading(self):
 	if not self.reader:
