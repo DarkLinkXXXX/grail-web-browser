@@ -544,6 +544,8 @@ class Application:
 		     'thinsp': ('\240', None),
 		     'emdash': ('--', None),
 		     'endash': ('-', None),
+		     'mdash': ('--', None),
+		     'ndash': ('-', None),
 		     'ensp': (' ', None)
 		     }
 
