@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.16 $"
+__version__ = "$Revision: 1.17 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -25,7 +25,7 @@ import string
 
 class SGMLParser(SGMLLexer.SGMLLexer):
 
-    doctype = ''			# 'html', 'sdl', '...
+    doctype = ''			# 'html', 'sdl', '...'
 
     def __init__(self, verbose = 0):
 	self.verbose = verbose
@@ -34,15 +34,19 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 
     def close(self):
 	SGMLLexer.SGMLLexer.close(self)
+
+    # This is called by the lexer after the document has been fully processed;
+    # needed to clean out circular references and empty the stack.
+    def cleanup(self):
 	while self.stack:
 	    self.lex_endtag(self.stack[-1])
-	# Clean out circular references:
 	for k in self._tag_methods.keys():
 	    del self._tag_methods[k]
 	self._tag_methods = None
 	if hasattr(self, '_l'):
 	    self._l.data_cb = _dummy_data_handler
 	self.lex_data = _dummy_data_handler
+	SGMLLexer.SGMLLexer.cleanup(self)
 
     # Interface -- reset this instance.  Loses all unprocessed data.
     def reset(self):
@@ -168,10 +172,10 @@ class SGMLParser(SGMLLexer.SGMLLexer):
 		if not tag:
 		    raise SGMLError, \
 			  'Cannot start the document with an empty tag.'
-	if not self._tag_methods.has_key(tag):
-	    start, end, do = self._load_tag_handlers(tag)
-	else:
+	try:
 	    start, end, do = self._tag_methods[tag]
+	except KeyError:
+	    start, end, do = self._load_tag_handlers(tag)
 
 	if do:
 	    self.handle_starttag(tag, do, attrs)
