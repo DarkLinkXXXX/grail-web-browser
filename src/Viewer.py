@@ -59,6 +59,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_bind(tag, '<Enter>', self.anchor_enter)
 	self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
 	self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
+	self.text.tag_bind(tag, '<ButtonRelease-3>', self.anchor_click_new)
 	# XXX Don't tag bindings need to be garbage-collected?
 
     def clear_reset(self):
@@ -169,6 +170,14 @@ class Viewer(formatter.AbstractWriter):
 	url = self.find_tag_url()
 	if url:
 	    self.browser.follow(url)
+
+    def anchor_click_new(self, event):
+	url = self.find_tag_url()
+	if url:
+	    from Browser import Browser
+	    from __main__ import app
+	    b = Browser(self.master, app)
+	    b.load(url)
 
     def find_tag_url(self):
 	for tag in self.text.tag_names(CURRENT):
