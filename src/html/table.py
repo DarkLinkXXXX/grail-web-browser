@@ -6,7 +6,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.53 1997/02/04 19:15:30 guido Exp $'
+__version__ = '$Id: table.py,v 2.54 1997/02/11 17:39:23 fdrake Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -612,7 +612,15 @@ class Table(AttrElem):
 	self._maxwidths = maxwidths
 	self._minwidths = minwidths
 
+    _prevwidth = -1
     def _autolayout_3(self):
+	# This test protects against re-doing the layout if only the
+	# vertical size changed.
+	availablewidth = self.get_available_width()
+	if availablewidth == self._prevwidth:
+	    return
+	self._prevwidth = availablewidth
+
 	table = self._table
 	colcount = self._colcount
 	rowcount = self._rowcount
@@ -644,7 +652,6 @@ class Table(AttrElem):
 ## 	    print ']'
 ## 	print '==========', id(self)
 
-	availablewidth = self.get_available_width()
 	if self.Awidth is None:
 	    suggestedwidth = availablewidth
 	# units in screen pixels
