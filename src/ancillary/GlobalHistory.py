@@ -9,8 +9,8 @@ files), which probably makes long-term sense for Grail as well, but
 aren't currently supported.
 
 There is only one GlobalHistory object per Application object, which
-is where you'll find it.  The Cache object inserts new entries into
-the Global History, while Browser objects query the history.
+is where you'll find it.  The Context object inserts new entries into
+the Global History, while AppletHTMLParser objects query the history.
 
 TBD:
 
