@@ -218,7 +218,8 @@ class GrailHTMLParser(HTMLParser):
 	extract = extract_keyword
 	## align = extract('align', attrs, align, conv=conv_align)
 	alt = extract('alt', attrs, '(image)')
-	border = extract('border', attrs, 2, conv=string.atoi)
+	border = extract('border', attrs, self.anchor and 2 or 0,
+			 conv=string.atoi)
 	ismap = attrs.has_key('ismap')
 	src = extract('src', attrs, '')
 	width = extract('width', attrs, 0, conv=string.atoi)
