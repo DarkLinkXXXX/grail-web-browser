@@ -205,17 +205,17 @@ class HTMLParser(SGMLParser):
 
     def start_listing(self, attrs):
         self.start_pre(attrs)
-        self.setliteral('listing') # Tell SGML parser
+        #self.setliteral('listing') # Tell SGML parser
 
     def end_listing(self):
         self.end_pre()
 
     def start_address(self, attrs):
-        self.formatter.end_paragraph(0)
+	self.do_br({})
         self.formatter.push_font((AS_IS, 1, AS_IS, AS_IS))
 
     def end_address(self):
-        self.formatter.end_paragraph(0)
+	self.do_br({})
         self.formatter.pop_font()
 
     def start_blockquote(self, attrs):
@@ -385,7 +385,26 @@ class HTMLParser(SGMLParser):
     # --- Horizontal Rule
 
     def do_hr(self, attrs):
-        self.formatter.add_hor_rule()
+	if attrs.has_key('width'):
+	    abswidth, percentwidth = self.parse_width(attrs['width'])
+	else:
+	    abswidth, percentwidth = None, 1.0
+        self.formatter.add_hor_rule(abswidth, percentwidth)
+
+    def parse_width(self, str):
+	str = string.strip(str)
+	if not str:
+	    return None, None
+	wid = percent = None
+	if str[-1] == '%':
+	    try: percent = string.atoi(str[:-1])
+	    except: pass
+	    else: percent = min(1.0, max(0.0, (0.01 * percent)))
+	else:
+	    try: wid = max(0, string.atoi(str))
+	    except: pass
+	    else: wid = wid or None
+	return wid, percent
 
     # --- Image
 
