@@ -8,9 +8,7 @@ from Tkinter import *
 import FileDialog
 from grailutil import *
 from Outliner import OutlinerViewer, OutlinerController
-from BookmarksParser import BookmarkNode, HTMLBookmarkReader
-from BookmarksParser import NetscapeBookmarkParser, NetscapeBookmarkWriter
-from BookmarksParser import GrailBookmarkWriter, BookmarkFormatError
+import BookmarksParser
 import tktools
 import formatter
 from SGMLParser import SGMLParser
@@ -22,6 +20,7 @@ DEFAULT_NETSCAPE_BM_FILE = os.path.join(gethome(), '.netscape-bookmarks.html')
 DEFAULT_GRAIL_BM_FILE = os.path.join(getgraildir(), 'grail-bookmarks.html')
 
 BOOKMARKS_FILES = [
+    os.path.splitext(DEFAULT_GRAIL_BM_FILE)[0],	# "native" pickled format
     DEFAULT_GRAIL_BM_FILE,
     DEFAULT_NETSCAPE_BM_FILE,
     os.path.join(gethome(), '.netscape/bookmarks.html'), # Netscape 2.0
@@ -67,7 +66,9 @@ def username():
 class FileDialogExtras:
     def __init__(self, frame):
 	# create a small subwindow for the extra buttons
-	frame = Frame(frame, relief=GROOVE, borderwidth=2)
+	self._controls = Frame(frame, relief=GROOVE, borderwidth=2)
+	self._controls.pack(fill=X)
+	frame = Frame(self._controls)
 	frame.pack(fill=X)
 	label = Label(frame, text='Bookmark File Shortcuts:')
 	label.pack(side=LEFT, anchor=W)
@@ -78,6 +79,8 @@ class FileDialogExtras:
 	tktools.unify_button_widths(grailbtn, netscapebtn)
 	netscapebtn.pack(side=RIGHT, padx='1m', pady='1m')
 	grailbtn.pack(side=RIGHT)
+	tktools.unify_button_widths(
+	    self.ok_button, self.filter_button, self.cancel_button)
 
     def _set_to_file(self, path):
 	dir, file = os.path.split(path)
@@ -96,10 +99,49 @@ class BMLoadDialog(FileDialog.LoadFileDialog, FileDialogExtras):
 	FileDialogExtras.__init__(self, self.top)
 
 class BMSaveDialog(FileDialog.SaveFileDialog, FileDialogExtras):
-    def __init__(self, master, controller):
+    def __init__(self, master, controller, export):
 	self._controller = controller
 	FileDialog.SaveFileDialog.__init__(self, master, 'Save Bookmarks File')
 	FileDialogExtras.__init__(self, self.top)
+	self.__create_widgets(export)
+	self.set_filetype(
+	    export and "html" or
+	    controller._app.prefs.Get("bookmarks", "default-save-format"))
+
+    def __create_widgets(self, export):
+	self.__filetype = StringVar()
+	if not export:
+	    frame = Frame(self._controls)
+	    frame.pack(fill=X)
+	    label = Label(frame, text='File Format:')
+	    label.pack(side=LEFT, anchor=W)
+	    options = OptionMenu(frame, self.__filetype,
+				 "HTML", "Pickle", "Pickle Binary")
+	    options["anchor"] = W
+	    options["width"] = 13
+	    options.pack(side=RIGHT)
+
+    # can't just use regex.casefold since 
+    __charmap_out = string.maketrans(string.uppercase + " ",
+				     string.lowercase + "-")
+    __charmap_in = string.maketrans("-", " ")
+    def get_filetype(self):
+	return string.translate(self.__filetype.get(), self.__charmap_out)
+
+    def set_filetype(self, filetype):
+	dir, oldpat = self.get_filter()
+	if filetype[:4] == "html":
+	    filetype = "HTML"
+	    pat = "*.html"
+	else:
+	    pat = "*.pkl"
+	if pat != oldpat:
+	    self.set_filter(dir, pat)
+	if filetype != "HTML":
+	    filetype = string.capwords(
+		string.translate(filetype, self.__charmap_in))
+	self.__filetype.set(filetype)
+
 
 class BookmarksIO:
     def __init__(self, frame, controller):
@@ -112,24 +154,14 @@ class BookmarksIO:
     def set_filename(self, filename): self._filename = filename
 
     def _choose_reader_writer(self, fp):
-	parser = writer = None
-	try:
-	    import regex
-	    line1 = fp.readline()
-	    if regex.match('.*NETSCAPE-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkParser(self._filename)
-		writer = NetscapeBookmarkWriter()
-	    elif regex.match('.*GRAIL-Bookmark-file-1', line1) >= 0:
-		parser = NetscapeBookmarkParser(self._filename)
-		writer = GrailBookmarkWriter()
-	finally:
-	    fp.seek(0)
+	format = BookmarksParser.get_format(fp)
+	parser, writer = BookmarksParser.get_handlers(format, self._filename)
 	# sanity checking
 	if not parser or not writer:
-	    raise BookmarkFormatError(self._filename,
-				      'unknown or missing bookmarks file')
+	    raise BookmarksParser.BookmarkFormatError(
+		self._filename, 'unknown or missing bookmarks file')
 	# create the reader
-	reader = HTMLBookmarkReader(parser)
+	reader = BookmarksParser.BookmarkReader(parser)
 	return (reader, writer)
 
     def _open_file_for_reading(self, filename):
@@ -138,7 +170,7 @@ class BookmarksIO:
 	    fp = open(filename, 'r')
 	    reader, writer = self._choose_reader_writer(fp)
 	except IOError, error:
-	    raise BookmarkFormatError(self._filename, error)
+	    raise BookmarksParser.BookmarkFormatError(self._filename, error)
 	return (fp, reader, writer)
 
     def load(self, usedefault=False):
@@ -166,12 +198,17 @@ class BookmarksIO:
 	if not self._filename: self.saveas(writer, root)
 	else: self._save_to_file_with_writer(writer, root, self._filename)
 
-    def saveas(self, writer, root):
+    def saveas(self, writer, root, export=0):
 	if not self._filename: filename = DEFAULT_GRAIL_BM_FILE
 	else: filename = self._filename
-	saver = BMSaveDialog(self._frame, self._controller)
-	savefile = saver.go(filename, '*.html', key="bookmarks")
+	oldformat = writer.get_filetype()
+	saver = BMSaveDialog(self._frame, self._controller, export)
+	saver.set_filetype(oldformat)
+	savefile = saver.go(filename, key="bookmarks")
 	if savefile:
+	    newformat = saver.get_filetype()
+	    if oldformat != newformat:
+		writer = BookmarksParser.get_handlers(newformat, '')[1]
 	    self._save_to_file_with_writer(writer, root, savefile)
 	    self._filename = savefile
 
@@ -230,11 +267,13 @@ class BookmarksDialog:
 	self._frame.iconname("Bookmarks")
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 	self._controller = controller
-	infoframe = Frame(self._frame, relief=GROOVE, borderwidth=2)
+	infoframe = Frame(self._frame, name="info")
 	infoframe.pack(fill=BOTH)
-	self._title = Label(infoframe, text=controller.root().title())
+	self._title = Label(infoframe, text=controller.root().title(),
+			    name="title")
 	self._title.pack(fill=BOTH)
-	self._file = Label(infoframe, text=controller.filename())
+	self._file = Label(infoframe, text=controller.filename(),
+			   name="file")
 	self._file.pack(fill=BOTH)
 	self._create_menubar()
 	self._create_buttonbar()
@@ -243,14 +282,14 @@ class BookmarksDialog:
 	self._frame.focus_set()
 
     def _create_menubar(self):
-	self._menubar = Frame(self._frame, relief=RAISED, borderwidth=2)
+	self._menubar = Frame(self._frame, class_="Menubar", name="menubar")
 	self._menubar.pack(fill=X)
 	#
 	# file menu
 	#
-	filebtn = Menubutton(self._menubar, text="File")
+	filebtn = Menubutton(self._menubar, name="file")
 	filebtn.pack(side=LEFT)
-	filemenu = Menu(filebtn)
+	filemenu = Menu(filebtn, name="menu")
 	filemenu.add_command(label="Load...",
 			     command=self.load,
 			     underline=0, accelerator="Alt-L")
@@ -270,6 +309,8 @@ class BookmarksDialog:
 	self._frame.bind("<Alt-S>", self._controller.save)
 	filemenu.add_command(label="Save As...",
 			     command=self._controller.saveas)
+	filemenu.add_command(label="Export...",
+			     command=self._controller.export)
 	filemenu.add_command(label="Title...",
 			     command=self._controller.title_dialog,
 			     underline=0, accelerator="Alt-T")
@@ -290,9 +331,9 @@ class BookmarksDialog:
 	#
 	# item menu
 	#
-	itembtn = Menubutton(self._menubar, text='Item')
+	itembtn = Menubutton(self._menubar, name='item')
 	itembtn.pack(side=LEFT)
-	itemmenu = Menu(itembtn)
+	itemmenu = Menu(itembtn, name="menu")
 	import SearchMenu
 	SearchMenu.SearchMenu(itemmenu, self._frame, self._controller)
 	itemmenu.add_separator()
@@ -341,9 +382,9 @@ class BookmarksDialog:
 	#
 	# arrange menu
 	#
-	arrangebtn = Menubutton(self._menubar, text="Arrange")
+	arrangebtn = Menubutton(self._menubar, name="arrange")
 	arrangebtn.pack(side=LEFT)
-	arrangemenu = Menu(arrangebtn)
+	arrangemenu = Menu(arrangebtn, name="menu")
 	arrangemenu.add_command(label="Expand",
 			    command=self._controller.expand_cmd,
 			    underline=0, accelerator="E")
@@ -389,21 +430,9 @@ class BookmarksDialog:
 	self._frame.bind('d', self._controller.shift_down_cmd)
 	self._frame.bind('D', self._controller.shift_down_cmd)
 	arrangebtn.config(menu=arrangemenu)
-	#
-	# item menu
-	#
-##	itembtn = Menubutton(self._menubar, text="Item")
-##	itembtn.pack(side=LEFT)
-##	itemmenu = Menu(itembtn)
-##	itemmenu.add_command(label="Previous",
-##			    command=self._controller.previous_cmd,
-##			    accelerator="Up")
 	self._frame.bind("<Up>", self._controller.previous_cmd)
 	self._frame.bind("p", self._controller.previous_cmd)
 	self._frame.bind("P", self._controller.previous_cmd)
-##	itemmenu.add_command(label="Next",
-##			    command=self._controller.next_cmd,
-##			    accelerator="Down")
 	self._frame.bind("<Down>", self._controller.next_cmd)
 	self._frame.bind("n", self._controller.next_cmd)
 	self._frame.bind("N", self._controller.next_cmd)
@@ -425,36 +454,36 @@ class BookmarksDialog:
 	topframe = Frame(self._frame)
 	topframe.pack(side=BOTTOM, fill=BOTH)
 	# bottom buttonbar buttons
-	okbtn = Button(btmframe, text='OK', command=self.okay_cmd)
-	okbtn.pack(side=LEFT)
-	savebtn = Button(btmframe, text='Save', command=self.save_cmd)
-	savebtn.pack(side=LEFT)
+	okbtn = Button(self._frame, name='ok', command=self.okay_cmd)
+	okbtn.pack(side=LEFT, in_=btmframe)
+	savebtn = Button(self._frame, name='save', command=self.save_cmd)
+	savebtn.pack(side=LEFT, in_=btmframe)
 	self._frame.bind("<Return>", self.okay_cmd)
-	status = Label(btmframe, text='', foreground='Red', anchor='w',
+	status = Label(self._frame, name="status",
 		       textvariable=self._controller.statusmsg)
-	status.pack(side=LEFT, expand=1, fill=BOTH)
-	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
-	cancelbtn.pack(side=RIGHT)
+	status.pack(side=LEFT, expand=1, fill=BOTH, in_=btmframe)
+	cancelbtn = Button(self._frame, name='cancel', command=self.cancel_cmd)
+	cancelbtn.pack(side=RIGHT, in_=btmframe)
 	self._frame.bind('<Alt-w>', self.cancel_cmd)
 	self._frame.bind('<Alt-W>', self.cancel_cmd)
 	self._frame.bind('<Control-c>', self.cancel_cmd)
 	self._frame.bind('<Control-C>', self.cancel_cmd)
 	# top buttonbar buttons
-	prevbtn = Button(topframe, text='Previous',
+	prevbtn = Button(self._frame, name='prev',
 			 command=self._controller.previous_cmd)
-	nextbtn = Button(topframe, text='Next',
+	nextbtn = Button(self._frame, name='next',
 			 command=self._controller.next_cmd)
-	prevbtn.pack(side=LEFT, expand=1, fill=BOTH)
-	nextbtn.pack(side=LEFT, expand=1, fill=BOTH)
-	gotobtn = Button(topframe, text='Go To',
+	prevbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+	nextbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+	gotobtn = Button(self._frame, name='goto',
 			 command=self._controller.goto)
-	gotobtn.pack(side=LEFT, expand=1, fill=BOTH)
-	colbtn = Button(topframe, text='Collapse',
+	gotobtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+	colbtn = Button(self._frame, name='collapse',
 			command=self._controller.collapse_cmd)
-	expbtn = Button(topframe, text='Expand',
+	expbtn = Button(self._frame, name='expand',
 			command=self._controller.expand_cmd)
-	colbtn.pack(side=LEFT, expand=1, fill=BOTH)
-	expbtn.pack(side=LEFT, expand=1, fill=BOTH)
+	colbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
+	expbtn.pack(side=LEFT, expand=1, fill=BOTH, in_=topframe)
 
     def _create_other_bindings(self):
 	# bindings not associated with menu entries of buttons
@@ -470,7 +499,7 @@ class BookmarksDialog:
     def load(self, event=None):
 	try:
 	    self._controller.load()
-	except (IOError, BookmarkFormatError), errmsg:
+	except (IOError, BookmarksParser.BookmarkFormatError), errmsg:
 	    IOErrorDialog(self._frame, 'during loading', errmsg)
 
     def show(self):
@@ -505,8 +534,8 @@ class BookmarksDialog:
 
 class DetailsDialog:
     def __init__(self, master, node, controller):
-	self._frame = tktools.make_toplevel(master, class_='BookmarkDetail',
-					    title="Bookmark Details")
+	self._frame = tktools.make_toplevel(master, class_='BookmarkDetail')
+#					    title="Bookmark Details")
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
 	self._node = node
 	self._controller = controller
@@ -527,6 +556,10 @@ class DetailsDialog:
 	    self._add_field(top, 'Location', 40)
 	    self._add_field(top, 'Last Visited', 40)
 	self._added_on = self._add_field(top, 'Added On', 40)
+	if self._node is self._controller.root():
+	    # This field has no meaning for the root, but still create it to
+	    # keep the special case logic for root from getting more complex.
+	    self._form[-1][1].forget()
 	self._description = self._add_field(top, 'Description', 40, 5)
 ## 	self._form[2][0].config(relief=GROOVE)
 ## 	self._form[3][0].config(relief=GROOVE)
@@ -540,15 +573,15 @@ class DetailsDialog:
 
     def _create_buttonbar(self, top):
 	btnbar = Frame(top)
-##	revertbtn = Button(btnbar, text='Revert', command=self.revert)
-	donebtn = Button(btnbar, text='OK', command=self.done)
-	applybtn = Button(btnbar, text='Apply', command=self.apply)
-	cancelbtn = Button(btnbar, text='Cancel', command=self.cancel)
+##	revertbtn = Button(top, name='revert', command=self.revert)
+	donebtn = Button(top, name='ok', command=self.done)
+	applybtn = Button(top, name='apply', command=self.apply)
+	cancelbtn = Button(top, name='cancel', command=self.cancel)
 	tktools.unify_button_widths(donebtn, applybtn, cancelbtn)
-##	revertbtn.pack(side=LEFT)
-	donebtn.pack(side=LEFT)
-	applybtn.pack(side=LEFT, padx='1m')
-	cancelbtn.pack(side=RIGHT)
+##	revertbtn.pack(side=LEFT, in_=btnbar)
+	donebtn.pack(side=LEFT, in_=btnbar)
+	applybtn.pack(side=LEFT, padx='1m', in_=btnbar)
+	cancelbtn.pack(side=RIGHT, in_=btnbar)
 	btnbar.pack(fill=BOTH)
 
     def revert(self):
@@ -559,8 +592,10 @@ class DetailsDialog:
 	    else: entry.config(state=NORMAL)
 	# now empty out the text
 	for entry, frame, label in self._form:
-	    if type(entry) is type(()): entry[0].delete(1.0, END)
-	    else: entry.delete(0, END)
+	    try:
+		entry.delete(0, END)
+	    except TclError:
+		entry.delete(1.0, END)
 	# fill in the entry fields
 	node = self._node		# convenience
 	entry = self._form[0][0]	# more convenience
@@ -578,7 +613,7 @@ class DetailsDialog:
 	self._node.set_title(self._form[0][0].get())
 	if self._node.islink_p():
 	    self._node.set_uri(self._form[1][0].get())
-	self._node.set_description(self._form[-1][0][0].get(1.0, END))
+	self._node.set_description(self._form[-1][0].get(1.0, END))
 	if self._node is self._controller.root():
 	    self._controller.update_title_node()
 	else:
@@ -612,7 +647,7 @@ class DetailsDialog:
 
 class BookmarksController(OutlinerController):
     def __init__(self, app):
-	default_root = BookmarkNode(username()+" Bookmarks")
+	default_root = BookmarksParser.BookmarkNode(username()+" Bookmarks")
 	OutlinerController.__init__(self, default_root)
 	self._master = app.root
 	self._app = app
@@ -621,7 +656,7 @@ class BookmarksController(OutlinerController):
 	self._dialog = None
 	self._details = {}
 	self._listbox = None
-	self._writer = GrailBookmarkWriter()
+	self._writer = BookmarksParser.GrailBookmarkWriter()
 	self._initialized_p = False
 	self._menus = []
 	self._tkvars = {
@@ -713,11 +748,11 @@ class BookmarksController(OutlinerController):
 	    try:
 		root, reader, self._writer = self._iomgr.load(True)
 		break
-	    except BookmarkFormatError:
+	    except BookmarksParser.BookmarkFormatError:
 		pass
 	if not root:
-	    root = BookmarkNode(username()+" Bookmarks")
-	    self._writer = GrailBookmarkWriter()
+	    root = BookmarksParser.BookmarkNode(username()+" Bookmarks")
+	    self._writer = BookmarksParser.GrailBookmarkWriter()
 	    self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
 	self.set_root(root)
 	self._initialized_p = True
@@ -760,6 +795,13 @@ class BookmarksController(OutlinerController):
     def saveas(self, event=None):
 	# always save-as, even if unmodified
 	self._iomgr.saveas(self._writer, self._root)
+	self.set_modflag(False)
+	self.update_backup()
+	if self._dialog:
+	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+
+    def export(self):
+	self._iomgr.saveas(self._writer, self._root, export=1)
 	self.set_modflag(False)
 	self.update_backup()
 	if self._dialog:
@@ -848,7 +890,7 @@ class BookmarksController(OutlinerController):
 	# into the tree, updating the listbox
 	now = int(time.time())
 	title = title or self._app.global_history.lookup_url(url)[0] or url
-	node = BookmarkNode(title, url, now, now)
+	node = BookmarksParser.BookmarkNode(title, url, now, now)
 	addlocation = self.addcurloc.get()
 	if addlocation == NEW_AT_END:
 	    # add this node to the end of root's child list.
@@ -934,21 +976,21 @@ class BookmarksController(OutlinerController):
     def insert_separator(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
-	newnode = BookmarkNode()
+	newnode = BookmarksParser.BookmarkNode()
 	newnode.set_separator()
 	self._insert_at_node(node, newnode)
 
     def insert_header(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
-	newnode = BookmarkNode('<Category>')
+	newnode = BookmarksParser.BookmarkNode('<Category>')
 	self._insert_at_node(node, newnode)
 	self._details[id(newnode)] = DetailsDialog(self._master, newnode, self)
 
     def insert_entry(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
-	newnode = BookmarkNode('<Entry>', '')
+	newnode = BookmarksParser.BookmarkNode('<Entry>', '')
 	self._insert_at_node(node, newnode)
 	details = self._details[id(newnode)] = \
 		  DetailsDialog(self._master, newnode, self)
