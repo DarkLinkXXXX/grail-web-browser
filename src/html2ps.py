@@ -17,8 +17,8 @@ line conversion of HTML files to PostScript.
 import sys
 import os
 
-# TBD: we have to do some path munging based on where you invoke this
-# script.  this sucks.
+# TBD: We need to do this path munging so we can pick up the proper
+# version of ni.py.  The one in the Python 1.3 library has bugs.
 if __name__ == '__main__':
     script_dir = os.path.dirname(sys.argv[0])
     script_dir = os.path.join(os.getcwd(), script_dir)
@@ -27,14 +27,15 @@ if __name__ == '__main__':
     for path in 'pythonlib', script_dir:
 	sys.path.insert(0, os.path.join(script_dir, path))
 
-    import ni
 
+import ni
 
 # standard imports as part of Grail or as standalone
 import string
 import StringIO
 import regsub
-from formatter import *
+from htmllib import HTMLParser
+from formatter import AbstractFormatter, AbstractWriter
 import fonts
 
 
@@ -648,6 +649,37 @@ class PSWriter(AbstractWriter):
 	self.ps.push_string(data)
 
 
+class PrintingHTMLParser(HTMLParser):
+
+    """Class to override HTMLParser's default methods for anchors."""
+
+    def __init__(self, formatter, verbose=0):
+	HTMLParser.__init__(self, formatter, verbose)
+	self._anchorlist = []
+
+    def close(self):
+	self.formatter.add_hor_rule()
+	self.formatter.add_flowing_data('URLs referenced in this document:')
+	self.formatter.end_paragraph(1)
+	self.formatter.push_margin(1)
+	self.formatter.push_font((8, None, None, None))
+	for anchor in self._anchorlist:
+	    self.formatter.add_literal_data(anchor + '\n')
+	self.formatter.pop_margin()
+	HTMLParser.close(self)
+
+    def anchor_bgn(self, href, name, type):
+	self.anchor = href
+	self.formatter.push_style(href and 'u' or None)
+	if href:
+	    self._anchorlist.append(href)
+
+    def anchor_end(self):
+	self.formatter.pop_style()
+	self.anchor = None
+
+
+
 def main():
     import getopt
     import os
@@ -702,14 +734,9 @@ def main():
     w = PSWriter(outfp, title or None, url or infile or '')
     f = AbstractFormatter(w)
     # We don't want to be dependent on Grail, but we do want to use it
-    # if it's around.  Only current difference is that links are
-    # underlined with the PrintDialog parser.
-    try:
-	import PrintDialog
-	p = PrintDialog.PrintingHTMLParser(f)
-    except:
-	import htmllib
-	p = htmllib.HTMLParser(f)
+    # if it's around.  Only current differences with the PrintDialog
+    # parser are that links are underlined and appended as footnotes.
+    p = PrintingHTMLParser(f)
     p.feed(infp.read())
     p.close()
     w.close()
