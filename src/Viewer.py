@@ -15,6 +15,7 @@ from Stylesheet import UndefinedStyle
 
 MIN_IMAGE_LEADER = "\240"		# Non-spacing space
 INDENTATION_WIDTH = 40			# Pixels / indent level
+TARGET_SEPARATOR = '\1'			# url TARGET_SEPARATOR target
 
 class Viewer(formatter.AbstractWriter):
 
@@ -572,7 +573,7 @@ class Viewer(formatter.AbstractWriter):
 	    self.remove_temp_tag(histify=1)
 
     def split_target(self, url):
-	i = string.find(url, '>')
+	i = string.find(url, TARGET_SEPARATOR)
 	if i < 0: return url, ""
 	return url[:i], url[i+1:]
 
@@ -593,7 +594,7 @@ class Viewer(formatter.AbstractWriter):
 
     def find_tag_ranges(self):
 	for tag in self.text.tag_names(CURRENT):
-	    if tag[0] == '>':
+	    if tag[0] == TARGET_SEPARATOR:
 		raw = self.text.tag_ranges(tag)
 		list = []
 		for i in range(0, len(raw), 2):
