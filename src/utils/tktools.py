@@ -59,7 +59,7 @@ def set_transient(widget, master, relx=0.5, rely=0.3, expose=1):
     w_height = widget.winfo_reqheight()
     x = m_x + (m_width - w_width) * relx
     y = m_y + (m_height - w_height) * rely
-    widget.geometry("+%d+%d" % (x, y))
+    widget.geometry("+%d+%d" % (x, abs(y)))
     if expose:
 	widget.deiconify()	# Become visible at the desired location
     return widget
@@ -295,10 +295,10 @@ def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
     bottom.pack(fill=X, padx='1m', pady='1m', side=BOTTOM)
     top.pack(expand=1, fill=BOTH, padx='1m', pady='1m')
     frame.pack(expand=1, fill=BOTH)
-    top = Frame(top)
-    top.pack(expand=1, fill=BOTH, padx='2m', pady='2m')
+    display = Frame(frame, name="display")
+    display.pack(expand=1, fill=BOTH, padx='2m', pady='2m', in_=top)
 
-    return frame, top, bottom
+    return frame, display, bottom
 
 
 def make_group_frame(master, name=None, label=None, fill=Y,
