@@ -548,6 +548,8 @@ class GrailHTMLParser(HTMLParser):
 
     def make_format(self, format, default='disc', listtype=None):
 	fmt = format or default
+	if type(fmt) is StringType:
+	    fmt = string.lower(fmt)
 	if fmt in ('disc', 'circle', 'square'):
 	    if listtype == 'ul':
 		img = self.load_dingbat(fmt)
