@@ -220,7 +220,10 @@ printing--to-file:		0
 printing--command:		lpr
 printing--underline-anchors:	1
 printing--footnote-anchors:	1
+# font-size / leading; both in points
 printing--font-size:		10.0 / 10.7
+# top, bottom, left, right; all in points
+printing--margins:		72 72 72 72
 # paper-size should be one of the keys in html2ps.paper_sizes
 # ('letter', 'a4', etc.)
 printing--paper-size:		letter
