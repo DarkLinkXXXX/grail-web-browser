@@ -1,5 +1,48 @@
 """New import scheme with package support.
 
+Quick Reference
+---------------
+
+- To enable package support, execute "import ni" before importing any
+  packages.  Importing this module automatically installs the relevant
+  import hooks.
+
+- To create a package named spam containing sub-modules ham, bacon and
+  eggs, create a directory spam somewhere on Python's module search
+  path (i.e. spam's parent directory must be one of the directories in
+  sys.path or $PYTHONPATH); then create files ham.py, bacon.py and
+  eggs.py inside spam.
+
+- To import module ham from package spam and use function hamneggs()
+  from that module, you can either do
+
+    import spam.ham		# *not* "import spam" !!!
+    spam.ham.hamneggs()
+
+  or
+
+    from spam import ham
+    ham.hamneggs()
+
+  or
+
+    from spam.ham import hamneggs
+    hamneggs()
+
+- Importing just "spam" does not do what you expect: it creates an
+  empty package named spam if one does not already exist, but it does
+  not import spam's submodules.  The only submodule that is guaranteed
+  to be imported is spam.__init__, if it exists.  Note that
+  spam.__init__ is a submodule of package spam.  It can reference to
+  spam's namespace via the '__.' prefix, for instance
+
+    __.spam_inited = 1		# Set a package-level variable
+
+
+
+Theory of Operation
+-------------------
+
 A Package is a module that can contain other modules.  Packages can be
 nested.  Package introduce dotted names for modules, like P.Q.M, which
 could correspond to a file P/Q/M.py found somewhere on sys.path.  It
@@ -26,14 +69,14 @@ package, its parent's parent, and so on, ending with the root package
 (the nameless package containing all top-level packages and modules,
 whose module search path is None, implying sys.path).
 
-The default domain implements a search algorithm called `expanding
-search'.  An alternative search algorithm called `explicit search'
+The default domain implements a search algorithm called "expanding
+search".  An alternative search algorithm called "explicit search"
 fixes the import search path to contain only the root package,
 requiring the modules in the package to name all imported modules by
 their full name.  The convention of using '__' to refer to the current
 package (both as a per-module variable and in module names) can be
 used by packages using explicit search to refer to modules in the same
-package; this combination is known as `explicit-relative search'.
+package; this combination is known as "explicit-relative search".
 
 The PackageImporter and PackageLoader classes together implement the
 following policies:
@@ -45,43 +88,39 @@ following policies:
 - In each module or package, the variable '__' contains a reference to
   the parent package; in the root package, '__' points to itself.
 
-- In the name for imported modules (e.g. M in `import M' or `from M
-  import ...'), a leading '__' refers to the current package (i.e.
+- In the name for imported modules (e.g. M in "import M" or "from M
+  import ..."), a leading '__' refers to the current package (i.e.
   the package containing the current module); leading '__.__' and so
   on refer to the current package's parent, and so on.  The use of
   '__' elsewhere in the module name is not supported.
 
-- Modules are searched using the `expanding search' algorithm by
+- Modules are searched using the "expanding search" algorithm by
   virtue of the default value for __domain__.
 
 - If A.B.C is imported, A is searched using __domain__; then
   subpackage B is searched in A using its __path__, and so on.
 
 - Built-in modules have priority: even if a file sys.py exists in a
-  package, `import sys' imports the built-in sys module.
+  package, "import sys" imports the built-in sys module.
 
 - The same holds for frozen modules, for better or for worse.
 
 - Submodules and subpackages are not automatically loaded when their
   parent packages is loaded.
 
-- The construct `from package import *' is illegal.  (It can still be
+- The construct "from package import *" is illegal.  (It can still be
   used to import names from a module.)
 
-- When `from package import module1, module2, ...' is used, those
+- When "from package import module1, module2, ..." is used, those
     modules are explicitly loaded.
 
 - When a package is loaded, if it has a submodule __init__, that
   module is loaded.  This is the place where required submodules can
   be loaded, the __path__ variable extended, etc.  The __init__ module
   is loaded even if the package was loaded only in order to create a
-  stub for a sub-package: if `import P.Q.R' is the first reference to
+  stub for a sub-package: if "import P.Q.R" is the first reference to
   P, and P has a submodule __init__, P.__init__ is loaded before P.Q
-  is even searched.  All attributes defined in the __init__ module are
-  installed into the package module, except those with leading
-  underscores in their name.  The lone exception is that the __doc__
-  attribute from the __init_ module becomes the docstring for the
-  package too.
+  is even searched.
 
 Caveats:
 
@@ -121,7 +160,7 @@ Caveats:
 XXX Need to have an explicit name for '', e.g. '__root__'.
 
 """
-# ' <== icky Emacs goo
+
 
 import imp
 import string
@@ -221,10 +260,6 @@ class PackageLoader(ModuleLoader):
 	if stuff:
 	    m = self.load_module(package.__name__ + '.__init__', stuff)
 	    package.__init__ = m
-	    # modification:  1-Mar-1996 bwarsaw
-#	    for attr in dir(m):
-#		if attr[0] <> '_' or attr in ['__doc__']:
-#		    setattr(package, attr, getattr(m, attr))
 
 
 class PackageImporter(ModuleImporter):
