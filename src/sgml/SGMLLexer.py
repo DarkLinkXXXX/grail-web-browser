@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.6 $"
+__version__ = "$Revision: 1.7 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -47,8 +47,10 @@ try:
 except ImportError:
     import regex
     _sgmllex = 0
+    print "Guido's parser"
 else:
     _sgmllex = 1
+    print "Connolly's parser"
 
 import string
 
@@ -189,7 +191,6 @@ class SGMLLexerBase:
 class SGMLLexer(SGMLLexerBase):
     if _sgmllex:
 	def __init__(self):
-	    print "Connolly's parser"
 	    self.reset()
 
 	def feed(self, data):
@@ -211,11 +212,6 @@ class SGMLLexer(SGMLLexerBase):
 	def restrict(self, constrain):
 	    self._l.compat(constrain)
 	    return self._l.restrict(constrain)
-
-	#def line(self):
-	#    """Retrieves the current line number of the lexer object.
-	#    """
-	#    return self._l.line()
 
 	def close(self):
 	    """Flush any remaining data in the lexer's internal buffer.
@@ -254,7 +250,6 @@ class SGMLLexer(SGMLLexerBase):
     else:				# sgmllex not available
 
 	def __init__(self):
-	    print "Guido's parser"
 	    self.reset()
 
 	def reset(self):
