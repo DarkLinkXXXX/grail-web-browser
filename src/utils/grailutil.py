@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.4 $"
+__version__ = "$Revision: 2.5 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -71,3 +71,37 @@ def complete_url(url):
 	else:
 	    url = "http:" + url
     return url
+
+def nicebytes(n):
+    """Convert a bytecount to a string like '<number> bytes' or '<number>K'.
+
+    This is intended for inclusion in status messages that display
+    things like '<number>% read of <bytecount>' or '<bytecount> read'.
+    When the byte count is large, it will be expressed as a small
+    floating point number followed by K, M or G, e.g. '3.14K'.
+
+    The word 'bytes' (or singular 'byte') is part of the returned
+    string if the byte count is small; when the count is expressed in
+    K, M or G, 'bytes' is implied.
+
+    """
+    if n < 1000:
+	if n <= 1:
+	    if n == 1: return "1 byte"
+	    if n == 0: return "no bytes"
+	    if n < 0: return "%d bytes" % n
+	return "%d bytes" % n
+    n = n * 0.001
+    if n < 1000.0:
+	suffix = "K"
+    else:
+	n = n * 0.001
+	if n < 1000.0:
+	    suffix = "M"
+	else:
+	    n = n * 0.001
+	    suffix = "G"
+    if n < 10.0: r = 2
+    elif n < 100.0: r = 1
+    else: r = 0
+    return "%.*f" % (r, n) + suffix
