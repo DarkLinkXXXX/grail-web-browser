@@ -7,21 +7,29 @@ import string
 
 
 class History:
-    def __init__(self):
+    def __init__(self, app):
 	self._history = []
 	self._hmap = {}
 	self._dialog = None
+	self._current = 0
+	self._app = app
+	app.register_on_exit(self.on_app_exit)
 
     def set_dialog(self, dialog): self._dialog = dialog
 
     def append_link(self, link, title=None):
-	# don't add duplicate links to the history
-	if self._hmap.has_key(link): return
-	# add the link to the history structures
+	# Netscape-ism.  Discard alternative future.  TBD: IMHO bogus
+	# semantics, since it loses complete historical trace
+	del self._history[self._current+1:]
+	# don't add duplicate the last entry
+	try:
+	    if self._history[-1] == link: return
+	except IndexError: pass
 	self._history.append(link)
+	self._current = len(self._history)-1
 	if not title: title = link
-	self._hmap[link] = title
-	if self._dialog: self._dialog.append_link(link, title)
+	if not self._hmap.has_key(link): self._hmap[link] = title
+	if self._dialog: self._dialog.refresh()
 
     def set_title(self, link, title):
 	try:
@@ -31,42 +39,50 @@ class History:
 		return
 	    # update title and dialog if visible
 	    self._hmap[link] = title
-	    if self._dialog: self._dialog.update(title)
+	    if self._dialog: self._dialog.refresh()
 	except IndexError, KeyError:
 	    pass
 
     def title(self, link):
-	try:
-	    return self._hmap[link]
-	except KeyError:
-	    return None
+	try: return self._hmap[link]
+	except KeyError: return None
 
     def link(self, index):
-	if self._dialog: self._dialog.select(index)
-	return self._history[index]
+	if 0 <= index < len(self._history):
+	    self._current = index
+	    if self._dialog: self._dialog.select(self._current)
+	    return self._history[self._current]
+	else: return None
 
     def inhistory_p(self, link): return not not self.title(link)
     def links(self): return self._history
+    def current(self): return self._current
+
+    def forward(self): return self.link(self.current()+1)
+    def back(self): return self.link(self.current()-1)
+
+    def on_app_exit(self):
+##	print 'history exiting...'
+	self._app.unregister_on_exit(self.on_app_exit)
 
 
+
 class HistoryDialog:
-    def __init__(self, browser, historyobj=None, max=32):
+    def __init__(self, browser, historyobj=None):
 	if not historyobj:
 	    self._history = History()
 	else:
 	    self._history = historyobj
 	# 
 	self._browser = browser
-	self._max = max
 	self._history.set_dialog(self)
 	self._frame = Toplevel(browser.root)
-	self._vlinks = []
 	self._viewby = IntVar()
 	self._viewby.set(1)
 	self._viewing = 1
 	# create the UI elements
 	self._listbox, frame = tktools.make_list_box(self._frame, 40, 24, 1, 1)
-	self._mass_update()
+	self.refresh()
 	self._listbox.bind('<Double-Button-1>', self._goto)
 	# add a couple of buttons
 	btnbar = Frame(self._frame)
@@ -91,12 +107,11 @@ class HistoryDialog:
 	    
     def history(self): return self._history
 
-    def _mass_update(self):
+    def refresh(self):
 	# populate listbox
 	self._listbox.delete(0, 'end')
-	# truncate list to max elements and view in reverse order
-	hlist = self._history.links()
-	if len(hlist) > self._max: hlist = hlist[-max]
+	# view in reverse order
+	hlist = self._history.links()[:]
 	hlist.reverse()
 	for link in hlist:
 	    title = self._history.title(link)
@@ -104,14 +119,15 @@ class HistoryDialog:
 		self._listbox.insert('end', title)
 	    elif self._viewing == 2:
 		self._listbox.insert('end', link)
-	    self._vlinks.append((link, title))
+	self.select(self._history.current())
 
     def _goto(self, event=None):
 	list = self._listbox.curselection()
 	if len(list) > 0:
 	    selection = string.atoi(list[0])
-	    link, title = self._vlinks[selection]
-	    self._browser.load(link)
+	    last = self._listbox.index('end')
+	    link = self._history.link(last-selection-1)
+	    if link: self._browser.load(link)
 
     def _close(self, event=None):
 	self._frame.withdraw()
@@ -120,23 +136,7 @@ class HistoryDialog:
 	state = self._viewby.get()
 	if state == self._viewing: return
 	self._viewing = state
-	self._mass_update()
-
-    def append_link(self, link, title):
-	if len(self._vlinks) > self._max:
-	    del self._vlinks[-1]
-	    self._listbox.delete('end')
-	self._vlinks.insert(0, (link, title))
-	if self._viewing == 1:
-	    self._listbox.insert(0, title)
-	elif self._viewing == 2:
-	    self._listbox.insert(0, link)
-	self.select(0)
-
-    def update(self, title):
-	if self._viewing == 1:
-	    self._listbox.delete(0)
-	    self._listbox.insert(0, title)
+	self.refresh()
 
     def select(self, index):
 	last = self._listbox.index('end')
