@@ -63,8 +63,8 @@ class CacheManager:
 	# read preferences to determine when pages should be checked
 	# for freshness -- once per session, every n secs, or never
 	fresh_type = self.app.prefs.Get('disk-cache', 'freshness-test-type')
-	fresh_rate = self.app.prefs.Get('disk-cache', 
-					'freshness-test-period') * 3600
+	fresh_rate = int(self.app.prefs.GetFloat('disk-cache', 
+					     'freshness-test-period') * 3600.0)
 
 	if fresh_type == 'per session':
 	    self.fresh_p = lambda key, self=self: \
