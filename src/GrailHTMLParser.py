@@ -20,6 +20,7 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	htmllib.HTMLParser.__init__(self, self.formatter)
 	self.browser = self.viewer.browser
 	self.style_stack = []
+	self.loaded = []
 
     # Override HTMLParser internal methods
 
@@ -82,12 +83,10 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def get_class(self, attrs):
 	cls = None
 	src = ''
-	reload = 0
 	keywords = {}
 	for a, v in attrs:
 	    if a == 'class': cls = v
 	    elif a == 'src': src = v
-	    elif a == 'reload': reload = tktools.boolean(v)
 	    else:
 		try: v = string.atoi(v, 0)
 		except string.atoi_error:
@@ -106,18 +105,26 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	else:
 	    mod = cls
 	try:
-	    return self.get_class_proper(mod, cls, src, reload), keywords
+	    return self.get_class_proper(mod, cls, src), keywords
 	except:
 	    self.show_tb()
 	    return None, keywords
 
-    def get_class_proper(self, mod, cls, src, reload):
+    def get_class_proper(self, mod, cls, src):
 	rexec = self.browser.app.rexec
 	rexec.reset_urlpath()
 	url = urlparse.urljoin(self.browser.url, src or '.')
 	rexec.set_urlpath(url)
-	msg, crs = self.viewer.browser.message("Loading module " + mod)
-	m = rexec.r_import(mod)
+	if self.browser.reload_applets and rexec.modules.has_key(mod) and \
+	   mod not in self.loaded:
+	    # XXX Hack, hack
+	    msg, crs = self.viewer.browser.message("Reloading module " + mod)
+	    m = rexec.modules[mod]
+	    rexec.r_reload(m)
+	    self.loaded.append(mod)
+	else:
+	    msg, crs = self.viewer.browser.message("Loading module " + mod)
+	    m = rexec.r_import(mod)
 	self.viewer.browser.message(msg, crs)
 	return getattr(m, cls)
 

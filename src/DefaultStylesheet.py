@@ -72,4 +72,9 @@ class DefaultStylesheet:
 	    'foreground': 'blue',
 	    },
 
+	# Preformatted text
+	'pre': {
+	    'wrap': 'none',
+	    },
+
 	}

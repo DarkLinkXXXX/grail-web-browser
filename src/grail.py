@@ -5,14 +5,6 @@
 
 This leverages of Tkinter, urllib/urlparse, sgmllib/htmllib, rexec...
 
-(Not to mention Java :-)
-
-XXX Bugs:
-- error dialog looks ugly
-- view source
-- bookmarks (no -- that's an ideal extension)
-- save (ditto?)
-- print
 """
 
 

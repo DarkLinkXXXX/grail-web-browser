@@ -93,3 +93,7 @@ class AppletRExec(RExec):
 	if head != tempdir:
 	    raise IOError, "only files in %s are writable" % tempdir
 	return open(os.path.join(tempdir, tail), mode, buf)
+
+    # This is temporary until it is part of the library
+    def r_unload(self, m):
+        return self.importer.unload(m)

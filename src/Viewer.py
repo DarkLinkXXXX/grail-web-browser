@@ -31,9 +31,11 @@ class Viewer(formatter.AbstractWriter):
 	self.tags = ()			# Near-final collection of tags
 	self.literaltags = ()		# Tags for literal text
 	self.flowingtags = ()		# Tags for flowed text
+	self.freeze()
 
     def create_widgets(self):
 	self.text, self.frame = tktools.make_text_box(self.master, height=40)
+	self.text['insertwidth'] = 0
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
 	self.bind_anchors()
@@ -60,15 +62,20 @@ class Viewer(formatter.AbstractWriter):
 	subwindows = self.subwindows + self.rules
 	self.subwindows = []
 	self.rules = []
+	self.text['state'] = 'normal'
 	for w in subwindows:
 	    w.destroy()
 	self.text.delete('1.0', 'end')
+
+    def freeze(self):
+	self.text['state'] = 'disabled'
 
     def new_tags(self):
 	self.tags = filter(None,
 			   (self.fonttag, self.margintag, self.spacingtag) +
 			   self.addtags)
-	self.literaltags = self.flowingtags = self.tags
+	self.literaltags = self.tags + ('pre',)
+	self.flowingtags = self.tags
 ##	print "New tags:", self.tags
 
     # AbstractWriter methods
@@ -110,7 +117,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.insert('end', '\n')
 	width = 600			# XXX How to compute?
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
-			width=width, height=2)
+			width=width, height=0)
 	self.rules.append(window)
 	self.text.window_create('end', window=window)
 	self.text.insert('end', '\n')
@@ -161,11 +168,25 @@ class Viewer(formatter.AbstractWriter):
     def scroll_to(self, fragment):
 	r = self.text.tag_nextrange('#' + fragment, '1.0')
 	if not r:
-	    return
+	    r = self.parse_range(fragment)
+	    if not r:
+		return
 	first, last = r
 	self.text.yview(first)
 	self.text.tag_remove('sel', '1.0', 'end')
 	self.text.tag_add('sel', first, last)
+
+    def parse_range(self, fragment):
+	try:
+	    p = self.range_pattern
+	except AttributeError:
+	    import regex
+	    p = regex.compile('\([0-9]+\.[0-9]+\)-\([0-9]+\.[0-9]+\)')
+	    self.range_pattern = p
+	if p.match(fragment) == len(fragment):
+	    return p.group(1, 2)
+	else:
+	    return None
 
     def add_subwindow(self, window):
 	self.subwindows.append(window)

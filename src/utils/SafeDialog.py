@@ -1,19 +1,31 @@
+# A simple Dialog modeled after Tk's dialog script
+# 
+# XXX Bugs:
+# - It doesn't grab the server focus
+# - Resizing behavior is ugly
+
 from SafeTkinter import *
 from SafeTkinter import _cnfmerge
 
 class Dialog(Frame):
 
     def __init__(self, master=None,
-		 title='', text='', bitmap='', default='', strings=[]):
+		 title='', text='', bitmap='', default=-1, strings=[]):
 	self.root = Toplevel(master)
-	self.message = Message(self.root, text=text)
-	self.message.pack(fill='both', expand=1)
+	self.root.title(title)
+	self.message = Message(self.root, text=text, aspect=400)
+	self.message.pack()
 	self.frame = Frame(self.root)
-	self.frame.pack(fill='x', expand=1)
+	self.frame.pack()
 	num = 0
+	self.num = default
+	if 0 <= default < len(strings):
+	    self.root.bind('<Return>', self.default_done)
 	for s in strings:
 	    b = Button(self.frame, text=s,
 		       command=(lambda self=self, num=num: self.done(num)))
+	    if num == default:
+		b.config(relief='ridge', border=4)
 	    b.pack(side='left', fill='both', expand=1)
 	    num = num+1
 	try:
@@ -21,6 +33,9 @@ class Dialog(Frame):
 	except SystemExit:
 	    pass
 	self.root.destroy()
+
+    def default_done(self, event):
+	raise SystemExit
 
     def done(self, num):
 	self.num = num

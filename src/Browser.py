@@ -48,6 +48,7 @@ class Browser:
 	self.url = ''
 	self.history = []
 	self.current = -1
+	self.reload_applets = 0
 	self.create_widgets()
 
     def create_widgets(self):
@@ -198,6 +199,8 @@ class Browser:
 
 	fp.close()
 
+	self.viewer.freeze()
+
 	self.title = parser and parser.title or self.url
 	self.root.title('Grail Browser: ' + self.title)
 
@@ -272,7 +275,12 @@ class Browser:
 	if self.current >= len(self.history):
 	    self.root.bell()
 	    return
-	self.load(self.history[self.current][0], 0)
+	save_reload_applets = self.reload_applets
+	try:
+	    self.reload_applets = 1
+	    self.load(self.history[self.current][0], 0)
+	finally:
+	    self.reload_applets = save_reload_applets
 
     def forward_command(self):
 	if self.current+1 >= len(self.history):
