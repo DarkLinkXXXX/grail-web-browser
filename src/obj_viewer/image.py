@@ -1,13 +1,33 @@
-"""Handler for inline images expressed using <OBJECT>.
-"""
-__version__ = "$Revision: 1.1 $"
-# $Source: /home/john/Code/grail/src/obj_viewer/Attic/image.py,v $
+"""Handler for inline images expressed using <OBJECT>."""
+__version__ = "$Revision: 1.2 $"
 
+import AsyncImage
 import HTMLParser
 import string
 import Tkinter
 
 from grailutil import *
+
+allowed_types = None
+
+
+def init_types():
+    """Load the image type information dictionary based on what form of image
+    support we're using."""
+    global allowed_types
+    allowed_types = {}
+    if AsyncImage.isPILAllowed():
+	import Image
+	for datatype in Image.MIME.values():
+	    type, subtype = string.splitfields(datatype, '/')
+	    if type == "image":
+		allowed_types[datatype] = datatype
+    else:
+	# standard Tk is relatively limited:
+	for datatype in ("image/gif",
+			 "image/x-portable-graymap",
+			 "image/x-portable-pixmap"):
+	    allowed_types[datatype] = datatype
 
 
 def embed_image(parser, attrs):
@@ -18,11 +38,22 @@ def embed_image(parser, attrs):
 	return None
     if not parser.context.app.prefs.GetBoolean('browser', 'load-images'):
 	return None
-    datatype, typeopts = extract_keyword('type', attrs, conv=conv_mimetype)
+    typeinfo = extract_keyword('type', attrs, conv=conv_mimetype)
+    if typeinfo:
+	datatype, typeopts = typeinfo
+    else:
+	datatype, typeopts = None, None
     if not datatype:
-	datatype, typeopts = conv_mimetype(parser.context.app.guess_type(src))
-	if not datatype:
-	    return None
+	datatype, typeopts = conv_mimetype(
+	    parser.context.app.guess_type(src)[0])
+
+    # Make sure allowed_types has been initialized.
+    if allowed_types is None:
+	init_types()
+    if not allowed_types.has_key(datatype):
+	return None
+
+    # Image type is supported; get parameters and load it.
     shapes = attrs.has_key('shapes')
     border = extract_keyword('border', attrs, shapes and 2 or 0,
 			     conv=string.atoi)
@@ -43,7 +74,7 @@ class ImageObject(HTMLParser.Embedding):
 	    self.__map, thunk = self.__make_map(parser.context)
 	else:
 	    thunk = None
-	print "Creating ImageObject handler", self, "data=" + src
+## 	print "Creating ImageObject handler", self, "data=" + src
         parser.handle_image(src, '', thunk, 0,
 			    Tkinter.BASELINE, width, height, border,
 			    parser.reload1, hspace=hspace, vspace=vspace)
