@@ -6,14 +6,15 @@ from types import *
 from Tkinter import *
 
 
-def make_text_box(parent, width=0, height=0):
+def make_text_box(parent, width=0, height=0, hbar=0, vbar=1):
 
     """Subroutine to create a text box.
 
     Create:
     - a both-ways filling and expanding frame, containing:
       - a text widget on the left, and
-      - a vertical scroll bar on the right.
+      - possibly a vertical scroll bar on the right.
+      - possibly a horizonta; scroll bar at the bottom.
 
     Return the text widget and the frame widget.
 
@@ -22,18 +23,64 @@ def make_text_box(parent, width=0, height=0):
     frame = Frame(parent)
     frame.pack(fill='both', expand=1)
 
-    vbar = Scrollbar(frame)
-    vbar.pack(fill='y', side='right')
+    if vbar:
+	vbar = Scrollbar(frame)
+	vbar.pack(fill='y', side='right')
+
+    if hbar:
+	hbar = Scrollbar(frame, orient=HORIZONTAL)
+	hbar.pack(fill='x', side='bottom')
 
     text = Text(frame, wrap='word')
     if width: text.config(width=width)
     if height: text.config(height=height)
     text.pack(expand=1, fill='both', side='left')
 
-    text['yscrollcommand'] = (vbar, 'set')
-    vbar['command'] = (text, 'yview')
+    if vbar:
+	text['yscrollcommand'] = (vbar, 'set')
+	vbar['command'] = (text, 'yview')
+
+    if hbar:
+	text['xscrollcommand'] = (hbar, 'set')
+	hbar['command'] = (text, 'xview')
 
     return text, frame
+
+
+def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
+		  fill=BOTH, expand=1):
+
+    """Subroutine to create a list box.
+
+    Like make_text_box().
+
+    """
+
+    frame = Frame(parent)
+    frame.pack(fill='both', expand=1)
+
+    if vbar:
+	vbar = Scrollbar(frame)
+	vbar.pack(fill='y', side='right')
+
+    if hbar:
+	hbar = Scrollbar(frame, orient=HORIZONTAL)
+	hbar.pack(fill='x', side='bottom')
+
+    listbox = Listbox(frame)
+    if width: listbox.config(width=width)
+    if height: listbox.config(height=height)
+    listbox.pack(expand=expand, fill=fill, side='left')
+
+    if vbar:
+	listbox['yscrollcommand'] = (vbar, 'set')
+	vbar['command'] = (listbox, 'yview')
+
+    if hbar:
+	listbox['xscrollcommand'] = (hbar, 'set')
+	hbar['command'] = (listbox, 'xview')
+
+    return listbox, frame
 
 
 def make_form_entry(parent, label):
