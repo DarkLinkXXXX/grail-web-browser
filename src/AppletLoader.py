@@ -225,12 +225,13 @@ class AppletLoader:
 	"""Internal -- load a module given the imp.find_module() stuff."""
 	rexec = self.app.rexec
 	rexec.reset_urlpath()
+	rexec.set_urlpath(self.codeurl)
 	# XXX Duplicate stuff from rexec.RModuleLoader.load_module()
 	# and even from ihooks.FancyModuleLoader.load_module().
 	# This is needed to pass a copy of the source to linecace.
         file, filename, info = stuff
 	(suff, mode, type) = info
-	import imp
+	import imp, ihooks
 	if type == imp.PY_SOURCE:
 	    import linecache
 	    lines = file.readlines()
@@ -240,13 +241,16 @@ class AppletLoader:
 	    m = self.app.rexec.hooks.add_module(mod)
 	    m.__filename__ = filename
 	    exec code in m.__dict__
+	elif type == ihooks.BUILTIN_MODULE:
+	    m = imp.init_builtin(mod)
 	else:
 	    raise ImportError, "Unsupported module type: %s" % `filename`
         return m
 
     def show_tb(self):
 	"""Internal -- post an exception dialog (via the app)."""
-	self.app.exception_dialog("during applet loading")
+	self.app.exception_dialog("during applet loading",
+				  root=self.browser.root)
 
 
 class ModuleReader(BaseReader):
