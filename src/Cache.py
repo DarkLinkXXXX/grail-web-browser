@@ -240,7 +240,7 @@ class CacheAPI:
 ##	print self, "__init__()"
 
     def iscached(self):
-	return self.item.iscached()
+	return self.item and self.item.iscached()
 
     def __repr__(self):
 	return "CacheAPI(%s)" % self.item
