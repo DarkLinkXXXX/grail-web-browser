@@ -681,6 +681,12 @@ class HTMLParser(SGMLParser):
 	if 'pre' in self.stack:
 	    self.set_data_handler(NewlineScratcher(self, 1))
 
+    def start_nobr(self, attrs):
+	self.formatter.push_style('pre')
+
+    def end_nobr(self):
+	self.formatter.pop_style()
+
     # --- Horizontal Rule
 
     def do_hr(self, attrs):
@@ -754,8 +760,18 @@ class HTMLParser(SGMLParser):
 
     # --- Unhandled lexical tokens:
 
+    # We don't implement these, but we want to know that they go in pairs,
+    # just in case we're in "strict" mode.
+    UNIMPLEMENTED_CONTAINERS = [
+	'big', 'caption', 'fig', 'font', 'lang', 'note',
+	'small', 'span', 'sub', 'sup',
+	]
+
     def unknown_starttag(self, tag, attrs):
-        self.badhtml = 1
+	if tag in self.UNIMPLEMENTED_CONTAINERS:
+	    self.stack.append(tag)
+	else:
+	    self.badhtml = 1
 
     def unknown_endtag(self, tag):
         self.badhtml = 1
