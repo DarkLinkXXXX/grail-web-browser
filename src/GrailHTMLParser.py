@@ -30,7 +30,6 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	self.app = self.context.app
 	self.style_stack = []
 	self.loaded = []
-	self.page_tag_count = 0
 	self.insert_stack = []
 	self.insert_active = 0		# Length of insert_stack at activation
 	self.formatter = formatter.AbstractFormatter(self.viewer)
@@ -64,27 +63,17 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	if href:
 	    atag = 'a'
 	    utag = '>' + href
-	    otag = '%%%d' % self.page_tag_count
-	    self.page_tag_count = self.page_tag_count + 1
 	    fulluri = self.context.baseurl(href)
 	    if self.app.global_history.inhistory_p(fulluri):
-		htag = 'ahist'
+		atag = 'ahist'
 	ntag = name and '#' + name or None
-	self.formatter.push_style(atag)
-	self.formatter.push_style(utag)
-	self.formatter.push_style(ntag)
-	self.formatter.push_style(otag)
-	self.formatter.push_style(htag)
+	self.formatter.push_style(atag, utag, ntag)
 	if utag:
 	    self.viewer.bind_anchors(utag)
 
     def anchor_end(self):
 	self.formatter.flush_softspace()
-	self.formatter.pop_style()
-	self.formatter.pop_style()
-	self.formatter.pop_style()
-	self.formatter.pop_style()
-	self.formatter.pop_style()
+	self.formatter.pop_style(3)
 	self.anchor = None
 
     # Duplicated from htmllib.py because we want to have the border attribute
