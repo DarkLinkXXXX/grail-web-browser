@@ -805,6 +805,7 @@ class ViewerMenu:
 	menu.add_command(label="Save Frame As...",
 			 command=context.save_document)
 	self.__last_standard_index = menu.index(END)
+	menu.bind("<Unmap>", self.__unmap)
 
     def tk_popup(self, x, y):
 	need_link = self.__link_url and 1 or 0
@@ -909,6 +910,10 @@ class ViewerMenu:
 	context._url = context._baseurl = url or self.__link_url
 	br.context = context
 	return context
+
+    def __unmap(self, event=None):
+	if self.__link_url:
+	    self.__viewer.remove_temp_tag()
 
 
 def test():
