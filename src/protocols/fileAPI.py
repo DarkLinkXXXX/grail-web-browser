@@ -22,15 +22,21 @@ LISTING_PATTERN = """\
 class file_access:
 
     def __init__(self, url, method, params):
-	from urllib import unquote, quote
+	from urllib import url2pathname, pathname2url
 	self.url = url
-	pathname = unquote(self.url)
+	self.redirect = None
+	pathname = url2pathname(url)
 	if not os.path.isabs(pathname):
-	    pwd = os.getcwd()
-	    pathname = os.path.join(pwd, pathname)
-	    pathname = os.path.normpath(pathname)
+	    try:
+		pwd = os.getcwd()
+	    except os.error:
+		pass
+	    else:
+		pathname = os.path.join(pwd, pathname)
+		pathname = os.path.normpath(pathname)
+		self.redirect = 1
 	self.pathname = pathname
-	self.url = "file:" + quote(pathname)
+	self.url = "file:" + pathname2url(pathname)
 	self.method = method
 	self.params = params
 	self.headers = {}
@@ -43,8 +49,8 @@ class file_access:
 	    if ctype: self.headers['content-type'] = ctype
 	    if cencoding: self.headers['content-encoding'] = cencoding
 	    try:
-		stats = os.fstat(self.fp.fileno())
-	    except (IOError, os.error):
+		stats = os.stat(self.pathname)
+	    except (IOError, os.error, AttributeError):
 		pass
 	    else:
 		from stat import ST_SIZE
@@ -58,6 +64,8 @@ class file_access:
     def getmeta(self):
 	assert(self.state == META)
 	self.state = DATA
+	if self.redirect:
+	    return 301, "Redirect to absolute pathname", {"location": self.url}
 	return 200, "OK", self.headers
 
     def polldata(self):
