@@ -4,7 +4,7 @@
 
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.18 $"
+__version__ = "$Revision: 2.19 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -185,12 +185,16 @@ def conv_normstring(val):
     return string.lower(string.strip(val))
 
 def conv_enumeration(val, mapping_or_list):
+    val = conv_normstring(val)
     if type(mapping_or_list) == type([]):
 	if val in mapping_or_list: return val
 	else: return None
     else:
 	if mapping_or_list.has_key(val): return mapping_or_list[val]
 	else: return None
+
+def conv_normwhitespace(val):
+    return string.join(string.split(val))
 
 def conv_exists(val):
     return 1
