@@ -43,7 +43,7 @@ import fonts
 # debugging
 DEFAULT_FONT_SIZE = 10
 RECT_DEBUG = 0
-DEBUG = 1
+DEBUG = 0
 
 def _debug(text):
     if DEBUG:
@@ -479,6 +479,7 @@ class PSStream:
 	linestr = self._linestr
 	# outer loop
 	for line in lines:
+	    # do flowing text
 	    words = string.splitfields(line, ' ')
 	    wordcnt = len(words)-1
 	    for word in words:
@@ -523,17 +524,21 @@ class PSStream:
 		    while width > PAGE_WIDTH:
 			# make our best guess as to the longest bit of
 			# the word we can write on a line.
-			average_charwidth = width / len(word)
-			chars_on_line = PAGE_WIDTH / average_charwidth
-			front = word[:chars_on_line]
-			linestr.append(front + '-')
+			if self._inliteral_p:
+			    linestr.append(word)
+			    word = ''
+			else:
+			    average_charwidth = width / len(word)
+			    chars_on_line = int(PAGE_WIDTH / average_charwidth)
+			    front = word[:chars_on_line]
+			    linestr.append(front + '-')
+			    word = word[chars_on_line:]
+			# now write the word
 			self.close_line(linestr=linestr)
 			# close_line() touches these, but we're using a
 			# local variable cache, which must be updated.
 			xpos = 0.0
 			linestr = []
-##			self._ofp.write('CR\n')
-			word = word[chars_on_line:]
 			width = self._font.text_width(word)
 		    linestr.append(word)
 		    xpos = width
