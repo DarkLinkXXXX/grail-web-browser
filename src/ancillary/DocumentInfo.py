@@ -1,12 +1,14 @@
 """Simple 'Document Info...' dialog for Grail."""
 
-__version__ = '$Revision: 2.2 $'
+__version__ = '$Revision: 2.3 $'
 #  $Source: /home/john/Code/grail/src/ancillary/DocumentInfo.py,v $
 
 import string
 import Tkinter
 import tktools
 import urlparse
+
+FIELD_BREAKER = string.maketrans("&", "\n")
 
 
 class DocumentInfoDialog(Tkinter.Toplevel):
@@ -44,12 +46,14 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 		import ht_time
 		v = ht_time.unparse(v.get_secs())
 	    s = "%s%s:\t%s\n" % (s, k, v)
-	self.add_text_field("Response headers", s, "headers", vbar=0,
-			    takefocus=0, width=60)
+	self.add_text_field("Response headers", s, "headers")
 	if query:
-	    query = string.translate(query, string.maketrans("&", "\n"))
-	    self.add_text_field("Query fields", query, "query", vbar=0,
-				takefocus=0, width=60)
+	    query = string.translate(query, FIELD_BREAKER)
+	    self.add_text_field("Query fields", query, "query")
+	postdata = context.get_postdata()
+	if postdata:
+	    postdata = string.translate(postdata, FIELD_BREAKER)
+	    self.add_text_field("POST data", postdata, "postdata")
 	#
 	# Bottom button
 	#
@@ -61,9 +65,7 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 	btn.focus_set()
 
     def add_field(self, label, name):
-	# Set the class to allow a X11 resources to be used to
-	# change things like the font a bit:
-	fr = Tkinter.Frame(self.__topfr, class_="Dataitem", name=name)
+	fr = Tkinter.Frame(self.__topfr, name=name)
 	fr.pack(expand=1, fill=Tkinter.X)
 	if label: label = label + ": "
 	Tkinter.Label(fr, text=label, width=17, anchor=Tkinter.E, name="label"
@@ -76,12 +78,13 @@ class DocumentInfoDialog(Tkinter.Toplevel):
 	label.pack(anchor=Tkinter.W, fill=Tkinter.X, expand=1)
 	return label
 
-    def add_text_field(self, label, value, name, **kw):
+    def add_text_field(self, label, value, name):
 	fr = self.add_field(label, name)
 	if value and value[-1] == "\n":
 	    value = value[:-1]
-	kw["height"] = 1 + map(None, value).count("\n")
-	text, frame = apply(tktools.make_text_box, (fr,), kw)
+	text, frame = tktools.make_text_box(
+	    fr, takefocus=0, width=60, vbar=0,
+	    height=1 + map(None, value).count("\n"))
 	frame.pack(side=Tkinter.LEFT)
 	text.insert(Tkinter.END, value)
 	text["state"] = Tkinter.DISABLED
