@@ -208,7 +208,7 @@ class Context:
 	self.load_from_history(self.history.peek(+1))
 
     def reload_page(self):
-	self.load_from_history(self.history.peek(0))
+	self.load_from_history(self.history.peek(0), reload=1)
 
     def load_from_history(self, (future, page), reload=0):
 	self.future = future
