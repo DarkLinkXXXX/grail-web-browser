@@ -348,6 +348,10 @@ class FormInfo:
 	    if self.options.has_key(key):
 		setattr(self, key, self.options[key])
 
+	def getflagopt(self, key):
+	    if self.options.has_key(key):
+		setattr(self, key, 1)
+
 	def getstate(self):
 	    # Get raw state for form caching -- default same as get()
 	    return self.get()
@@ -410,7 +414,7 @@ class FormInfo:
 	value = 'on'
 
 	def getoptions(self):
-	    self.getopt('checked')
+	    self.getflagopt('checked')
 
 	def setup(self):
 	    self.var = StringVar()
