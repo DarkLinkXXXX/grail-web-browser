@@ -3,7 +3,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.23 $"
+__version__ = "$Revision: 2.24 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -158,16 +158,12 @@ class Framework:
 	    use_side = TOP
 	    if not entry_width:
 		entry_width = 40
-	    use_bd = 0
-	    use_relief = FLAT
 	else:
 	    use_expand = 0
 	    use_fill = NONE
 	    use_side = LEFT
-	    use_bd = 1
-	    use_relief = SUNKEN
 	# Assemble the widget:
-	frame = Frame(parent, bd=use_bd, relief=use_relief)
+	frame = Frame(parent, borderwidth=1)
 	self.PrefsWidgetLabel(frame, label, label_width=label_width)
 	if entry_height == 1:
 	    entry = Entry(frame, relief=SUNKEN, border=1, width=entry_width)
