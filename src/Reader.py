@@ -1,6 +1,7 @@
 """Reader class -- helper to read documents asynchronously."""
 
 
+import os
 import urlparse
 from Tkinter import *
 from AppletHTMLParser import AppletHTMLParser
@@ -12,6 +13,10 @@ from copy import copy
 
 # Buffer size for getdata()
 BUFSIZE = 8*1024
+
+
+# mailcap dictionary
+caps = None
 
 
 class Reader(BaseReader):
@@ -39,6 +44,7 @@ class Reader(BaseReader):
 	self.data = data
 
 	self.save_file = None
+	self.save_mailcap = None
 	self.maxrestarts = 10
 
 	self.restart(url)
@@ -79,6 +85,11 @@ class Reader(BaseReader):
 	if self.save_file:
 	    self.save_file.close()
 	    self.save_file = None
+	    if self.save_mailcap:
+		try:
+		    os.unlink(self.save_filename)
+		except os.error:
+		    pass
 	BaseReader.handle_error(self, errcode, errmsg, headers)
 
     def handle_meta(self, errcode, errmsg, headers):
@@ -130,7 +141,26 @@ class Reader(BaseReader):
 
 	if not parserclass:
 	    # Don't know how to display this.
-	    # Ask the user to save it.
+	    # First consult mailcap.
+	    import mailcap
+	    global caps
+	    if not caps:
+		caps = mailcap.getcaps()
+	    if caps:
+		plist = [] # XXX Should be taken from Content-type header
+		command, entry = mailcap.findmatch(
+		    caps, content_type, 'view', "/dev/null", plist)
+		if command:
+		    # Retrieve to temporary file.
+		    import tempfile
+		    self.save_mailcap = command
+		    self.save_filename = tempfile.mktemp()
+		    self.save_content_type = content_type
+		    self.save_plist = plist
+		    self.save_file = open(self.save_filename, "wb")
+		    return
+	    # No relief from mailcap either.
+	    # Ask the user whether and where to save it.
 	    # Stop the transfer, and restart when we're ready.
 	    browser = self.last_browser
 	    self.stop()
@@ -181,13 +211,26 @@ class Reader(BaseReader):
 		self.browser.set_title(title)
 
     def handle_eof(self):
-	if self.save_file:
-	    self.save_file.close()
-	    self.save_file = None
+	if not self.save_file:
+	    if self.fragment:
+		self.viewer.scroll_to(self.fragment)
+	    return
+	self.save_file.close()
+	self.save_file = None
+	if not self.save_mailcap:
 	    self.last_browser.message("Saved.")
 	    return
-	if self.fragment:
-	    self.viewer.scroll_to(self.fragment)
+	import mailcap
+	command, entry = mailcap.findmatch(
+	    caps, self.save_content_type, 'view',
+	    self.save_filename, self.save_plist)
+	if not command:
+	    command = self.save_mailcap
+	self.last_browser.message("Mailcap: %s" % command)
+	command = "(%s; rm -f %s)&" % (command, self.save_filename)
+	sts = os.system(command)
+	if sts:
+	    print "Exit status", sts, "from command", command
 
     def find_parser_extension(self, content_type):
 	try:
