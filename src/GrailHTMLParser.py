@@ -1,9 +1,12 @@
 """HTML parser class with support for applets and other Grail features."""
 
+# XXX Need to split this in a perfectly safe module that knows about
+# XXX anchors, images and subwindows, and a less safe module that
+# XXX supports embedded applets.
+
 
 from Tkinter import *
 import htmllib
-import imp
 import urlparse
 import urllib
 import string
