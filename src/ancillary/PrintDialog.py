@@ -72,7 +72,7 @@ class PrintDialog:
 	try:
 	    self.infp = context.app.open_url_simple(url)
 	except IOError, msg:
-	    self.context.error_dialog(IOError, msg)
+	    context.error_dialog(IOError, msg)
 	    return
 	try:
 	    self.ctype = self.infp.info()['content-type']
