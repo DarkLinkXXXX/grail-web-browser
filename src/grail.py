@@ -97,9 +97,8 @@ class Application:
 	    return None
 	if self.image_cache.has_key(url):
 	    return self.image_cache[url]
-	fp, url, content_type = self.open_url(url)
+	fp, url, content_type = self.open_url(url, 0)
 	if not fp:
-	    print '*** image', url, 'not found'
 	    return None
 	if content_type and content_type[:6] != 'image/':
 	    print '***', url, 'is not an image'
@@ -140,7 +139,7 @@ class Application:
 	    except os.error:
 		pass
 
-    def open_url(self, url):
+    def open_url(self, url, error=1):
 	# Open a URL:
 	# - return (fp, url) if successful
 	# - display dialog and return (None, url) for errors
@@ -157,7 +156,8 @@ class Application:
 		    elif m.has_key('uri'):
 			url = m['uri']
 			return self.open_url(url)
-	    self.error_dialog(IOError, msg)
+	    if error:
+		self.error_dialog(IOError, msg)
 	    fp = None
 	content_type = None
 	if fp:
