@@ -588,14 +588,15 @@ class PSStream:
 	if align not in ('absmiddle', 'baseline', 'middle', 'texttop', 'top'):
 	    align = 'bottom'
 
-	# constrain image size to fit on page:
-	pagewidth = self.get_pagewidth()
-	img.restrict(width=pagewidth, height=self.get_pageheight())
+	# adjust image according to screen-to-paper pixel size differences:
 	width, height = img.get_size()
 	if PIXEL_SIZE_ADJUST_VERT:
 	    img.restrict(height=height * PIXEL_SIZE_ADJUST_VERT)
 	if PIXEL_SIZE_ADJUST_HORIZ:
 	    img.restrict(width=width * PIXEL_SIZE_ADJUST_HORIZ)
+	# constrain image size to fit on page:
+	pagewidth = self.get_pagewidth()
+	img.restrict(width=pagewidth, height=self.get_pageheight())
 
 	extra = PROTECT_DESCENDERS_MULTIPLIER * self.get_fontsize()
 	above_portion, below_portion, vshift = 0.5, 0.5, 0.0
