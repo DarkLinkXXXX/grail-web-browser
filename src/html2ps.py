@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.5 1995/09/21 20:54:21 bwarsaw Exp $
+$Id: html2ps.py,v 2.6 1995/09/21 20:56:39 bwarsaw Exp $
 """
 
 
@@ -23,7 +23,7 @@ from formatter import *
 
 # debugging
 RECT_DEBUG = 0
-DEBUG = 1
+DEBUG = 0
 
 def _debug(text):
     if DEBUG:
@@ -521,7 +521,7 @@ class PSQueue:
 	tallest = self.font.font_size()
 	in_literal_p = 0
 	for tag, info in self.queue:
-	    _debug('breaking: (%s, %s)\n' % (tags[tag], info))
+	    #debug('breaking: (%s, %s)\n' % (tags[tag], info))
 	    if tag == START:
 		nq.push_font_change(None)
 		self.font.set_font(None)
@@ -616,7 +616,7 @@ class PSQueue:
 	render_cmd = 'S'
 	ypos = 0.0
 	for tag, info in self.queue:
-	    _debug('writing: (%s, %s)\n' % (tags[tag], info))
+	    #debug('writing: (%s, %s)\n' % (tags[tag], info))
 	    if tag == START:
 		self._header(info)
 		self._start_page(self.curpage)
