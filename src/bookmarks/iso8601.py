@@ -77,7 +77,7 @@ def ctime(t):
     """Similar to time.ctime(), but using ISO-8601 format."""
     return tostring(t, time.timezone)
 
-
+
 # Internal data and functions:
 
 import re
@@ -99,24 +99,26 @@ del re
 
 
 def __extract_date(m):
-    year = int(m.group("year"), 10)
+    year = int(m.group("year"))
     julian = m.group("julian")
     if julian:
-        return __find_julian(year, int(julian, 10))
-    month = int(m.group("month"), 10)
+        return __find_julian(year, int(julian))
+    month = m.group("month")
     day = 1
     if month is None:
         month = 1
-    elif not 1 <= month <= 12:
-        raise ValueError, "illegal month number: " + m.group("month")
     else:
-        day = m.group("day")
-        if day:
-            day = int(day, 10)
-            if not 1 <= day <= 31:
-                raise ValueError, "illegal day number: " + m.group("day")
+        month = int(month)
+        if not 1 <= month <= 12:
+            raise ValueError, "illegal month number: " + m.group("month")
         else:
-            day = 1
+            day = m.group("day")
+            if day:
+                day = int(day)
+                if not 1 <= day <= 31:
+                    raise ValueError, "illegal day number: " + m.group("day")
+            else:
+                day = 1
     return year, month, day
 
 
@@ -126,10 +128,10 @@ def __extract_time(m):
     hours = m.group("hours")
     if not hours:
         return 0, 0, 0
-    hours = int(hours, 10)
+    hours = int(hours)
     if not 0 <= hours <= 23:
         raise ValueError, "illegal hour number: " + m.group("hours")
-    minutes = int(m.group("minutes"), 10)
+    minutes = int(m.group("minutes"))
     if not 0 <= minutes <= 59:
         raise ValueError, "illegal minutes number: " + m.group("minutes")
     seconds = m.group("seconds")
@@ -151,10 +153,10 @@ def __extract_tzd(m):
         return 0
     if tzd == "Z":
         return 0
-    hours = int(m.group("tzdhours"), 10)
+    hours = int(m.group("tzdhours"))
     minutes = m.group("tzdminutes")
     if minutes:
-        minutes = int(minutes, 10)
+        minutes = int(minutes)
     else:
         minutes = 0
     offset = (hours*60 + minutes) * 60
