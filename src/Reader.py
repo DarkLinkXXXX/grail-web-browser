@@ -29,20 +29,22 @@ class Reader(BaseReader):
 
     def __init__(self, browser, url, method, params, new, show_source, reload):
 
-	self.browser = browser
+	self.last_browser = browser
 	self.method = method
 	self.params = params
 	self.reload = reload
 	self.new = new
 	self.show_source = show_source
 
+	self.restart(browser, url)
+
+    def restart(self, browser, url):
+	self.browser = browser
+	self.url = url
+
 	self.viewer = self.browser.viewer
 	self.app = self.browser.app
 
-	self.restart(url)
-
-    def restart(self, url):
-	self.url = url
 	self.parser = None
 
 	tuple = urlparse.urlparse(url)
@@ -57,7 +59,7 @@ class Reader(BaseReader):
 	    api = ProtocolAPI.protocol_access(cleanurl,
 					      self.method, self.params)
 
-	BaseReader.__init__(self, self.browser, api)
+	BaseReader.__init__(self, browser, api)
 
     def stop(self):
 	BaseReader.stop(self)
@@ -71,7 +73,7 @@ class Reader(BaseReader):
 	    return
 	if errcode in (301, 302) and headers.has_key('location'):
 	    url = headers['location']
-	    self.restart(url)
+	    self.restart(self.last_browser, url)
 	    return
 
     def handle_meta(self, errcode, errmsg, headers):
