@@ -178,11 +178,9 @@ class AppletLoader:
 	"""
 	if self.menu:
 	    browser = self.context.browser
-	    menubutton = Menubutton(browser.mbar, text=self.menu)
-	    menubutton.pack(side=LEFT)
-	    menu = AppletMenu(menubutton, self)
-	    menubutton['menu'] = menu
-	    browser.user_menus.append(menubutton)
+	    menu = AppletMenu(browser.mbar, self)
+            browser.mbar.add_cascade(label=self.menu, menu=menu)
+	    browser.user_menus.append(menu)
 	    parent = menu
 	else:
 	    text = self.viewer.text
