@@ -1,25 +1,6 @@
 """HTML parser class with applet support."""
 
 
-# XXX To do:
-# - <HR> and <H1> don't always start a new paragraph (e.g. after an image)
-# - rework interaction between font choices
-#   - basically, para styles like <h1> or <pre> choose a font set,
-#     and char styles like <i> or <b> or <code> choose a font.
-#     This can get tricky when you combine <i>, <b> and <code> inside <h1> ...
-#
-# - merge app and usermenu tags
-# - security for applets based on rexec
-# - remote import for applets
-# - garbage collect applets environments
-# 
-# Maybe later...
-# - real list bullets
-# - <CENTER>
-# - imagemaps
-# - <FORM>
-
-
 from Tkinter import *
 import htmllib
 import imp
