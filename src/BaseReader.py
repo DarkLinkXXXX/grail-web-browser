@@ -174,7 +174,7 @@ class BaseReader:
 	    if self.context and self.context.app:
 		app = self.context.app
 	    else:
-		from __main__ import app
+		app = grailutil.get_grailapp()
 	    app.exception_dialog("in BaseReader")
 	    self.kill()
 

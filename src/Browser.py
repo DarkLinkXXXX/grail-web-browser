@@ -55,9 +55,7 @@ class Browser:
 		 geometry=None):
 	self.master = master
 	if not app:
-	    import __main__
-	    try: app = __main__.app
-	    except NameError: pass
+	    app = grailutil.get_grailapp()
 	# In common operation, we should always have an app at this point.
 	if app:
 	    app.add_browser(self)

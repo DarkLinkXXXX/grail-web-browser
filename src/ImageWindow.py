@@ -3,7 +3,6 @@
 # URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
 
 from Tkinter import *
-from __main__ import app
 
 STYLEGROUP = 'styles-common'
 AHISTPREF = 'history-ahist-foreground'
@@ -59,6 +58,7 @@ class ImageWindow(Frame):
     def get_bgcolor(self, borderwidth):
 	# figure out colors for link, if the image is a link
 	if borderwidth:
+	    app = self.context.app
 	    if self.url:
 		histurl = self.context.get_baseurl(self.url)
 		if app.global_history.inhistory_p(histurl):
@@ -93,6 +93,7 @@ class ImageWindow(Frame):
     def follow(self, event):
 	url, target = self.whichurl(event)
 	if url:
+	    app = self.context.app
 	    self['background'] = app.prefs.Get(STYLEGROUP, ATEMPPREF)
 	    self.context.follow(url, target=target)
 	else:
@@ -101,10 +102,11 @@ class ImageWindow(Frame):
     def follow_new(self, event):
 	url, target = self.whichurl(event)
 	if url:
+	    app = self.context.app
 	    self['background'] = app.prefs.Get(STYLEGROUP, ATEMPPREF)
 	    url = self.context.baseurl(url)
 	    from Browser import Browser
-	    Browser(self.context.app.root, self.context.app).context.load(url)
+	    Browser(app.root, app).context.load(url)
 	    self['background'] = app.prefs.Get(STYLEGROUP, AHISTPREF)
 	else:
 	    self.context.viewer.leave_message()
