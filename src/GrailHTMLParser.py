@@ -589,6 +589,8 @@ class GrailHTMLParser(HTMLParser):
     def start_ul(self, attrs, tag='ul'):
 	if attrs.has_key('dingbat'):
 	    self.list_handle_dingbat(attrs)
+	elif attrs.has_key('src'):
+	    self.list_handle_src(attrs)
 	HTMLParser.start_ul(self, attrs, tag=tag)
 
     def do_li(self, attrs):
@@ -598,12 +600,27 @@ class GrailHTMLParser(HTMLParser):
 		    self.list_handle_dingbat(attrs)
 	    else:
 		self.list_handle_dingbat(attrs)
+	elif attrs.has_key('src'):
+	    if self.list_stack:
+		if self.list_stack[-1][0] == 'ul':
+		    self.list_handle_src(attrs)
+	    else:
+		self.list_handle_src(attrs)
 	HTMLParser.do_li(self, attrs)
 
     def list_handle_dingbat(self, attrs):
 	if attrs['dingbat']:
 	    img = self.load_dingbat(attrs['dingbat'])
 	    if img: attrs['type'] = img
+
+    def list_handle_src(self, attrs):
+	if not self.app.prefs.GetBoolean("browser", "load-images"):
+	    return
+	src = string.joinfields(string.split(attrs['src']), '')
+	if src:
+	    src = self.context.get_baseurl(src)
+	    image = self.context.get_async_image(src, self.reload)
+	    attrs['type'] = image
 
     # Override make_format():
     # This allows disc/circle/square to be mapped to dingbats.
