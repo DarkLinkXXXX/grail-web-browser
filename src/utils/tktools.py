@@ -285,6 +285,16 @@ def make_double_frame(master=None, class_=None, name=None, relief=RAISED,
     return frame, top, bottom
 
 
+def unify_button_widths(*buttons):
+    """Make buttons passed in all have the same width.
+    """
+    wid = 0
+    for btn in buttons:
+	wid = max(wid, len(btn["text"]))
+    for btn in buttons:
+	btn["width"] = wid
+
+
 def flatten(msg):
     """Turn a list or tuple into a single string -- recursively."""
     t = type(msg)
