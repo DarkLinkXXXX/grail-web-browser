@@ -36,8 +36,6 @@ class Viewer(formatter.AbstractWriter):
 	self.context = context or Context(self, browser)
 	self.prefs = self.context.app.prefs
 	self.stylesheet = stylesheet
-	self.current_size = None
-	self.current_type = None
 	self.name = name
 	self.scrolling = scrolling
 	self.parent = parent
@@ -67,7 +65,9 @@ class Viewer(formatter.AbstractWriter):
 	"""Add prefs callbacks so text widget's reconfigured on major changes.
 	"""
 	self.prefs.AddGroupCallback('styles-common',
-				    self.configure_styles_hard)
+				    self.configure_styles)
+	self.prefs.AddGroupCallback('styles-fonts',
+				    self.configure_styles)
 	self.prefs.AddGroupCallback('styles',
 				    self.configure_styles)
 
@@ -75,7 +75,9 @@ class Viewer(formatter.AbstractWriter):
 	"""Add prefs callbacks so text widget's reconfigured on major changes.
 	"""
 	self.prefs.RemoveGroupCallback('styles-common',
-				       self.configure_styles_hard)
+				       self.configure_styles)
+	self.prefs.RemoveGroupCallback('styles-fonts',
+				       self.configure_styles)
 	self.prefs.RemoveGroupCallback('styles',
 				       self.configure_styles)
 
@@ -167,29 +169,17 @@ class Viewer(formatter.AbstractWriter):
 	self.text.bind("<Button-2>", self.button_2_event)
 	self.text.bind("<Button-3>", self.button_3_event)
 
-    def configure_styles_hard(self):
-	"""Force a full reconfigure of styles."""
-	self.current_size = self.current_type = None
-	self.configure_styles()
-
     def configure_styles(self):
 	"""Used on widget creation, clear, and as a callback when style
 	preferences change."""
 	size_name = self.prefs.Get('styles', 'size')
-	type_name = self.prefs.Get('styles', 'type')
-	style_ok = 1
-	if not self.stylesheet or ((self.current_size != size_name)
-				   or (self.current_type != type_name)):
-	    try:
-		self.stylesheet = DefaultStylesheet(self.prefs,
-						    size_name, type_name)
-		self.current_size = size_name
-		self.current_type = type_name
-	    except UndefinedStyle:
-		style_ok = 0
-	if style_ok:
+	family = self.prefs.Get('styles', 'family')
+	try:
+	    self.stylesheet = DefaultStylesheet(self.prefs,
+						size_name, family)
 	    self.configure_tags(self.stylesheet)
-
+	except UndefinedStyle:
+	    pass
 
     def configure_tags(self, stylesheet):
 	if self.text:
