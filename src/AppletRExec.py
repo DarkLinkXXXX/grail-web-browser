@@ -34,9 +34,18 @@ class AppletRHooks(RHooks):
 
     def path_join(self, p1, p2):
         if is_url(p1) or is_url(p2):
+            if '/' not in p2 and '.' not in p2:
+                # Assume it's a directory -- needed for package loading
+                p2 = p2 + "/"
             return urlparse.urljoin(p1, p2)
         else:
-            return os.path.join(p1, p2)
+            return RHooks.path_join(self, p1, p2)
+
+    def path_isdir(self, p):
+        if is_url(p):
+            return p[-1:] == "/"
+        else:
+            return RHooks.path_isdir(self, p)
 
     def openfile(self, p, mode='r', buf=-1):
         # Only used to read modules
