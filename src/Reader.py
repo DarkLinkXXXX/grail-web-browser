@@ -7,7 +7,6 @@ import string
 import urlparse
 from Tkinter import *
 import tktools
-#from GrailHTMLParser import GrailHTMLParser
 from BaseReader import BaseReader
 import regsub
 import copy
@@ -162,14 +161,12 @@ class Reader(BaseReader):
 	istext = content_type and content_type[:5] == 'text/'
 	if self.show_source and istext:
 	    content_type = 'text/plain'
-	if content_type == 'text/html':
-	    from GrailHTMLParser import GrailHTMLParser
-	    parserclass = GrailHTMLParser
-	elif content_type == 'text/plain':
-	    parserclass = TextParser
-	else:
-	    parserclass = self.find_parser_extension(content_type)
-	    if not parserclass and istext:
+	parserclass = self.find_parser_extension(content_type)
+	if not parserclass and istext:
+	    if content_type != 'text/plain':
+		# still need to check for text/plain
+		parserclass = self.find_parser_extension('text/plain')
+	    if not parserclass:
 		parserclass = TextParser
 
 	if not parserclass:
@@ -240,6 +237,7 @@ class Reader(BaseReader):
 		    self.context.addreader(self)
 		    self.viewer = self.context.viewer
 	self.context.clear_reset()
+	self.context.set_headers(headers)
 	self.context.set_url(self.url)
 	self.parser = parserclass(self.viewer, reload=self.reload)
 	self.istext = istext
