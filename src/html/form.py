@@ -817,6 +817,7 @@ class InputImageWindow(Frame):
 	self.context = self.viewer.context
 	self.src, self.alt, self.align = src, alt, align
 	bg = viewer.text['background']
+        borderwidth = borderwidth and int(borderwidth) or 0
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
 	self.label = Label(self, text=self.alt, background=bg)
