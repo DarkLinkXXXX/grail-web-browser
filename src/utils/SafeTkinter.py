@@ -12,6 +12,18 @@ from Tkinter import CallableTypes, TkVersion, TclVersion, TclError, \
      image_names, image_types
 from Tkconstants import *
 
+from Tkinter import tkinter
+
+class _DumbTkinter:
+    """Helper class to provide interfaces to low-level handler functions"""
+    READABLE = 1
+    WRITABLE = 2
+    createfilehandler = tkinter.createfilehandler
+    deletefilehandler = tkinter.deletefilehandler
+    createtimerhandler = tkinter.createtimerhandler
+
+tkinter = _DumbTkinter()
+
 def _castrate(tk):
     """Remove all Tcl commands that can affect the file system."""
     def rm(name, tk=tk):
