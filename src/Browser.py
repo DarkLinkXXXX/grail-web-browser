@@ -237,7 +237,7 @@ class Browser:
 	self.viewer.freeze()
 
 	if parser and hasattr(parser, 'title'):
-	    self.title = parser.title
+	    self.title = parser.title or ''
 	else:
 	    self.title = self.url
 	self.root.title('Grail Browser: ' + self.title)
