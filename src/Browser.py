@@ -125,14 +125,16 @@ class Browser:
 	self.histbutton['menu'] = self.histmenu
 
 	self.histmenu.add(COMMAND, label="Back",
-			  command=self.back_command, underline=0)
+			  command=self.back_command,
+			  underline=0, accelerator="Alt-Left")
 	self.root.bind("<Alt-Left>", self.back_command)
 	self.histmenu.add(COMMAND, label="Reload",
 			  command=self.reload_command,
 			  underline=0, accelerator="Alt-R")
 	self.root.bind("<Alt-r>", self.reload_command)
 	self.histmenu.add(COMMAND, label="Forward",
-			  command=self.forward_command, underline=0)
+			  command=self.forward_command,
+			  underline=0, accelerator="Alt-Right")
 	self.root.bind("<Alt-Right>", self.forward_command)
 	self.histmenu.add(SEPARATOR)
 	self.histmenu.add(COMMAND, label="Home",
@@ -377,6 +379,7 @@ class Browser:
 	b = Browser(self.master, self.app)
 	if self.url:
 	    b.load(self.url)
+	return b
 
     def view_source_command(self, event=None):
 	# File/View Source
