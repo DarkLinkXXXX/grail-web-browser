@@ -318,16 +318,11 @@ class PacketUnpacker:
 		if offset < 0 or offset > total_length:
 		    error = 'Bad offset in UDP body: ' + str(offset)
 		    raise Error(error)
-		if nopts > 1:
-		    # Found the end of a continuation packet
-		    self.value_length = total_length - offset
-		else:
-		    # The entire packet is a continuation (16 is the number of
-		    # bytes in an md5 checksum...  this will never change or if
-		    # it does it will be called 'md6'...)
-		    #
-		    self.value_length = len(self.buf()) \
-					- self.u.get_position() - 16
+		max_length_from_total = total_length - offset
+		max_length_from_size = len(self.buf()) \
+				       - self.u.get_position() - 16
+		self.value_length = min(max_length_from_total,
+					max_length_from_size)
 		# Change opt to be negative flagging this as a continuation 
 		opt = opt * -1
 
@@ -1071,6 +1066,8 @@ def test(defargs = testsets[0]):
 	    if stufftype in (HDL_TYPE_SERVICE_POINTER,
 			     HDL_TYPE_SERVICE_HANDLE):
 		stuffvalue = hexstr(stuffvalue)
+	    else:
+		stuffvalue = repr(stuffvalue)
 	    if data_map.has_key(stufftype):
 		s = data_map[stufftype][9:]
 	    else:
