@@ -932,7 +932,7 @@ save
 /M {moveto} D
 /S {show} D
 %/S {dup show ( ) show stringwidth pop 20 string cvs show} D
-/C {dup stringwidth pop pagewidth sub 2 div 0 rmoveto show} D
+/C {dup stringwidth pop pagewidth exch sub 2 div 0 rmoveto show} D
 /R {rmoveto} D
 /L {lineto} D
 /RL {rlineto} D
