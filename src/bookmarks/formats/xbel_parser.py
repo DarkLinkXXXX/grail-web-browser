@@ -5,7 +5,7 @@
 
 """Parser for XML bookmarks using the XBEL DTD."""
 
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 
 import bookmarks
@@ -175,7 +175,10 @@ class Parser(CaptureMixin, XMLParser):
     def end_desc(self):
         desc = string.strip(self.save_end())
         if desc:
-            self.__node.set_description(desc)
+            if self.__node:
+                self.__node.set_description(desc)
+            else:
+                self.__folder.set_description(desc)
 
     def start_alias(self, attrs):
         alias = bookmarks.nodes.Alias()
