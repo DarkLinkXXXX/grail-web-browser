@@ -46,12 +46,14 @@ HANDLE_TYPES = [hdllib.HDL_TYPE_URL]
 HTML_HEADER = """<HTML>
 
 <HEAD>
-<TITLE>Ambiguous handle resolution</TITLE>
+<TITLE>%(title)s</TITLE>
 </HEAD>
 
 <BODY>
 
-<H1>Ambiguous handle resolution</H1>
+<H1>%(title)s</H1>
+
+%(error)s
 
 The handle you have selected resolves to multiple data items or to an
 unknown data type.<P>
@@ -124,6 +126,8 @@ class hdl_access(nullAPI.null_access):
 	return self._local_hashtables[key]
 
     def __init__(self, hdl, method, params):
+	self._msgattrs = {"title": "Ambiguous handle resolution",
+			  "error": ""}
 	nullAPI.null_access.__init__(self, hdl, method, params)
 
 	self._hdl, self._attrs = parse_handle(hdl)
@@ -136,6 +140,9 @@ class hdl_access(nullAPI.null_access):
 	    try:
 		m = app.find_extension('protocols', mname)
 		if not m:
+		    self._msgattrs["title"] = (
+			"hdlAPI: Could not load %s data type handler" % mname)
+		    self._msgattrs["error"] = sys.exc_value + "<p>"
 		    raise ImportError, mname
 		types = m.handle_types
 		formatter = m.data_formatter
@@ -196,7 +203,7 @@ class hdl_access(nullAPI.null_access):
 	if len(self._items) == 0:
 	    self._data = "Handle not resolved to anything\n"
 	    return 404, 'Handle not resolved to anything', {}
-	data = HTML_HEADER
+	data = HTML_HEADER % self._msgattrs
 	for type, uri in self._items:
 	    if type == hdllib.HDL_TYPE_URL:
 		uri = escape(uri)
