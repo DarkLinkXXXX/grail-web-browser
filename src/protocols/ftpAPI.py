@@ -64,7 +64,12 @@ class ftp_access:
 	if user: user, passwd = splitpasswd(user)
 	else: passwd = None
 	host = socket.gethostbyname(host)
-	if not port:
+	if port:
+	    try:
+		port = string.atoi(port)
+	    except string.atoi_error:
+		raise IOError, ('ftp error', 'bad port')
+	else:
 	    port = ftplib.FTP_PORT
 	path, attrs = splitattr(path)
 	self.url = "ftp://%s%s" % (netloc, path)
