@@ -12,6 +12,8 @@ import string
 import grailutil
 import time
 import math
+import urllib
+import regsub
 
 VALID_TARGET_STARTS = string.letters + '_'
 
@@ -76,6 +78,7 @@ class Context:
 	self.image_maps = {}		# For ImageMap
 	self.set_headers({})
 	self.set_postdata(None)
+	self.local_api_handlers = {}    # dictionary of this pages local API handlers
 
     def register_notification(self, callback):
 	if callback not in self.notifications:
@@ -346,6 +349,8 @@ class Context:
     def go_back(self, event=None):
 	if not self.load_from_history(self.history.peek(-1)):
 	    if self.viewer.parent:
+		# Remove any local API handlers
+		self.viewer.parent.context.remove_local_api_handlers()
 		# go out one level:
 		self.viewer.parent.context.go_back(event)
 	    else:
@@ -407,6 +412,37 @@ class Context:
 	LAST_CONTEXT = self
 	from Reader import Reader
 	Reader(self, url, method, params, show_source, reload, data, scrollpos)
+
+    # Applet Protocol Handler interface
+    
+    def set_local_api(self, name, klass):
+	"""Install a local protocol handler"""
+	if name[-3:] <> "API":
+	    raise IOError, "Invalid name (%s) for protocol handler"
+	self.local_api_handlers[name] = klass
+
+    def get_local_api(self, url, method, params):
+	"""get a local handler instance"""
+	scheme, resturl = urllib.splittype(url)
+	if not scheme:
+	    raise IOError, ("protocol error",
+			    "no scheme identifier in URL", url)
+	scheme = string.lower(scheme)
+	sanitized = regsub.gsub("[^a-zA-Z0-9]", "_", scheme)
+	modname = sanitized + "API"
+	try:
+	    klass  = self.local_api_handlers[modname]
+	except KeyError:
+	    return None
+	handler = klass(resturl, method, params)
+	handler._url_ = url # To keep BaseReader happy
+	return handler
+
+    def remove_local_api_handlers(self):
+	"""Remove any local handlers from the current context"""
+	if self.local_api_handlers:
+	    self.local_api_handlers = {}
+
 
     # External user commands
 
@@ -602,6 +638,7 @@ class Context:
 	if not title:
 	    title = self.page and self.page.title() or url
 	return title
+
 
 
 
