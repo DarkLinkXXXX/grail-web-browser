@@ -1,13 +1,15 @@
-GRAIL 0.3
-===========
+GRAIL 0.4
+=========
 
-This is the final release of Grail version 0.3.  It should run on most
-Unix systems, provided you have Python 1.4 with Tcl/Tk 7.6/4.2 (or
-better).  It is only distributed in source form.
+Grail(TM) is a web browser written in Python, an object-oriented
+scripting language.  Grail is distributed in source form.  It requires
+that you have a Python interpreter and a Tcl/Tk installation, with the
+Python interpreter configured for Tcl/Tk support.
 
 In this file:
 
 	- Licensing issues
+	- Hardware requirements
 	- Installation
 	- Using Grail
 	- Web resources
@@ -18,9 +20,20 @@ In this file:
 Licensing issues
 ----------------
 
-The license of Grail 0.3 allows essentially unrestricted use and
+The license of Grail allows essentially unrestricted use and
 redistribution.  The full text of the license can be found in the file
-LICENSE in this directory.
+LICENSE in this directory.  The sources are Copyright (c) CNRI
+1996-1998.  Grail is a registered trademark of CNRI.
+
+
+Hardware requirements
+---------------------
+
+Grail runs on most Unix systems, on Windows NT and 95, and on
+Macintosh systems, provided you have enough memory and a fast enough
+machine.  (For Windows, 32 Meg RAM and 90 MHz Pentium is a reasonable
+minimal configuration.  For Macintosh, a 40 MHz 68k or any PPC, with
+24 Meg RAM, is acceptable.)
 
 
 Installation
@@ -28,17 +41,19 @@ Installation
 
 There are three steps to take before you can use Grail:
 
-- Install Tcl 7.6 and Tk 4.2.  (You *may* be able to get away with
-older versions up to 7.4/4.0; newer versions could be okay, too.)  You
-can get it at http://sunscript.sun.com/; or try ftp to ftp.sunlabs.com
+- Install Tcl and Tk.  The versions must be compatible with each other
+and with the Python version you are installing in the next step;
+currently, the oldest Tcl/Tk versions supported are 7.6/4.2.  You can
+Tcl/Tk it at http://sunscript.sun.com/; or try ftp to ftp.sunlabs.com
 in directory /pub/tcl/.  See also the new commercial Tcl/Tk site,
 http://www.scriptics.com/.
 
-- Install Python 1.4, configured for use with Tk.  The URL to get
-Python is http://www.python.org; or try ftp to ftp.python.org in
-directory /pub/python/src/.  You must enable Tk support by editing the
-file Modules/Setup; see the comments in that file (search for
-"tkinter").
+- Install Python 1.5 (or newer of available), configured for use with
+Tk.  (Use Grail with Python 1.4 at your own risk; earlier Python
+versions don't work).  The URL to get Python is http://www.python.org;
+or try ftp to ftp.python.org in directory /pub/python/src/.  You must
+enable Tk support by editing the file Modules/Setup; see the comments
+in that file (search for "tkinter").
 
 - Install the Grail sources in a convenient place.  Grail is executed
 directly from its source directory.  If you are using the /usr/local
@@ -50,12 +65,15 @@ script named "grail" which execs the Python interpreter, e.g.:
 
     exec python /usr/local/lib/grail/grail.py ${1+"$@"}
 
+(On Windows or Macintosg systems, the best thing to do is to create a
+shortcut or alias to the file grail.py on the desktop.)
+
 
 Using Grail
 -----------
 
 If the first line of the grail.py script points to a working Python
-1.4 interpreter with Tk support, you should be able to start Grail by
+interpreter with Tk support, you should be able to start Grail by
 executing "./grail.py" in the Grail source directory.  Grail figures
 out where the source directory is by inspecting sys.argv[0], so in
 fact typing the pathname to the script from anywhere should work.
@@ -86,8 +104,8 @@ initially if no URL is given on the command line.
 Web resources
 -------------
 
-More information on using Grail 0.3 can be found through the Grail 0.3
-home page, at this URL:
+More information on using Grail can be found through the Grail home
+page, at this URL:
 
     http://grail.cnri.reston.va.us/grail/
 
@@ -105,12 +123,12 @@ Send all your feedback to the following email address:
 Before reporting a bug, be sure to check the known bugs page first, at
 this URL:
 
-    http://grail.cnri.reston.va.us/grail-0.3/info/bugs.html
+    http://grail.cnri.reston.va.us/grail/info/bugs.html
 
 You are encouraged to subscribe to the Grail mailing list.  See this
 URL:
 
-    http://grail.cnri.reston.va.us/grail-0.3/info/mailinglist.html
+    http://grail.cnri.reston.va.us/grail/info/mailinglist.html
 
 (or send Majordomo commands to grail-request@python.org).
 
