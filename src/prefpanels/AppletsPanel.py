@@ -15,7 +15,7 @@ HELP_URL = "help/prefs/applets.html"	# Relative to grail-home-page
 
 class AppletsPanel(PrefsDialogs.Framework):
 
-    name = 'Applet'
+    helpbrowser = None
 
     def CreateLayout(self, name, frame):
 	# Create GUI
@@ -37,8 +37,8 @@ class AppletsPanel(PrefsDialogs.Framework):
 	    variable=self.loadvar,
 	    value="some")
 	self.loadsome.pack(anchor=W)
-	self.loadnone = Radiobutton(frame
-				    , text="Load no applets",
+	self.loadnone = Radiobutton(frame,
+				    text="Load no applets",
 				    variable=self.loadvar,
 				    value="none")
 	self.loadnone.pack(anchor=W)
@@ -71,10 +71,11 @@ class AppletsPanel(PrefsDialogs.Framework):
 	if not app.browsers:
 	    print "No browser left to display help."
 	    return
-	browser = self.browser
+	browser = self.helpbrowser
 	if not browser or not browser.valid():
-	    browser = app.browsers[-1]	# Pick the last valid one
-	    self.browser = browser
+	    import Browser
+	    browser = Browser.Browser(self.app.root, self.app)
+	    self.helpbrowser = browser
 	grailhome = self.app.prefs.Get('landmarks', 'grail-home-page')
 	browser.context.load(urlparse.urljoin(grailhome, HELP_URL))
 	browser.root.tkraise()
