@@ -171,7 +171,6 @@ class CacheManager:
 	    # cause item to be loaded (and perhaps cached)
 	    item = CacheItem(url, mode, params, self, key, data)
 
-	#print "cache.open_get( %s )" % (url)
 	return self.activate(item)
 
     def open_post(self, key, url, mode, params, reload, data):
@@ -284,7 +283,7 @@ class CacheManager:
 	#####
 	##### limit is hardcoded, please fix
 	#####
-	if len(item.data) > self.caches[0].max_size / 4:
+	if item.datalen > self.caches[0].max_size / 4:
 	    return 0
 
 	# don't cache things that don't want to be cached
@@ -696,7 +695,7 @@ class DiskCache:
 	XXX Need to handle replacement better?
 	"""
 	respcode, msg, headers = object.meta
-	size = len(object.data)
+	size = object.datalen
 
 	self.make_space(size)
 
@@ -770,7 +769,7 @@ class DiskCache:
 	path = self.get_file_path(entry.file)
 	try:
 	    f = open(path, 'w')
-	    f.write(object.data)
+	    f.writelines(object.data)
 	    f.close()
 	except IOError, err:
 	    raise CacheFileError, (path, err)
