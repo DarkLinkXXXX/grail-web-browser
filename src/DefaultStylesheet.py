@@ -9,6 +9,9 @@ little bit different.
 """
 
 
+## NOTE: Link colors are taken from Netscape 1.1's X app defaults
+
+
 class DefaultStylesheet:
 
     # Default settings (text widget configure)
@@ -69,7 +72,7 @@ class DefaultStylesheet:
 	# Anchors
 
 	'a': {
-	    'foreground': 'blue',
+	    'foreground': '#0000EE',
 	    'underline': 'true',
 	    },
 
@@ -90,12 +93,12 @@ class DefaultStylesheet:
 	# Anchors
 
 	'ahist': {
-	    'foreground': 'blue4',
+	    'foreground': '#551A8B',
 	    'underline': 'true',
 	    },
 
 	'atemp': {
-	    'foreground': 'red',
+	    'foreground': '#FF0000',
 	    'underline': 'true',
 	    },
 
