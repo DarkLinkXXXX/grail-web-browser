@@ -13,6 +13,7 @@ import tktools
 from DefaultStylesheet import DefaultStylesheet
 from Reader import Reader
 from Viewer import Viewer
+import History
 
 
 # URLs of various sorts
@@ -53,9 +54,10 @@ class Browser:
 	self.readers = []
 	self.url = ""
 	self.title = ""
-	self.history = []
+	self.history = History.History()
 	self.current = -1
 	self.create_widgets(height)
+	self.history_dialog = None
 
     def create_widgets(self, height):
 	self.root = Toplevel(self.master)
@@ -150,6 +152,8 @@ class Browser:
 			  underline=0, accelerator="Alt-Right")
 	self.root.bind("<Alt-Right>", self.forward_command)
 	self.histmenu.add_separator()
+	self.histmenu.add_command(label='History...',
+				  command=self.show_history_command)
 	self.histmenu.add_command(label="Home",
 			  command=self.home_command,
 			  underline=0, accelerator="Alt-H")
@@ -329,8 +333,9 @@ class Browser:
     def set_history(self, new):
 	if new:
 	    self.current = self.current + 1
-	    self.history[self.current:] = [None]
-	self.history[self.current] = (self.url, self.title)
+	    self.history.append_link(self.url, self.title)
+	else:
+	    self.history.set_title(self.url, self.title)
 
     def get_image(self, src):
 	image = self.get_async_image(src)
@@ -484,20 +489,25 @@ class Browser:
 	    self.root.bell()
 	    return
 	self.current = self.current-1
-	self.load(self.history[self.current][0], new=0)
+	self.load(self.history.link(self.current), new=0)
 
     def reload_command(self, event=None):
-	if not 0 <= self.current < len(self.history):
+	if not 0 <= self.current < len(self.history.links()):
 	    self.root.bell()
 	    return
-	self.load(self.history[self.current][0], new=0, reload=1)
+	self.load(self.history.link(self.current), new=0, reload=1)
 
     def forward_command(self, event=None):
-	if self.current+1 >= len(self.history):
+	if self.current+1 >= len(self.history.links()):
 	    self.root.bell()
 	    return
 	self.current = self.current+1
-	self.load(self.history[self.current][0], new=0)
+	self.load(self.history.link(self.current), new=0)
+
+    def show_history_command(self, event=None):
+	if not self.history_dialog:
+	    self.history_dialog = History.HistoryDialog(self, self.history)
+	self.history_dialog.show()
 
     # Help menu commands
 
