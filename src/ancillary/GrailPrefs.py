@@ -2,10 +2,9 @@
 
 See the Grail htdocs/info/extending/preferences.html for documentation."""
 
-# Todo:
-#  - Preference-change callback funcs
+# To test, "(cd <scriptdir>; python GrailPrefs.py)".
 
-__version__ = "$Revision: 2.16 $"
+__version__ = "$Revision: 2.17 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -16,6 +15,8 @@ if __name__ == "__main__":
     sys.path.insert(0, '../utils')
 import grailutil
 
+import parseprefs
+
 USERPREFSFILENAME = 'grail-preferences'
 SYSPREFSFILENAME = 'grail-defaults'
 
@@ -24,78 +25,62 @@ verbose = 0
 class Preferences:
     """Get and set fields in a customization-values file."""
 
-    # We maintain an rfc822 snapshot of the file, which we read only once
-    # and dicts for:
-    #  - .new: new settings not yet saved
-    #  - .established: new settings saved and referenced read-in settings
-    #  - .deleted: deleted settings, so user default values duplicating
-    #               system defaults can be excluded from save.
+    # We maintain a dictionary of the established self.saved preferences,
+    # self.mods changes, which are incorporated into the established on
+    # self.Save(), and self.deleted, which indicates settings to be omitted
+    # during save (for reversion to "factory default", ie system, settings).
 
     def __init__(self, filename, readonly=0):
 	"""Initiate from FILENAME with MODE (default 'r' read-only)."""
 	self.filename = filename
-	try:
-	    f = open(filename)
-	except IOError:
-	    f = None
-	self.rfc822 = None			# Settings read in from file.
-	self.new = {}			# Settings not read in, not yet saved.
-	self.established = {}		# Settings referenced and saved.
+	self.mods = {}			# Changed settings not yet saved.
 	self.deleted = {}		# Settings overridden, not yet saved.
-	if f:
+	try:
 	    self.last_mtime = os.stat(filename)[9]
-	    self.rfc822 = rfc822.Message(f)
-	    # Check for content misplaced after first blank line:
-	    residue = string.strip(f.read())
-	    if residue:
-		sys.stderr.write("Ignoring preferences following blank line"
-				 + " in %s\n" % f.name)
-	    for k, v in self.rfc822.items():
-		# _established dict is much faster than _rfc822 object -
-		# bite the bullet and transfer at the beginning:
-		self.established[k] = v
+	    f = open(filename)
+	    self.saved = parseprefs.parseprefs(f)
 	    f.close()
-	else:
+	except IOError:
+	    self.saved = {}
 	    self.file_mtime = 0
 	self.modified = 0
 
-    def Get(self, group, component):
-	"""Get preference GROUP, COMPONENT, or raise KeyError if none."""
-	key = make_key(group, component)
-	if self.new.has_key(key):
-	    return self.new[key]
-	elif self.established.has_key(key):
-	    return self.established[key]
+    def Get(self, group, cmpnt):
+	"""Get preference or raise KeyError if not found."""
+	if self.mods.has_key(group) and self.mods[group].has_key(cmpnt):
+	    return self.mods[group][cmpnt]
+	elif self.saved.has_key(group) and self.saved[group].has_key(cmpnt):
+	    return self.saved[group][cmpnt]
 	else:
-	    raise KeyError, "Preference %s not found" % ((group,
-							  component),)
+	    raise KeyError, "Preference %s not found" % ((group, cmpnt),)
 
-    def Set(self, group, component, val):
-	"""Set preference GROUP, COMPONENT to VALUE."""
+    def Set(self, group, cmpnt, val):
 	self.modified = 1
-	k = make_key(group, component)
-	self.new[k] = str(val)
-	if self.established.has_key(k):
-	    # Override established val, ensure save doesn't save both:
-	    del self.established[k]
-	if self.deleted.has_key(k):
+	if not self.mods.has_key(group):
+	    self.mods[group] = {}
+	self.mods[group][cmpnt] = str(val)
+	if self.deleted.has_key(group) and self.deleted[group].has_key(cmpnt):
 	    # Undelete.
-	    del self.deleted[k]
+	    del self.deleted[group][cmpnt]
 
-    def __delitem__(self, item):
+    def __delitem__(self, (group, cmpnt)):
 	"""Inhibit preference (GROUP, COMPONENT) from being seen or saved."""
-	self.Get(item[0], item[1])	# Validate existence of the item.
-	self.deleted[make_key(item[0], item[1])] = 1
+	self.Get(group, cmpnt)	# Verify item existence.
+	if not self.deleted.has_key(group):
+	    self.deleted[group] = {}
+	self.deleted[group][cmpnt] = 1
 
 
     def items(self):
-	"""Return a list of ("group--component", value) tuples."""
-	got = []
-	did = {}
-	for k, v in self.established.items() + self.new.items():
-	    if not (did.has_key(k) or self.deleted.has_key(k)):
-		got.append((k, v),)
-	return got
+	"""Return a list of ((group, cmpnt), value) tuples."""
+	got = {}
+	deleted = self.deleted
+	# Consolidate established and changed, with changed having precedence:
+	for g, comps in self.saved.items() + self.mods.items():
+	    for c, v in comps.items():
+		if not (deleted.has_key(g) and deleted[g].has_key(c)):
+		    got[(g,c)] = v
+	return got.items()
 
     def Tampered(self):
 	"""Has the file been externally modified?"""
@@ -121,14 +106,19 @@ class Preferences:
 	except os.error: pass		# No file to backup.
 
 	fp = open(self.filename, 'w')
-	for k, v in self.items():
-	    fp.write(k + ': ' + v + '\n')
+	for (g, c), v in self.items():
+	    fp.write(make_key(g, c) + ': ' + v + '\n')
 	fp.close()
-	# Pour new items into established, now that they're saved:
-	for k, v in self.new.items():
-	    self.established[k] = v
-	# ... and reinit new:
-	self.new = {}
+	# Register that modifications are now saved:
+	deleted = self.deleted
+	for g, comps in self.mods.items():
+	    for c, v in comps.items():
+		if not (deleted.has_key(g) and deleted[g].has_key(c)):
+		    if not self.saved.has_key(g):
+			self.saved[g] = {}
+		    self.saved[g][c] = v
+	# ... and reinit mods and deleted records:
+	self.mods = {}
 	self.deleted = {}
 
 class AllPreferences:
@@ -161,48 +151,48 @@ class AllPreferences:
 
     # Getting:
 
-    def Get(self, group, component, factory=0):
+    def Get(self, group, cmpnt, factory=0):
 	"""Get pref GROUP, COMPONENT, trying the user then the sys prefs.
 
 	Optional FACTORY true means get system default ("factory") value.
 
 	Raise KeyError if not found."""
 	if factory:
-	    return self.sys.Get(group, component)
+	    return self.sys.Get(group, cmpnt)
 	else:
 	    try:
-		return self.user.Get(group, component)
+		return self.user.Get(group, cmpnt)
 	    except KeyError:
-		return self.sys.Get(group, component)
+		return self.sys.Get(group, cmpnt)
 
-    def GetTyped(self, group, component, type_name, factory=0):
+    def GetTyped(self, group, cmpnt, type_name, factory=0):
 	"""Get preference, using CONVERTER to convert to type NAME.
 
 	Optional SYS true means get system default value.
 
 	Raise KeyError if not found, TypeError if value is wrong type."""
-	val = self.Get(group, component, factory)
+	val = self.Get(group, cmpnt, factory)
 	try:
 	    return typify(val, type_name)
 	except TypeError:
 	    raise TypeError, ('%s should be %s: %s'
-			       % (str((group, component)), type_name, `val`))
+			       % (str((group, cmpnt)), type_name, `val`))
 
-    def GetInt(self, group, component, factory=0):
-	return self.GetTyped(group, component, "int", factory)
-    def GetFloat(self, group, component, factory=0):
-	return self.GetTyped(group, component, "float", factory)
-    def GetBoolean(self, group, component, factory=0):
-	return self.GetTyped(group, component, "Boolean", factory)
+    def GetInt(self, group, cmpnt, factory=0):
+	return self.GetTyped(group, cmpnt, "int", factory)
+    def GetFloat(self, group, cmpnt, factory=0):
+	return self.GetTyped(group, cmpnt, "float", factory)
+    def GetBoolean(self, group, cmpnt, factory=0):
+	return self.GetTyped(group, cmpnt, "Boolean", factory)
 
     def GetGroup(self, group):
-	"""Get a list of ((group,component), value) tuples in group."""
+	"""Get a list of ((group,cmpnt), value) tuples in group."""
 	got = []
 	prefix = string.lower(group) + '--'
 	l = len(prefix)
 	for it in self.items():
-	    if prefix == it[0][:l]:
-		got.append((split_key(it[0]), it[1]))
+	    if it[0][0] == group:
+		got.append(it)
 	return got
 
     def items(self):
@@ -215,10 +205,10 @@ class AllPreferences:
 
     # Editing:
 
-    def Set(self, group, component, val):
-	"""Assign GROUP PREFERENCE with VALUE."""
-	if self.Get(group, component) != val:
-	    self.user.Set(group, component, val)
+    def Set(self, group, cmpnt, val):
+	"""Assign GROUP,COMPONENT with VALUE."""
+	if self.Get(group, cmpnt) != val:
+	    self.user.Set(group, cmpnt, val)
 
     def Editable(self):
 	"""Identify or establish user's prefs file, or IO error."""
@@ -230,40 +220,33 @@ class AllPreferences:
 
     def Save(self):
 	"""Save (only) values different than sys defaults in the users file."""
+	# XxX Callbacks are done before actual save.
 	if not self.user.Editable():
 	    raise IOError, 'Unable to get user prefs ' + self.user.filename
 	# Process the callbacks:
 	did_groups = {}
-	for prefkey, val in self.user.new.items():
-	    [group, component] = split_key(prefkey)
+	callbacks = self.callbacks
+	for group in self.user.mods.keys():
 	    if not did_groups.has_key(group):
 		did_groups[group] = 1
 		if self.callbacks.has_key(group):
-		    for callback in self.callbacks[group]:
+		    for callback in callbacks[group]:
 			apply(callback, ())
-	for prefkey, val in self.user.items():
-	    # Cull user preferences with same value as system default:
-	    k = split_key(prefkey)
-	    if len(k) == 1:
-		# Aberrant entries (probly comments) are not retained.
+	for (g, c), v in self.user.items():
+	    # Discard items that duplicate settings in sys defaults:
+	    # XxX avoid repeated try/except setup by implementing prefs.has_key
+	    try:
+		if self.sys.Get(g, c) == v:
+		    del self.user[(g, c)]
+	    except KeyError:
+		# User's file pref absent from system defaults file - ok.
 		continue
-	    else:
-		# Discard items that duplicate settings in sys defaults:
-		try:
-		    if self.sys.Get(k[0], k[1]) == val:
-			del self.user[(k[0], k[1])]
-		except KeyError:
-		    # User's file pref absent from system defaults file - ok.
-		    continue
 	self.user.Save()
 
 
-def make_key(group, component):
+def make_key(group, cmpnt):
     """Produce a key from preference GROUP, COMPONENT strings."""
-    return string.lower(group + '--' + component)
-def split_key(key):
-    """Produce a key from preference GROUP, COMPONENT strings."""
-    return string.split(key, '--')
+    return string.lower(group + '--' + cmpnt)
 		    
 
 def typify(val, type_name):
@@ -290,7 +273,10 @@ def typify(val, type_name):
     
 
 def test():
-    """Exercise preferences mechanisms."""
+    """Exercise preferences mechanisms.
+
+    Note that this test alters and then restores a setting in the user's
+    prefs  file."""
     sys.path.insert(0, "../utils")
     from testing import exercise
     
@@ -321,17 +307,18 @@ def test():
     exercise("if prefs.GetInt('browser', 'default-height') != origheight + 1:"
 	     + "raise SystemError, 'Set of new height failed'", env,
 	     "Get the new value.")
+    prefs.Save()
 
     exercise("prefs.Set('browser', 'default-height', origheight)", env,
-	     "Set a simple value")
+	     "Restore simple value")
 
     # Saving - should just rewrite existing user prefs file, sans comments
     # and any lines duplicating system prefs.
     exercise("prefs.Save()", env, "Save as it was originally.")
     
 
-    return prefs
     print "GrailPrefs tests passed."
+    return prefs
 
 if __name__ == "__main__":
 
