@@ -463,6 +463,29 @@ class PSStream:
 	finally:
 	    sys.stdout = oldstdout
 
+    def push_font_string(self, s, font):
+	if not font:
+	    self.push_string(char)
+	    return
+	if self._linestr:
+	    self.close_string()
+	if not self._font.fontobjs.has_key(font):
+	    self._font.fontobjs[font] = fonts.font_from_name(font)
+	fontobj = self._font.fontobjs[font]
+	size = self._font.font_size()
+	width = fontobj.text_width(size, s)
+	if self._xpos + width > PAGE_WIDTH - self._margin:
+	    self.close_line()
+	if self._baseline is None:
+	    self._baseline = size
+	else:
+	    self._baseline = max(self._baseline, size)
+	self._linefp.write('gsave /%s findfont %d scalefont setfont '
+			   % (font, size))
+	self._linefp.write('(%s) show grestore %d 0 R\n'
+			   % (regsub.gsub(QUOTE_re, '\\\\\\1', s), width))
+	self._xpos = self._xpos + width
+
     def push_alignment(self, align):
 	if align == 'right':
 	    self._align = ALIGN_RIGHT
@@ -578,11 +601,14 @@ class PSStream:
 	    self._linefp.write('gsave CR -%f 0 R (%s) S grestore\n' %
 			       (distance, cooked))
 	elif type(bullet) is TupleType:
+	    #  Font-based dingbats:
 	    string, font = bullet
 	    cooked = regsub.gsub(QUOTE_re, '\\\\\\1', string)
-	    self._linefp.write('gsave CR (%s) dup\n')
+	    self._linefp.write('gsave CR (%s) dup\n' % cooked)
 	    self._linefp.write('/%s findfont %d scalefont setfont\n'
 			       % (font, self._font.font_size()))
+	    self._linefp.write('stringwidth pop -%f exch sub 0 R S grestore\n'
+			       % LABEL_TAB)
 	else:
 	    #  This had better be an EPSImage object!
 	    max_width = TAB_STOP - LABEL_TAB
@@ -865,11 +891,11 @@ class PSWriter(AbstractWriter):
     def new_spacing(self, spacing): raise RuntimeError
 
 	# semantics of STYLES is a tuple of single char strings.
-	# Right now the only styles we support are lower case 'u' for
+	# Right now the only styles we support are lower case 'underline' for
 	# underline.
     def new_styles(self, styles):
 ##	_debug('new_styles: %s' % styles)
-	self.ps.push_underline('u' in styles)
+	self.ps.push_underline('underline' in styles)
 
     def send_paragraph(self, blankline):
 ##	_debug('send_paragraph: %s' % blankline)
@@ -955,9 +981,20 @@ class PrintingHTMLParser(HTMLParser):
     anchor text in the main document.
     """
     iconpath = []
+    _inited = 0
 
     def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
 		 greyscale=1, underline_anchors=1):
+	if not self._inited:
+	    for k, v in self.fontdingbats.items():
+		self.dingbats[(k, 'grey')] = v
+		self.dingbats[(k, 'color')] = v
+	    from ancillary import Greek
+	    for k, v in Greek.entitydefs.items():
+		tup = (v, 'Symbol')
+		self.dingbats[(k, 'grey')] = tup
+		self.dingbats[(k, 'color')] = tup
+	    PrintingHTMLParser._inited = 1
 	from formatter import AbstractFormatter
 	HTMLParser.__init__(self, AbstractFormatter(writer), verbose)
 	self._baseurl = baseurl
@@ -1032,7 +1069,7 @@ class PrintingHTMLParser(HTMLParser):
 	self.anchor = href
 	if href:
 	    if self._underline_anchors:
-		self.formatter.push_style('u')
+		self.formatter.push_style('underline')
 		self._inanchor = 1
 	    if not self._anchors.has_key(href):
 		href = self.anchor = self._footnote_anchor(href, attrs)
@@ -1130,7 +1167,10 @@ class PrintingHTMLParser(HTMLParser):
 
     def unknown_entityref(self, entname, terminator):
 	dingbat = self.load_dingbat(entname)
-	if dingbat:
+	if type(dingbat) is TupleType:
+	    apply(self.formatter.writer.ps.push_font_string, dingbat)
+	    self.formatter.assert_line_data()
+	elif dingbat:
 	    dingbat.set_size(self.formatter.writer.ps._font.font_size(),
 			     PAGE_WIDTH)
 	    self.formatter.writer.send_eps_data(dingbat, 'absmiddle')
@@ -1139,7 +1179,16 @@ class PrintingHTMLParser(HTMLParser):
 	    HTMLParser.unknown_entityref(self, entname, terminator)
 
 
-    dingbats = {}			# (name, cog) ==> EPSImage | None
+    dingbats = {}			# (name, cog) ==> EPSImage
+					#		  | (string, font)
+					#		  | None
+
+    fontdingbats = { 'disc': ('\x6c', 'ZapfDingbats'),
+		     'circle': ('\x6d', 'ZapfDingbats'),
+		     'square': ('\x6f', 'ZapfDingbats'),
+		     'sp': (' ', None),
+		     'thinsp': ('\240', None)
+		    }
 
     def load_dingbat(self, entname):
 	"""Load the appropriate EPSImage object for an entity.
@@ -1233,11 +1282,13 @@ class PrintingHTMLParser(HTMLParser):
 		    os.unlink(eps_fn)
 		raise EPSError, 'Error converting image to EPS.'
 	except:
-	    os.unlink(img_fn)
+	    if os.path.exists(img_fn):
+		os.unlink(img_fn)
 	    if os.path.exists(eps_fn):
 		os.unlink(eps_fn)
 	    raise EPSError, 'Could not run conversion process.'
-	os.unlink(img_fn)
+	if os.path.exists(img_fn):
+	    os.unlink(img_fn)
 	img = load_eps(eps_fn)
 	os.unlink(eps_fn)
 	return img
