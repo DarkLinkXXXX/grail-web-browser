@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.21 $"
+__version__ = "$Revision: 1.22 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -217,10 +217,12 @@ class SGMLLexerBase:
 class SGMLLexer(SGMLLexerBase):
     entitydefs = {}
 
+    def strict_p(self):
+	return self._strict
+
     if _sgmllex:
 	def __init__(self):
 	    self.reset()
-	    self.feed = self.feed
 
 	def feed(self, data):
 	    self._l.scan(data)
@@ -229,6 +231,7 @@ class SGMLLexer(SGMLLexerBase):
 	    return self._l.normalize(norm)
 
 	def reset(self):
+	    self._strict = 0
 	    self._l = sgmllex.scanner(self.lex_data,
 				      self._lex_got_starttag,
 				      self._lex_got_endtag,
@@ -240,6 +243,7 @@ class SGMLLexer(SGMLLexerBase):
 	    self.nomoretags = 0
 
 	def restrict(self, constrain):
+	    self._strict = not constrain
 	    self._l.compat(constrain)
 	    return self._l.restrict(constrain)
 
@@ -247,6 +251,8 @@ class SGMLLexer(SGMLLexerBase):
 	    """Flush any remaining data in the lexer's internal buffer.
 	    """
 	    self._l.scan('')
+	    if self.__dict__.has_key('feed'):
+		del self.__dict__['feed']
 
 	def line(self):
 	    return self._l.line()
