@@ -336,8 +336,8 @@ class GrailHTMLParser(HTMLParser):
 
     def end_center(self):
 	self.implied_end_p()
-	self.formatter.pop_alignment()
 	self.formatter.add_line_break()
+	self.formatter.pop_alignment()
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
