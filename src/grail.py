@@ -429,7 +429,7 @@ class Application:
 	elif self.suffixes_map.has_key(string.lower(ext)):
 	    return self.suffixes_map[string.lower(ext)], encoding
 	else:
-	    return 'text/plain', encoding
+	    return None, encoding
 
     encodings_map = {
 	'.gz': 'gzip',
