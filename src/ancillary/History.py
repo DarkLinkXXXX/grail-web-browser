@@ -158,6 +158,7 @@ class HistoryDialog:
 	gotobtn.pack(side=LEFT, padx='1m', pady='1m')
 	closebtn = Button(btnbar, text='Close', command=self._close)
 	closebtn.pack(side=LEFT)
+	tktools.unify_button_widths(gotobtn, closebtn)
 	# radio button for view option
 	rbframe = Frame(btnbar)
 	rbframe.pack()
