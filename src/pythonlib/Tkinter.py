@@ -1101,6 +1101,8 @@ class Menu(Widget):
 		self.tk.call('tk_firstMenu', self._w)
 	def tk_mbButtonDown(self):
 		self.tk.call('tk_mbButtonDown', self._w)
+	def tk_popup(self, x, y, entry=""):
+		self.tk.call('tk_popup', self._w, x, y, entry)
 	def activate(self, index):
 		self.tk.call(self._w, 'activate', index)
 	def add(self, itemType, cnf={}, **kw):
