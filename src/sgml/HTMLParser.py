@@ -338,17 +338,23 @@ class HTMLParser(SGMLParser):
     #		check for specific elements.
 
     def start_lh(self, attrs):
+	margin = None
 	if self.list_stack:
 	    self.list_trim_stack()
+	    listtype = self.list_stack[-1][0]
+	    if listtype == 'dl':
+		margin = 'lh'
 	elif 'p' in self.stack:
 	    self.badhtml = 1
 	    self.lex_endtag('p')
 	self.do_br({})
 	self.formatter.push_font(('', 1, 1, 0))
+	self.formatter.push_margin(margin)
 	if not self.list_stack:
 	    self.badhtml = 1
 
     def end_lh(self):
+	self.formatter.pop_margin()
 	self.formatter.pop_font()
 	if self.list_stack:
 	    self.formatter.end_paragraph(not self.list_stack[-1][3])
@@ -515,6 +521,7 @@ class HTMLParser(SGMLParser):
     def do_dd(self, attrs):
         self.ddpop()
         self.formatter.push_margin('dd')
+	self.formatter.have_label = 1
 	compact = self.list_stack and self.list_stack[-1][3]
         self.list_stack.append(['dd', '', 0, compact, len(self.stack) + 1])
 
