@@ -43,7 +43,7 @@ import fonts
 # debugging
 DEFAULT_FONT_SIZE = 10
 RECT_DEBUG = 0
-DEBUG = 0
+DEBUG = 1
 
 def _debug(text):
     if DEBUG:
@@ -136,11 +136,11 @@ HR_BOT_MARGIN = 8.0
 HR_LINE_WIDTH = 1.0
 
 # distance after a label tag in points
-LABEL_TAB = 8.0
+LABEL_TAB = 6.0
 TAB_STOP = inch_to_pt(0.5)
 
 # page indicator yposition
-HEADER_POS = inch_to_pt(0.5)
+HEADER_POS = inch_to_pt(0.25)
 FOOTER_POS = -PAGE_HEIGHT - inch_to_pt(0.5)
 
 # I don't support color yet
@@ -288,7 +288,7 @@ class PSStream:
 	# current line state
 	self._space_width = 0.0
 	self._linestr = []
-	self._baseline = 0.0
+	self._baseline = None
 	self._descender = 0.0
 	self._xpos = 0.0
 	self._ypos = 0.0
@@ -346,10 +346,13 @@ class PSStream:
     def push_font_change(self, font):
 	if self._linestr:
 	    self.close_string()
-	self._baseline = max(self._baseline, self._font.font_size())
 	psfontname, size = self._font.set_font(font)
 	self._space_width = self._font.text_width(' ')
 	self._linefp.write('%s %d SF\n' % (psfontname, size))
+	if self._baseline is None:
+	    self._baseline = self._font.font_size()
+	else:
+	    self._baseline = max(self._baseline, self._font.font_size())
 
     def push_space(self, spaces=1):
 	# spaces at the beginning of a line are thrown away, unless we
@@ -542,12 +545,15 @@ class PSStream:
     def close_line(self, linestr=None):
 	if linestr is None:
 	    linestr = self._linestr
+	if self._baseline is None:
+	    self._baseline = self._font.font_size()
 ##	print 'ypos=', self._ypos, 'vtab=', self._vtab, 'linestr:', linestr
 	if linestr:
 	    self.close_string(linestr)
 	# do we need to break the page?
 	self.print_page_break()
-	self._ofp.write('CR 0 %f R\n' % -(self._baseline + self._vtab))
+	distance = -self._baseline - self._vtab
+	self._ofp.write('CR 0 %f R\n' % distance)
 	self._ofp.write(self._linefp.getvalue())
 	if self._descender > 0:
 	    self._ofp.write('0 %f R\n' % -self._descender)
@@ -556,7 +562,7 @@ class PSStream:
 	self._linefp = StringIO.StringIO()
 	self._xpos = 0.0
 	self._vtab = 0.0
-	self._baseline = self._font.font_size()
+	self._baseline = None
 
     def close_string(self, linestr=None):
 	if linestr is None:
@@ -653,17 +659,25 @@ class PrintingHTMLParser(HTMLParser):
 
     """Class to override HTMLParser's default methods for anchors."""
 
+    def __init__(self, formatter, verbose=0, baseurl=None):
+	HTMLParser.__init__(self, formatter, verbose)
+	self._baseurl = baseurl
+
     def close(self):
+	from urlparse import urljoin
+	baseurl = self.base or self._baseurl or ''
 	self.formatter.add_hor_rule()
 	self.formatter.add_flowing_data('URLs referenced in this document:')
 	self.formatter.end_paragraph(1)
 	self.formatter.push_margin(1)
 	self.formatter.push_font((8, None, None, None))
 	acnt = len(self.anchorlist)
-	format = '[%%%dd] ' % (acnt >= 100 and 3 or acnt >= 10 and 2 or 1)
 	count = 1
 	for anchor in self.anchorlist:
-	    self.formatter.add_literal_data((format % count) + anchor + '\n')
+	    anchor = urljoin(baseurl, anchor)
+	    self.formatter.add_label_data(('[%d]' % count), -1)
+	    self.formatter.add_literal_data(anchor)
+	    self.formatter.end_paragraph(1)
 	    count = count + 1
 	self.formatter.pop_margin()
 	HTMLParser.close(self)
@@ -731,10 +745,7 @@ def main():
     # create the parsers
     w = PSWriter(outfp, title or None, url or infile or '')
     f = AbstractFormatter(w)
-    # We don't want to be dependent on Grail, but we do want to use it
-    # if it's around.  Only current differences with the PrintDialog
-    # parser are that links are underlined and appended as footnotes.
-    p = PrintingHTMLParser(f)
+    p = PrintingHTMLParser(f, baseurl=url)
     p.feed(infp.read())
     p.close()
     w.close()
