@@ -66,17 +66,17 @@ class AbstractFormatter:
 	self.para_end = self.hard_break = 0
 
     def format_counter(self, format, counter):
-	if counter <= 0:
-	    return format
         label = ''
         for c in format:
             try:
                 if c == '1':
 		    c = '%d' % counter
                 elif c in 'aA':
-		    c = self.format_letter(c, counter)
+		    if counter > 0:
+			c = self.format_letter(c, counter)
                 elif c in 'iI':
-		    c = self.format_roman(c, counter)
+		    if counter > 0:
+			c = self.format_roman(c, counter)
             except:
                 pass
             label = label + c
