@@ -1,7 +1,5 @@
 """Assorted Tk-related subroutines used in Grail."""
 
-# XXX test comment
-
 
 import string
 from types import *
@@ -17,17 +15,17 @@ def install_keybindings():
     app.root.bind_class('Entry', '<Control-u>', _clear_entry_widget)
 
 
-def make_text_box(parent, width=0, height=0, hbar=0, vbar=1):
+def make_scrollbars(parent, hbar, vbar):
 
-    """Subroutine to create a text box.
+    """Subroutine to create a frame with scrollbars.
 
-    Create:
-    - a both-ways filling and expanding frame, containing:
-      - a text widget on the left, and
-      - possibly a vertical scroll bar on the right.
-      - possibly a horizonta; scroll bar at the bottom.
+    This is used by make_text_box and similar routines.
 
-    Return the text widget and the frame widget.
+    Note: the caller is responsible for setting the x/y scroll command
+    properties (e.g. by calling set_scroll_commands()).
+
+    Return a triple containing the hbar, the vbar, and the frame,
+    where hbar and vbar are None if not requested.
 
     """
 
@@ -46,28 +44,63 @@ def make_text_box(parent, width=0, height=0, hbar=0, vbar=1):
 	    sbwidth = vbar.winfo_reqwidth()
 	    corner = Frame(vbarframe, width=sbwidth, height=sbwidth)
 	    corner.pack(side=BOTTOM)
+    else:
+	vbar = None
 
     if hbar:
 	hbar = Scrollbar(frame, orient=HORIZONTAL)
 	hbar.pack(fill=X, side=BOTTOM)
+    else:
+	hbar = None
 
-    text = Text(frame, wrap=WORD)
-    if width: text.config(width=width)
-    if height: text.config(height=height)
-    text.pack(expand=1, fill=BOTH, side=LEFT)
+    return hbar, vbar, frame
+
+
+def set_scroll_commands(widget, hbar, vbar):
+
+    """Link a scrollable widget to its scroll bars.
+
+    The scroll bars may be empty.
+
+    """
 
     if vbar:
-	text['yscrollcommand'] = (vbar, 'set')
-	vbar['command'] = (text, 'yview')
+	widget['yscrollcommand'] = (vbar, 'set')
+	vbar['command'] = (widget, 'yview')
 
     if hbar:
-	text['xscrollcommand'] = (hbar, 'set')
-	hbar['command'] = (text, 'xview')
+	widget['xscrollcommand'] = (hbar, 'set')
+	hbar['command'] = (widget, 'xview')
 
-    text.vbar = vbar
-    text.hbar = hbar
+    widget.vbar = vbar
+    widget.hbar = hbar
 
-    return text, frame
+
+def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
+		  fill=BOTH, expand=1, wrap=WORD):
+
+    """Subroutine to create a text box.
+
+    Create:
+    - a both-ways filling and expanding frame, containing:
+      - a text widget on the left, and
+      - possibly a vertical scroll bar on the right.
+      - possibly a horizonta; scroll bar at the bottom.
+
+    Return the text widget and the frame widget.
+
+    """
+
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar)
+
+    widget = Text(frame, wrap=wrap)
+    if width: widget.config(width=width)
+    if height: widget.config(height=height)
+    widget.pack(expand=expand, fill=fill, side=LEFT)
+
+    set_scroll_commands(widget, hbar, vbar)
+
+    return widget, frame
 
 
 def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
@@ -79,31 +112,38 @@ def make_list_box(parent, width=0, height=0, hbar=0, vbar=1,
 
     """
 
-    frame = Frame(parent)
-    frame.pack(fill=BOTH, expand=1)
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar)
 
-    if vbar:
-	vbar = Scrollbar(frame)
-	vbar.pack(fill=Y, side=RIGHT)
+    widget = Listbox(frame)
+    if width: widget.config(width=width)
+    if height: widget.config(height=height)
+    widget.pack(expand=expand, fill=fill, side=LEFT)
 
-    if hbar:
-	hbar = Scrollbar(frame, orient=HORIZONTAL)
-	hbar.pack(fill=X, side=BOTTOM)
+    set_scroll_commands(widget, hbar, vbar)
 
-    listbox = Listbox(frame)
-    if width: listbox.config(width=width)
-    if height: listbox.config(height=height)
-    listbox.pack(expand=expand, fill=fill, side=LEFT)
+    return widget, frame
 
-    if vbar:
-	listbox['yscrollcommand'] = (vbar, 'set')
-	vbar['command'] = (listbox, 'yview')
 
-    if hbar:
-	listbox['xscrollcommand'] = (hbar, 'set')
-	hbar['command'] = (listbox, 'xview')
+def make_canvas(parent, width=0, height=0, hbar=1, vbar=1,
+		  fill=BOTH, expand=1):
 
-    return listbox, frame
+    """Subroutine to create a canvas.
+
+    Like make_text_box().
+
+    """
+
+    hbar, vbar, frame = make_scrollbars(parent, hbar, vbar)
+
+    widget = Canvas(frame, scrollregion=(0, 0, width, height))
+    if width: widget.config(width=width)
+    if height: widget.config(height=height)
+    widget.pack(expand=expand, fill=fill, side=LEFT)
+
+    set_scroll_commands(widget, hbar, vbar)
+
+    return widget, frame
+
 
 
 def make_form_entry(parent, label):
