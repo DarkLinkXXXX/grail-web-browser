@@ -46,7 +46,7 @@ browser--default-height:	40
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.8 $"
+__version__ = "$Revision: 2.9 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -66,8 +66,11 @@ class Preferences:
     """Get and set fields in a customization-values file."""
 
     # We maintain an rfc822 snapshot of the file, which we read only once,
-    # a dict for new values, and a dict to track deletions (so user default
-    # values duplicating system defaults can be excluded from save.
+    # and dicts for:
+    #  - new values not yet saved
+    #  - new values saved, but not in read-in db (since it's read only once)
+    #  - and values deleted, so user default values duplicating system
+    #    defaults can be excluded from save.
 
     def __init__(self, filename, readonly=0):
 	"""Initiate from FILENAME with MODE (default 'r' read-only)."""
@@ -76,8 +79,10 @@ class Preferences:
 	    f = open(filename)
 	except IOError:
 	    f = None
-	self._new = {}
-	self._deleted = {}
+	self._db = None			# Settings read in from file.
+	self._new = {}			# Settings not read in, not yet saved.
+	self._established = {}		# Settings not read, but saved to file.
+	self._deleted = {}		# Settings overridden, not yet saved.
 	if f:
 	    self._last_mtime = os.stat(filename)[9]
 	    self._db = rfc822.Message(f)
@@ -97,6 +102,8 @@ class Preferences:
 	key = make_key(group, prefnm)
 	if self._new.has_key(key):
 	    return self._new[key]
+	elif self._established.has_key(key):
+	    return self._established[key]
 	else:
 	    try:
 		if not self._db:
@@ -111,6 +118,9 @@ class Preferences:
 	self._modified = 1
 	k = make_key(group, prefnm)
 	self._new[k] = str(val)
+	if self._established.has_key(k):
+	    # Override established val, ensure save doesn't save both:
+	    del self._established[k]
 	if self._deleted.has_key(k):
 	    # Undelete.
 	    del self._deleted[k]
@@ -125,15 +135,20 @@ class Preferences:
 	"""Return a list of ("group--prefnm", value) tuples."""
 	got = []
 	did = {}
+	# Process portion of db read from file:
 	for k, v in self._db.items():
 	    if self._deleted.has_key(k):
 		continue
 	    elif self._new.has_key(k):
 		got.append((k, self._new[k]),)
 		did[k] = 1
+	    elif self._established.has_key(k):
+		got.append((k, self._established[k]),)
+		did[k] = 1
 	    else:
 		got.append((k, v,),)
-	for k, v in self._new.items():
+	# Process stuff added since file was read:
+	for k, v in self._established.items() + self._new.items():
 	    if not (did.has_key(k) or self._deleted.has_key(k)):
 		got.append((k, v),)
 	return got
@@ -156,8 +171,6 @@ class Preferences:
 	    except os.error:
 		return 0
 
-    def NeedsSave(self): return self._modified and 1
-
     def Save(self):
 	"""Write the preferences out to file, if possible."""
 	try: os.rename(self._filename, self._filename + '.bak')
@@ -167,7 +180,11 @@ class Preferences:
 	for k, v in self.items():
 	    fp.write(k + ': ' + v + '\n')
 	fp.close()
-	self._modified = 0
+	# Pour new items into established, now that they're saved:
+	for k, v in self._new.items():
+	    self._established[k] = v
+	# ... and reinit new:
+	self._new = {}
 	self._deleted = {}
 
 class AllPreferences:
@@ -179,6 +196,15 @@ class AllPreferences:
 	self._sys = Preferences(os.path.join(grail_root,
 					     SYSPREFSFILENAME),
 				1)
+	self._callbacks = {}
+
+    def AddGroupCallback(self, group, callback):
+	"""Register FUNC to invok when saving changed prefs in GROUP."""
+	if self._callbacks.has_key(group):
+	    if callback not in self._callbacks[group]:
+		self._callbacks[group].append(callback)
+	else:
+	    self._callbacks[group] = [callback]
 
     # Getting:
 
@@ -227,7 +253,8 @@ class AllPreferences:
 
     def Set(self, group, prefnm, val):
 	"""Assign GROUP PREFERENCE with VALUE."""
-	self._user.Set(group, prefnm, val)
+	if self.Get(group, prefnm) != val:
+	    self._user.Set(group, prefnm, val)
 
     def Editable(self):
 	"""Identify or establish user's prefs file, or IO error."""
@@ -237,12 +264,19 @@ class AllPreferences:
 	"""True if user prefs file modified since we read them."""
 	return self._user.Tampered()
 
-    def NeedsSave(self): return self._user.NeedsSave()
-
     def Save(self):
 	"""Save (only) values different than sys defaults in the users file."""
 	if not self._user.Editable():
 	    raise IOError, 'Unable to get user prefs ' + self._user._filename
+	# Process the callbacks:
+	did_groups = {}
+	for prefkey, val in self._user._new.items():
+	    [group, prefnm] = split_key(prefkey)
+	    if not did_groups.has_key(group):
+		did_groups[group] = 1
+		if self._callbacks.has_key(group):
+		    for callback in self._callbacks[group]:
+			apply(callback, ())
 	for prefkey, val in self._user.items():
 	    # Cull user preferences with same value as system default:
 	    k = split_key(prefkey)
@@ -251,13 +285,15 @@ class AllPreferences:
 		# they make them look like distinct group--prefnm values.
 		continue
 	    else:
+		# Discard items that duplicate settings in sys defaults:
 		try:
 		    if self._sys.Get(k[0], k[1]) == val:
 			del self._user[(k[0], k[1])]
 		except KeyError:
-		    # User file absent in system defaults - tolerate it.
+		    # User's file pref absent from system defaults file - ok.
 		    continue
 	self._user.Save()
+
 
 def make_key(group, prefnm):
     """Produce a key from preference GROUP and NAME strings."""
