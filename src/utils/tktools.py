@@ -137,7 +137,7 @@ def set_scroll_commands(widget, hbar, vbar):
 
 
 def make_text_box(parent, width=0, height=0, hbar=0, vbar=1,
-		  fill=BOTH, expand=1, wrap=WORD, pack=1,
+		  fill=BOTH, expand=1, wrap=WORD, pack=1, font=None,
 		  class_=None, name=None, takefocus=None):
 
     """Subroutine to create a text box.
