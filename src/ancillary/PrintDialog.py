@@ -240,6 +240,8 @@ class PrintDialog:
 				   underline_anchors = self.underchecked.get())
 	    if not self.footnotechecked.get():
 		p.add_anchor_transform(disallow_anchor_footnotes)
+	    from GrailHTMLParser import GrailHTMLParser
+	    p.iconpath = GrailHTMLParser.iconpath
 	elif self.ctype == 'text/plain':
 	    from Reader import TextParser
 	    p = TextParser(w)
