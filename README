@@ -1,4 +1,4 @@
-GRAIL 0.4
+GRAIL 0.5
 =========
 
 Grail(TM) is a web browser written in Python, an object-oriented
@@ -43,17 +43,16 @@ There are three steps to take before you can use Grail:
 
 - Install Tcl and Tk.  The versions must be compatible with each other
 and with the Python version you are installing in the next step;
-currently, the oldest Tcl/Tk versions supported are 7.6/4.2.  You can
+currently, the oldest Tcl/Tk version supported 8.0.  You can get
 Tcl/Tk it at http://sunscript.sun.com/; or try ftp to ftp.sunlabs.com
 in directory /pub/tcl/.  See also the new commercial Tcl/Tk site,
 http://www.scriptics.com/.
 
 - Install Python 1.5 (or newer of available), configured for use with
-Tk.  (Use Grail with Python 1.4 at your own risk; earlier Python
-versions don't work).  The URL to get Python is http://www.python.org;
-or try ftp to ftp.python.org in directory /pub/python/src/.  You must
-enable Tk support by editing the file Modules/Setup; see the comments
-in that file (search for "tkinter").
+Tk.  The URL to get Python is http://www.python.org; or try ftp to
+ftp.python.org in directory /pub/python/src/.  You must enable Tk
+support by editing the file Modules/Setup; see the comments in that
+file (search for "tkinter").
 
 - Install the Grail sources in a convenient place.  Grail is executed
 directly from its source directory.  If you are using the /usr/local
@@ -91,6 +90,9 @@ This option can also be set via the General preference panel.
 
 The "-d <display>" option lets you override the $DISPLAY environment
 variable.
+
+Advanced users with a grailrc.py file can use "-q" to inhibit
+processing of grailrc.py.  This may be useful during debugging.
 
 Command line arguments:
 
