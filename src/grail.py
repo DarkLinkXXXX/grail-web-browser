@@ -84,7 +84,7 @@ def main():
     global app
     app = Application(prefs=prefs)
 
-    def load_images_vis_prefs(app=app): 
+    def load_images_vis_prefs(app=app):
 	app.load_images = app.prefs.GetBoolean('browser', 'load-images')
     try:
 	app.load_images = load_images
@@ -221,24 +221,27 @@ class Application:
 	self.browsers = []
 	self.iostatuspanel = None
 	self.in_exception_dialog = None
+	dingbat_font = self.prefs.Get('fonts', 'dingbats')
+	symbol_font = self.prefs.Get('fonts', 'symbols')
 	import Viewer
-	try:
-	    dummy = Label(text = 'dummy', font = Viewer.DINGBAT_FONT)
-	except TclError:
-	    Viewer.DINGBAT_FONT = None
-	else:
-	    dummy.destroy()
+	if self._check_font(dingbat_font):
+	    Viewer.DINGBAT_FONT = dingbat_font
 	    Application.dingbatimages = Application.fontdingbats
-	try:
-	    dummy = Label(text = 'dummy', font = Viewer.SYMBOL_FONT)
-	except TclError:
-	    Viewer.SYMBOL_FONT = None
-	else:
-	    dummy.destroy()
+	if self._check_font(symbol_font):
+	    Viewer.SYMBOL_FONT = symbol_font
 	    for k, v in Application.fontsymbols.items():
 		Application.dingbatimages[k] = v
 	self.root.bind_class("Text", "<Alt-Left>", self.dummy_event)
 	self.root.bind_class("Text", "<Alt-Right>", self.dummy_event)
+
+    def _check_font(self, fontName):
+	try:
+	    dummy = Label(text = 'dummy', font = fontName)
+	except TclError:
+	    return 0
+	else:
+	    dummy.destroy()
+	    return 1
 
     def dummy_event(self, event):
 	pass

@@ -19,7 +19,7 @@ browser--load-images:		1
 browser--show-logo:		1
 browser--load-initial-page:	1
 C: Empty initial geometry implies manual placement with most window managers:
-browser--initial-geometry:	
+browser--initial-geometry:
 browser--show-splash:		1
 C:
 C: Presentation defaults
@@ -38,6 +38,11 @@ C: History defaults
 C:
 C: view-by can be 'titles', 'urls'
 history--view-by: titles
+C:
+C: Special fonts:
+C:
+fonts--symbols:		-*-*-*-*-*-*-*-*-*-*-*-*-*-symbol
+fonts--dingbats:	-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats
 C:
 C: Parsing preferences:
 C:
@@ -67,7 +72,7 @@ tables--enabled: 1
 C:
 C: Applet preferences
 C:
-applet--groups: 
+applet--groups:
 C:
 C: Disk Cache preferences:
 C: (directory is relative to $GRAILDIR unless absolute)

@@ -10,8 +10,8 @@ from Cursors import *
 from types import StringType
 
 
-DINGBAT_FONT = '-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats'
-SYMBOL_FONT =  '-*-*-*-*-*-*-*-*-*-*-*-*-*-symbol'
+DINGBAT_FONT = None
+SYMBOL_FONT = None
 MIN_IMAGE_LEADER = "\240"		# Non-breaking space
 
 
