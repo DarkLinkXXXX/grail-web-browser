@@ -87,6 +87,7 @@ class Browser:
         self.create_statusbar()
         self.viewer = Viewer(self.root, browser=self,
                              width=width, height=height)
+        self.viewer.text.focus_set()
         self.context = self.viewer.context
         if self.app.prefs.GetBoolean('browser', 'show-logo'):
             self.logo_init()
