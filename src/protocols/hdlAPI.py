@@ -5,7 +5,7 @@
 """CNRI handle protocol extension.
 
 This module glues the backend CNRI handle client resolution module in
-hdllib.py to the Grail 0.2 URI protocol API.  Currently we are only
+hdllib.py to the Grail URI protocol API.  Currently we are only
 interested in URL type handles, so we can get away semantically with
 returning an HTTP-style relocation error to the browser for the
 resolved handle (if the handle resolves to a single URL), or to
@@ -14,21 +14,7 @@ resolves to multiple URLs).
 
 XXX Problems:
 
-	1. hdllib.py currently only supports the older handle
-	   protocol.  Specifically, it doesn't support dynamic
-	   downloading of the hash table, and consequently it doesn't
-	   support local handle servers.  This isn't a big deal
-	   currently because no local handle servers have been
-	   deployed, and the global system is backward compatible with
-	   the old protocol.  (We aren't even entirely sure whether
-	   the protocol has actually changed.)
-
-	2. I don't think it handles continuation packets correctly.
-	   This isn't a big deal since in this context, we're only
-	   concerned with URL type values, which are smaller than the
-	   packet size.  (This is really an issue with hdllib.py.)
-
-	3. Issuing a 302 relocate isn't the proper thing to do in the
+	   Issuing a 302 relocate isn't the proper thing to do in the
 	   long term, because it forces the user back into URL space.
 	   So, for example, the user will naturally keep the resolved
 	   URL on her bookmarks, instead of the original handle.
@@ -38,7 +24,7 @@ XXX Problems:
 	   experimenting with solutions in the future.  This should be
 	   good enough for now.
 
-	4. Handle resolution is done synchronous, thereby defeating
+	   Handle resolution is done synchronously, thereby defeating
 	   the intended asynchronous API.  This should be fixed by
 	   adding an asynchronous interface to hdllib.py.
 
@@ -162,5 +148,5 @@ class hdl_access(nullAPI.null_access):
 
 
 # Here are some handles to try out the multiple-URL reponse:
-# hdl://nonreg.guido/python-home-page
-# hdl://nonreg.guido/python-ftp-dir
+# hdl:nonreg.guido/python-home-page
+# hdl:nonreg.guido/python-ftp-dir
