@@ -12,7 +12,6 @@ import urlparse
 from Tkinter import *
 import tktools
 from BaseReader import BaseReader
-import regsub
 import copy
 import regex
 import time
