@@ -29,8 +29,8 @@ class MailDialog:
 
     def __init__(self, master, address):
 	self.master = master
-	self.root = Toplevel(self.master)
-	self.root.title("Mail Dialog")
+	self.root = tktools.make_toplevel(self.master,
+					  title="Mail Dialog")
 	self.text, self.frame = tktools.make_text_box(self.root, 80, 24)
 	self.botframe = Frame(self.root)
 	self.botframe.pack(fill=X)
