@@ -16,15 +16,19 @@ import os
 import sys
 
 # Path munging
-script_name = sys.argv[0]
-while 1:
-    script_dir = os.path.dirname(script_name)
-    if not os.path.islink(script_name):
-	break
-    script_name = os.path.join(script_dir, os.readlink(script_name))
-script_dir = os.path.join(os.getcwd(), script_dir)
-script_dir = os.path.normpath(script_dir)
-grail_root = script_dir
+if __name__ == '__main__':
+    script_name = sys.argv[0]
+    while 1:
+	script_dir = os.path.dirname(script_name)
+	if not os.path.islink(script_name):
+	    break
+	script_name = os.path.join(script_dir, os.readlink(script_name))
+    script_dir = os.path.join(os.getcwd(), script_dir)
+    script_dir = os.path.normpath(script_dir)
+    grail_root = script_dir
+else:
+    script_dir = os.path.dirname(__file__)
+    grail_root = script_dir
 for path in 'utils', 'pythonlib', 'ancillary', 'applets', \
     'sgml_lex', script_dir:
     sys.path.insert(0, os.path.join(grail_root, path))
@@ -103,6 +107,10 @@ def main():
 	url = None
     global app
     app = Application(prefs=prefs, display=display)
+    if __name__ != '__main__':
+	import __main__
+	__main__.app = app
+	__main__.GRAILVERSION = GRAILVERSION
 
     def load_images_vis_prefs(app=app):
 	app.load_images = app.prefs.GetBoolean('browser', 'load-images')
