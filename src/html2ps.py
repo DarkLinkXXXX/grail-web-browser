@@ -135,6 +135,9 @@ PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 HR_TOP_MARGIN = 4.0
 HR_BOT_MARGIN = 4.0
 
+# paragraph rendering
+PARAGRAPH_SEPARATION = 1.0 * DEFAULT_FONT_SIZE
+
 # distance after a label tag in points
 LABEL_TAB = 6.0
 TAB_STOP = inch_to_pt(0.5)
@@ -541,6 +544,9 @@ class PSStream:
     def push_font_change(self, font):
 	if self._linestr:
 	    self.close_string()
+	if self._baseline is None and self._xpos != 0.0:
+	    self._baseline = self._font.font_size() \
+			     + max(0.0, self._yshift[-1][0])
 	psfontname, size = self._font.set_font(font)
 	self._space_width = self._font.text_width(' ')
 	self._linefp.write('%s %d SF\n' % (psfontname, size))
@@ -592,6 +598,10 @@ class PSStream:
 	self._margin = distance
 	self._ofp.write('/indentmargin %f D\n' % distance)
 	self._ofp.write('CR\n')
+
+    def push_paragraph(self, blankline):
+	if blankline and self._ypos:
+	    self._vtab = self._vtab + PARAGRAPH_SEPARATION
 
     def push_label(self, bullet):
 	if self._linestr:
@@ -800,11 +810,13 @@ class PSStream:
 	if baseline is None:
 	    baseline = self._font.font_size() + max(yshift, 0.0)
 	    self._baseline = baseline
+	if not self._linefp.getvalue():
+	    if self._ypos:
+		self._vtab = self._vtab + baseline
+	    return
 	# do we need to break the page?
 	self.print_page_break()
 	distance = baseline + self._vtab
-	#if self._lineshift != yshift:
-	#    distance =  distance + self._lineshift #- yshift
 	self._ofp.write('CR 0 -%f R\n' % distance)
 	self._ofp.write(self._linefp.getvalue())
 	if self._descender > 0:
@@ -894,8 +906,7 @@ class PSWriter(AbstractWriter):
 
     def send_paragraph(self, blankline):
 ##	_debug('send_paragraph: %s' % blankline)
-	if blankline:
-	    self.ps.push_hard_newline()
+	self.ps.push_paragraph(blankline)
 
     def send_line_break(self):
 ##	_debug('send_line_break')
@@ -1035,6 +1046,7 @@ class PrintingHTMLParser(HTMLParser):
     def _formatAnchorList(self):
 	baseurl = self.base or self._baseurl or ''
 	self.close_paragraph()
+	self.formatter.end_paragraph(1)
 	self.do_hr({})
 	self.start_p({'align':'left'})
 	self.formatter.add_flowing_data('URLs referenced in this document:')
