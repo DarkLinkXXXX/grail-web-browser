@@ -5,7 +5,6 @@ from Outliner import OutlinerNode, OutlinerViewer, OutlinerController
 import tktools
 import formatter
 import htmllib
-import os
 import string
 import sys
 import time
@@ -48,13 +47,13 @@ BookmarkFormatError = 'BookmarkFormatError'
 PoppedRootError = 'PoppedRootError'
 
 def username():
-    try: name = os.environ['NAME']
+    try: name = os.environ['NAME'] + "'s"
     except KeyError:
 	try:
 	    import pwd
-	    name = pwd.getpwuid(os.getuid())[4]
+	    name = pwd.getpwuid(os.getuid())[4] + "'s"
 	except (ImportError, AttributeError):
-	    name = sys.platform
+	    name = 'Your'
     return name
 
 
@@ -831,7 +830,7 @@ class DetailsDialog:
 
 class BookmarksController(OutlinerController):
     def __init__(self, frame, app):
-	default_root = BookmarkNode(username()+"'s Bookmarks")
+	default_root = BookmarkNode(username()+" Bookmarks")
 	OutlinerController.__init__(self, default_root)
 	self._frame = frame
 	self._app = app
@@ -896,7 +895,7 @@ class BookmarksController(OutlinerController):
 	    except BookmarkFormatError:
 		pass
 	if not root:
-	    root = BookmarkNode(username()+"'s Bookmarks")
+	    root = BookmarkNode(username()+" Bookmarks")
 	    self._writer = GrailBookmarkWriter()
 	    self._iomgr.set_filename(DEFAULT_GRAIL_BM_FILE)
 	self.set_root(root)
