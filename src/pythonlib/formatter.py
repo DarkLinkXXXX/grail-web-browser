@@ -14,7 +14,8 @@ class NullFormatter:
     def __init__(self): pass
     def end_paragraph(self, blankline): pass
     def add_line_break(self): pass
-    def add_hor_rule(self): pass
+    def add_hor_rule(self, abswidth=None, percentwidth=1.0,
+		     height=None, align=None): pass
     def add_label_data(self, format, counter): pass
     def add_flowing_data(self, data): pass
     def add_literal_data(self, data): pass
@@ -222,7 +223,7 @@ class NullWriter:
     def new_styles(self, styles): pass
     def send_paragraph(self, blankline): pass
     def send_line_break(self): pass
-    def send_hor_rule(self): pass
+    def send_hor_rule(self, *args, **kw): pass
     def send_label_data(self, data): pass
     def send_flowing_data(self, data): pass
     def send_literal_data(self, data): pass
@@ -251,7 +252,7 @@ class AbstractWriter:
     def send_line_break(self):
 	print "send_line_break()"
 
-    def send_hor_rule(self):
+    def send_hor_rule(self, *args, **kw):
 	print "send_hor_rule()"
 
     def send_label_data(self, data):
@@ -286,7 +287,7 @@ class DumbWriter(AbstractWriter):
 	self.col = 0
 	self.atbreak = 0
 
-    def send_hor_rule(self):
+    def send_hor_rule(self, *args, **kw):
 	self.file.write('\n')
 	self.file.write('-'*self.maxcol)
 	self.file.write('\n')
