@@ -4,12 +4,23 @@
 
 """Grail parser for text/plain.
 """
-__version__ = '$Revision: 2.4 $'
+__version__ = '$Revision: 2.5 $'
 #  $Source: /home/john/Code/grail/src/filetypes/text_plain.py,v $
 
+import formatter
+import grailutil
 import Reader
+import string
 
-parse_text_plain = Reader.TextParser
 
-#
-#  end of file
+def parse_text_plain(*args, **kw):
+    headers = args[0].context.get_headers()
+    ctype = headers['content-type']
+    if ctype:
+        ctype, opts = grailutil.conv_mimetype(ctype)
+        if opts.get('format'):
+            how = string.lower(opts['format'])
+            if how == "flowed":
+                import FlowingText
+                return apply(FlowingText.FlowingTextParser, args, kw)
+    return apply(Reader.TextParser, args, kw)
