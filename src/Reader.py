@@ -10,7 +10,6 @@ from Tkinter import *
 import tktools
 from AppletHTMLParser import AppletHTMLParser
 from BaseReader import BaseReader
-import ProtocolAPI
 import regsub
 from copy import copy
 
@@ -84,6 +83,7 @@ class Reader(BaseReader):
 				    self.method, self.params, self.reload,
 				    data=self.data)
 	else:
+	    import ProtocolAPI
 	    api = ProtocolAPI.protocol_access(realurl,
 					      self.method, self.params,
 					      data=self.data)
