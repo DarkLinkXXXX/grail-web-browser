@@ -1,21 +1,17 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Parser to pull links from an HTML document."""
 
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 
 
 import bookmarks.nodes
-import SGMLGatherer
-import SGMLParser
 import string
 import urlparse
 
+import sgml.SGMLHandler
+import sgml.SGMLParser
 
-class Parser(SGMLGatherer.BaseSGMLGatherer):
+
+class Parser(sgml.SGMLHandler.BaseSGMLHandler):
     __buffer = ''
     __baseurl = None
     __collect_metadata = 0
@@ -24,7 +20,7 @@ class Parser(SGMLGatherer.BaseSGMLGatherer):
 
     def __init__(self, filename=None):
         self._filename = filename
-        self.sgml_parser = SGMLParser.SGMLParser(gatherer=self)
+        self.sgml_parser = sgml.SGMLParser.SGMLParser(gatherer=self)
         self.__root = bookmarks.nodes.Folder()
         self.__root.expand()
 

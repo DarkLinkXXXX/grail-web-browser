@@ -1,19 +1,14 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
-
 """Parser for Netscape HTML bookmarks format."""
 
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
 
 import bookmarks
 import bookmarks.nodes
 import html_scraper
-import SGMLParser
-import SGMLGatherer
 import string
+
+import sgml.SGMLParser
 
 
 class Parser(html_scraper.Parser):
@@ -22,7 +17,7 @@ class Parser(html_scraper.Parser):
 
     def __init__(self, filename):
         html_scraper.Parser.__init__(self, filename)
-        self.sgml_parser = SGMLParser.SGMLParser(gatherer=self)
+        self.sgml_parser = sgml.SGMLParser.SGMLParser(gatherer=self)
         self.__idmap = {}
         self.__missing_ids = {}
         self.__folder = self.get_root()
