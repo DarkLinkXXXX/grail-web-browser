@@ -1,7 +1,3 @@
-# Copyright (c) CNRI 1996-1998, licensed under terms and conditions of
-# license agreement obtained from handle "hdl:1895.22/1003",
-# URL "http://grail.cnri.reston.va.us/LICENSE-0.5/", or file "LICENSE".
-
 """Assorted Tk-related subroutines."""
 
 
@@ -18,7 +14,7 @@ def install_keybindings(root):
     root.bind_class('Entry', '<Control-u>', _clear_entry_widget)
 
 
-def make_toplevel(master, title=None, class_=None):
+def make_toplevel(master, title=None, class_=None, name=None):
     """Create a Toplevel widget.
 
     This is a shortcut for a Toplevel() instantiation plus calls to
@@ -26,10 +22,16 @@ def make_toplevel(master, title=None, class_=None):
 
     """
 
+    name = name or string.lower(class_ or "") or None
+    if name and master.children.has_key(name):
+        i = 0
+        while master.children.has_key(name + `i`):
+            i = i + 1
+        name = name + `i`
     if class_:
-        widget = Toplevel(master, class_=class_)
+        widget = Toplevel(master, class_=class_, name=name)
     else:
-        widget = Toplevel(master)
+        widget = Toplevel(master, name=name)
     if title:
         widget.title(title)
         widget.iconname(title)
