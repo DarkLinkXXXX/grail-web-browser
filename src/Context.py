@@ -168,6 +168,9 @@ class Context:
 		    page = self.page
 		    self.page = None # triggers set_url() to update history
 		    self.set_url(baseurl, histify=histify)
+		    if self.future >= 0:
+			self.page = self.history.page(self.future)
+			self.future = -1
 		    self.page.set_title(page.title())
 		    self.history.refresh()
 		    self.browser.set_title(page.title())
