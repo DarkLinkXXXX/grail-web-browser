@@ -21,7 +21,8 @@ from assert import assert
 import urlparse
 import string
 import os
-import ProtocolAPI
+import ni
+import protocols
 
 
 class Cache:
@@ -29,7 +30,7 @@ class Cache:
     """A cache of URL data.
 
     The open() method returns a cached version of whatever
-    ProtocolAPI.protocol_access() would return.
+    protocols.protocol_access() would return.
 
     """
 
@@ -154,9 +155,9 @@ class CacheItem:
 	    return
 	assert(self.api is None)
 ##	print "Open", self.url
-	self.api = ProtocolAPI.protocol_access(self.url,
-					       self.mode, self.params,
-					       data=self.postdata)
+	self.api = protocols.protocol_access(self.url,
+					     self.mode, self.params,
+					     data=self.postdata)
 	self.meta = None
 	self.data = ''
 	self.stage = META
@@ -231,7 +232,7 @@ class CacheAPI:
 
     """A thin interface to allow multiple threads to share a CacheItem.
 
-    This has the same API as whatever ProtocolAPI.protocol_access()
+    This has the same API as whatever protocol.protocol_access()
     returns.
     
     If the last CacheAPI is closed before the CacheItem has finished

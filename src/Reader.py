@@ -84,10 +84,10 @@ class Reader(BaseReader):
 				    self.method, self.params, self.reload,
 				    data=self.data)
 	else:
-	    import ProtocolAPI
-	    api = ProtocolAPI.protocol_access(realurl,
-					      self.method, self.params,
-					      data=self.data)
+	    import protocols
+	    api = protocols.protocol_access(realurl,
+					    self.method, self.params,
+					    data=self.data)
 
 	BaseReader.__init__(self, self.last_browser, api)
 

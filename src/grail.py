@@ -344,9 +344,14 @@ class Application:
     def find_extension(self, subdir, module):
 	oldpath = sys.path
 	newpath = oldpath[:]
-	subdir = os.path.join(self.graildir, subdir)
-	if subdir not in newpath:
-	    newpath.insert(0, subdir)
+	# prepend the user's subdir
+	usersubdir = os.path.join(self.graildir, subdir)
+	if usersubdir not in newpath:
+	    newpath.insert(0, usersubdir)
+	# if the subdir is a name of a package, prepend it's path
+	if sys.modules.has_key(subdir):
+	    pkgpath = sys.modules[subdir].__path__
+	    newpath = pkgpath + newpath
 	try:
 	    try:
 		sys.path = newpath
