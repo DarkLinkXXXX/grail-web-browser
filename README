@@ -1,17 +1,9 @@
-GRAIL 0.3b3
+GRAIL 0.3
 ===========
 
-This is the third, and hopefully last beta version of Grail 0.3.  It
-should run on most Unix systems, provided you have Python 1.4 with
-Tcl/Tk 7.6/4.2.  It is only distributed in source form.
-
-**********************************************************************
-* This is a beta release -- you can expect some problems, and we are *
-* expecting feedback!  Send all your feedback to this address:       *
-*                                                                    *
-*                     grail-feedback@python.org                      *
-*                                                                    *
-**********************************************************************
+This is the final release of Grail version 0.3.  It should run on most
+Unix systems, provided you have Python 1.4 with Tcl/Tk 7.6/4.2 (or
+better).  It is only distributed in source form.
 
 In this file:
 
@@ -26,8 +18,7 @@ In this file:
 Licensing issues
 ----------------
 
-This release of Grail 0.3 has a much more relaxed license than release
-0.3b2 and earlier ones.  It allows essentially unrestricted use and
+The license of Grail 0.3 allows essentially unrestricted use and
 redistribution.  The full text of the license can be found in the file
 LICENSE in this directory.
 
@@ -35,16 +26,13 @@ LICENSE in this directory.
 Installation
 ------------
 
-*** Note: don't install on top of an earlier version.  Use a fresh,
-*** new, clean directory.  If you ignore this advice, subtle bugs will
-*** arise!
-
 There are three steps to take before you can use Grail:
 
 - Install Tcl 7.6 and Tk 4.2.  (You *may* be able to get away with
-older versions up to 7.4/4.0; newer non-alpha/beta versions should be
-okay, too.)  You can get it at http://www.sunlabs.com/research/tcl/;
-or try ftp to ftp.sunlabs.com in directory /pub/tcl/.
+older versions up to 7.4/4.0; newer versions could be okay, too.)  You
+can get it at http://www.sunlabs.com/research/tcl/; or try ftp to
+ftp.sunlabs.com in directory /pub/tcl/.  See also the new commercial
+Tcl/Tk site, http://sunscript.sun.com/.
 
 - Install Python 1.4, configured for use with Tk.  The URL to get
 Python is http://www.python.org; or try ftp to ftp.python.org in
