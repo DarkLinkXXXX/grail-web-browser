@@ -44,6 +44,7 @@ class Viewer(formatter.AbstractWriter):
 						      width=width,
 						      height=height,
 						      hbar=1, vbar=1)
+	self.text.config(padx=10)
 	self.default_bg = self.text['background']
 	self.default_fg = self.text['foreground']
 	self.text.config(selectbackground='yellow')
