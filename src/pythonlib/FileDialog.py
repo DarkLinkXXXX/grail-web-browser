@@ -65,7 +65,7 @@ class FileDialog:
 
 	self.filesbar = Scrollbar(self.midframe)
 	self.filesbar.pack(side=RIGHT, fill=Y)
-	self.files = Listbox(self.midframe,
+	self.files = Listbox(self.midframe, exportselection=0,
 			     yscrollcommand=(self.filesbar, 'set'))
 	self.files.pack(side=RIGHT, expand=YES, fill=BOTH)
 	self.files.bind('<ButtonRelease-1>', self.files_select_event)
@@ -74,7 +74,7 @@ class FileDialog:
 
 	self.dirsbar = Scrollbar(self.midframe)
 	self.dirsbar.pack(side=LEFT, fill=Y)
-	self.dirs = Listbox(self.midframe,
+	self.dirs = Listbox(self.midframe, exportselection=0,
 			    yscrollcommand=(self.dirsbar, 'set'))
 	self.dirs.pack(side=LEFT, expand=YES, fill=BOTH)
 	self.dirsbar.config(command=(self.dirs, 'yview'))
