@@ -643,8 +643,7 @@ class Viewer(formatter.AbstractWriter):
 	    align = self.align
 	prev_align, self.align = self.align, align
 	self.new_tags()
-	if align != 'bleedleft':
-	    self.pendingdata = MIN_IMAGE_LEADER
+	self.pendingdata = MIN_IMAGE_LEADER
 	self.align = prev_align
 	self.new_tags()
 
