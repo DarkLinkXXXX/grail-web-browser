@@ -142,7 +142,7 @@ class PrintDialog:
 	except IOError, msg:
 	    self.browser.error_dialog(IOError, msg)
 	    return
-	w = PSWriter(fp, self.title)
+	w = PSWriter(fp, self.title, self.url)
 	f = AbstractFormatter(w)
 	p = PrintingHTMLParser(f)
 	p.feed(infp.read())

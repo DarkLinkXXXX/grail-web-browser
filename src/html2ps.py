@@ -9,6 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 import sys
+import os
 import string
 import StringIO
 import regsub
@@ -26,8 +27,6 @@ def _debug(text):
 	sys.stderr.flush()
 
 
-# Font definitions and metrics.
-
 # This dictionary maps PostScript font names to the normal, bold and
 # italic suffixes for the font.  Key is the short name describing the
 # font, value is a tuple indicating the real name of the font (for
@@ -49,85 +48,6 @@ fonts = {
     #'Lucida':           ('Times', None, 'Bold', 'Italic'),
     'Lucida':           (None, '', 'Bold', 'Italic'),
     }
-
-# The font family to font metrics dictionaries.  Each dictionary
-# contains a mapping between characters in the 0-256 range and their
-# widths in points.  It is assumed that different font sizes scale
-# these widths linearly, but this is not actually the case.  Close
-# enough for jazz.
-#
-# Oh, and yes I hand calculated these based on my printer's output.
-# It's certainly possible I got some of these wrong, and in fact I'm
-# seeing about a 10% deviation in calculated size to actual size (the
-# latter coming up 10% less that the former).  Don't know why that is
-# exactly, but I suspect it's some incorrect values in the numbers
-# below.
-
-font_metrics = {}
-
-# 12 point, fixed width font metrics, all chars are the same width.
-# for speed, I'll actually implement this differently
-font_metrics['Courier'] = 7.2
-
-# Standard variable width font is Helvetica
-helv_charmap = {}
-def fill_hfm(psz, chars):
-    for c in chars: helv_charmap[c]=psz
-
-fill_hfm(0.0, range(31))
-fill_hfm(0.0, range(128,256))
-fill_hfm(2.6642, "'`ijl")
-fill_hfm(3.1202, '|')
-fill_hfm(3.3362, ' !:;[],./Ift\\')
-fill_hfm(3.9962, '()r')
-fill_hfm(4.0083, '{}')
-fill_hfm(4.2602, '"')
-fill_hfm(4.6683, '*')
-fill_hfm(5.6283, '^')
-fill_hfm(6.0004, 'Jcksvxyz')
-fill_hfm(6.6724, '#$0123456789?L_abdeghnopqu')
-fill_hfm(7.0084, '+-<=>~')
-fill_hfm(7.3324, 'FTZ')
-fill_hfm(8.0045, '&ABEKPSVXY')
-fill_hfm(8.6645, 'CDHNRUw')
-fill_hfm(9.3366, 'GOQ')
-fill_hfm(9.9966, 'Mm')
-fill_hfm(10.6687, '%')
-fill_hfm(11.3287, 'W')
-fill_hfm(12.1807, '@')
-
-# sanity check
-#for c in range(32, 127):
-#    width = helv_charmap[chr(c)]
-#    if width is None or width <= 0:
-#	raise KeyError, c
-font_metrics['Helvetica'] = helv_charmap
-
-# Some of the Helvetica Bold characters are a bit wider than their
-# normal versions.  However there seems to be no difference in metrics
-# imposed by the italics modifier
-
-helv_bold_charmap = {}
-for c in helv_charmap.keys():
-    helv_bold_charmap[c] = helv_charmap[c]
-
-def fill_hfm(psz, clist):
-    for c in clist: helv_bold_charmap[c]=psz
-
-fill_hfm(3.3344, "'`ijl")
-fill_hfm(3.3585, '|')
-fill_hfm(3.9942, '!:;[]ft')
-fill_hfm(4.6658, 'r{}')
-fill_hfm(5.6854, '"')
-fill_hfm(6.6689, 'Jcksvxy')
-fill_hfm(7.0048, '^')
-fill_hfm(7.3286, '?Lbdghnopqu')
-fill_hfm(8.6600, '&ABK')
-fill_hfm(9.3317, 'w')
-fill_hfm(10.6631, 'm')
-fill_hfm(11.6946, '@')
-
-font_metrics['Helvetica-Bold'] = helv_bold_charmap
 
 # Mappings between HTML header tags and font sizes
 # The values used by Mosaic
@@ -151,11 +71,6 @@ font_sizes = {
     'h5': 10,
     'h6': 10
     }
-
-
-# Ruler stuff, not used...
-#ruler = [1, 16, 8, 16, 4, 16, 8, 16, 2, 16, 8, 16, 4, 16, 8, 16]
-#ruler = map(lambda(x): 72.0/(x*2.0), ruler)
 
 
 
@@ -225,13 +140,8 @@ class PSFont:
        set_font((SIZE, ITALIC?, BOLD?, TT?)) ==> (PSFONTNAME, SIZE)
        text_width(TEXT) ==> WIDTH_IN_POINTS
        font_size(optional: (SIZE, ITALIC?, BOLD?, TT?)) ==> SZ_IN_POINTS
-
-    Exported ivars:
-
-       space_width  --> width in points of a single space
-
     """
-    def __init__(self, varifamily='Helvetica', fixedfamily='Courier'):
+    def __init__(self, varifamily='Times', fixedfamily='Courier'):
 	"""Create a font definition using VARIFAMILY as the variable
 	width font and FIXEDFAMILY as the fixed width font.  Defaults
 	to Helvetica and Courier respectively.
@@ -262,23 +172,6 @@ class PSFont:
 	if not vrealname: vrealname = self.vfamily
 	if not frealname: frealname = self.ffamily
 
-	# gather appropriate bold and non-bold metrics
-	try: fmetrics = font_metrics[frealname]
-	except KeyError: fmetrics = font_metrics['Courier']
-
-	try: vmetrics = font_metrics[vrealname]
-	except KeyError: vmetrics = font_metrics['Helvetica']
-	
-	try: vbmetrics = font_metrics[vrealname + '-Bold']
-	except KeyError: vbmetrics = font_metrics['Helvetica-Bold']
-
-	self.metrics = {
-	    'FONTF': fmetrics,
-	    'FONTV': vmetrics,
-	    'FONTFB': fmetrics,
-	    'FONTVB': vbmetrics
-	    }
-
 	# calculate font names in PostScript space. Eight fonts are
 	# used, naming scheme is as follows.  All PostScript font
 	# name definitions start with `FONT', followed by `V' for the
@@ -296,8 +189,9 @@ class PSFont:
 	    'FONTFI':  '%s-%s' % (frealname, fitalic),
 	    'FONTFBI': '%s-%s%s' % (frealname, fbold, fitalic)
 	    }
-	# set the default font
-	self.set_font((12, 'FONTV', '', ''))
+	# instantiated font objects
+	self.fontobjs = {}
+	self.tw_func = None
 
     def set_font(self, font_tuple):
 	"""Set the current font to that specified by FONT_TUPLE, which
@@ -321,37 +215,28 @@ class PSFont:
 	if set_bold: new_bold = 'B'
 	else: new_bold = ''
 
-	# do this before we add the italics modifier, since italics
-	# doesn't contribute to metrics
-	self.metric = self.metrics[new_family + new_bold]
-
 	if set_italic: new_italic = 'I'
 	else: new_italic = ''
 
 	# save the current font specification
 	self.font = (new_sz, new_family, new_italic, new_bold)
 
-	# set the font
-	font = '%s%s%s' % (new_family, new_bold, new_italic)
-	# set the width of a space, an oft used `constant'
-	self.space_width = self.text_width(' ')
+	# set the font nickname
+	fontnickname = '%s%s%s' % (new_family, new_bold, new_italic)
+
+	# make sure the font object is instantiated
+	if not self.fontobjs.has_key(fontnickname):
+	    modulename = 'PSFont_' + \
+			 regsub.gsub('-', '_', self.docfonts[fontnickname])
+	    module = __import__(modulename)
+	    self.fontobjs[fontnickname] = module.font
+	self.tw_func = self.fontobjs[fontnickname].text_width
+
 	# return the PostScript font definition and the size in points
-	return (font, new_sz)
+	return (fontnickname, new_sz)
 
     def text_width(self, text):
-	"""Calculate the width of the given TEXT in points using the
-	current font size and metrics.
-	"""
-	# optimization for fixed width fonts
-	if type(self.metric) == type(1.0):
-	    return len(text) * self.metric * self.font[0] / 12.0
-	else:
-	    pointlen = 0.0
-	    for c in text:
-		try: charmetric = self.metric[c]
-		except KeyError: charmetric = 0.0
-		pointlen = pointlen + charmetric
-	    return pointlen * self.font_size() / 12.0
+	return self.tw_func(self.font[0], text)
 
     def font_size(self, font_tuple=None):
 	"""Return the size of the current font, or the font defined by
@@ -365,307 +250,238 @@ class PSFont:
 
 
 
-# PSQueue class contains a queue of high level directives to the
-# PostScript generator.  This is necessary because some things you
-# just can't calculate until you've seen the end of the current line
-# (e.g. the vertical tab distance).  We actually make 3 passes through
-# the queue of directives.  The first just populates them via stream
-# of (Grail) consciousness... i.e. the PSWriter interface.  Next, we
-# scan through the queue generating such things as line breaks and
-# other non-linear directives.  Finally we cruise through the queue
-# generating PostScript code for each directive we find.  Turns out
-# not to be too slow, and it is very flexible and easy to add new
-# directives.
+class PSStream:
+    def __init__(self, psfont, ofp, title='', url=''):
+	self._font = psfont
+	self._ofp = ofp
+	self._title = title
+	self._url = url
+	self._pageno = 1
+	self._margin = 0.0
+	# current line state
+	self._space_width = 0.0
+	self._linestr = []
+	self._tallest = 0.0
+	self._xpos = 0.0
+	self._ypos = 0.0
+	self._vtab = 0.0
+	self._linedata = StringIO.StringIO()
+	self._inliteral_p = None
+	self._render = 'S'		# S == normal string, U == underline
 
-tag_consts = """
-START = 0
-STRING = 1
-FONT_CHANGE = 2
-SPACE = 3
-HR = 4
-UNDERLINE = 5
-LITERAL = 6
-HARD_NL = 7
-VERT_TAB = 8
-PAGE_BREAK = 9
-MARGIN = 10
-LABEL = 11
-END = 100
-"""
-exec tag_consts
-tags = {}
-exec tag_consts in tags
-for key, value in tags.items():
-    if key != '__builtins__':
-	tags[value] = key
+    def start(self):
+	# print document preamble
+	oldstdout = sys.stdout
+	try:
+	    sys.stdout = self._ofp
+	    print "%!PS-Adobe-1.0"
+	    if self._title:
+		# replace all cr/lf's with spaces
+		self._title = regsub.gsub(CRLF_re, ' ', self._title)
+		print "%%Title:", self._title
+	    # output font prolog
+	    docfonts = self._font.docfonts
+	    print "%%DocumentFonts:",
+	    for dfv in docfonts.values(): print dfv,
+	    print
+	    # spew out the contents of the header PostScript file
+	    print header_template
+	    # define the fonts
+	    for docfont in docfonts.keys():
+		print "/%s" % docfont, "{/%s}" % docfonts[docfont], "D"
+	    # swew out ISO encodings
+	    print iso_template
+	    # finish out the prolog
+	    print "/xmargin", LEFT_MARGIN, "D"
+	    print "/topmargin", TOP_MARGIN, "D"
+	    print "/indentmargin", 0.0, "D"
+	    print "/pagewidth", PAGE_WIDTH, "D"
+	    print "/scalfac", self._font.points_per_pixel, "D"
+	    print "%%EndProlog"
+	finally:
+	    sys.stdout = oldstdout
+	self.print_page_preamble()
+	self.push_font_change(None)
 
-
-
-class PSQueue:
-    """Class PSQueue manages a queue of high level PostScript
-    rendering directives as fed from the PSWriter interface to
-    AbstractWriter.  Because of complexities of PostScript generation,
-    two passes are made through the queue after initial population.
-    First the queue is scanned for line breaks and other non-linear
-    directives, and then it is scanned for direct translation to
-    PostScript code.
-
-    Exported methods:
-
-       __init__(PSFont_instance, OutputFileObject, optional: TITLE_STRING)
-       push_string(STRING)
-       push_font_change(FONT_TUPLE)
-       push_space(NUMBER_OF_SPACES)
-       push_horiz_rule()
-       push_end()
-       push_margin(INDENTATION_LEVEL)
-       push_label(BULLET_TAG)
-       push_hard_newline(NUMBER_OF_NEWLINES)
-       push_vtab(DISTANCE_IN_POINTS, optional:QUEUE_MARK)
-       push_underline(FLAG)
-       push_literal(FLAG)
-       mark() ==> QUEUE_MARK
-       pop(optional: TAG_TO_MATCH) ==> TOP_OF_QUEUE or None
-       break_lines()
-       write_to_postscript()
-
-    Exported ivars:
-    """
-    def __init__(self, psfont, ofile, title=''):
-	self.queue = [(START, title)]
-	self.font = psfont
-	self.ofile = ofile
-	self.title = title
-	self.curpage = 1
-	self.margin = 0.0
-
-    def push_string(self, string):
-	tag, info = self.pop(STRING)
-	if tag: string = info + string
-	self.queue.append((STRING, string))
+    def push_end(self):
+#	print 'push_end'
+	self.close_line()
+	self.print_page_postamble(1)
+	oldstdout = sys.stdout
+	try:
+	    sys.stdout = self._ofp
+	    print "%%Trailer"
+	    print "restore"
+	    print "%%Pages:", self._pageno
+	finally:
+	    sys.stdout = oldstdout
 
     def push_font_change(self, font):
-	tag, info = self.pop(FONT_CHANGE)
-	# doesn't make much sense to have 2 font changes in a row
-	self.queue.append((FONT_CHANGE, font))
+#	print 'push_font_change:', font
+	if self._linestr:
+	    self.close_string()
+	self._tallest = max(self._tallest, self._font.font_size())
+	psfontname, size = self._font.set_font(font)
+	self._space_width = self._font.text_width(' ')
+	self._linedata.write('%s %d SF\n' % (psfontname, size))
 
     def push_space(self, spaces=1):
-	tag, info = self.pop(SPACE)
-	if tag: spaces = spaces + info
-	self.queue.append((SPACE, spaces))
+#	print 'push_space:', spaces
+	# spaces at the beginning of a line are thrown away, unless we
+	# are in literal text.
+	if self._inliteral_p or self._xpos > 0.0:
+	    self._linestr.append(' ' * spaces)
+	    self._xpos = self._xpos + self._space_width * spaces
 
-    def push_horiz_rule(self): self.queue.append((HR, None))
-    def push_end(self): self.queue.append((END, None))
-    def push_margin(self, level): self.queue.append((MARGIN, level))
-    def push_label(self, bullet): self.queue.append((LABEL, bullet))
+    def push_horiz_rule(self):
+#	print 'push_horiz_rule'
+	self.close_line()
+	oldstdout = sys.stdout
+	try:
+	    sys.stdout = self._ofp
+	    print '0 -%f R' % HR_TOP_MARGIN
+	    print '%f HR' % PAGE_WIDTH
+	    print 'NL'
+	    print '0 -%f R' % HR_BOT_MARGIN
+	finally:
+	    sys.stdout = oldstdout
+
+    def push_margin(self, level):
+#	print 'push_margin:', level
+	self.close_line()
+	distance = level * LEFT_MARGIN
+	self._ofp.write('/indentmargin %f D\n' % distance)
+	self._ofp.write('NL\n')
+
+    def push_label(self, bullet):
+#	print 'push_label:', bullet
+	if bullet is not None:
+	    distance = self._font.text_width(bullet) + LABEL_TAB
+	    self._ofp.write('gsave NL -%f 0 R\n' % distance)
+	else:
+	    self.close_line()
+	    self._ofp.write('grestore\n')
 
     def push_hard_newline(self, blanklines=1):
-	tag, info = self.pop(HARD_NL)
-	if tag: blanklines = blanklines + info
-	self.queue.append((HARD_NL, blanklines))
+#	print 'push_hard_newline:', blanklines
+	self.close_line()
+	self._ofp.write('NL\n')
+	if blanklines > 0:
+	    # TBD: should we use self._tallest here?  Doesn't look so
+	    # good if we do.
+	    vtab = 10.0 * 1.1 * blanklines
+	    self._ofp.write('0 -%f R\n' % vtab)
+	    self._ypos = self._ypos - vtab
+	
 
-    def push_vtab(self, distance, atmark=None):
-	"""Push a VERT_TAB directive onto the queue, providing the
-	vertical DISTANCE in points.
-
-	Optional ATMARK is a queue mark as returned by the mark()
-	method, indicating a position into the queue at which to
-	insert the VERT_TAB directive.  Otherwise, append it to the
-	end of the queue.
-	"""
-	tag, info = self.pop(VERT_TAB)
-	if tag: distance = distance + info
-	if atmark: self.queue.insert(atmark, (VERT_TAB, distance))
-	else: self.queue.append((VERT_TAB, distance))
+    def push_vtab(self, distance):
+#	print 'push_vtab:', self._vtab, '+', distance
+	self.close_line()
+	self._vtab = self._vtab + distance
 
     def push_underline(self, flag):
-	tag, info = self.pop(UNDERLINE)
-	# doesn't make much sense to have 2 render changes in a row
-	self.queue.append((UNDERLINE, flag))
+#	print 'push_underline:', flag
+	render = flag and 'U' or 'S'
+	if self._render <> render:
+	    self.close_string()
+	self._render = render
 
     def push_literal(self, flag):
-	tag, info = self.pop(LITERAL)
-	# doesn't make much sense to have 2 literal state changes in a row
-	self.queue.append((LITERAL, flag))
+#	print 'push_literal:', flag
+	self._inliteral_p = flag
 
-
-    def mark(self):
-	"""Return a queue mark, marking the current end of the queue.
-	This is appropriate for non-append inserts into the queue, if
-	the push_() method used supports inserts.
-	"""
-	return len(self.queue)
-
-    def pop(self, tagmatch=None):
-	"""Pops the last element off of the queue and returns it.  If
-	an error occurs (i.e. the queue is empty), it returns the
-	tuple (None, None).
-
-	With optional TAGMATCH, only pop and return the last element
-	if its tag matches TAGMATCH, otherwise do not pop and return
-	(None, None).
-	"""
-	try:
-	    if not tagmatch or tagmatch == self.queue[-1][0]:
-		rtn = self.queue[-1]
-		del self.queue[-1]
-		return rtn
-	    else: return (None, None)
-	except IndexError: return (None, None)
-
-    def break_lines(self):
-	"""Perform first pass through directive queue.  You *must*
-	call this before calling write_to_postscript().
-	"""
-	nq = PSQueue(self.font, self.ofile, self.title)
-	xpos = 0.0
-	tallest = self.font.font_size()
-	in_literal_p = 0
-	for tag, info in self.queue:
-	    #debug('breaking: (%s, %s)\n' % (tags[tag], info))
-	    if tag == START:
-		nq.push_font_change(None)
-		self.font.set_font(None)
-		mark = nq.mark()
-	    elif tag == END:
-		nq.push_vtab(tallest * 1.1, mark)
-		nq.push_end()
-	    elif tag == UNDERLINE:
-		nq.push_underline(info)
-	    elif tag == FONT_CHANGE:
-		tallest = max(tallest, self.font.font_size())
-		nq.push_font_change(info)
-		self.font.set_font(info)
-	    elif tag == HARD_NL:
-		nq.push_vtab(tallest * 1.1, mark)
-		if info > 1:
-		    nq.push_vtab(tallest * 1.1 * (info - 1))
-		nq.push_hard_newline(info)
-		xpos = 0.0
-		tallest = 0
-		mark = nq.mark()
-	    elif tag == HR:
-		nq.push_vtab(tallest * 1.1, mark)
-		nq.push_vtab(HR_TOP_MARGIN)
-		nq.push_horiz_rule()
-		nq.push_vtab(HR_BOT_MARGIN)
-		nq.push_hard_newline(1)
-		mark = nq.mark()
-		xpos = 0.0
-	    elif tag == MARGIN:
-		nq.push_margin(info)
-		self.margin = info * LEFT_MARGIN
-	    elif tag == LABEL:
-		if info is not None:
-		    info = self.font.text_width(info) + LABEL_TAB
-		nq.push_label(info)
-	    elif tag == LITERAL:
-		if in_literal_p != info:
-		    in_literal_p = info
-		    nq.push_literal(info)
-	    elif tag == SPACE:
-		# spaces at the beginning of the line are thrown away,
-		# unless we are in literal text
-		if in_literal_p or xpos > 0.0:
-		    xpos = xpos + (self.font.space_width * info)
-		    nq.push_space(info)
-	    elif tag == STRING:
-		if xpos == 0.0:
-		    tallest = self.font.font_size()
-		swidth = self.font.text_width(info)
-		ltag, linfo = nq.pop(SPACE)
-		if xpos + swidth + self.margin < PAGE_WIDTH:
-		    # okay, so the text fits, but if the preceding
-		    # node is a space, then they can both be collapsed
-		    # into a single STRING node
-		    xpos = xpos + swidth
-		    # push_string will take care of collapsing any
-		    # preceding strings into this one
-		    if ltag:
-			info = ' ' * linfo + info
-		    nq.push_string(info)
-		    continue
-		# the new text doesn't fit on the line so we can do a
-		# simple break of the line if the previous tag we saw
-		# was a space, and the current line width is > 3/4 of
-		# the page width and the current text is smaller than
-		# the page width
-		if ltag and \
-		     xpos + self.margin > PAGE_WIDTH * 0.75 and \
-		     swidth < PAGE_WIDTH:
-		    # note that we can ignore the line trailing spaces
-		    nq.push_vtab(tallest * 1.1, mark)
-		    nq.push_hard_newline()
-		    mark = nq.mark()
-		    nq.push_string(info)
-		    xpos = swidth
-		# we have bigger problems, because if the last thing
-		# we saw was a space, then we'll have to break the
-		# word in the middle someplace.  for now we'll just
-		# let it overflow.  TBD: fix this!
-	        else:
-		    nq.push_string(info)
-	# replace our queue with the collapsed queue
-	self.queue = nq.queue
-
-    def write_to_postscript(self):
-	"""Second pass through directive queue.  Actually generates
-	PostScript output based on the directives it finds.  Note that
-	you *must* call break_lines() before calling this method.
-	"""
-	# now scan through the queue
-	render_cmd = 'S'
-	ypos = 0.0
-	for tag, info in self.queue:
-	    #debug('writing: (%s, %s)\n' % (tags[tag], info))
-	    if tag == START:
-		self._header(info)
-		self._start_page(self.curpage)
-	    elif tag == STRING:
-		# handle quoted characters
-		cooked = regsub.gsub(QUOTE_re, '\\\\\\1', info)
-		# TBD: handle ISO encodings
-		pass
-		self.ofile.write('(%s) %s\n' % (cooked, render_cmd))
-	    elif tag == SPACE:
-		self.ofile.write('(%s) %s\n' % (' ' * info, render_cmd))
-	    elif tag == FONT_CHANGE:
-		psfontname, size = self.font.set_font(info)
-		self.ofile.write('%s %d SF\n' % (psfontname, size))
-	    elif tag == UNDERLINE:
-		render_cmd = info and 'U' or 'S'
-	    elif tag == HR:
-		self.ofile.write('%f HR\n' % PAGE_WIDTH)
-	    elif tag == MARGIN:
-		self.ofile.write('/indentmargin %f D\n' % (info * LEFT_MARGIN))
-		self.ofile.write('NL\n')
-	    elif tag == LABEL:
-		if info is not None:
-		    self.ofile.write('gsave NL -%f 0 R\n' % info)
+    def push_string(self, data):
+#	print 'push_string:', string
+	lines = string.splitfields(data, '\n')
+	linecnt = len(lines)-1
+	# local variable cache
+	xpos = self._xpos
+	margin = self._margin
+	linestr = self._linestr
+	# outer loop
+	for line in lines:
+	    words = string.splitfields(line, ' ')
+	    wordcnt = len(words)-1
+	    for word in words:
+		width = self._font.text_width(word)
+		# Does the word fit on the current line?
+		if xpos + width + margin < PAGE_WIDTH:
+		    linestr.append(word)
+		    xpos = xpos + width
+		# The current line, with the additional text, is too
+		# long.  We need to figure out where to break the
+		# line.  If the previous text was a space, and the
+		# current line width is > 75% of the page width, and
+		# the current text is smaller than the page width,
+		# then just break the line at the last space.
+		elif linestr[-1][-1] in [' ', '\t'] and \
+		     xpos + margin > PAGE_WIDTH * 0.75 and \
+		     width < PAGE_WIDTH:
+		    #
+		    # first output the current line data
+		    #
+		    self.close_line(linestr=linestr)
+		    # close_line() touches these, but we're using a
+		    # local variable cache, which must be updated.
+		    xpos = 0.0
+		    linestr = []
+		    self._ofp.write('NL\n')
+		    linestr.append(word)
+		    xpos = xpos + width
+		# Try an alternative line break strategy.  If we're
+		# closer than 75% of the page width to the end of the
+		# line, then start a new line, print the word,
+		# possibly splitting the word if it is longer than a
+		# single line.
 		else:
-		    self.ofile.write('grestore\n')
-	    elif tag == LITERAL:
-		pass
-	    elif tag == VERT_TAB:
-		ypos = ypos - info
-		if ypos <= -PAGE_HEIGHT:
-		    self._end_page()
-		    self.curpage = self.curpage + 1
-		    self._start_page(self.curpage)
-		    ypos = 0.0
-		self.ofile.write('0 -%f R\n' % info)
-	    elif tag == HARD_NL:
-		self.ofile.write('NL\n')
-	    elif tag == END:
-		self._trailer()
-
-    def _start_page(self, pagenum):
-	stdout = sys.stdout
+		    self.close_line(linestr=linestr)
+		    # close_line() touches these, but we're using a
+		    # local variable cache, which must be updated.
+		    xpos = 0.0
+		    linestr = []
+		    while width > PAGE_WIDTH:
+			# make our best guess as to the longest bit of
+			# the word we can write on a line.
+			average_charwidth = width / len(word)
+			chars_on_line = PAGE_WIDTH / average_charwidth
+			front = word[:chars_on_line]
+			linestr.append(front + '-')
+			self.close_line(linestr=linestr)
+			# close_line() touches these, but we're using a
+			# local variable cache, which must be updated.
+			xpos = 0.0
+			linestr = []
+			self._ofp.write('NL\n')
+			word = word[chars_on_line:]
+			width = self._font.text_width(word)
+		    linestr.append(word)
+		    xpos = width
+		# for every word but the last, put a space after it
+		if wordcnt > 0:
+		    # inlining push_space() for speed
+		    if self._inliteral_p or xpos > 0.0:
+			linestr.append(' ')
+			xpos = xpos + self._space_width
+		wordcnt = wordcnt - 1
+	    # for every line but the last, put a hard newline after it
+	    if linecnt > 0:
+		self.push_hard_newline()
+		# the close_line() call in push_hard_newline() touches
+		# these, but we're using a local variable cache, which
+		# must be updated.
+		xpos = 0.0
+		linestr = []
+	    linecnt = linecnt - 1
+	# undo effects of local variable cache
+	self._xpos = xpos
+	self._linestr = linestr
+    
+    def print_page_preamble(self):
+	oldstdout = sys.stdout
 	try:
-	    sys.stdout = self.ofile
+	    sys.stdout = self._ofp
 	    # write the structure page convention
-	    print '%%Page:', pagenum, pagenum
-	    print 'save'
+	    print '%%Page:', self._pageno, self._pageno
 	    print 'NP'
 	    print '0 0 M NL'
 	    if RECT_DEBUG:
@@ -675,65 +491,49 @@ class PSQueue:
 		print -PAGE_WIDTH, 0, "RL closepath stroke newpath"
 		print 'grestore'
 	finally:
-	    sys.stdout = stdout
+	    sys.stdout = oldstdout
 
-
-    def _end_page(self, trailer=0):
+    def print_page_postamble(self, trailer=0):
 	stdout = sys.stdout
 	try:
-	    sys.stdout = self.ofile
+	    sys.stdout = self._ofp
 	    print 'save', 0, PAGE_TAB, "M"
+	    print "FONTV 8 SF"
+	    print "(", self._url, ") S"
 	    print "FONTVI 12 SF"
-	    print "(Page", self.curpage, ") C restore"
+	    print "(Page", self._pageno, ") EDGE restore"
 	    print "showpage"
 	finally:
 	    sys.stdout = stdout
 
-    def _header(self, title=None):
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.ofile
-	    print "%!PS-Adobe-1.0"
-	    if title:
-		# replace all cr/lf's with spaces
-		title = regsub.gsub(CRLF_re, ' ', title)
-		print "%%Title:", title
+    def close_line(self, linestr=None):
+	if linestr is None: linestr = self._linestr
+	if linestr:
+	    self.close_string(linestr)
+	if self._linedata.tell() > 0:
+	    self._ypos = self._ypos - self._vtab
+	    # check to see if we're at the end of the page
+	    if self._ypos <= -PAGE_HEIGHT:
+		self.print_page_postamble()
+		self._pageno = self._pageno + 1
+		self.print_page_preamble()
+		self._ypos = 0.0
+	    self._ofp.write('0 -%f R\n' % self._vtab)
+	    self._ofp.write(self._linedata.getvalue())
+	    self._linedata = StringIO.StringIO()
+	    self._xpos = 0.0
+	    self._tallest = self._font.font_size()
+	    self._vtab = self._tallest
 
-	    # output font prolog
-	    docfonts = self.font.docfonts
-	    print "%%DocumentFonts:",
-	    for dfv in docfonts.values(): print dfv,
-	    print
-
-	    # spew out the contents of the header PostScript file
-	    print header_template
-	    # define the fonts
-	    for docfont in docfonts.keys():
-		print "/%s" % docfont, "{/%s}" % docfonts[docfont], "D"
-
-	    # swew out ISO encodings
-	    print iso_template
-	    # finish out the prolog
-	    print "/xmargin", LEFT_MARGIN, "D"
-	    print "/topmargin", TOP_MARGIN, "D"
-	    print "/indentmargin", 0.0, "D"
-	    print "/pagewidth", PAGE_WIDTH, "D"
-	    print "/scalfac", self.font.points_per_pixel, "D"
-	    print "%%EndProlog"
-	finally:
-	    sys.stdout = oldstdout
-	    
-    def _trailer(self):
-	self._end_page(1)
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.ofile
-	    print "%%Trailer"
-	    print "restore"
-	    print "%%Pages:", self.curpage
-	finally:
-	    sys.stdout = oldstdout
-
+    def close_string(self, linestr=None):
+	if linestr is None: linestr = self._linestr
+	contiguous = string.joinfields(linestr, '')
+	# handle quoted characters
+	cooked = regsub.gsub(QUOTE_re, '\\\\\\1', contiguous)
+	# TBD: handle ISO encodings
+	pass
+	self._linedata.write('(%s) %s\n' % (cooked, self._render))
+	self._linestr = []
 
 
 class PSWriter(AbstractWriter):
@@ -759,26 +559,30 @@ class PSWriter(AbstractWriter):
 
     Exported ivars:
     """
-    def __init__(self, ofile, title=''):
+    def __init__(self, ofile, title='', url=''):
 	font = PSFont()
-	self.ps = PSQueue(font, ofile, title)
+	font.set_font((10, 'FONTV', '', ''))
+        self.ps = PSStream(font, ofile, title, url)
+	self.ps.start()
 
     def close(self):
+#	print 'close'
 	self.ps.push_end()
-	self.ps.break_lines()
-	self.ps.write_to_postscript()
 
     def new_font(self, font):
+#	print 'new_font:', font
 	self.ps.push_font_change(font)
 
     def new_margin(self, margin, level):
+#	print 'new_margin:', margin, level
 	self.ps.push_margin(level)
 
     def new_spacing(self, spacing):
-	#print "new_spacing(%s)" % `spacing`
+#	print "new_spacing(%s)" % `spacing`
 	raise RuntimeError
 
     def new_styles(self, styles):
+#	print 'new_styles:', styles
 	# semantics of STYLES is a tuple of single char strings.
 	# Right now the only styles we support are lower case 'u' for
 	# underline.
@@ -788,41 +592,32 @@ class PSWriter(AbstractWriter):
 	    self.ps.push_underline(0)
 
     def send_paragraph(self, blankline):
-	for nl in range(blankline+1):
-	    self.ps.push_hard_newline()
+#	print 'send_paragraph:', blankline
+	self.ps.push_hard_newline(blankline)
 
     def send_line_break(self):
-	self.ps.push_hard_newline()
+#	print 'send_line_break'
 	self.ps.push_hard_newline()
 
     def send_hor_rule(self):
+#	print 'send_hor_rule'
 	self.ps.push_horiz_rule()
 
     def send_label_data(self, data):
+#	print 'send_label_data:', data
 	self.ps.push_label(data)
 	self.ps.push_string(data)
 	self.ps.push_label(None)
 
     def send_flowing_data(self, data):
+#	print 'send_flowing_data:', data
 	self.ps.push_literal(0)
-	self._write_text(data)
+	self.ps.push_string(data)
 
     def send_literal_data(self, data):
+#	print 'send_literal_data:', data
 	self.ps.push_literal(1)
-	self._write_text(data)
-
-    def _write_text(self, data):
-	lines = string.splitfields(data, '\n')
-	linecnt = len(lines)-1
-	for line in lines:
-	    words = string.splitfields(line, ' ')
-	    wordcnt = len(words)-1
-	    for word in words:
-		self.ps.push_string(word)
-		if wordcnt > 0: self.ps.push_space()
-		wordcnt = wordcnt - 1
-	    if linecnt > 0: self.ps.push_hard_newline()
-	    linecnt = linecnt - 1
+	self.ps.push_string(data)
 
 
 def html_test():
@@ -904,6 +699,7 @@ def html_test():
 def lltest():
     w = PSWriter(sys.stdout)
     ff = PSFont()
+    ff.set_font((10, 'FONTV', '', ''))
     font = (12, None, 1, None)
     w.new_font(font)
     ff.set_font(font)
@@ -932,12 +728,13 @@ save
 /M {moveto} D
 /S {show} D
 %/S {dup show ( ) show stringwidth pop 20 string cvs show} D
-/C {dup stringwidth pop pagewidth exch sub 2 div 0 rmoveto show} D
 /R {rmoveto} D
 /L {lineto} D
 /RL {rlineto} D
 /NL {indentmargin currentpoint E pop M} D
 /SQ {newpath 0 0 M 0 1 L 1 1 L 1 0 L closepath} D
+/C {dup stringwidth pop pagewidth exch sub 2 div 0 R S} D
+/EDGE {NL dup stringwidth pop pagewidth exch sub 0 R S} D
 /U {
   gsave currentpoint currentfont /FontInfo get /UnderlinePosition get
   0 E currentfont /FontMatrix get dtransform E pop add newpath moveto
@@ -1008,4 +805,14 @@ iso_template = """
 
 
 if __name__ == '__main__':
+##    import profile
+##    profile.run("html_test()", "/tmp/html2ps.prof")
+##    import pstats
+##    p = pstats.Stats("/tmp/html2ps.prof")
+##    oldstdout = sys.stdout
+##    try:
+##	sys.stdout = sys.stderr
+##	p.sort_stats('cumulative').print_stats(25)
+##    finally:
+##	sys.stdout = oldstdout
     html_test()
