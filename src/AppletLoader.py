@@ -153,15 +153,19 @@ class AppletLoader:
 	rexec = self.app.rexec
 	rexec.reset_urlpath()
 	rexec.set_urlpath(self.codeurl)
-	if self.reload and rexec.modules.has_key(mod) and \
-	   mod not in self.parser.loaded:
-	    # XXX Hack, hack
-	    msg, crs = self.browser.message("Reloading module " + mod)
-	    self.module = rexec.modules[mod]
-	    rexec.r_reload(self.module)
-  	else:
-	    msg, crs = self.browser.message("Loading module " + mod)
-	    self.module = rexec.r_import(mod)
+	rexec.loader.load_module = self.load_module
+	try:
+	    if self.reload and rexec.modules.has_key(mod) and \
+	       mod not in self.parser.loaded:
+		# XXX Hack, hack
+		msg, crs = self.browser.message("Reloading module " + mod)
+		self.module = rexec.modules[mod]
+		rexec.r_reload(self.module)
+	    else:
+		msg, crs = self.browser.message("Loading module " + mod)
+		self.module = rexec.r_import(mod)
+	finally:
+	    del rexec.loader.load_module
 	self.parser.loaded.append(mod)
 	self.browser.message(msg, crs)
 	self.klass = getattr(self.module, self.name)
@@ -221,7 +225,24 @@ class AppletLoader:
 	"""Internal -- load a module given the imp.find_module() stuff."""
 	rexec = self.app.rexec
 	rexec.reset_urlpath()
-	return rexec.loader.load_module(mod, stuff)
+	# XXX Duplicate stuff from rexec.RModuleLoader.load_module()
+	# and even from ihooks.FancyModuleLoader.load_module().
+	# This is needed to pass a copy of the source to linecace.
+        file, filename, info = stuff
+	(suff, mode, type) = info
+	import imp
+	if type == imp.PY_SOURCE:
+	    import linecache
+	    lines = file.readlines()
+	    data = string.joinfields(lines, '')
+	    linecache.cache[filename] = (len(data), 0, lines, filename)
+	    code = compile(data, filename, 'exec')
+	    m = self.app.rexec.hooks.add_module(mod)
+	    m.__filename__ = filename
+	    exec code in m.__dict__
+	else:
+	    raise ImportError, "Unsupported module type: %s" % `filename`
+        return m
 
     def show_tb(self):
 	"""Internal -- post an exception dialog (via the app)."""
