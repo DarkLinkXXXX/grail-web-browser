@@ -35,7 +35,7 @@ def init_module(prefs):
 
 class GrailHTMLParser(HTMLParser):
 
-    insert_aware_tags = ['param', 'alias', 'applet']
+    object_aware_tags = ['param', 'alias', 'applet']
 
     def __init__(self, viewer, reload=0, autonumber=None):
 	self.viewer = viewer
@@ -45,8 +45,8 @@ class GrailHTMLParser(HTMLParser):
 	self.load_dingbat = self.app.load_dingbat
 	self.style_stack = []
 	self.loaded = []
-	self.insert_stack = []
-	self.insert_active = 0		# Length of insert_stack at activation
+	self.object_stack = []
+	self.suppress_output = 0	# Length of object_stack at activation
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = [formatter.AbstractFormatter(self.viewer)]
@@ -69,6 +69,32 @@ class GrailHTMLParser(HTMLParser):
 	if self.reload1:
 	    self.reload1.detach(self)
 	self.reload1 = None
+
+    # Manage the object_stack
+
+    def push_object(self, tag):
+	self.object_stack.append(tag)
+	return self.suppress_output
+
+    def set_suppress(self):
+	self.suppress_output = len(self.object_stack)
+	self.handle_data = self.handle_data_noop
+
+    def handle_data_noop(self, data):
+	pass
+
+    def pop_object(self):
+	if self.suppress_output == len(self.object_stack):
+	    self.suppress_output = 0
+	    if self.nofill:
+		self.handle_data = self.formatter.add_literal_data
+	    else:
+		self.handle_data = self.formatter.add_flowing_data
+	    r = 1
+	else:
+	    r = 0
+	del self.object_stack[-1]
+	return r
 
     # manage the formatter stack
     def get_formatter(self):
@@ -105,24 +131,24 @@ class GrailHTMLParser(HTMLParser):
 	    if tag in self.head_only_tags:
 		self.badhtml = 1
 	    self.handle_starttag = self.handle_starttag_nohead
-	if self.insert_active and tag not in self.insert_aware_tags:
+	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
 	method(attrs)
 
     def handle_starttag_nohead(self, tag, method, attrs):
 	if tag in self.head_only_tags:
 	    self.badhtml = 1
-	if self.insert_active and tag not in self.insert_aware_tags:
+	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
 	method(attrs)
 
     def handle_endtag(self, tag, method):
-	if self.insert_active and tag not in self.insert_aware_tags:
+	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
 	method()
 
     def handle_data_nohead(self, data):
-	if not self.insert_active:
+	if not self.suppress_output:
 	    HTMLParser.handle_data_nohead(self, data)
 
     def anchor_bgn(self, href, name, type, target=""):
@@ -365,8 +391,8 @@ class GrailHTMLParser(HTMLParser):
     # New tag: <APPLET>
 
     def start_applet(self, attrs):
-	self.insert_stack.append('applet')
-	if self.insert_active: return
+	if self.push_object('applet'):
+	    return
 	# See http://www.javasoft.com/people/avh/applet.html for DTD
 	extract = self.extract_keyword
 	width = extract('width', attrs, conv=string.atoi)
@@ -384,20 +410,18 @@ class GrailHTMLParser(HTMLParser):
 	    vspace=vspace, hspace=hspace, align=align, reload=self.reload1)
 	if apploader.feasible():
 	    self.apploader = apploader
-	    self.insert_active = len(self.insert_stack)
+	    self.set_suppress()
 	else:
 	    apploader.close()
 
     def end_applet(self):
-	if self.insert_active == len(self.insert_stack):
-	    self.insert_active = 0
+	if self.pop_object():
 	    self.apploader.go_for_it()
-	del self.insert_stack[-1]
 
     # New tag: <PARAM>
 
     def do_param(self, attrs):
-	if 0 < self.insert_active == len(self.insert_stack):
+	if 0 < self.suppress_output == len(self.object_stack):
 	    name = self.extract_keyword('name', attrs)
 	    value = self.extract_keyword('value', attrs)
 	    if name is not None and value is not None:
@@ -505,9 +529,9 @@ class GrailHTMLParser(HTMLParser):
 
     def unknown_starttag(self, tag, attrs):
 	# Look up the function first, so it has a chance to update
-	# the list of insert-aware tags
-	if self.insert_active:
-	    if tag not in self.insert_aware_tags:
+	# the list of object aware tags
+	if self.suppress_output:
+	    if tag not in self.object_aware_tags:
 		return
 	function, as_dict = self.app.find_html_start_extension(tag)
 	if function:
@@ -516,8 +540,8 @@ class GrailHTMLParser(HTMLParser):
 	    function(self, attrs)
 
     def unknown_endtag(self, tag):
-	if self.insert_active:
-	    if tag not in self.insert_aware_tags:
+	if self.suppress_output:
+	    if tag not in self.object_aware_tags:
 		return
 	function = self.app.find_html_end_extension(tag)
 	if function:
@@ -526,6 +550,8 @@ class GrailHTMLParser(HTMLParser):
     # Handle proposed iconic entities (see W3C working drafts or HTML 3):
 
     def unknown_entityref(self, entname, terminator):
+	if self.suppress_output:
+	    return
 	img = self.load_dingbat(entname)
 	if img:
 	    if type(img) is TupleType:
