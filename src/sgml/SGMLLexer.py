@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.27 $"
+__version__ = "$Revision: 1.28 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -497,9 +497,9 @@ class SGMLLexer(SGMLLexerBase):
 		i = j
 	    # end while
 	    if (end or self._finish_parse) and i < n:
-		self.lex_data(rawdata[i:n])
+		self.lex_data(self.rawdata[i:n])
 		i = n
-	    self.rawdata = rawdata[i:]
+	    self.rawdata = self.rawdata[i:]
 
 	# Internal -- parse comment, return length or -1 if not terminated
 	def parse_comment(self, i, end):
