@@ -1,5 +1,5 @@
 """Handler for inline images expressed using <OBJECT>."""
-__version__ = "$Revision: 1.2 $"
+__version__ = "$Revision: 1.3 $"
 
 import AsyncImage
 import HTMLParser
@@ -98,10 +98,7 @@ class ImageObject(HTMLParser.Embedding):
 	if not href:
 	    return
 	target = extract_keyword('target', attrs, "", conv=conv_normstring)
-	shape = extract_keyword('shape', attrs, conv=conv_nomstring)
+	shape = extract_keyword('shape', attrs, conv=conv_normstring)
 	coords = extract_keyword('coords', attrs, conv=conv_normstring)
 	if shape and (coords or shape == 'default'):
 	    self.__map.add_shape(shape, coords, href, target)
-
-#
-#  end of file
