@@ -722,7 +722,7 @@ class Widget(Misc, Pack, Place):
 		# XXX ought to generalize this so tag_config etc. can use it
 		if kw:
 			cnf = _cnfmerge((cnf, kw))
-		else:
+		elif cnf:
 			cnf = _cnfmerge(cnf)
 		if cnf is None:
 			cnf = {}
@@ -730,12 +730,12 @@ class Widget(Misc, Pack, Place):
 				self.tk.call(self._w, 'configure')):
 				cnf[x[0][1:]] = (x[0][1:],) + x[1:]
 			return cnf
-		if type(cnf) == StringType:
+		if type(cnf) is StringType:
 			x = self.tk.split(self.tk.call(
 				self._w, 'configure', '-'+cnf))
 			return (x[0][1:],) + x[1:]
 		for k in cnf.keys():
-			if type(k) == ClassType:
+			if type(k) is ClassType:
 				k.config(self, cnf[k])
 				del cnf[k]
 		apply(self.tk.call, (self._w, 'configure')
