@@ -237,13 +237,20 @@ class Reader(BaseReader):
 
     def handle_auth_error(self, errcode, errmsg, headers):
 	# Return nonzero if handle_error() should return now
-	if not headers.has_key('www-authenticate') or self.maxrestarts <= 0:
+	if not headers.has_key('www-authenticate') \
+	   or self.maxrestarts <= 0:
 	    return
 
 	cred_headers = {}
 	for k in headers.keys():
 	    cred_headers[string.lower(k)] = headers[k]
 	cred_headers['request-uri'] = self.url
+
+	if self.params.has_key('Authorization'):
+	    self.app.auth.invalidate_credentials(cred_headers,
+						 self.params['Authorization'])
+	    return
+
 	self.stop()
 	credentials = self.app.auth.request_credentials(cred_headers)
 	if credentials.has_key('Authorization'):
@@ -253,6 +260,7 @@ class Reader(BaseReader):
 	    return 1
 	# couldn't figure out scheme
 	self.maxrestarts = 0
+	self.restart(self.url)
 	return
 
     def handle_data(self, data):
