@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.32 $"
+__version__ = "$Revision: 1.33 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -715,7 +715,7 @@ class SGMLLexer(SGMLLexerBase):
 
 if not _sgmllex:
     # Regular expressions used for parsing:
-    OPTIONAL_WHITESPACE = "[ \t\n\r]*"
+    OPTIONAL_WHITESPACE = "[%s]*" % string.whitespace
     interesting = regex.compile('[&<]')
     incomplete = regex.compile('&\([a-zA-Z][a-zA-Z0-9]*\|#[0-9]*\)?\|'
 			       '<\([a-zA-Z][^<>]*\|'
@@ -746,14 +746,16 @@ if not _sgmllex:
 				      + COM + '\([^-]\|-[^-]\)*' + COM
 				      + '\)' + OPTIONAL_WHITESPACE
 				      + '\)*' + MDC)
-    md_name = regex.compile('\([^> \n\t\r\'"]+\)' + OPTIONAL_WHITESPACE)
+    md_name = regex.compile('\([^>%s\'"]+\)' % string.whitespace
+			    + OPTIONAL_WHITESPACE)
     md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)' + OPTIONAL_WHITESPACE)
     commentopen = regex.compile(MDO + COM)
     commentclose = regex.compile(COM + OPTIONAL_WHITESPACE + MDC)
     tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
     attrfind = regex.compile(
-	'[ \t\n,]+\([a-zA-Z_][a-zA-Z_0-9.-]*\)'	# comma is for compatibility
-	'\(' + OPTIONAL_WHITESPACE + VI + OPTIONAL_WHITESPACE	# VI
+	# comma is for compatibility
+	('[%s,]+\([a-zA-Z_][a-zA-Z_0-9.-]*\)' % string.whitespace)
+	+ '\(' + OPTIONAL_WHITESPACE + VI + OPTIONAL_WHITESPACE	# VI
 	+ '\(' + LITA + "[^']*" + LITA
 	+ '\|' + LIT + '[^"]*' + LIT + '\|[-~a-zA-Z0-9,./:+*%?!()_#=]*\)\)?')
     tagend = regex.compile(OPTIONAL_WHITESPACE + '[<>/]')
