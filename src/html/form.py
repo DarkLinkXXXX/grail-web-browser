@@ -617,9 +617,7 @@ class Select:
 	needvbar = len(self.options) > size
 	self.w, self.frame = tktools.make_list_box(self.viewer.text,
 						   height=size,
-						   vbar=needvbar,
-						   background=self.bgcolor,
-						   highlightbackground=self.bgcolor)
+						   vbar=needvbar)
 	self.w['exportselection'] = 0
 	self.w['background'] = self.w['highlightbackground'] = self.bgcolor
 	self.frame['background'] = \
