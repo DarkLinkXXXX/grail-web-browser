@@ -1,5 +1,5 @@
 """Simple parser that handles only what's allowed in attribute values."""
-__version__ = '$Revision: 1.13 $'
+__version__ = '$Revision: 1.14 $'
 
 import re
 import string
@@ -31,7 +31,6 @@ def replace(data, entities={}):
         m = _entref_search(data)
         while m:
             ref, term = m.group(1, 2)
-            print "replacing:", (ref, term)
             pos = m.start()
             if entities.has_key(ref):
                 value = entities[ref]
