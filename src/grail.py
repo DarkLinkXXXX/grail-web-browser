@@ -4,7 +4,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.3b1"
+__version__ = "Grail/0.3b2"
 
 
 # Standard python imports (needed by path munging code)
