@@ -245,7 +245,7 @@ class Context:
 	    del self.forms
 	self.page.set_formdata(formdata)
 
-    def read_page(self, url, method, params, show_source, reload,
+    def read_page(self, url, method, params, show_source=0, reload=0,
 		  scrollpos=None, data=None):
 	from Reader import Reader
 	Reader(self, url, method, params, show_source, reload, data, scrollpos)
