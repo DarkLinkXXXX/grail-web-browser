@@ -10,7 +10,7 @@ AS_IS = None
 
 class NullFormatter:
 
-    def __init__(self): pass
+    def __init__(self, writer): pass
     def end_paragraph(self, blankline): pass
     def add_line_break(self): pass
     def add_hor_rule(self, abswidth=None, percentwidth=1.0,
@@ -162,7 +162,8 @@ class AbstractFormatter:
 
     def add_literal_data(self, data):
 	if not data: return
-	#  Caller is expected to cause flush_softspace() if needed.
+	if self.softspace:
+	    self.writer.send_flowing_data(" ")
 	self.hard_break = data[-1:] == '\n'
 	self.nospace = self.para_end = self.softspace = \
 		       self.parskip = self.have_label = 0
