@@ -1,7 +1,9 @@
 """Base reader class -- read from a URL in the background."""
 
 import sys
+import string
 from Tkinter import *
+import urlparse
 
 
 # Default tuning parameters
@@ -40,6 +42,11 @@ class BaseReader:
 	if TkVersion == 4.0 and sys.platform == 'irix5':
 	    if self.fno >= 20: self.fno = -1 # XXX for SGI Tk OPEN_MAX bug
 
+	# Stuff for status reporting
+	self.nbytes = 0
+	self.maxbytes = 0
+	self.shorturl = ""
+
 	self.context.addreader(self)
 
 	if self.fno >= 0:
@@ -49,8 +56,39 @@ class BaseReader:
 ##	    print "No fileno() -- check every 100 ms"
 	    self.checkapi_regularly()
 
+    def __str__(self):
+	if self.maxbytes:
+	    percent = self.nbytes*100/self.maxbytes
+	    status = `percent` + "% of " + nicebytes(self.maxbytes)
+	else:
+	    status = "%s read" % nicebytes(self.nbytes)
+	if not self.shorturl:
+	    tuple = urlparse.urlparse(self.api._url_)
+	    path = tuple[2]
+	    i = string.rfind(path[:-1], '/')
+	    if i >= 0:
+		path = path[i+1:]
+	    self.shorturl = path or self.api._url_
+	return "[Loading %s: %s]" % (self.shorturl, status)
+
     def __repr__(self):
-	return "%s(%s)" % (self.__class__.__name__, self.api)
+	return "%s(...%s)" % (self.__class__.__name__, self.api)
+
+    def update_status(self):
+	self.context.new_reader_status() # Will call our __str__() method
+
+    def update_maxbytes(self, headers):
+	self.maxbytes = 0
+	if headers.has_key('content-length'):
+	    try:
+		self.maxbytes = string.atoi(headers['content-length'])
+	    except string.atoi_error:
+		pass
+	self.update_status()
+
+    def update_nbytes(self, data):
+	self.nbytes = self.nbytes + len(data)
+	self.update_status()
 
     def kill(self):
 	self.stop()
@@ -117,6 +155,7 @@ class BaseReader:
 	    content_encoding = None
 	self.content_type = content_type
 	self.content_encoding = content_encoding
+	self.update_maxbytes(headers)
 	self.handle_meta(errcode, errmsg, headers)
 	if self.callback:
 	    self.callback()		# XXX Handle httpAPI readahead
@@ -127,6 +166,7 @@ class BaseReader:
 	    self.stop()
 	    self.handle_eof()
 	    return
+	self.update_nbytes(data)
 	self.handle_data(data)
 
     def geteverything(self):
@@ -140,6 +180,7 @@ class BaseReader:
 
     def handle_meta(self, errcode, errmsg, headers):
 	# May call self.stop()
+	self.update_maxbytes(headers)
 	if errcode != 200:
 	    self.stop()
 	    self.handle_error(errcode, errmsg, headers)
@@ -155,3 +196,26 @@ class BaseReader:
     def handle_eof(self):
 	# Called after self.stop() has been called
 	pass
+
+
+def nicebytes(n):
+    if n < 1000:
+	if n <= 1:
+	    if n == 1: return "1 byte"
+	    if n == 0: return "no bytes"
+	    if n < 0: return "%d bytes" % n
+	return "%d bytes" % n
+    n = n * 0.001
+    if n < 1000.0:
+	suffix = "K"
+    else:
+	n = n * 0.001
+	if n < 1000.0:
+	    suffix = "M"
+	else:
+	    n = n * 0.001
+	    suffix = "G"
+    if n < 10.0: r = 2
+    elif n < 100.0: r = 1
+    else: r = 0
+    return "%.*f" % (r, n) + suffix
