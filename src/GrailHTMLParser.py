@@ -327,18 +327,6 @@ class GrailHTMLParser(HTMLParser):
 	    target = attrs['target']
 	self.context.set_baseurl(base, target)
 
-    # New tag: <CENTER> (for Amy)
-
-    def start_center(self, attrs):
-	self.implied_end_p()
-	self.formatter.add_line_break()
-	self.formatter.push_alignment('center')
-
-    def end_center(self):
-	self.implied_end_p()
-	self.formatter.add_line_break()
-	self.formatter.pop_alignment()
-
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
 	href = name = type = target = ''
