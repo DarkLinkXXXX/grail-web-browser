@@ -215,7 +215,7 @@ class GrailHTMLParser(HTMLParser):
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
-	align, usemap = CENTER, None
+	align, usemap = BASELINE, None
 	extract = extract_keyword
 	## align = extract('align', attrs, align, conv=conv_align)
 	alt = extract('alt', attrs, '(image)')
@@ -225,6 +225,8 @@ class GrailHTMLParser(HTMLParser):
 	src = extract('src', attrs, '')
 	width = extract('width', attrs, 0, conv=string.atoi)
 	height = extract('height', attrs, 0, conv=string.atoi)
+	hspace = extract('hspace', attrs, 0, conv=string.atoi)
+	vspace = extract('vspace', attrs, 0, conv=string.atoi)
 	if attrs.has_key('usemap'):
 	    # not sure how to assert(value[0] == '#')
 	    value = attrs['usemap']
@@ -232,10 +234,11 @@ class GrailHTMLParser(HTMLParser):
 		if value[0] == '#': value = value[1:]
 		usemap = MapThunk(self.context, value)
         self.handle_image(src, alt, usemap, ismap,
-			  align, width, height, border, self.reload1)
+			  align, width, height, border, self.reload1,
+			  hspace=hspace, vspace=vspace)
 
     def handle_image(self, src, alt, usemap, ismap, align, width,
-		     height, border=2, reload):
+		     height, border=2, reload, hspace=0, vspace=0):
 	if not self.app.prefs.GetBoolean("browser", "load-images"):
 	    self.handle_data(alt)
 	    return
@@ -243,15 +246,17 @@ class GrailHTMLParser(HTMLParser):
 	window = ImageWindow(self.viewer, self.anchor, src, alt or "(Image)",
 			     usemap, ismap, align, width, height,
 			     border, self.target, reload)
-	self.add_subwindow(window, align=align)
+	self.add_subwindow(window, align=align, hspace=hspace, vspace=vspace)
 
-    def add_subwindow(self, w, align=CENTER):
+    def add_subwindow(self, w, align=CENTER, hspace=0, vspace=0):
 	self.formatter.flush_softspace()
 	if self.formatter.nospace:
 	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
 	    self.viewer.prepare_for_insertion()
 	self.viewer.add_subwindow(w, align=align)
+	if hspace or vspace:
+	    self.viewer.text.window_config(w, padx=hspace, pady=vspace)
 	self.formatter.assert_line_data()
 
     # Extend tag: </TITLE>
@@ -490,8 +495,8 @@ class GrailHTMLParser(HTMLParser):
 	classid = extract('classid', attrs)
 	codebase = extract('codebase', attrs)
 	align = extract('align', attrs, 'baseline')
-	vspace = extract('vspace', attrs)
-	hspace = extract('hspace', attrs)
+	vspace = extract('vspace', attrs, 0, conv=string.atoi)
+	hspace = extract('hspace', attrs, 0, conv=string.atoi)
 	apploader = AppletLoader.AppletLoader(
 	    self, width=width, height=height, menu=menu,
 	    classid=classid, codebase=codebase,
@@ -646,15 +651,16 @@ class GrailHTMLParser(HTMLParser):
 
 def conv_align(val):
     # This should work, but Tk doesn't actually do the right
-    # thing so for now everything gets mapped to CENTER
+    # thing so for now everything gets mapped to BASELINE
     # alignment.
-    return CENTER
+    return BASELINE
     conv = grailutil.conv_enumeration(
 	grailutil.conv_normstring(val),
 	{'top': TOP,
-	 'middle': CENTER,
+	 'middle': CENTER,		# not quite right
 	 'bottom': BASELINE,
-	 # note: no HTML 2.0 equivalent of Tk's BOTTOM alignment
+	 'absbottom': BOTTOM,		# compatibility hack...
+	 'absmiddle': CENTER,		# compatibility hack...
 	 })
     if conv: return conv
     else: return CENTER
