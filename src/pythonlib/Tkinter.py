@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.33 $"
+__version__ = "$Revision: 2.34 $"
 
 try:
 	# See if modern _tkinter is present
@@ -852,8 +852,9 @@ class Widget(Misc, Pack, Place, Grid):
 		apply(self.tk.call, (self._w, 'configure')
 		      + self._options(cnf))
 	configure = config
-	def __getitem__(self, key):
+	def cget(self, key):
 		return self.tk.call(self._w, 'cget', '-' + key)
+	__getitem__ = cget
 	def __setitem__(self, key, value):
 		Widget.config(self, {key: value})
 	def keys(self):
@@ -1105,21 +1106,31 @@ class Entry(Widget):
 		self.tk.call(self._w, 'scan', 'mark', x)
 	def scan_dragto(self, x):
 		self.tk.call(self._w, 'scan', 'dragto', x)
-	def select_adjust(self, index):
-		self.tk.call(self._w, 'select', 'adjust', index)
-	def select_clear(self):
-		self.tk.call(self._w, 'select', 'clear')
-	def select_from(self, index):
-		self.tk.call(self._w, 'select', 'set', index)
-	def select_present(self):
+	def selection_adjust(self, index):
+		self.tk.call(self._w, 'selection', 'adjust', index)
+	select_adjust = selection_adjust
+	def selection_clear(self):
+		self.tk.call(self._w, 'selection', 'clear')
+	select_clear = selection_clear
+	def selection_from(self, index):
+		self.tk.call(self._w, 'selection', 'set', index)
+	select_from = selection_from
+	def selection_present(self):
 		return self.tk.getboolean(
-			self.tk.call(self._w, 'select', 'present'))
-	def select_range(self, start, end):
-		self.tk.call(self._w, 'select', 'range', start, end)
-	def select_to(self, index):
-		self.tk.call(self._w, 'select', 'to', index)
-	def view(self, index):
-		self.tk.call(self._w, 'view', index)
+			self.tk.call(self._w, 'selection', 'present'))
+	select_present = selection_present
+	def selection_range(self, start, end):
+		self.tk.call(self._w, 'selection', 'range', start, end)
+	select_range = selection_range
+	def selection_to(self, index):
+		self.tk.call(self._w, 'selection', 'to', index)
+	select_to = selection_to
+	def xview(self, index):
+		self.tk.call(self._w, 'xview', index)
+	def xview_moveto(self, fraction):
+		self.tk.call(self._w, 'xview', 'moveto', fraction)
+	def xview_scroll(self, number, what):
+		self.tk.call(self._w, 'xview', 'scroll', number, what)
 
 class Frame(Widget):
 	def __init__(self, master=None, cnf={}, **kw):
