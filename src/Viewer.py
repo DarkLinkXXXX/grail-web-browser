@@ -184,6 +184,7 @@ class Viewer(formatter.AbstractWriter):
     def configure_tags(self, stylesheet):
 	if self.text:
 	    self.text.config(stylesheet.default)
+	    
 	    for tag, cnf in stylesheet.styles.items():
 		self.text.tag_config(tag, cnf)
 	    for tag, cnf in stylesheet.history.items():
@@ -202,7 +203,8 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('ins', foreground = 'darkgreen')
 	#  Special fonts:
 	if DINGBAT_FONT:
-	    self.text.tag_config('dingbat', font = DINGBAT_FONT)
+	    self.text.tag_config('dingbat', font = DINGBAT_FONT,
+				 offset = 1)
 	if SYMBOL_FONT:
 	    self.text.tag_config('symbol', font = SYMBOL_FONT)
 	# Configure margin tags
