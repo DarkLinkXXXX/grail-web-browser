@@ -30,9 +30,34 @@ XXX Constants should only have a prefix 'HP_' or 'HDL_' when their
 XXX Should break up get_data in send_request and poll_request.
 
 XXX When retrying, should we generate a new tag or reuse the old one?
-(I think yes, but this means repacking the request.)
+I think yes, but this means repacking the request.
 
 """
+
+# XXX Charles says:
+# 
+# NOTE: The global handle system is considered handle system of last
+# resort.  Therefore, the process is to obtain "homed" service
+# information (ie. hash table) and use this information to return the
+# data. If handle is not found, then query the global handle
+# system. If the "homed" service information is the global handle
+# system. The final query is not required.
+# 
+# There is not option for Authenticated queries. This is a query
+# option. If the functions use mirroring handle servers to obtain
+# information, then HDL_AUTHENTICATE query flag should be an
+# option. If HDL_AUTHENTICATE query option is set, the primary servers
+# is to be used to query for the handle.
+# 
+# I also noticed, that there is no retry mechanism. This would be very
+# helpful for dropped packets, etc...
+# 
+# [Guido responds: yes there is!  If get_data() doesn't get a response
+# in 5 seconds (changeable by the interval argument) it resends the
+# request.]
+# 
+# I didn't see a caching of authority handles and/or service handles,
+# this would be a tremendous increase for handle resolution.
 
 import rand
 import md5
@@ -51,6 +76,8 @@ DEBUG = 0				# Default debugging flag
 HANDLE_SERVICE_ID = 'HDL' + 13*' ' # Yes the spaces are important
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash.tbl'
 DEFAULT_GLOBAL_SERVER = "hs.handle.net"
+# XXX It is not guaranteed that IP addresses listed here will be the
+# XXX global servers (says Charles)
 DEFAULT_SERVERS = ['132.151.1.155',
 		   '198.32.1.37',
 		   '132.151.1.159',
@@ -59,7 +86,7 @@ DEFAULT_NUM_OF_BITS = 2
 DEFAULT_HASH_FILE = '/usr/local/etc/hdl_hash.tbl'
 DEFAULT_UDP_PORT = 2222
 DEFAULT_TCP_PORT = 2222
-DEFAULT_ADMIN_PORT = 2223
+DEFAULT_ADMIN_PORT = 80			# Admin protocol uses HTTP now
 FILE_NAME_LENGTH = 128
 HOST_NAME_LENGTH = 64
 MAX_BODY_LENGTH = 1024
@@ -110,6 +137,8 @@ HDL_TYPE_CACHE_PERIOD = 8		# Default caching period timeout
 HDL_TYPE_HANDLE_TYPE = 9		# For Handle Service internal use
 HDL_TYPE_SERVICE_HANDLE = 10		# Handle containing hash table info
 HDL_TYPE_SERVICE_POINTER  = 11		# Service's hash table info
+HDL_TYPE_URN = 12			# Universal Resource Name
+HDL_TYPE_TRANS_ID = 13			# Transaction Identifier
 # Non-registered types are > 65535
 """
 
@@ -567,6 +596,11 @@ class HashTable:
 
 	"""
 
+	# XXX Charles says:
+	# In the _parse_hash_table function, only the primary servers
+	# are placed in the bucket cache. Therefore, the library does
+	# not take advantage of mirroring handle servers.
+
 	# Verify the checksum before proceeding
 	checksum = data[:16]
 	data = data[16:]
@@ -724,6 +758,10 @@ class HashTable:
 
 	"""
 
+	# XXX Charles says:
+	# In get_data function, it always makes a UDP connection. This
+	# may not be the case for systems behind firewalls.
+
 	mytag = self.tag.session_tag()
 
 	p = PacketPacker()
@@ -872,6 +910,11 @@ def fetch_global_hash_table(ht=None, debug=DEBUG):
 
 def fetch_local_hash_table(hdl, ht=None, debug=DEBUG):
     """Fetch the local hash table for a handle."""
+
+    # XXX Charles says:
+    # In fetch_local_hash_table function, does not query Global Handle
+    # System for the service handle.
+
     if debug: print "Fetching local hash table for", `hdl`
     # 1. Get the authority name
     hdl = get_authority(hdl)
