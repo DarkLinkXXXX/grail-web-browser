@@ -76,6 +76,8 @@ class TempFileReader(FileReader):
 	    return FileReader.open_file(self)
 	else:
 	    import os, sys
+	    if not hasattr(os, 'popen'):
+		raise IOError, "pipelines not supported"
 	    try:
 		return os.popen(self.pipeline + ">" + self.filename, "wb")
 	    except os.error, msg:
