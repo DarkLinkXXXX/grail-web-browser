@@ -1466,11 +1466,27 @@ class BookmarksMenuViewer(OutlinerViewer):
             menu.add_separator()
         elif nodetype == "Bookmark":
             leaf = BookmarksMenuLeaf(node, self._controller)
-            menu.add_command(label=node.title(), command=leaf.goto)
+            menu.add_command(label=_node_title(node), command=leaf.goto)
         elif nodetype == "Folder":
             submenu = Menu(menu, tearoff=0)
             self._menustack.append(submenu)
-            menu.add_cascade(label=node.title(), menu=submenu)
+            menu.add_cascade(label=_node_title(node), menu=submenu)
+
+
+MAX_TITLE_WIDTH = 50
+
+def _node_title(node):
+    """Return an abbreviated version of the node title."""
+    # Could be better -- try to break on word boundaries.
+    title = node.title()
+    if not title:
+        title = node.uri()
+    if not title:
+        return "(Unknown)"
+    if len(title) > MAX_TITLE_WIDTH:
+        return title[:MAX_TITLE_WIDTH - 4] + " ..."
+    return title
+
 
 class BookmarksMenu:
     """This is top level hook between the Grail Browser and the
