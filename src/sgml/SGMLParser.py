@@ -1,6 +1,6 @@
 """A parser for SGML, using the derived class as static DTD."""
 
-__version__ = "$Revision: 1.26 $"
+__version__ = "$Revision: 1.27 $"
 
 import SGMLLexer
 import SGMLHandler
@@ -212,7 +212,7 @@ class SGMLParser(SGMLLexer.SGMLLexer):
     def lex_entityref(self, name, terminator):
         self.__handler.handle_entityref(name, terminator)
 
-
+
 from types import StringType
 
 class TagInfo:
@@ -226,10 +226,11 @@ class TagInfo:
             self.end = end or _nullfunc
         else:
             self.container = 0
-            self.start = do
+            self.start = do or _nullfunc
             self.end = _nullfunc
 
     def __cmp__(self, other):
+        # why is this needed???
         if type(other) is StringType:
             return cmp(self.tag, other)
         if type(other) is type(self):
