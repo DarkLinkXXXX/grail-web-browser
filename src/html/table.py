@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.2 1996/03/22 22:37:02 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.3 1996/03/23 00:41:15 bwarsaw Exp $'
 
 
 import string
@@ -101,17 +101,22 @@ class TableSubParser:
 		ti.tbodies.append(ti.lastbody)
 	    ti.lastbody.trows.append(tr)
 
-    def _do_cell(self, parser, attrs):
+    def _do_cell(self, parser, attrs, header=None):
 	ti = self._lasttable 
 	if ti:
 	    # finish any previously opened cell
 	    self._finish_cell(parser)
 	    # create a new formatter for the cell, made from a new subviewer
-	    cell = ti.lastcell = Cell(ti, parser.viewer, attrs)
+	    if header:
+		cell = THCell(ti, parser, attrs)
+	    else:
+		cell = TDCell(ti, parser, attrs)
+	    ti.lastcell = cell
 	    cell.viewer.unfreeze()
 	    cell.viewer.text['wrap'] = NONE
 	    formatter = AbstractFormatter(cell.viewer)
 	    parser.push_formatter(formatter)
+	    cell.init_style()
 	    # create a new object to hold the attributes
 	    rows = ti.lastbody.trows
 	    if rows:
@@ -126,7 +131,7 @@ class TableSubParser:
 	    ti.lastcell = None
 	    parser.pop_formatter()
 
-    def do_th(self, parser, attrs): self._do_cell(parser, attrs)
+    def do_th(self, parser, attrs): self._do_cell(parser, attrs, 1)
     def do_td(self, parser, attrs): self._do_cell(parser, attrs)
 
 
@@ -253,7 +258,7 @@ class Table(AttrElem):
 	# populate an empty table
 	for row in range(rowcount):
 	    for col in range(colcount):
-		table[(row, col)] = None
+		table[(row, col)] = EMPTY
 
 	# now populate the sparse array, watching out for multiple row
 	# and column spanning cells, and for empty cells, which won't
@@ -473,12 +478,13 @@ class TR(AttrElem):
 class Cell(AttrElem):
     """A generic TH or TD table cell element."""
 
-    def __init__(self, table, parentviewer, attrs):
+    def __init__(self, table, parser, attrs):
 	AttrElem.__init__(self, attrs)
+	self._parser = parser
 	self.viewer = Viewer(master=table.frame,
 			     scrolling=0,
-			     stylesheet=parentviewer.stylesheet,
-			     parent=parentviewer)
+			     stylesheet=parser.viewer.stylesheet,
+			     parent=parser.viewer)
 	self.viewer.text.config(relief=SUNKEN, borderwidth=1)
 	self.viewer.text.pack(fill=BOTH, expand=YES)
 	self.layout = table.layout
@@ -492,8 +498,10 @@ class Cell(AttrElem):
 	self.rowspan = string.atoi(self.attribute('rowspan') or '1')
 	self.colspan = string.atoi(self.attribute('colspan') or '1')
 
-    def close(self):
-	self.viewer.close()
+    def close(self): self.viewer.close()
+
+    def init_style(self):
+	pass
 
     def __repr__(self):
 	return '"%s"' % self.viewer.text.get(1.0, END)[:-1]
@@ -530,6 +538,19 @@ class Cell(AttrElem):
 	self._height = h
 	self._x = x
 	self._y = y
+
+class TDCell(Cell):
+    pass
+
+class THCell(Cell):
+    def init_style(self):
+	# TBD: this should be extracted from stylesheets and/or preferences
+	self._parser.get_formatter().push_font((None, None, 1, None))
+
+    def finish(self):
+	Cell.finish(self)
+	self.viewer.text.tag_add('centered', 1.0, END)
+	self.viewer.text.tag_config('centered', justify=CENTER)
 
 
 if __name__ == '__main__':
