@@ -79,7 +79,7 @@ def form_bgn(parser, action, method, enctype):
     if not hasattr(parser, 'form_stack'):
 	parser.form_stack = []
 	parser.forms = []
-	parser.context.browser.forms = []
+	parser.context.forms = []
     fi = FormInfo(parser, action, method, enctype)
     parser.form_stack.append(fi)
 
@@ -88,7 +88,7 @@ def form_end(parser):
     if fi:
 	del parser.form_stack[-1]
 	parser.forms.append(fi)
-	parser.context.browser.forms.append(fi)
+	parser.context.forms.append(fi)
 	fi.done()
 
 def handle_input(parser, type, options):
