@@ -349,7 +349,9 @@ class Viewer(formatter.AbstractWriter):
 	    self.text.insert(END, '\t'+data+'\t', tags)
 	else:
 	    self.text.insert(END, '\t', tags)
-	    self.add_subwindow(Label(self.text, image = data))
+	    self.add_subwindow(Label(self.text, image = data,
+				     background = self.text['background'],
+				     borderwidth = 0))
 	    self.text.insert(END, '\t', tags)
 
     def send_flowing_data(self, data):
