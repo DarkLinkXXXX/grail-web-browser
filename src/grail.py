@@ -1,4 +1,4 @@
-#! /home/guido/depot/bin/python
+#! /depot/sundry/plat/bin/python1.3
 
 
 """Grail -- an extensible web browser.
