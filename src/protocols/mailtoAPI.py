@@ -5,11 +5,34 @@ import tktools
 import os
 import sys
 import time
+import string
+from urlparse import urlparse, urlunparse
+from urllib import splitvalue
 
 from __main__ import app, GRAILVERSION
 from nullAPI import null_access
 from Context import LAST_CONTEXT
 
+
+# Python 1.4 has a new, very useful function!
+if hasattr(string, 'capwords'):
+    capwords = string.capwords
+else:
+    # the python implementation of Python 1.4's string.capwords()
+    def capwords(str, sep=None):
+	cappedwords = []
+	if sep is None:
+	    words = string.split(str)
+	else:
+	    words = string.splitfields(str, sep)
+	for word in words:
+	    cappedwords.append(string.upper(word[0]) + string.lower(word[1:]))
+	if sep is None:
+	    return string.join(cappedwords)
+	else:
+	    return string.joinfields(cappedwords, sep)
+
+
 class mailto_access(null_access):
 
     def __init__(self, url, method, params, data=None):
@@ -31,7 +54,6 @@ MIME-Version: 1.0
 Content-Type: %(ctype)s
 X-Mailer: %(mailer)s
 X-URL: %(url)s
-
 """
 else:
     SENDMAIL = "/usr/lib/sendmail -t" # XXX
@@ -42,15 +64,22 @@ MIME-Version: 1.0
 Content-Type: %(ctype)s
 X-Mailer: %(mailer)s
 X-URL: %(url)s
-
 """
 
-
+
 class MailDialog:
 
     template = TEMPLATE
 
     def __init__(self, master, address, data):
+	# query semantics may be used to identify header field values
+	headers = {}
+	scheme, netloc, path, params, query, fragment = urlparse(address)
+	address = urlunparse((scheme, netloc, path, '', '', ''))
+	for attr in string.splitfields(query, ';'):
+	    header, value = splitvalue(attr)
+	    headers[header] = value
+	# create widgets
 	self.master = master
 	self.root = tktools.make_toplevel(self.master,
 					  title="Mail Dialog")
@@ -75,7 +104,17 @@ class MailDialog:
 Content-Transfer-Encoding: 7bit""",
 	    'url':	LAST_CONTEXT and LAST_CONTEXT.get_baseurl() or ''
 	    }
+	# move default set of query'd headers into variables
+	for header, value in headers.items():
+	    if variables.has_key(header):
+		variables[header] = value
+		del headers[header]
 	self.text.insert(END, self.template % variables + (data or ''))
+	# insert extra headers
+	for header, value in headers.items():
+	    self.text.insert(END, '%s: %s\n' % (capwords(header, '-'), value))
+	# insert newline
+	self.text.insert(END, '\n')
 
     def send_command(self):
 	message = self.text.get("1.0", END)
