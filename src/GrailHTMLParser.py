@@ -51,12 +51,10 @@ class AppletHTMLParser(htmllib.HTMLParser):
 
     def add_subwindow(self, w):
 	if self.formatter.nospace:
-	    # Disgusting hack to tag the first character of the line
+	    # XXX Disgusting hack to tag the first character of the line
 	    # so things like indents and centering work
-	    data = ' '
-	else:
-	    data = ''
-	self.handle_data(data)
+	    self.formatter.add_literal_data(' ')
+	self.handle_data(' ')
 	self.viewer.add_subwindow(w)
 
     # New tag: <CENTER> (for Amy)
