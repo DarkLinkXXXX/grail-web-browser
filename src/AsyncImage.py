@@ -199,7 +199,12 @@ class PILAsyncImageSupport(BaseAsyncImage):
     def __init__(self, context, url, reload=0, width=None, height=None, **kw):
         import ImageTk
         self.setup(context, url, reload)
-        ImageTk.PhotoImage.__init__(self, "RGB", (width or 1, height or 1))
+        master = kw.get("master")
+        if master is None:
+            ImageTk.PhotoImage.__init__(self, "RGB", (width or 1, height or 1))
+        else:
+            ImageTk.PhotoImage.__init__(self, "RGB", (width or 1, height or 1),
+                                        master=kw.get("master"))
         if not hasattr(self, 'image'):
             # Steal a private variable from ImageTk
             self.image = self._PhotoImage__photo

@@ -334,7 +334,8 @@ class Context:
         # it's not in the cache.
         from AsyncImage import AsyncImage
         try:
-            image = AsyncImage(self, url, reload, width=width, height=height)
+            image = AsyncImage(self, url, reload, width=width, height=height,
+                               master=self.root)
         except IOError, msg:
             image = None
         if image:

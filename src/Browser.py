@@ -167,7 +167,8 @@ class Browser:
         self._menucmd(menu, "I/O Status Panel...", "I", self.iostatus_command)
         menu.add_separator()
         self._menucmd(menu, "Close", "W", self.close_command),
-        self._menucmd(menu, "Quit", "Q", self.quit_command)
+        if not self.app.embedded:
+            self._menucmd(menu, "Quit", "Q", self.quit_command)
 
     def create_menu_go(self, menu):
         self._menucmd(menu, "Back", "Left", self.back_command)

@@ -66,7 +66,7 @@ Options:
     -g <geom>, --geometry <geom> : initial window geometry
     -d <display>, --display <display> : override $DISPLAY""" % sys.argv[0]
 
-def main():
+def main(argv=None):
     prefs = GrailPrefs.AllPreferences()
     # XXX Disable cache for NT
     if sys.platform == 'win32':
@@ -76,8 +76,13 @@ def main():
     if prefs.GetBoolean('security', 'enable-ilu'):
         try: import ilu_tk
         except ImportError: pass
+    if argv is not None:
+        embedded = 1
+    else:
+        argv = sys.argv[1:]
+        embedded = 0
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'd:g:iq',
+        opts, args = getopt.getopt(argv, 'd:g:iq',
                                    ['display=', 'geometry=', 'noimages'])
         if len(args) > 1:
             raise getopt.error, "too many arguments"
@@ -106,6 +111,7 @@ def main():
         url = None
     global app
     app = Application(prefs=prefs, display=display)
+    app.embedded = embedded
     if __name__ != '__main__':
         import __main__
         __main__.app = app
@@ -141,15 +147,17 @@ def main():
             app.exception_dialog('during import of startup file')
 
     # Load the initial page (command line argument or from preferences)
-    from Browser import Browser
-    browser = Browser(app.root, app, geometry=geometry)
-    if url:
-        browser.context.load(url)
-    elif prefs.GetBoolean('browser', 'load-initial-page'):
-        browser.home_command()
+    if not embedded:
+        from Browser import Browser
+        browser = Browser(app.root, app, geometry=geometry)
+        if url:
+            browser.context.load(url)
+        elif prefs.GetBoolean('browser', 'load-initial-page'):
+            browser.home_command()
 
-    # Give the user control
-    app.go()
+    if not embedded:
+        # Give the user control
+        app.go()
 
 
 class URLReadWrapper:
@@ -305,7 +313,7 @@ class Application(BaseApplication.BaseApplication):
             self.iostatuspanel.reopen()
 
     def maybe_quit(self):
-        if not self.browsers:
+        if not self.embedded and not self.browsers:
             self.quit()
 
     def go(self):
@@ -470,7 +478,7 @@ class Application(BaseApplication.BaseApplication):
             return self.dingbatimages[entname]
         gifname = grailutil.which(entname + '.gif', self.iconpath)
         if gifname:
-            img = PhotoImage(file=gifname)
+            img = PhotoImage(file=gifname, master=self.root)
             self.dingbatimages[entname] = img
             return img
         self.dingbatimages[entname] = None
