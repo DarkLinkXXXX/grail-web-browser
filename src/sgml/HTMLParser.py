@@ -10,7 +10,6 @@ if __name__ == '__main__':
     sys.path.insert(0, '../pythonlib')
 
 import htmlentitydefs
-import regsub
 import string
 import SGMLHandler
 import SGMLLexer
@@ -1076,6 +1075,7 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         #
         0x200C: "",                     # zero-width non-joiner
         0x200D: "",                     # zero-width joiner
+        0x2060: "",                     # word joiner (proposed Unicode 3.2)
         }
     def unknown_charref(self, ordinal, terminator):
         if ordinal == 0x2028:           # line separator
@@ -1087,7 +1087,8 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         else:
             data = "%s%d%s" % (SGMLLexer.CRO, ordinal, terminator)
             self.badhtml = 1
-        self.handle_data(data)
+        if data:
+            self.handle_data(data)
 
     def unknown_entityref(self, entname, terminator):
         # support through a method:
