@@ -46,7 +46,7 @@ browser--default-height:	40
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.6 $"
+__version__ = "$Revision: 2.7 $"
 # $Source: /home/john/Code/grail/src/grailbase/GrailPrefs.py,v $
 
 import os
@@ -89,7 +89,7 @@ class Preferences:
 	    f.close()
 	else:
 	    self.file_mtime = 0
-	    self._db = None
+	    self._db = {}
 	self._modified = 0
 
     def Get(self, group, prefnm):
