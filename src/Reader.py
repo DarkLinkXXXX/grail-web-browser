@@ -4,20 +4,17 @@
 import urlparse
 from Tkinter import *
 from AppletHTMLParser import AppletHTMLParser
+from BaseReader import BaseReader
 import ProtocolAPI
 import regsub
 from copy import copy
-
-
-# API reading stages
-META, DATA, DONE = 'META', 'DATA', 'DONE'
 
 
 # Buffer size for getdata()
 BUFSIZE = 8*1024
 
 
-class Reader:
+class Reader(BaseReader):
 
     """Helper class to read documents asynchronously.
 
@@ -31,75 +28,53 @@ class Reader:
     """
 
     def __init__(self, browser, url, method, params, new, show_source, reload):
+
 	self.browser = browser
-	self.url = url
 	self.method = method
 	self.params = params
+	self.reload = reload
 	self.new = new
 	self.show_source = show_source
-	self.reload = reload
 
 	self.viewer = self.browser.viewer
 	self.app = self.browser.app
-	self.root = self.browser.root
-	self.tk = self.root.tk
 
-	self.api = None
-	self.stage = DONE
-	self.fno = -1
+	self.restart(url)
+
+    def restart(self, url):
+	self.url = url
 	self.parser = None
 
 	tuple = urlparse.urlparse(url)
 	self.fragment = tuple[-1]
 	tuple = tuple[:-1] + ("",)
 	cleanurl = urlparse.urlunparse(tuple)
+
 	if self.app:
-	    self.api = self.app.open_url(cleanurl, 'GET', params, reload)
+	    api = self.app.open_url(cleanurl,
+				    self.method, self.params, self.reload)
 	else:
-	    self.api = ProtocolAPI.protocol_access(cleanurl, 'GET', params)
-	self.stage = META
-	self.fno = self.api.fileno()
-	self.browser.addreader(self)
-	if self.fno >= 0:
-	    self.root.tk.createfilehandler(
-		self.fno, tkinter.READABLE, self.checkapi)
-	else:
-	    self.checkapi_regular()
+	    api = ProtocolAPI.protocol_access(cleanurl,
+					      self.method, self.params)
 
-    def checkapi_regular(self):
-	self.checkapi()
-	if self.stage in (META, DATA):
-	    self.root.after(100, self.checkapi_regular)
+	BaseReader.__init__(self, self.browser, api)
 
-    def checkapi(self, *args):
-	if self.stage == META:
-	    message, ready = self.api.pollmeta()
-	    self.message(message)
-	    if ready:
-		self.getapimeta()
-	elif self.stage == DATA:
-	    message, ready = self.api.polldata()
-	    self.message(message)
-	    if ready:
-		self.getapidata()
+    def stop(self):
+	BaseReader.stop(self)
+	if self.parser:
+	    parser = self.parser
+	    self.parser = None
+	    parser.close()
 
-    def getapimeta(self):
-	self.message("Getting meta-data for %s" % self.url)
-	errcode, errmsg, headers = self.api.getmeta()
-	self.stage = DATA
-	if errcode != 200:
-	    if errcode == 204:
-		self.stage == DONE
-		self.stop("No content.")
-		return
-	    if errcode in (301, 302) and headers.has_key('location'):
-		url = headers['location']
-		if self.fno >= 0:
-		    self.root.tk.deletefilehandler(self.fno)
-		self.api.close()
-		self.__init__(self.browser, url, self.method, self.params,
-			      self.new, self.show_source, self.reload)
-		return
+    def handle_error(self, errcode, errmsg, headers):
+	if errcode == 204:
+	    return
+	if errcode in (301, 302) and headers.has_key('location'):
+	    url = headers['location']
+	    self.restart(url)
+	    return
+
+    def handle_meta(self, errcode, errmsg, headers):
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
 	else:
@@ -112,10 +87,11 @@ class Reader:
 	    content_encoding = headers['content-encoding']
 	if content_encoding:
 	    # XXX Should fix this
-	    self.stop("Unknown encoding.")
-	    self.browser.error_dialog("Warning",
-			      "unsupported content-encoding: %s"
-			      % content_encoding)
+	    browser = self.browser
+	    self.stop()
+	    browser.error_dialog("Warning",
+				 "unsupported content-encoding: %s"
+				 % content_encoding)
 	    return
 
 	istext = content_type and content_type[:5] == 'text/'
@@ -132,10 +108,11 @@ class Reader:
 
 	if not parserclass:
 	    # XXX Should save here
-	    self.stop("Too stupid.")
-	    self.browser.error_dialog("Error",
-				      "unsupported content-type: %s"
-				      % content_type)
+	    browser = self.browser
+	    self.stop()
+	    browser.error_dialog("Error",
+				 "unsupported content-type: %s"
+				 % content_type)
 	    return
 
 	self.parser = parserclass(self.viewer, reload=self.reload)
@@ -143,52 +120,29 @@ class Reader:
 	self.last_was_cr = 0
 	self.browser.clear_reset(self.url, self.new)
 
-    def getapidata(self):
-	buf = self.api.getdata(BUFSIZE)
-	if not buf:
-	    self.stop("Done.")
-	    if self.fragment:
-		self.viewer.scroll_to(self.fragment)
-	    return
-
+    def handle_data(self, data):
 	if self.istext:
-	    if self.last_was_cr and buf[0] == '\n':
-		buf = buf[1:]
-	    self.last_was_cr = buf[-1:] == '\r'
-	    if '\r' in buf:
-		if '\n' in buf:
-		    buf = regsub.gsub('\r\n', '\n', buf)
-		if '\r' in buf:
-		    buf = regsub.gsub('\r', '\n', buf)
+	    if self.last_was_cr and data[0] == '\n':
+		data = data[1:]
+	    self.last_was_cr = data[-1:] == '\r'
+	    if '\r' in data:
+		if '\n' in data:
+		    data = regsub.gsub('\r\n', '\n', data)
+		if '\r' in data:
+		    data = regsub.gsub('\r', '\n', data)
 
 	self.viewer.unfreeze()
-	self.parser.feed(buf)
+	self.parser.feed(data)
 	self.viewer.freeze()
 
-	if self.parser and hasattr(self.parser, 'title'):
+	if hasattr(self.parser, 'title'):
 	    title = self.parser.title
 	    if title and title != self.browser.title:
 		self.browser.set_title(title)
 
-    def stop(self, msg=None):
-	api = self.api
-	if api:
-	    self.browser.rmreader(self)
-	    self.message("Stopping...")
-	    parser = self.parser
-	    fno = self.fno
-	    self.api = None
-	    self.stage = DONE
-	    self.parser = None
-	    self.fno = -1
-	    if parser: parser.close()
-	    if fno >= 0:
-		self.root.tk.deletefilehandler(fno)
-	    api.close()
-	    self.message(msg)
-
-    def message(self, msg=None):
-	self.browser.message(msg)
+    def handle_eof(self):
+	if self.fragment:
+	    self.viewer.scroll_to(self.fragment)
 
     def find_parser_extension(self, content_type):
 	try:
