@@ -13,6 +13,7 @@ import struct
 import audiodev
 
 import ImageLoopItem
+import doc
 
 # Platform specific modules
 import sunaudiodev			# SunOS, Solaris
