@@ -620,7 +620,7 @@ class Select:
 	needvbar = len(self.options) > size
 	self.w, self.frame = tktools.make_list_box(self.viewer.text,
 						   height=size,
-						   vbar=needvbar)
+						   vbar=needvbar, pack=0)
 	self.w['exportselection'] = 0
 	if self.multiple:
 	    self.w['selectmode'] = 'extended'
@@ -725,7 +725,7 @@ class Textarea:
 	self.w, self.frame = tktools.make_text_box(self.viewer.text,
 						   width=self.cols,
 						   height=self.rows,
-						   hbar=1, vbar=1)
+						   hbar=1, vbar=1, pack=0)
 	self.w['wrap'] = NONE
 	self.data = data
 	self.reset()
@@ -775,7 +775,7 @@ class InputImageWindow(Frame):
 		       background=bg)
 	self.label = Label(self, text=self.alt, background=bg)
 	self.label.pack(fill=BOTH, expand=1)
-	self.pack()
+##	self.pack()
 	self.image_loaded = 0
 	if width > 0 and height > 0:
 	    self.propagate(0)
