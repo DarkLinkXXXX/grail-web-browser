@@ -28,11 +28,11 @@ will still attempt to implement it in Python.
 Last updated Feb-20-96 to include support for 'continuation packets'.  That is
 when the data for a single type spans more than the capacity of a udp body,
 the data spills over into a continuation packet.  These packets are reassembled
-so this uglyness goes no farther than here.  -roj
+so this uglyness goes no further than here.  -roj
 
 TODO:  The Hashtable class needs to be updated to the current algorithm for
 fetching the hashtable.  as of 2/21/96 this is not documented anywhere.  However
-there is some example c code in /projects/cstr/hs/client/get_data.c. line 260 -roj
+there is some example c code in /projects/cstr/hs/client/get_data.c. line 260 
 
 Classes:
 
@@ -59,8 +59,6 @@ DEBUG = 0				# Default debugging flag
 
 
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash_tbl'
-#
-# Normally DEFAULT_SERVER is hs.cnri.reston.va.us - changed to hs5 for the NLM data test -roj 2/13/96
 
 internal_consts = """
 CONFIG_FILE = '/etc/handle.conf'
@@ -316,9 +314,9 @@ class PacketUnpacker(xdrlib.Unpacker):
 	    #
 	    # If length_from_body < 0 , we've found a continuation packet.
 	    # you must pull off an additional field containing the
-	    # beginning offset in the buffer.  This algorithm was roughly derived
-	    # from the continuations hack in /projects/cstr/hs/client/poll_data.c
-	    # line 580ish -roj
+	    # beginning offset in the buffer. This algorithm was roughly derived
+	    # from the continuations hack found in:
+	    # /projects/cstr/hs/client/poll_data.c, line 580ish -roj
 	    #
 	    if length_from_body < 0:
 		total_length = length_from_body * -1
@@ -331,11 +329,11 @@ class PacketUnpacker(xdrlib.Unpacker):
 		    # found the end of a continuation packet
 		    self.value_length = total_length - offset
 		else:
-		    # The entire packet is a continuation (16 is the number of bytes
-		    # in an md5 checksum...  this will never change or if it does it
-		    # will be called 'md6'...)
+		    # The entire packet is a continuation (16 is the number of
+		    # bytes in an md5 checksum...  this will never change or if
+		    # it does it will be called 'md6'...)
 		    self.value_length = len(self.buf) - self.pos - 16
-		# change opt to be negative flagging this as a continuation packet
+		# change opt to be negative flagging this as a continuation 
 		opt = opt * -1
 
 	    else:
@@ -344,8 +342,7 @@ class PacketUnpacker(xdrlib.Unpacker):
 		total_length = self.value_length = length_from_body
 		if nopts == 1:
 		    if self.debug: print 'Start of a continuation'
-		    if length_from_body > self.length_from_header - 16:
-			self.value_length = len(self.buf) - self.pos - 16
+		    self.value_length = len(self.buf) - self.pos - 16
 		#
 		# Finally get the value
 		if self.debug: print 'Getting data segment of ' \
@@ -893,9 +890,14 @@ testsets = [
 	],
 
 	# 4 test handles on hs5 running the new software -roj 2/19/96
+	# the last three handles are known to exploit the poll_data.c
+	# bug discovered by charles on 2/26
 	[
 	"nlm.hdl_test/96053804",
 	"nlm.hdl_test/96047983",
+	"nlm.hdl_test/96058248",
+	"nlm.hdl_test/96037846",
+	"nlm.hdl_test/96055523",
 	],
 ]
 
