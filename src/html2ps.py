@@ -347,7 +347,10 @@ class PSFont:
 	    return len(text) * self.metric * self.font[0] / 12.0
 	else:
 	    pointlen = 0.0
-	    for c in text: pointlen = pointlen + self.metric[c]
+	    for c in text:
+		try: charmetric = self.metric[c]
+		except KeyError: charmetric = 0.0
+		pointlen = pointlen + charmetric
 	    return pointlen * self.font_size() / 12.0
 
     def font_size(self, font_tuple=None):
