@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.6 1995/09/14 16:00:00 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.7 1995/09/14 17:30:32 bwarsaw Exp $"
 
 import sys
 import string
@@ -544,11 +544,6 @@ class PSQueue:
 	finally:
 	    sys.stdout = stdout
 
-    def _file_to_buffer(self, filename):
-	fp = open(filename, 'r')
-	self.ofile.write(fp.read())
-	fp.close()
-
     def _header(self, title=None):
 	oldstdout = sys.stdout
 	try:
@@ -566,13 +561,13 @@ class PSQueue:
 	    print
 
 	    # spew out the contents of the header PostScript file
-	    self._file_to_buffer(PS_HEADER_FILE)
+	    print header_template
 	    # define the fonts
 	    for docfont in docfonts.keys():
 		print "/%s" % docfont, "{/%s}" % docfonts[docfont], "D"
 
 	    # swew out ISO encodings
-	    self._file_to_buffer(ISO_LATIN1_FILE)
+	    print iso_template
 	    # finish out the prolog
 	    print "/xmargin", LEFT_MARGIN, "D"
 	    print "/topmargin", TOP_MARGIN, "D"
@@ -657,6 +652,93 @@ class PSWriter(AbstractWriter):
 		wordcnt = wordcnt - 1
 	    if linecnt > 0: self.ps.push_hard_newline()
 	    linecnt = linecnt - 1
+
+
+# PostScript templates
+header_template = """
+%%Creator: CNRI Grail, HTML2PS.PY by Barry Warsaw
+%%   Adapted from the Public Domain NCSA Mosaic,
+%%   Postscript templates by Ameet Raval & Frans van Hoesel
+%%Pages: (atend)
+%%EndComments
+save
+/D {def} def
+/E {exch} D
+/M {moveto} D
+/S {show} D
+/R {rmoveto} D
+/L {lineto} D
+/RL {rlineto} D
+/NL {indentmargin currentpoint E pop M} D
+/SQ {newpath 0 0 M 0 1 L 1 1 L 1 0 L closepath} D
+/U {
+  gsave currentpoint currentfont /FontInfo get /UnderlinePosition get
+  0 E currentfont /FontMatrix get dtransform E pop add newpath moveto
+  dup stringwidth rlineto stroke grestore S
+} D
+/B {
+  /r E D gsave -13 0  R currentpoint 
+  newpath r 0 360 arc closepath fill grestore
+} D
+/OB {
+  /r E D gsave -13 0  R currentpoint 
+  newpath r 0 360 arc closepath stroke grestore
+} D
+/NP {xmargin topmargin translate scalfac dup scale } D
+/HDR {1 1 scale} D
+/HR {/l E D gsave currentpoint 0 E M pop l 0 RL  stroke grestore } D
+/SF {E findfont E scalefont setfont } D
+"""
+
+iso_template = """
+% PSinit_latin1 - handle ISO encoding
+%
+% print out initializing PostScript text for ISO Latin1 font encoding
+% This code is copied from the Idraw program (from Stanford's InterViews 
+% package), courtesy of Steinar Kjaernsr|d, steinar@ifi.uio.no
+
+/reencodeISO {
+  dup dup findfont dup length dict begin
+    { 1 index /FID ne { def }{ pop pop } ifelse } forall
+    /Encoding ISOLatin1Encoding D
+    currentdict end definefont
+    } D
+/ISOLatin1Encoding [
+  /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
+  /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
+  /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
+  /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
+  /space/exclam/quotedbl/numbersign/dollar/percent/ampersand/quoteright
+  /parenleft/parenright/asterisk/plus/comma/minus/period/slash
+  /zero/one/two/three/four/five/six/seven/eight/nine/colon/semicolon
+  /less/equal/greater/question/at/A/B/C/D/E/F/G/H/I/J/K/L/M/N
+  /O/P/Q/R/S/T/U/V/W/X/Y/Z/bracketleft/backslash/bracketright
+  /asciicircum/underscore/quoteleft/a/b/c/d/e/f/g/h/i/j/k/l/m
+  /n/o/p/q/r/s/t/u/v/w/x/y/z/braceleft/bar/braceright/asciitilde
+  /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
+  /.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef
+  /.notdef/dotlessi/grave/acute/circumflex/tilde/macron/breve
+  /dotaccent/dieresis/.notdef/ring/cedilla/.notdef/hungarumlaut
+  /ogonek/caron/space/exclamdown/cent/sterling/currency/yen/brokenbar
+  /section/dieresis/copyright/ordfeminine/guillemotleft/logicalnot
+  /hyphen/registered/macron/degree/plusminus/twosuperior/threesuperior
+  /acute/mu/paragraph/periodcentered/cedilla/onesuperior/ordmasculine
+  /guillemotright/onequarter/onehalf/threequarters/questiondown
+  /Agrave/Aacute/Acircumflex/Atilde/Adieresis/Aring/AE/Ccedilla
+  /Egrave/Eacute/Ecircumflex/Edieresis/Igrave/Iacute/Icircumflex
+  /Idieresis/Eth/Ntilde/Ograve/Oacute/Ocircumflex/Otilde/Odieresis
+  /multiply/Oslash/Ugrave/Uacute/Ucircumflex/Udieresis/Yacute
+  /Thorn/germandbls/agrave/aacute/acircumflex/atilde/adieresis
+  /aring/ae/ccedilla/egrave/eacute/ecircumflex/edieresis/igrave
+  /iacute/icircumflex/idieresis/eth/ntilde/ograve/oacute/ocircumflex
+  /otilde/odieresis/divide/oslash/ugrave/uacute/ucircumflex/udieresis
+  /yacute/thorn/ydieresis
+] D
+[FONTV FONTVB FONTVI FONTVBI FONTF FONTFB FONTFI FONTFBI] {
+  reencodeISO D
+} forall
+"""
+
 
 
 def html_test():
