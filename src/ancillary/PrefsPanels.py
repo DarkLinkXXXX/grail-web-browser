@@ -1,6 +1,6 @@
 """Framework for implementing GUI dialogs user preference group editing."""
 
-__version__ = "$Revision: 2.2 $"
+__version__ = "$Revision: 2.3 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -19,8 +19,11 @@ DEBUG=0
 
 # ########################### Initialization ########################### #
 
-BrowserState = {'dialogs': [], 'browser': None, 'app': None,
-		'root': None}
+GET_METHODS = {'string': 'Get', 'int': 'GetInt', 'float': 'GetFloat',
+	       'Boolean': 'GetBoolean'}
+
+# BrowserState is going.
+BrowserState = {'dialogs': [], 'browser': None, 'app': None, 'root': None}
 
 def PrefsDialogsSetup(menu, browser):
     """Establish menu and browser state for use by dialogs.
@@ -37,10 +40,7 @@ def PrefsDialogsSetup(menu, browser):
 	menu.add_command(label=dialog.title, command=dialog.Post)
 
     BrowserState['prefs'] = prefs = browser.app.prefs
-    # Create lookup table for use by Framework._set_widgets() method:
-    BrowserState['get-methods'] = {'string': prefs.Get, 'int': prefs.GetInt,
-				   'float': prefs.GetFloat,
-				   'Boolean': prefs.GetBoolean}
+    # Create lookup table for use by Framework.set_widgets() method:
 
 # ########################### Framework ########################### #
 
@@ -64,56 +64,80 @@ class Framework:
     Your dialog will be included in the Preferences menu bar pulldown, and
     will be posted when its entry is selected."""
 
-    def __init__(self, category):
+    def __init__(self):
 	"""Invoke from category-specific __init__."""
-	self._category = category
-	self._collection = {}
-	self.title = category + ' Preferences'
-	self._widget = None
+	self.collection = {}
+	self.title = self.name + ' Preferences'
+	self.widget = None
+	self.prev_settings = {}
 	# Register on comprehensive list.
 	BrowserState['dialogs'].append(self)
 
-    # Preferences-specific layout method - override!
-    def CategoryLayout(self, frame):
-	"""User should override this method with their own layout."""
-	raise (SystemError,
-	       '.CategoryLayout() should be overridden in derived class.')
+    # Mandatory preferences-specific layout method.
+    def CreateLayout(self, frame):
+	"""Override this method with specific layout."""
+	raise SystemError, "Derived class should override .CreateLayout()"
+
+    # Optional preferences-specific delete method.
+    def DeleteLayout(self):
+	"""Override this method for deletion cleanup, if any."""
+	pass
 
     # Use this routine in category layout to associate preference with the
     # user interface mechanism for setting them.
-    def RegisterUI(self, group, component, type, UIget, UIset):
-	"""Associate preference GROUP/COMPONENT UI setting mechanism.
+    def RegisterUI(self, group, component, type, uiget, uiset):
+	"""Associate preference with User Interface setting mechanism.
 
+	Preference is specified by group and component, and type is
+	specified for 
 	The registered info is used to put established values in the widget
 	and check for changed values when the dialog session is applied."""
 
-	self._collection[(group, component)] = (type, UIget, UIset)
+	self.collection[(group, component)] = (type, uiget, uiset)
+
+    def PrefsCheckButton(self, frame, general, specific, group, component,
+			 left_width=25):
+	"""Handy utility for creating single-button preferences widgets.
+
+	A label and a button are packed in 'frame' arg, using text of
+	'general' arg for title and of 'specific' arg for button label.
+	The preferences variable is specified by 'group' and 'component'
+	args, and an optional 'left_width' arg specifies how much space
+	should be assigned to the general-label side of the
+	conglomerate."""
+	f = Frame(frame)
+	var = StringVar()
+	l = Label(f, text=general, width=left_width, anchor=E)
+	l.pack(side=LEFT)
+	cb = Checkbutton(f, text=specific, relief='ridge', bd=1, variable=var)
+	cb.pack(side=LEFT)
+	f.pack(fill=X, side=TOP, pady='1m')
+	self.RegisterUI(group, component, 'Boolean', var.get, var.set)
 
     def Post(self):
-	"""Call from menu interface to engage dialog."""
+	"""Called from menu interface to engage dialog."""
 
-	if not self._widget:
-	    self._create_widget()
+	if not self.widget:
+	    self.create_widget()
 	else:
-	    self._widget.deiconify()
-	    self._widget.tkraise()
-	self._poll_modified()
+	    try:
+		self.widget.deiconify()
+		self.widget.tkraise()
+	    except TclError:
+		# Whoops, widget musta been destroyed - recreate:
+		self.create_widget()
+	self.poll_modified()
 
-    def _create_widget(self):
-	self._frame = BrowserState['root']
-	widget = self._widget = Toplevel(self._frame, class_='Grail')
+    def create_widget(self):
+	self.frame = BrowserState['root']
+	widget = self.widget = Toplevel(self.frame, class_='Grail')
 	widget.title(self.title)
 	tktools.install_keybindings(widget)
-	widget.bind('<Return>', self._done)
-	widget.bind('<KeyRelease>', self._poll_modified)
-	widget.bind('<Button>', self._poll_modified)
+	widget.bind('<Return>', self.done_cmd)
+	widget.bind('<Key>', self.poll_modified)
+	widget.bind('<Button>', self.poll_modified)
 
 	width=80			# Of the settings frame.
-
-	#self._title_widget = Label(widget, text=self.title, relief='raised',
-	#			   bd=2)
-	#self._title_widget.pack(side='top', padx='2m', pady='2m',
-	#			ipadx='3m', ipady='2m')
 
 	# Frame for the user to build within:
 	container = Frame(widget, width=(width + 10), relief='groove', bd=2)
@@ -121,85 +145,86 @@ class Framework:
 	self.framework_widget = Frame(container)
 	self.framework_widget.pack(side='top', fill='x', padx='2m', pady='2m')
 
-	self._create_disposition_bar(widget)
+	self.create_disposition_bar(widget)
 
 	# Do the user's setup:
-	self.CategoryLayout(self.framework_widget)
+	self.CreateLayout(self.framework_widget)
 
 	# And now initialize the widget values:
-	self._set_widgets()
+	self.set_widgets()
 	
 
-    def _create_disposition_bar(self, frame):
+    def create_disposition_bar(self, frame):
 	bar = Frame(frame)
 	bartop = Frame(bar)
 	bartop.pack(side=TOP)
 	barbottom = Frame(bar)
 	barbottom.pack(side=BOTTOM)
-	donebtn = Button(bartop, text="OK", command=self._done)
-	cancelbtn = Button(bartop, text="Cancel", command=self._cancel)
-	self._applybtn = Button(barbottom, text="Apply",
-				command=self._apply)
-	self._revertbtn = Button(barbottom, text="Revert",
-				 command=self._revert)
-	self._factory_defaults_btn = Button(barbottom,
-					    command=self._factory_defaults,
-					    text="Factory Defaults")
-	donebtn.pack(side='left')
-	self._applybtn.pack(side='left')
-	self._revertbtn.pack(side='right')
-	self._factory_defaults_btn.pack(side='right')
-	cancelbtn.pack(side='right')
+	done_btn = Button(bartop, text="OK", command=self.done_cmd)
+	cancel_btn = Button(bartop, text="Cancel", command=self.cancel_cmd)
+	self.apply_btn = Button(barbottom, text="Apply",
+				command=self.apply_cmd)
+	self.revert_btn = Button(barbottom, text="Revert",
+				 command=self.revert_cmd)
+	self.factory_defaults_btn = Button(barbottom,
+					   command=self.factory_defaults_cmd,
+					   text="Factory Defaults")
+	done_btn.pack(side='left')
+	self.apply_btn.pack(side='left')
+	self.revert_btn.pack(side='right')
+	self.factory_defaults_btn.pack(side='right')
+	cancel_btn.pack(side='right')
 	if DEBUG:
-	    reloadbtn = Button(bartop, text="(reload)",
-			       command=self.reload_module)
-	    reloadbtn.pack(side='right')
+	    reload_btn = Button(bartop, text="(reload)",
+				command=self.reload_module)
+	    reload_btn.pack(side='right')
 
 	bartop.pack(fill='both')
 	barbottom.pack(fill='both')
 	bar.pack(fill='both')
 
     # Operational commands:
-    def _set_widgets(self, factory=0):
+    def set_widgets(self, factory=0):
 	"""Initialize dialog widgets with preference db values.
 
 	Optional FACTORY true means use system defaults for values."""
-	for (g, c), (type, UIget, UIset) in self._collection.items():
-	    UIset(BrowserState['get-methods'][type](g, c, factory))
+	for (g, c), (type, uiget, uiset) in self.collection.items():
+	    getter = getattr(BrowserState['prefs'], GET_METHODS[type])
+	    uiset(getter(g, c, factory))
 
-    def _done(self, event=None):
+    def done_cmd(self, event=None):
 	"""Conclude dialog: commit and withdraw it."""
-	self._apply()
-	self._hide()
+	self.apply_cmd()
+	self.hide()
 
-    def _apply(self):
+    def apply_cmd(self):
 	"""Apply settings from dialog to preferences."""
 	prefsset = BrowserState['prefs'].Set
 	# Snarf the settings from the widgets:
-	for (g, c), (type, UIget, UIset) in self._collection.items():
-	    prefsset(g, c, UIget())
+	for (g, c), (type, uiget, uiset) in self.collection.items():
+	    prefsset(g, c, uiget())
 	BrowserState['prefs'].Save()
-	self._poll_modified()
+	self.poll_modified()
 
-    def _factory_defaults(self):
+    def factory_defaults_cmd(self):
 	"""Reinit dialog widgets with system-defaults preference db values."""
-	self._set_widgets(factory=1)
-	self._poll_modified()
+	self.set_widgets(factory=1)
+	self.poll_modified()
 
-    def _revert(self):
+    def revert_cmd(self):
 	"""Return settings to currently applied ones."""
-	prefsget = BrowserState['get-methods']['string']
+	prefsget = getattr(BrowserState['prefs'], GET_METHODS['string'])
 	# Snarf the settings from the widgets:
-	for (g, c), (type, UIget, UIset) in self._collection.items():
-	    UIset(prefsget(g, c))
-	self._poll_modified()
+	for (g, c), (type, uiget, uiset) in self.collection.items():
+	    uiset(prefsget(g, c))
+	self.poll_modified()
 	
-    def _cancel(self):
-	self._hide()
-	self._revert()
+    def cancel_cmd(self):
+	self.hide()
+	self.revert_cmd()
 
-    def _hide(self):
-	self._widget.withdraw()
+    def hide(self):
+	self.widget.withdraw()
 
     def reload_module(self):
 	"""Handy routine, used if DEBUG true, to reload the module within a
@@ -215,36 +240,35 @@ class Framework:
 	reload(sys.modules[__name__])
 	reload(PrefsDialogs)
 	PrefsDialogsSetup(menu, browser)
-	self._hide()
+	self.hide()
 
     # State mechanisms.
 
-    def _visible_p(self):
-	return self._frame.state() <> 'withdrawn'
-
-    def _poll_modified(self, event=None):
+    def poll_modified(self, event=None):
 	"""Check for changes and enable disposition buttons accordingly."""
 	# First, post an update for prompt user feedback:
-	self._widget.update_idletasks()
-	# Apply and Revert w.r.t. saved settings:
-	if  self._modified_p():
-	    self._applybtn.config(state='normal')
-	    self._revertbtn.config(state='normal')
+	self.widget.update_idletasks()
+
+	# Rectify disposition buttons if changes since last check:
+	if self.modified_p():
+	    self.apply_btn.config(state='normal')
+	    self.revert_btn.config(state='normal')
 	else:
-	    self._applybtn.config(state='disabled')
-	    self._revertbtn.config(state='disabled')
+	    self.apply_btn.config(state='disabled')
+	    self.revert_btn.config(state='disabled')
 	# Factory Defaults w.r.t. factory settings:
-	if self._modified_p(factory=1):
-	    self._factory_defaults_btn.config(state='normal')
+	if self.modified_p(factory=1):
+	    self.factory_defaults_btn.config(state='normal')
 	else:
-	    self._factory_defaults_btn.config(state='disabled')
+	    self.factory_defaults_btn.config(state='disabled')
 
-    def _modified_p(self, factory=0):
-	"""True if any UI setting in the dialog is different than saved.
+    def modified_p(self, factory=0):
+	"""True if any UI setting is changed from saved.
 
-	If optional FACTORY is true, compare only with factory defaults."""
-	prefsget = BrowserState['get-methods']['string']
-	for (g, c), (type, UIget, UIset) in self._collection.items():
-	    if UIget() != prefsget(g, c, factory):
+	Optional 'factory' keyword means check wrt system default settings."""
+
+	prefsget = getattr(BrowserState['prefs'], GET_METHODS['string'])
+	for (g, c), (type, uiget, uiset) in self.collection.items():
+	    if uiget() != prefsget(g, c, factory):
 		return 1
 	return 0
