@@ -145,6 +145,7 @@ class Reader(BaseReader):
 	BaseReader.handle_error(self, errcode, errmsg, headers)
 
     def handle_meta(self, errcode, errmsg, headers):
+	self.last_context.set_headers(headers)
 	if self.save_file:
 	    if errcode != 200:
 		self.stop()
