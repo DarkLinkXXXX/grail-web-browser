@@ -86,20 +86,20 @@ class http_access:
     def __init__(self, resturl, method, params, data=None):
 	self.app = __main__.app
 	self.args = (resturl, method, params, data)
-	self.stage = WAIT
+	self.state = WAIT
 	self.h = None
 	self.reader_callback = None
 	self.app.sq.request_socket(self,self.open)
 
     def register_reader(self, reader_callback):
-	if self.stage == WAIT:
+	if self.state == WAIT:
 	    self.reader_callback = reader_callback
 	else:
 	    # we've been waitin' fer ya
 	    reader_callback()
 
     def open(self):
-	assert(self.stage == WAIT)
+	assert(self.state == WAIT)
 	grailversion = __main__.__version__
 	resturl, method, params, data = self.args
 	if data:
@@ -134,7 +134,7 @@ class http_access:
 	if data:
 	    self.h.send(data)
 	self.readahead = ""
-	self.stage = META
+	self.state = META
 	self.line1seen = 0
 	if self.reader_callback:
 	    self.reader_callback()
@@ -142,13 +142,13 @@ class http_access:
     def close(self):
 	if self.h:
 	    self.h.close()
-	if self.stage != CLOS:
+	if self.state != CLOS:
 	    self.app.sq.return_socket(self)
-	    self.stage = CLOS
+	    self.state = CLOS
 	self.h = None
 
     def pollmeta(self, timeout=0):
-	assert(self.stage == META)
+	assert(self.state == META)
 
 	sock = self.h.sock
 	try:
@@ -179,26 +179,26 @@ class http_access:
 	return "receiving server response", 0
 
     def getmeta(self):
-	assert(self.stage == META)
+	assert(self.state == META)
 	if not self.readahead:
 	    x, y = self.pollmeta(None)
 	    while not y:
 		x, y = self.pollmeta(None)
 	file = StringIO.StringIO(self.readahead)
 	errcode, errmsg, headers = self.h.getreply(file)
-	self.stage = DATA
+	self.state = DATA
 	self.readahead = file.read()
 	return errcode, errmsg, headers
 
     def polldata(self):
-	assert(self.stage == DATA)
+	assert(self.state == DATA)
 	if self.readahead:
 	    return "processing readahead data", 1
 	return ("waiting for data",
 		len(select.select([self.fileno()], [], [], 0)[0]))
 
     def getdata(self, maxbytes):
-	assert(self.stage == DATA)
+	assert(self.state == DATA)
 	if self.readahead:
 	    data = self.readahead[:maxbytes]
 	    self.readahead = self.readahead[maxbytes:]
@@ -208,7 +208,7 @@ class http_access:
 	except socket.error, msg:
 	    raise IOError, msg, sys.exc_traceback
 	if not data:
-	    self.stage = DONE
+	    self.state = DONE
 	    # self.close()
 	return data
 
