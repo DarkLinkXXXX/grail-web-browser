@@ -14,7 +14,7 @@ META, DATA, DONE = 'META', 'DATA', 'DONE'
 
 
 # Buffer size for getdata()
-BUFSIZE = 512
+BUFSIZE = 8*1024
 
 
 class Reader:
@@ -91,6 +91,14 @@ class Reader:
 	    if errcode == 204:
 		self.stage == DONE
 		self.stop("No content.")
+		return
+	    if errcode in (301, 302) and headers.has_key('location'):
+		url = headers['location']
+		if self.fno >= 0:
+		    self.root.tk.deletefilehandler(self.fno)
+		self.api.close()
+		self.__init__(self.browser, url, self.method, self.params,
+			      self.new, self.show_source, self.reload)
 		return
 	if headers.has_key('content-type'):
 	    content_type = headers['content-type']
