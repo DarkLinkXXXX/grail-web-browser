@@ -169,8 +169,8 @@ class Browser:
 
     def create_menu_go(self, menu):
 	self._menucmd(menu, "Back", "Left", self.back_command)
-	self._menucmd(menu, "Reload", "R", self.reload_command)
 	self._menucmd(menu, "Forward", "Right", self.forward_command)
+	self._menucmd(menu, "Reload", "R", self.reload_command)
 	menu.add_separator()
 	self._menucmd(menu, 'History...', "H", self.show_history_command)
 	self._menucmd(menu, "Home", None, self.home_command)
