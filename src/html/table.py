@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.22 1996/04/09 16:02:20 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.23 1996/04/09 17:11:54 bwarsaw Exp $'
 
 
 import string
@@ -28,16 +28,11 @@ class TableSubParser:
     def __init__(self):
 	self._lasttable = None
 	self._table_stack = []
-	# get preferences
-	from __main__ import app
-	self._enabled = app.prefs.GetInt('tables', 'enabled')
-	print 'tables are', (self._enabled and 'indeed' or 'not'), 'enabled'
 
     def start_table(self, parser, attrs):
 	# create the table data structure
-	if self._enabled:
-	    self._lasttable = Table(parser.viewer, attrs)
-	    self._table_stack.append(self._lasttable)
+	self._lasttable = Table(parser.viewer, attrs)
+	self._table_stack.append(self._lasttable)
 
     def end_table(self, parser):
 	ti = self._lasttable 
@@ -575,6 +570,9 @@ class Table(AttrElem):
 	# called when the viewer is cleared
 ## 	print '_reset:', viewer
 	self.parentviewer.context.unregister_notification(self._notify)
+	self.parentviewer.unregister_reset_interest(self._reset)
+	self.parentviewer.unregister_resize_interest(self._resize)
+	# TBD: garbage collect internal structures, but not windows!
 
     def _resize(self, viewer):
 	# called when the outer browser is resized (typically by the user)
@@ -587,7 +585,6 @@ class Table(AttrElem):
 	# images inside table cells.  it will also happen for every
 	# table cell exactly once, but if there are no embedded
 	# images, the actual resize will be inhibited.
-## 	print '_notify:', context
 	recalc_needed = None
 	for row in range(self._rowcount):
 	    for col in range(self._colcount):
