@@ -431,47 +431,77 @@ class Browser:
     # --- Animated logo ---
 
     def logo_init(self):
-	self.logo_index = 0
-	self.logo_id = None
-	self.logo_more = None
-	self.logo_images = []
-	self.logo_image = AsyncImage(self.context, FIRST_LOGO_IMAGE)
-	self.logo_image.load_synchronously()
-	self.logo.config(image=self.logo_image, state=NORMAL)
-	self.logo_images = [self.logo_image]
-	self.logo_more = self.logo_image.loaded
-	self.logo_animate = 1
+	"""Initialize animated logo and display the first image.
+
+	This doesn't start the animation sequence -- use logo_start()
+	for that.
+
+	"""
+	self.logo_index = 0		# Currently displayed image
+	self.logo_last = -1		# Last image; -1 if unknown
+	self.logo_id = None		# Tk id of timer callback
+	self.logo_animate = 1		# True if animating
+	self.logo_next()
 
     def logo_next(self):
-	self.logo_id = None
-	self.logo_id = self.root.after(200, self.logo_next)
-	if self.logo_more:
-	    url = LOGO_IMAGES + "T%d.gif" % len(self.logo_images)
-	    image = AsyncImage(self.context, url)
-	    image.load_synchronously()
-	    self.logo_more = image.loaded
-	    if self.logo_more:
-		self.logo_images.append(image)
-	if self.logo_images:
-	    self.logo_index = (self.logo_index + 1) % len(self.logo_images)
-	    self.logo.config(image=self.logo_images[self.logo_index])
+	"""Display the next image in the logo animation sequence.
+
+	If the first image can't be found, disable animation.
+
+	"""
+	self.logo_index = self.logo_index + 1
+	if self.logo_last > 0 and self.logo_index > self.logo_last:
+	    self.logo_index = 1
+	entytyname = "grail.logo.%d" % self.logo_index
+	image = self.app.load_dingbat(entytyname)
+	if not image:
+	    if self.logo_index == 1:
+		self.logo_animate = 0
+		return
+	    self.logo_index = 1
+	    entytyname = "grail.logo.%d" % self.logo_index
+	    image = self.app.load_dingbat(entytyname)
+	    if not image:
+		self.logo_animate = 0
+		return
+	self.logo.config(image=image, state=NORMAL)
 
     def logo_start(self):
+	"""Start logo animation.
+
+	If we can't/don't animate the logo, enable the stop button instead.
+
+	"""
 	self.logo.config(state=NORMAL)
 	if not self.logo_animate:
 	    return
 	if not self.logo_id:
 	    self.logo_index = 0
 	    self.logo_next()
+	    self.logo_id = self.root.after(200, self.logo_update)
 
     def logo_stop(self):
+	"""Stop logo animation.
+
+	If we can't/don't animate the logo, disable the stop button instead.
+
+	"""
 	if not self.logo_animate:
 	    self.logo.config(state=DISABLED)
 	    return
 	if self.logo_id:
 	    self.root.after_cancel(self.logo_id)
 	    self.logo_id = None
-	self.logo.config(image=self.logo_image)
+	self.logo_index = 0
+	self.logo_next()
+
+    def logo_update(self):
+	"""Keep logo animation going."""
+	self.logo_id = None
+	if self.logo_animate:
+	    self.logo_next()
+	    if self.logo_animate:
+		self.logo_id = self.root.after(200, self.logo_update)
 
     # --- API for searching ---
 
