@@ -20,6 +20,8 @@ class ImageWindow(Frame):
 	    self['background'] ='blue'	# XXX should use style sheet
 	    self.bind('<Enter>', self.enter)
 	    self.bind('<Leave>', self.leave)
+	    if self.ismap:
+		self.label.bind('<Motion>', self.motion)
 	    self.label.bind('<ButtonRelease-1>', self.follow)
 	else:
 ##	    self['background'] = 'black' # XXX for debug
@@ -35,8 +37,16 @@ class ImageWindow(Frame):
     def leave(self, event):
 	self.browser.leave()
 
+    def motion(self, event):
+	self.browser.enter(self.whichurl(event))
+
     def follow(self, event):
-	self.browser.follow(self.url)
+	self.browser.follow(self.whichurl(event))
+
+    def whichurl(self, event):
+	if not self.ismap:
+	    return self.url
+	return self.url + "?%d,%d" % (event.x, event.y)
 
     def toggle_loading_image(self, event=None):
 	if self.image:
