@@ -12,9 +12,7 @@ import string
 import tktools
 import formatter
 import Viewer
-from ImageMap import MapThunk, MapInfo
 from HTMLParser import HTMLParser, HeaderNumber
-import AppletLoader
 import grailutil
 from grailutil import extract_attribute, extract_keyword
 
@@ -58,6 +56,7 @@ class GrailHTMLParser(HTMLParser):
 	    init_module(self.app.prefs)
 	HTMLParser.__init__(self, self.formatter_stack[-1])
 	# Hackery so reload status can be reset when all applets are loaded
+	import AppletLoader
 	self.reload1 = self.reload and AppletLoader.set_reload(self.context)
 	if self.reload1:
 	    self.reload1.attach(self)
@@ -232,6 +231,7 @@ class GrailHTMLParser(HTMLParser):
 	    value = attrs['usemap']
 	    if value:
 		if value[0] == '#': value = value[1:]
+		from ImageMap import MapThunk
 		usemap = MapThunk(self.context, value)
         self.handle_image(src, alt, usemap, ismap,
 			  align, width, height, border, self.reload1,
@@ -340,6 +340,7 @@ class GrailHTMLParser(HTMLParser):
     def start_map(self, attrs):
 	# ignore maps without names
 	if attrs.has_key('name'):
+	    from ImageMap import MapInfo
 	    self.current_map = MapInfo(attrs['name'])
 	else:
 	    self.badhtml = 1
@@ -427,6 +428,7 @@ class GrailHTMLParser(HTMLParser):
 	align = extract('align', attrs, 'baseline')
 	vspace = extract('vspace', attrs, 0, conv=string.atoi)
 	hspace = extract('hspace', attrs, 0, conv=string.atoi)
+	import AppletLoader
 	apploader = AppletLoader.AppletLoader(
 	    self, width=width, height=height,
 	    menu=menu, name=name, code=code, codebase=codebase,
@@ -459,6 +461,7 @@ class GrailHTMLParser(HTMLParser):
 	height = extract_attribute('height', attrs, conv=string.atoi, delete=1)
 	menu = extract_attribute('menu', attrs, delete=1)
 	mod = mod + ".py"
+	import AppletLoader
 	apploader = AppletLoader.AppletLoader(
 	    self, code=mod, name=cls, codebase=src,
 	    width=width, height=height, menu=menu,
@@ -497,6 +500,7 @@ class GrailHTMLParser(HTMLParser):
 	align = extract('align', attrs, 'baseline')
 	vspace = extract('vspace', attrs, 0, conv=string.atoi)
 	hspace = extract('hspace', attrs, 0, conv=string.atoi)
+	import AppletLoader
 	apploader = AppletLoader.AppletLoader(
 	    self, width=width, height=height, menu=menu,
 	    classid=classid, codebase=codebase,
