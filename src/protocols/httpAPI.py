@@ -47,7 +47,7 @@ class _socketfile:
 	if length < 0:
 	    length = 0x7fffffff
 	while len(self.buf) < length:
-	    new = self.sock.recv(512)
+	    new = self.sock.recv(64)
 	    if not new:
 		break
 	    self.buf = self.buf + new
@@ -57,7 +57,7 @@ class _socketfile:
 
     def readline(self):
 	while not '\n' in self.buf:
-	    new = self.sock.recv(512)
+	    new = self.sock.recv(64)
 	    if not new:
 		break
 	    self.buf = self.buf + new
