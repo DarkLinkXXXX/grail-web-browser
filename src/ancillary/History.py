@@ -183,6 +183,8 @@ class HistoryDialog:
 	self._frame.bind("<Down>", self.previous_cmd)
 	self._frame.bind("n", self.previous_cmd)
 	self._frame.bind("N", self.previous_cmd)
+	self._frame.bind('<Alt-W>', self._close)
+	self._frame.bind('<Alt-w>', self._close)
 	tktools.set_transient(self._frame, self._context.root)
 	    
     def history(self): return self._history
