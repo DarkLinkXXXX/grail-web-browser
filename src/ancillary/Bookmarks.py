@@ -458,7 +458,9 @@ class IOErrorDialog:
 	self.closebtn.pack()
 	self._frame.grab_set()
 
-    def close(self): self._frame.destroy()
+    def close(self):
+	self._frame.grab_release()
+	self._frame.destroy()
 
 
 
@@ -505,6 +507,7 @@ class BookmarksDialog:
 	self._create_menubar()
 	self._create_buttonbar()
 	self._create_listbox()
+	self._frame.focus_set()
 
     def _create_menubar(self):
 	self._menubar = Frame(self._frame, relief=RAISED, borderwidth=2)
@@ -699,8 +702,10 @@ class BookmarksDialog:
 	status.pack(side=LEFT, expand=1, fill=BOTH)
 	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
 	cancelbtn.pack(side=RIGHT)
-	self._frame.bind('Alt-w', self.cancel_cmd)
-	self._frame.bind('Alt-W', self.cancel_cmd)
+	self._frame.bind('<Alt-w>', self.cancel_cmd)
+	self._frame.bind('<Alt-W>', self.cancel_cmd)
+	self._frame.bind('<Control-c>', self.cancel_cmd)
+	self._frame.bind('<Control-C>', self.cancel_cmd)
 	# top buttonbar buttons
 	prevbtn = Button(topframe, text='Previous',
 			 command=self._controller.previous_cmd)
@@ -732,6 +737,7 @@ class BookmarksDialog:
     def show(self):
 	self._frame.deiconify()
 	self._frame.tkraise()
+	self._frame.focus_set()
 
     def save_cmd(self, event=None):
 	self._controller.save()
@@ -741,7 +747,10 @@ class BookmarksDialog:
     def cancel_cmd(self, event=None):
 	self._controller.revert()
 	self._controller.hide()
-    def hide(self): self._frame.withdraw()
+
+    def hide(self):
+	browser = self._controller.get_browser().root.focus_set()
+	self._frame.withdraw()
 
     def visible_p(self):
 	return self._frame.state() <> 'withdrawn'
@@ -769,6 +778,9 @@ class DetailsDialog:
 	self._frame.bind('<Return>', self.done)
 	self._frame.bind('<Alt-W>', self.cancel)
 	self._frame.bind('<Alt-w>', self.cancel)
+	self._frame.bind('<Control-c>', self.cancel)
+	self._frame.bind('<Control-C>', self.cancel)
+	self.show()
 
     def _create_form(self, top):
 	make = tktools.make_labeled_form_entry # convenience
@@ -817,7 +829,6 @@ class DetailsDialog:
 	entry = self._form[0][0]	# more convenience
 	entry.insert(0, node.title())
 	entry.select_range(0, END)
-	entry.focus_set()
 	if node.islink_p():
 	    self._form[1][0].insert(0, node.uri())
 	    self._form[2][0].insert(0, time.ctime(node.last_visited()))
@@ -850,9 +861,15 @@ class DetailsDialog:
     def show(self):
 	self._frame.deiconify()
 	self._frame.tkraise()
+	self._form[0][0].focus_set()
 
-    def hide(self): self._frame.withdraw()
-    def destroy(self): self._frame.destroy()
+    def hide(self):
+	# these two calls are order dependent!
+	self._controller.focus_on_dialog()
+	self._frame.withdraw()
+
+    def destroy(self):
+	self._frame.destroy()
 
 
 
@@ -1008,6 +1025,9 @@ class BookmarksController(OutlinerController):
     def filename(self): return self._iomgr.filename()
     def dialog_is_visible_p(self):
 	return self._dialog and self._dialog.visible_p()
+
+    def focus_on_dialog(self):
+	self._dialog and self._dialog.show()
 
     def _get_selected_node(self):
 	node = selection = None
@@ -1354,7 +1374,8 @@ class BookmarksMenu:
 	self._app = self._browser.app
 	# set up the global controller.  Only one of these in every
 	# application
-	try: self._controller = self._app.bookmarks_controller
+	try:
+	    self._controller = self._app.bookmarks_controller
 	except AttributeError:
 	    self._controller = self._app.bookmarks_controller = \
 			       BookmarksController(self._app)
