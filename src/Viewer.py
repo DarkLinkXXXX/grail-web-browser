@@ -182,11 +182,13 @@ class Viewer(formatter.AbstractWriter):
 	url = self.find_tag_url()
 	if url:
 	    self.add_temp_tag()
+	    self.master.update_idletasks()
 	    from Browser import Browser
 	    from __main__ import app
 	    import urlparse
 	    b = Browser(self.master, app)
 	    b.load(urlparse.urljoin(self.browser.url, url))
+	    self.remove_temp_tag(histify=1)
 
     def add_temp_tag(self):
 	start, end = self.find_tag_range()
@@ -194,9 +196,11 @@ class Viewer(formatter.AbstractWriter):
 	    self._atemp = [start, end]
 	    self.text.tag_add('atemp', start, end)
 
-    def remove_temp_tag(self):
+    def remove_temp_tag(self, histify=0):
 	if self._atemp:
 	    self.text.tag_remove('atemp', self._atemp[0], self._atemp[1])
+	    if histify:
+		self.text.tag_add('ahist', self._atemp[0], self._atemp[1])
 	    self._atemp = []
 
     def find_tag_range(self):
