@@ -90,6 +90,8 @@ class AbstractFormatter:
                 elif c in 'iI':
 		    if counter > 0:
 			label = label + self.format_roman(c, counter)
+		else:
+		    label = label + c
             except:
                 label = label + c
         return label
