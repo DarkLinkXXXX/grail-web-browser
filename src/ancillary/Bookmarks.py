@@ -338,15 +338,15 @@ class GrailBookmarkWriter(NetscapeBookmarkWriter):
 class FileDialogExtras:
     def __init__(self, frame):
 	# create a small subwindow for the extra buttons
-	frame = Frame(frame, relief='groove', borderwidth=2)
+	frame = Frame(frame, relief=GROOVE, borderwidth=2)
 	frame.pack(fill=X)
 	label = Label(frame, text='Bookmark File Shortcuts:')
 	label.pack(side=LEFT, anchor=W)
-	grailbtn = Button(frame, text='Grail',
+	grailbtn = Button(frame, text='Grail', width=8,
 			  command=self.set_for_grail)
 	netscapebtn = Button(frame, text='Netscape',
 			     command=self.set_for_netscape)
-	netscapebtn.pack(side=RIGHT)
+	netscapebtn.pack(side=RIGHT, padx='1m', pady='1m')
 	grailbtn.pack(side=RIGHT)
 
     def _set_to_file(self, path):
@@ -492,7 +492,7 @@ class TkListboxViewer(OutlinerViewer):
 class BookmarksDialog:
     def __init__(self, master, controller):
 	# create the basic controls of the dialog window
-	self._frame = Toplevel(master, class_='Grail')
+	self._frame = Toplevel(master, class_='Bookmarks')
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
 	self._controller = controller
 	infoframe = Frame(self._frame, relief=GROOVE, borderwidth=2)
@@ -713,7 +713,7 @@ class BookmarksDialog:
 	expbtn.pack(side=LEFT, expand=1, fill=BOTH)
 
     def set_modflag(self, flag):
-	if flag: text = '<===== Changes are unsaved!'
+	if flag: text = '<== Changes are unsaved!'
 	else: text = ''
 	self._controller.statusmsg.set(text)
 
@@ -757,40 +757,44 @@ class DetailsDialog:
 	self._frame.iconname("Bookmark Details")
 	self._node = node
 	self._controller = controller
-	self._create_form()
+	top = Frame(self._frame)
+	top.pack(padx='1m', pady='1m')
+	self._create_form(top)
+	fr = Frame(self._frame, relief=SUNKEN, height=3, borderwidth=1)
+	fr.pack(expand=1, fill=X)
 	self._create_buttonbar()
 	self._frame.bind('<Return>', self.done)
 
-    def _create_form(self):
+    def _create_form(self, top):
 	make = tktools.make_labeled_form_entry # convenience
 	lw = 12 # Label width, in "average characters"
-	self._form = [make(self._frame, 'Name', 40, 1, lw)]
+	self._form = [make(top, 'Name', 40, 1, lw)]
 	if self._node.islink_p():
 	    self._form[1:] = [
-		make(self._frame, 'Location', 40, 1, lw),
-		make(self._frame, 'Last Visited', 40, 1, lw),
-		make(self._frame, 'Added On', 40, 1, lw),
-		make(self._frame, 'Description', 40, 5, lw)
+		make(top, 'Location', 40, 1, lw),
+		make(top, 'Last Visited', 40, 1, lw),
+		make(top, 'Added On', 40, 1, lw),
+		make(top, 'Description', 40, 5, lw)
 		]
-	    self._form[2][0].config(relief='groove')
-	    self._form[3][0].config(relief='groove')
+	    self._form[2][0].config(relief=GROOVE)
+	    self._form[3][0].config(relief=GROOVE)
 	self.revert()
 
     def _create_buttonbar(self):
 	btnbar = Frame(self._frame)
 ##	revertbtn = Button(btnbar, text='Revert',
 ##			   command=self.revert)
-	donebtn = Button(btnbar, text='OK',
+	donebtn = Button(btnbar, text='OK', width=6,
 			 command=self.done)
-	applybtn = Button(btnbar, text='Apply',
+	applybtn = Button(btnbar, text='Apply', width=6,
 			  command=self.apply)
 	cancelbtn = Button(btnbar, text='Cancel',
 			   command=self.cancel)
-##	revertbtn.pack(side='left')
-	donebtn.pack(side='left')
-	applybtn.pack(side='left')
-	cancelbtn.pack(side='right')
-	btnbar.pack(fill='both')
+##	revertbtn.pack(side=LEFT)
+	donebtn.pack(side=LEFT, padx='1m', pady='1m')
+	applybtn.pack(side=LEFT)
+	cancelbtn.pack(side=RIGHT, padx='1m')
+	btnbar.pack(fill=BOTH)
 
     def revert(self):
 	# first we have to re-enable the read-only fields, otherwise
