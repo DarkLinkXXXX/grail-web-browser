@@ -216,7 +216,7 @@ class Browser:
 
     def stop(self, msg):
 	for reader in self.readers[:]:
-	    reader.stop(msg)
+	    reader.kill()
 
     def clear_reset(self, url, new):
 	for b in self.user_menus:
@@ -241,18 +241,32 @@ class Browser:
 	self.history[self.current] = (self.url, self.title)
 
     def get_image(self, src):
-	if not self.app: return None
-	if not src: return None
-	url = urlparse.urljoin(self.url, src)
-	if not url: return None
-	return self.app.get_image(url)
+	image = self.get_async_image(src)
+	if image:
+	    if not image.load_synchronously(self):
+		image = None
+	return image
 
-    def get_cached_image(self, src):
+    def get_async_image(self, src):
 	if not self.app: return None
 	if not src: return None
 	url = urlparse.urljoin(self.url, src)
 	if not url: return None
-	return self.app.get_cached_image(url)
+	image = self.app.get_cached_image(url)
+	if image:
+	    if self.app.load_images:
+		image.start_loading(self)
+	    return image
+	from AsyncImage import AsyncImage
+	try:
+	    image = AsyncImage(self, url)
+	except IOError, msg:
+	    image = None
+	if image:
+	    self.app.set_cached_image(url, image)
+	    if self.app.load_images:
+		image.start_loading(self)
+	return image
 
     def message(self, string = "", cursor = None):
 	msg = self.msg['text']
