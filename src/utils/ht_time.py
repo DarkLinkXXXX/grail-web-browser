@@ -62,8 +62,18 @@ def parse(str):
 	if str[0] in string.digits:
 	    return time.time() + string.atoi(str)
 	else:
-	    # need to add support for ctime() format
-	    pass
+	    mon = _month_to_num(str[4:7])
+	    mday = string.atoi(str[8:10])
+	    year = string.atoi(str[-4:])
+	    hour = string.atoi(str[11:13])
+	    min = string.atoi(str[14:16])
+	    sec = string.atoi(str[17:19])
+	    
+	    ### do we assume this is GMT time or not?
+	    ### let's assume it is
+	    gmt = (year, mon, mday, hour, min, sec, 0, 0, 0)
+	    secs = time.mktime(gmt)
+	    return secs - time.timezone
 
 def unparse(secs):
     """Turns localtime in seconds since epoch to HTTP time.
