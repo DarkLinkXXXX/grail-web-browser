@@ -132,7 +132,7 @@ PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 
 # horizontal rule spacing, in points
 HR_TOP_MARGIN = 8.0
-HR_BOT_MARGIN = 8.0 
+HR_BOT_MARGIN = 8.0
 HR_LINE_WIDTH = 1.0
 
 # distance after a label tag in points
@@ -613,7 +613,7 @@ class PSStream:
 	    self.print_page_preamble()
 	    self._ypos = 0.0
 	    self._vtab = 0.0
-	
+
     def close_line(self, linestr=None):
 	if linestr is None:
 	    linestr = self._linestr
@@ -733,7 +733,8 @@ class PSWriter(AbstractWriter):
 
 
 #  Exception which should not propogate outside this module.
-EPSError = 'html2ps.EPSError'
+EPSError = "html2ps.EPSError"
+
 
 #  Dictionary of image converters from key ==> EPS.
 #  The values need to be formatted against a dictionary that contains the
@@ -763,31 +764,46 @@ class PrintingHTMLParser(HTMLParser):
 
     """Class to override HTMLParser's default methods for anchors and images.
 
-    Image loading is controlled by an option parameter, `image_loader.'  The
-    value of this parameter should be a function which resolves a URL to an
-    image object.  The image object must provide a single method, write(),
-    which takes two string parameters:  the name of a file and the name of
-    a file format.  This method will be called with the name of a temporary
-    file and the string `ppm', indicating that a Portable PixMap
-    representation is required.
+    Image loading is controlled by an optional parameter called
+    `image_loader.'  The value of this parameter should be a function
+    which resolves a URL to raw image data.  The image data should be
+    returned as a string.
+
+    If an image loader is provided, the `greyscale' parameter is used
+    to determine how the image should be converted to postscript.
+
+    The interpretation of anchor tags is controlled by two options,
+    `ignore_anchors' and `underline_anchors.'  If ignore_anchors is
+    true, anchor tags are ignored completely, otherwise they are
+    assigned footnote numbers and the target URL is printed in a list
+    appended following the text of the document.  If this treatment is
+    selected, the underline_anchors flag controls the visual treatment
+    of the anchor text in the main document.
     """
     def __init__(self, formatter, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=0):
+		 greyscale=1, underline_anchors=1, ignore_anchors=0):
 	HTMLParser.__init__(self, formatter, verbose)
 	self._baseurl = baseurl
 	self._greyscale = greyscale
 	self._image_loader = image_loader
 	self._image_cache = {}
+	self._underline_anchors = underline_anchors
 	self._anchors = {}
 	self._anchor_sequence = []
+	if ignore_anchors:
+	    self.start_a = self.null_op
+	    self.end_a = self.null_op
+
+    def null_op(self, *notused):
+	pass
 
     def close(self):
-	if self._anchors:
+	if self._anchor_sequence:
 	    self._formatAnchorList()
 	HTMLParser.close(self)
 
     def _formatAnchorList(self):
-	from urlparse import urljoin
+	from urlparse import urlparse
 	baseurl = self.base or self._baseurl or ''
 	self.formatter.add_hor_rule()
 	self.formatter.add_flowing_data('URLs referenced in this document:')
@@ -796,27 +812,45 @@ class PrintingHTMLParser(HTMLParser):
 	self.formatter.push_font((8, None, None, None))
 	acnt = len(self._anchor_sequence)
 	count = 1
-	for anchor in self._anchor_sequence:
-	    anchor = urljoin(baseurl, anchor)
+	for anchor, title in self._anchor_sequence:
 	    self.formatter.add_label_data(('[%d]' % count), -1)
+	    if title:
+		#  Set the title in italic, if available:
+		self.formatter.push_font((None, 1, None, None))
+		self.formatter.add_literal_data(title)
+		self.formatter.pop_font()
+		self.formatter.end_paragraph(1)
 	    self.formatter.add_literal_data(anchor)
 	    self.formatter.end_paragraph(1)
 	    count = count + 1
 	self.formatter.pop_margin()
+	self.formatter.pop_font()
 
-    def anchor_bgn(self, href, name, type):
+    def start_a(self, attrs):
+	from urlparse import urljoin
+	baseurl = self.base or self._baseurl or ''
+	title = None
+	href = ''
+	for attr, value in attrs:
+	    if attr == 'href':
+		href = urljoin(baseurl, value)
+	    elif attr == 'title':
+		title = string.strip(value)
 	self.anchor = href
 	if href:
-	    self.formatter.push_style(href and 'u' or None)
+	    if self._underline_anchors:
+		self.formatter.push_style('u')
 	    if not self._anchors.has_key(href):
 		self._anchors[href] = len(self._anchor_sequence) + 1
-		self._anchor_sequence.append(href)
+		self._anchor_sequence.append((href, title))
 
-    def anchor_end(self):
+    def end_a(self):
 	anchor = self.anchor
+	self.anchor = None
 	if anchor:
+	    if self._underline_anchors:
+		self.formatter.pop_style()
 	    self.handle_data('[%d]' % self._anchors[anchor])
-	    self.formatter.pop_style()
 
     def handle_image(self, src, alt, ismap, align, *notused):
 	if self._image_loader:
@@ -916,25 +950,31 @@ def main():
     logfile = None
     title = ''
     url = ''
+    ignore_anchors = 1
+    underline_anchors = 0
     try:
-	options, argv = getopt.getopt(sys.argv[1:], 'hdl:u:t:')
+	options, argv = getopt.getopt(sys.argv[1:], 'hdlaU:u:t:')
     except getopt.error:
 	error = 1
 	help = 1
     for opt, arg in options:
 	if opt == '-h': help = 1
+	elif opt == '-a': ignore_anchors = 0
 	elif opt == '-d': DEBUG = 1
 	elif opt == '-l': logfile = arg
 	elif opt == '-t': title = arg
 	elif opt == '-u': url = arg
+	elif opt == '-U': underline_anchors = 1
     if help:
 	stdout = sys.stderr
 	try:
 	    sys.stdout = sys.stderr
 	    print 'Usage:', sys.argv[0], \
-		  '[-u url] [-t title] [-h] [-d] [-l logfile] [file]'
+		  '[-u url] [-t title] [-h] [-d] [-l logfile] [-a] [-U] [file]'
 	    print '    -u: URL for footer'
 	    print '    -t: title for header'
+	    print '    -a: disable anchor processing'
+	    print '    -U: disable anchor underlining'
 	    print '    -d: turn on debugging'
 	    print '    -l: logfile for debugging, otherwise stderr'
 	    print '    -h: this help message'
@@ -961,7 +1001,9 @@ def main():
     # create the parsers
     w = PSWriter(outfp, title or None, url or infile or '')
     f = AbstractFormatter(w)
-    p = PrintingHTMLParser(f, baseurl=url)
+    p = PrintingHTMLParser(f, baseurl=url,
+			   underline_anchors=underline_anchors,
+			   ignore_anchors=ignore_anchors)
     p.feed(infp.read())
     p.close()
     w.close()
@@ -999,11 +1041,11 @@ save
   UnderThick setlinewidth stroke setlinewidth End_x End_y M
 } D
 /B {
-  /r E D gsave -13 0  R currentpoint 
+  /r E D gsave -13 0  R currentpoint
   newpath r 0 360 arc closepath fill grestore
 } D
 /OB {
-  /r E D gsave -13 0  R currentpoint 
+  /r E D gsave -13 0  R currentpoint
   newpath r 0 360 arc closepath stroke grestore
 } D
 /NP {xmargin topmargin translate scalfac dup scale } D
@@ -1016,7 +1058,7 @@ iso_template = """
 % PSinit_latin1 - handle ISO encoding
 %
 % print out initializing PostScript text for ISO Latin1 font encoding
-% This code is copied from the Idraw program (from Stanford's InterViews 
+% This code is copied from the Idraw program (from Stanford's InterViews
 % package), courtesy of Steinar Kjaernsr|d, steinar@ifi.uio.no
 
 /reencodeISO {
@@ -1059,6 +1101,9 @@ iso_template = """
 [FONTV FONTVB FONTVI FONTVBI FONTF FONTFB FONTFI FONTFBI] {
   reencodeISO D
 } forall
+"""
+
+xbm_to_eps_prolog = """
 """
 
 
