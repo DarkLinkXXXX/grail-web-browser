@@ -6,6 +6,7 @@ import regsub
 import string
 import sys
 import urlparse
+import grailutil
 
 from Tkinter import *
 import tktools
@@ -68,8 +69,10 @@ class Browser:
 	self.create_widgets(width=width, height=height, geometry=geometry)
 	self.history_dialog = None
 	# icon set up
+	iconxbm_file = grailutil.which('icon.xbm')
 	self.root.iconname('Grail')
-	self.root.iconbitmap('@icon.xbm')
+	try: self.root.iconbitmap('@' + iconxbm_file)
+	except TclError: pass
 
     def _window_title(self, title):
 	# some window managers don't automatically set the iconname to

@@ -23,3 +23,11 @@ def gethome():
 def getenv(s):
     if os.environ.has_key(s): return os.environ[s]
     return None
+
+def which(filename):
+    import sys
+    for dir in sys.path:
+	found = os.path.join(dir, filename)
+	if os.path.exists(found):
+	    return found
+    return None
