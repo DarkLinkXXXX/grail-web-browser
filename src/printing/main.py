@@ -1,64 +1,39 @@
 """HTML to PostScript translator.
 
-This module uses the AbstractWriter class interface defined by Grail
-to generate PostScript corresponding to a stream of HTML text.  The
-HTMLParser class scans the HTML stream, generating high-level calls to
-an AbstractWriter object.  This module defines a class derived from
-AbstractWriter, called PSWriter, that supports this high level
-interface as appropriate for PostScript generation.
+This module uses the AbstractWriter class interface defined by in the
+standard formatter module to generate PostScript corresponding to a
+stream of HTML text.  The HTMLParser class scans the HTML stream,
+generating high-level calls to an AbstractWriter object.
 
 Note that this module can be run as a standalone script for command
 line conversion of HTML files to PostScript.  Use the '-h' option to
-see information about all too many command-line options.
+see information about all-too-many command-line options.
 
 """
 
 import os
 import sys
-
-import html
+import posixpath
+import string
 import traceback
+import urllib
+import urlparse
 
+from types import TupleType
+
+# local modules:
 import epstools
 import fonts                            # nested package
 import utils
 import PSParser
 import PSWriter
 
-import posixpath
-import string
-import urllib
-import urlparse
-
-from types import TupleType
+from grailbase.uricontext import URIContext
 
 
-MULTI_DO_PAGE_BREAK = 1
+MULTI_DO_PAGE_BREAK = 1                 # changing this breaks stuff
 
-
-# Just enough of a Context object to perform relative URL computations.
 
-class SimpleContext:
-    def __init__(self, app, url, baseurl=None):
-        self.app = app
-        self.__url = url
-        self.set_baseurl(baseurl)
-
-    def get_url(self):
-        return self.__url
-
-    def set_url(self, url):
-        self.__url = url
-        self.__baseurl = self.__url
-
-    def get_baseurl(self, *relurls):
-        url = self.__baseurl or self.__url
-        for rel in relurls:
-            url = urlparse.urljoin(url, rel)
-        return url
-
-    def set_baseurl(self, baseurl):
-        self.__baseurl = baseurl
 
 
 #  The main program.  Really needs to be broken up a bit!
@@ -67,9 +42,9 @@ class SimpleContext:
 def run(app):
     global logfile
     import getopt
-    import printing.paper
-    import printing.settings
-    settings = printing.settings.get_settings(app.prefs)
+    import paper
+    import settings
+    settings = settings.get_settings(app.prefs)
     # do this after loading the settings so the user can just call
     # get_settings() w/out an arg to get a usable object.
     load_rcscript()
@@ -208,13 +183,14 @@ def run(app):
         print 'Outputting PostScript to', outfile
 
     if url:
-        context = SimpleContext(app, url)
+        context = URIContext(url)
     elif infile:
         url = infile
-        context = SimpleContext(app, url)
+        context = URIContext(url)
     else:
         # BOGOSITY: reading from stdin
-        context = SimpleContext(app, "file:/index.html")
+        context = URIContext("file:/index.html")
+    context.app = app
     paper = printing.paper.PaperInfo(settings.papersize,
                                      margins=settings.margins,
                                      rotation=settings.orientation)
@@ -228,7 +204,9 @@ def run(app):
                           #varifamily='Palatino',
                           paper=paper, settings=settings)
     ctype = "text/html"
-    typename, mod = app.find_type_extension("printing.filetypes", ctype)
+    mod = app.find_type_extension("printing.filetypes", ctype)
+    if not mod.parse:
+        sys.exit("cannot load printing support for " + ctype)
     p = mod.parse(w, settings, context)
     if multi:
         if args[1:]:
@@ -290,11 +268,10 @@ def run(app):
 
 
 def load_tag_handler(app, arg):
+    loader = app.get_loader("html.postscript")
     narg = os.path.join(os.getcwd(), arg)
     if os.path.isdir(narg):
-        package = app.get_package("html")
-        if package and package.__path__[0] != narg:
-            package.__path__.insert(0, narg)
+        loader.add_directory(narg)
     elif os.path.isfile(narg):
         basename, ext = os.path.splitext(narg)
         if ext != ".py":
@@ -308,7 +285,7 @@ def load_tag_handler(app, arg):
         try:
             sys.path = [dirname] + oldpath
             exec "import %s ; mod = %s" % (modname, modname)
-            app.load_tag_handlers(mod)
+            loader.load_tag_handlers(mod)
         finally:
             sys.path = oldpath
     else:
