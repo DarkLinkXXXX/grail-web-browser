@@ -44,6 +44,7 @@ class AbstractFormatter:
 	self.nospace = 1		# Should leading space be suppressed
 	self.softspace = 0		# Should a space be inserted
 	self.para_end = 1		# Just ended a paragraph
+	self.parskip = 0		# Skipped space between paragraphs?
 	self.hard_break = 1		# Have a hard break
 	self.have_label = 0
 
@@ -51,16 +52,19 @@ class AbstractFormatter:
 	if not self.hard_break:
 	    self.writer.send_line_break()
 	    self.have_label = 0
-	if not self.para_end:
-	    self.writer.send_paragraph((blankline and 1) or 0)
+	if self.parskip < blankline:
+	    self.writer.send_paragraph(blankline - self.parskip)
+	    self.parskip = blankline
 	    self.have_label = 0
+	else:
+	    self.parskip = 0
 	self.hard_break = self.nospace = self.para_end = 1
 	self.softspace = 0
 
     def add_line_break(self):
 	if not (self.hard_break or self.para_end):
 	    self.writer.send_line_break()
-	    self.have_label = 0
+	    self.have_label = self.parskip = 0
 	self.hard_break = self.nospace = 1
 	self.softspace = 0
 
@@ -70,7 +74,7 @@ class AbstractFormatter:
 	    self.writer.send_line_break()
 	self.writer.send_hor_rule(abswidth, percentwidth, height, align)
 	self.hard_break = self.nospace = 1
-	self.have_label = self.para_end = self.softspace = 0
+	self.have_label = self.para_end = self.softspace = self.parskip = 0
 
     def add_label_data(self, format, counter, blankline = None):
 	if self.have_label or not self.hard_break:
@@ -82,7 +86,7 @@ class AbstractFormatter:
 	else:
 	    self.writer.send_label_data(format)
 	self.nospace = self.have_label = self.hard_break = self.para_end = 1
-	self.softspace = 0
+	self.softspace = self.parskip = 0
 
     def format_counter(self, format, counter):
         label = ''
@@ -148,11 +152,14 @@ class AbstractFormatter:
 	    return
 	elif prespace or self.softspace:
 	    if not data:
-		if not self.nospace: self.softspace = 1
+		if not self.nospace:
+		    self.softspace = 1
+		    self.parskip = 0
 		return
 	    if not self.nospace:
 		data = ' ' + data
-	self.hard_break = self.nospace = self.para_end = self.have_label = 0
+	self.hard_break = self.nospace = self.para_end = \
+			  self.parskip = self.have_label = 0
 	self.softspace = postspace
 	self.writer.send_flowing_data(data)
 
@@ -160,12 +167,13 @@ class AbstractFormatter:
 	if not data: return
 	#  Caller is expected to cause flush_softspace() if needed.
 	self.hard_break = data[-1:] == '\n'
-	self.nospace = self.para_end = self.softspace = self.have_label = 0
+	self.nospace = self.para_end = self.softspace = \
+		       self.parskip = self.have_label = 0
 	self.writer.send_literal_data(data)
 
     def flush_softspace(self):
 	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = \
+	    self.hard_break = self.nospace = self.para_end = self.parskip = \
 			      self.have_label = self.softspace = 0
 	    self.writer.send_flowing_data(' ')
 
@@ -215,16 +223,20 @@ class AbstractFormatter:
 
     def push_margin(self, margin):
 	self.margin_stack.append(margin)
-	self.writer.new_margin(margin, len(self.margin_stack))
+	fstack = filter(None, self.margin_stack)
+	if not margin and fstack:
+	    margin = fstack[-1]
+	self.writer.new_margin(margin, len(fstack))
 
     def pop_margin(self):
 	if self.margin_stack:
 	    del self.margin_stack[-1]
-	if self.margin_stack:
-	    margin = self.margin_stack[-1]
+	fstack = filter(None, self.margin_stack)
+	if fstack:
+	    margin = fstack[-1]
 	else:
 	    margin = None
-	self.writer.new_margin(margin, len(self.margin_stack))
+	self.writer.new_margin(margin, len(fstack))
 
     def set_spacing(self, spacing):
 	self.spacing = spacing
