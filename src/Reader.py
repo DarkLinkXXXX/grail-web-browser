@@ -58,6 +58,78 @@ class ParserWrapper:
 	    self.__viewer.freeze()
 	    self.__closed = 1
 
+
+_hex_digit_values = {
+    '0': 0, '1': 1, '2': 2, '3': 3, '4': 4,
+    '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+    'a': 10, 'b': 11, 'c': 12, 'd': 13, 'e': 14, 'f': 15,
+    'A': 10, 'B': 11, 'C': 12, 'D': 13, 'E': 14, 'F': 15,
+    }
+
+class QuotedPrintableWrapper:
+    """Wrap a parser object with a quoted-printable decoder.  Conforms to
+    parser protocol."""
+    def __init__(self, parser):
+        """Initialize the decoder.  Pass in the real parser as a parameter."""
+        self.__parser = parser
+        self.__buffer = ''
+
+    def feed(self, data):
+        """Decode data and feed as much as possible to the real parser."""
+        data = self.__buffer + data
+        pos = string.find(data, '=')
+        if pos == -1:
+            self.__parser.feed(data)
+            self.__buffer = ''
+            return
+        s = data[:pos]
+        data = data[pos:]
+        pos = 0
+        while pos <= len(data):
+            xx = data[:2]
+            if xx == '=\n':
+                data = data[2:]
+            elif xx == '==':
+                s = s + '='
+                data = data[2:]
+            elif len(data) >= 3:
+                try:
+                    v = _hex_digit_values[data[1]] << 4
+                    v = v | _hex_digit_values[data[2]]
+                except KeyError:
+                    s = s + '='
+                    data = data[1:]
+                    print "invalid quoted-printable encoding -- skipping '='"
+                else:
+                    s = s + chr(v)
+                    data = data[3:]
+            elif len(data) < 3:
+                # wait for more data
+                break
+            else:
+                s = s + '='
+                data = data[1:]
+                print "invalid quoted-printable encoding -- skipping '='"
+            # now look for the next '=':
+            pos = string.find(data, '=')
+            if pos == -1:
+                s = s + data
+                data = ''
+            else:
+                s = s + data[:pos]
+                data = data[pos:]
+                pos = 0
+        self.__parser.feed(s)
+        self.__buffer = data
+
+    def close(self):
+        """Flush any remaining encoded data and feed it to the parser; there's
+        no way to properly decode it.  Close the parser afterwards."""
+        # just ignore that we couldn't parse it!
+        self.__parser.feed(self.__buffer)
+        self.__parser.close()
+
+
 
 class Reader(BaseReader):
 
@@ -201,7 +273,7 @@ class Reader(BaseReader):
 	    content_encoding = headers['content-encoding']
 	real_content_type = content_type or "unknown"
 	real_content_encoding = content_encoding
-	if content_encoding:
+	if content_encoding and (content_encoding != 'quoted-printable'):
 	    # XXX provisional hack -- change content type to octet stream
 	    content_type = "application/octet-stream"
 	    content_encoding = None
@@ -295,8 +367,10 @@ class Reader(BaseReader):
 	self.context.clear_reset()
 	self.context.set_headers(headers)
 	self.context.set_url(self.url)
-	realparser = parserclass(self.viewer, reload=self.reload)
-	self.parser = ParserWrapper(realparser, self.viewer)
+	parser = parserclass(self.viewer, reload=self.reload)
+        if content_encoding == 'quoted-printable':
+            parser = QuotedPrintableWrapper(parser)
+        self.parser = ParserWrapper(parser, self.viewer)
 	self.istext = istext
 	self.last_was_cr = 0
 
