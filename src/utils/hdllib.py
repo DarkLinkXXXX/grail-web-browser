@@ -23,9 +23,6 @@ Classes:
 
 TO DO, doubts, questions:
 
-XXX We don't use cache servers nor do we download the hash table from
-    the server.
-
 XXX Constants should only have a prefix 'HP_' or 'HDL_' when their
     name occurs in the spec.  I've tried to fix this but may have
     missed some cases.
@@ -33,13 +30,7 @@ XXX Constants should only have a prefix 'HP_' or 'HDL_' when their
 XXX Should break up get_data in send_request and poll_request.
 
 XXX When retrying, should we generate a new tag or reuse the old one?
-    (new -- let's not confuse ourselves further)
-
-XXX When an incomplete result is returned, should we raise an exception?
-    (yes)
-
-XXX Should we cache the hash table entries read from the file?
-    (yes)
+(I think yes, but this means repacking the request.)
 
 """
 
@@ -709,8 +700,9 @@ class HashTable:
 
 	Optional arguments are a list of desired TYPES, a list of
 	FLAGS, a maximum TIMEOUT in seconds (default 30 seconds), a
-	retry INTERVAL (default 5 seconds), and a COMMAND code
-	(default HP_QUERY).
+	retry INTERVAL (default 5 seconds), a COMMAND code (default
+	HP_QUERY) and an expected RESPONSE code (default
+	HP_QUERY_RESPONSE).
 
 	Exceptions:
 
