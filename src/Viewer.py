@@ -121,11 +121,11 @@ class Viewer(formatter.AbstractWriter):
 	self.text.insert('end', '\t'+data+'\t', tags)
 
     def send_flowing_data(self, data):
-##	print "Flowing text:", `data`, self.flowingtags
+##	print "Flowing data:", `data`, self.flowingtags
 	self.text.insert('end', data, self.flowingtags)
 
     def send_literal_data(self, data):
-##	print "Literal text:", `data`, self.literaltags
+##	print "Literal data:", `data`, self.literaltags
 	self.text.insert('end', data, self.literaltags)
 
     # Viewer's own methods
