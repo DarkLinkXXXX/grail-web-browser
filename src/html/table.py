@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.17 1996/04/04 20:39:49 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.18 1996/04/04 21:07:14 bwarsaw Exp $'
 
 
 import string
@@ -276,7 +276,7 @@ class Table(AttrElem):
 	# cell spacing and padding
 	self.Acellspacing = self.attribute('cellspacing',
 					   conv=conv_stdunits,
-					   default=0)
+					   default=2)
 	self.Acellpadding = self.attribute('cellpadding',
 					   conv=conv_stdunits,
 					   default=0)
@@ -407,8 +407,8 @@ class Table(AttrElem):
 		    maxwidths[col_i] = max(maxwidths[col_i], maxwidth) + bw
 		    minwidths[col_i] = max(minwidths[col_i], minwidth) + bw
 
-	mincanvaswidth = 2 * borderwidth
-	maxcanvaswidth = 2 * borderwidth
+	mincanvaswidth = 2 * borderwidth + self.Acellspacing * (colcount + 1)
+	maxcanvaswidth = 2 * borderwidth + self.Acellspacing * (colcount + 1)
 	for col in range(colcount):
 	    mincanvaswidth = mincanvaswidth + minwidths[col]
 	    maxcanvaswidth = maxcanvaswidth + maxwidths[col]
@@ -476,7 +476,7 @@ class Table(AttrElem):
 	for col in range(colcount):
 	    canvaswidth = canvaswidth + cellwidths[col]
 
-	ypos = borderwidth
+	ypos = borderwidth + self.Acellspacing
 
 	# if caption aligns top, then insert it now.  it doesn't need
 	# to be moved, just resized
@@ -490,7 +490,7 @@ class Table(AttrElem):
 
 	# now place and size each cell
 	for row in range(rowcount):
-	    xpos = borderwidth
+	    xpos = borderwidth + self.Acellspacing
 	    tallest = 0
 	    for col in range(colcount):
 		cell = table[(row, col)]
@@ -516,7 +516,8 @@ class Table(AttrElem):
 				 height=height)
 	    ypos = ypos + height + self.Acellspacing
 
-	self.container.config(width=canvaswidth, height=ypos-borderwidth)
+	self.container.config(width=canvaswidth + 2 * self.Acellspacing,
+			      height=ypos-borderwidth)
 	return canvaswidth
 
     def _reset(self, viewer):
