@@ -291,8 +291,12 @@ class HTMLParser(SGMLParser):
         self.formatter.end_paragraph(0)
         if self.list_stack:
 	    [dummy, label, counter, compact] = top = self.list_stack[-1]
-	    if attrs.has_key('type'):
-		label = top[1] = self.make_format(attrs['type'], label)
+	    if attrs.has_key('type') and attrs['type']:
+		s = attrs['type']
+		if type(s) == type(''):
+		    label = top[1] = self.make_format(s, label)
+		else:
+		    label = s
 	    if attrs.has_key('value'):
 		try:
 		    v = string.atoi(string.strip(attrs['value']))
@@ -315,18 +319,21 @@ class HTMLParser(SGMLParser):
 		try: value = string.atoi(attrs['value'])
 		except: pass
 		else: format = '1'
-	    if attrs.has_key('type'):
+	    if attrs.has_key('type') and (type(attrs['type']) is type('')):
 		format = self.make_format(attrs['type'], format)
 	    else:
-		format = self.make_format(format)
-	    data = self.formatter.format_counter(format + ' ', value)
-	    self.formatter.add_flowing_data(data)
+		format = self.make_format(format, '*')
+	    if type(format) is type(''):
+		data = self.formatter.format_counter(format, value) + ' '
+		self.formatter.add_flowing_data(data)
 
     def make_format(self, format, default='*'):
 	if not format:
 	    format = default
 	if format in ('1', 'a', 'A', 'i', 'I'):
 	    format = format + '.'
+	elif type(format) is not type(''):
+	    pass
 	elif string.lower(format) in ('disc', 'circle', 'square'):
 	    format = '*'
 	else:
