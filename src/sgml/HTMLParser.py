@@ -394,7 +394,7 @@ class HTMLParser(SGMLParser):
 	if 'p' in self.stack:		# ugly hack to compact trailing <P>
 	    self.implied_end_p()	# even though list_trim_stack() will
 	self.list_trim_stack()		# close it.
-	self.formatter.end_paragraph(0)
+	#self.formatter.end_paragraph(0)
 	[listtype, label, counter, compact, depth] = top = self.list_stack[-1]
 	if attrs.has_key('type'):
 	    s = attrs['type']
