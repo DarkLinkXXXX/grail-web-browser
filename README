@@ -1,0 +1,37 @@
+GRAIL README
+------------
+
+This is an experimental binary distribution of GRAIL, an web browser
+written and extensible using Python.  Once you have untarred the
+distribution you should have the following files and directory:
+
+README		this file
+grail.sh	shell script to start the browser
+grail.bin	the browser binary
+tksupp/		directory with tcl/tk support scripts
+
+The binary is specific to a platform; which platform depends on the
+file which you have downloaded.  Supported platforms are SGI IRIX 5.3
+and Solaris 2.4 (IRIX 5.2 and Solaris 2.3 should also be able to run
+these binaries).
+
+To start the grail browser, run the grail.sh script, e.g.
+
+	./grail.sh
+
+The browser will display information about itself which is at the
+following URL:
+
+	http://monty.cnri.reston.va.us/grail/info/
+
+--Guido van Rossum <guido@CNRI.Reston.VA.US>
+
+
+"Everything should be made as simple as possible, but no sipler."
+	--Albert Einstein
+
+"Nothing is as simple as we hope it will be."
+	--Jim Horning
+
+"Simple is as simple does."
+	--Forrest Gump
