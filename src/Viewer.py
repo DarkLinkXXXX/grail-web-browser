@@ -19,7 +19,7 @@ from Stylesheet import UndefinedStyle
 
 
 MIN_IMAGE_LEADER = "\240"		# Non-spacing space
-INDENTATION_WIDTH = 40			# Pixels / indent level
+INDENTATION_WIDTH = 30			# Pixels / indent level
 TARGET_SEPARATOR = '\1'			# url TARGET_SEPARATOR target
 
 
@@ -40,7 +40,7 @@ class WidthMagic:
 			   + viewer.RULE_WIDTH_MAGIC
 
     def close(self):
-	del self.__text
+	self.__text = None		# free reference
 
     def get_available_width(self):
 	#  Getting the 'padx' option of the text widget needs to be done
