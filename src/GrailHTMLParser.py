@@ -82,6 +82,19 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    self.handle_data("\240") # Non-breaking space
 	self.viewer.add_subwindow(w)
 
+    # Override tag: <BODY colorspecs...>
+
+    def start_body(self, attrs):
+	dict = {'bgcolor': None, 'text': None,
+		'link': None, 'vlink': None, 'alink': None}
+	for name, value in attrs:
+	    dict[name] = value
+	text = self.viewer.text
+	if dict['bgcolor']:
+	    text.config(background=dict['bgcolor'])
+	if dict['text']:
+	    text.config(foreground=dict['text'])
+
     # New tag: <CENTER> (for Amy)
 
     def start_center(self, attrs):
@@ -106,7 +119,8 @@ class AppletHTMLParser(htmllib.HTMLParser):
 	    browser.user_menus.append(menubutton)
 	    parent = menu
 	else:
-	    frame = AppletFrame(self.viewer.text, self)
+	    bg = self.viewer.text['background']
+	    frame = AppletFrame(self.viewer.text, self, background=bg)
 	    self.add_subwindow(frame)
 	    parent = frame
 

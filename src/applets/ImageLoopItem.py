@@ -15,7 +15,7 @@ class ImageLoopItem:
 	self.images = []
 	self.index = 0
 	self.done = 0
-	self.label = Label(master, text=text)
+	self.label = Label(master, text=text, background=master['background'])
 	self.label.pack()
 	self.loadnext()
 	self.schedule()

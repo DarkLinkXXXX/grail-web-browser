@@ -8,8 +8,10 @@ class ImageWindow(Frame):
 	self.url = url
 	self.src, self.alt, self.ismap, self.align = src, alt, ismap, align
 	self.browser = self.viewer.browser
-	Frame.__init__(self, viewer.text, borderwidth=borderwidth)
-	self.label = Label(self, text=self.alt)
+	bg = viewer.text['background']
+	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
+		       background=bg)
+	self.label = Label(self, text=self.alt, background=bg)
 	self.label.pack(fill=BOTH, expand=1)
 	self.pack()
 	self.image_loaded = 0

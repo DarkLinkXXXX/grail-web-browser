@@ -44,6 +44,8 @@ class Viewer(formatter.AbstractWriter):
 						      width=width,
 						      height=height,
 						      hbar=1, vbar=1)
+	self.default_bg = self.text['background']
+	self.default_fg = self.text['foreground']
 	self.text.config(selectbackground='yellow')
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
@@ -79,6 +81,8 @@ class Viewer(formatter.AbstractWriter):
 	for w in subwindows:
 	    w.destroy()
 	self.unfreeze()
+	self.text.config(background=self.default_bg,
+			 foreground=self.default_fg)
 	self.text.delete('1.0', END)
 	self.reset_state()
 	self.freeze()
@@ -158,7 +162,9 @@ class Viewer(formatter.AbstractWriter):
 	self.text.insert(END, '\n')
 	width = self.rule_width()
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
-			width=width, height=0)
+			width=width, height=0,
+			background=self.text['background'],
+			highlightbackground=self.text['background'])
 	self.rules.append(window)
 	self.text.window_create(END, window=window)
 	self.text.insert(END, '\n')
