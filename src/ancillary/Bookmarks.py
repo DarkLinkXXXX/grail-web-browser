@@ -582,6 +582,9 @@ class BookmarksDialog:
 	self._frame.bind("g", self._controller.goto)
 	self._frame.bind("G", self._controller.goto)
 	self._frame.bind("<KeyPress-space>", self._controller.goto)
+	itemmenu.add_command(label="Go in New Window",
+			     command=self._controller.goto_new,
+			     underline=0)
 	itembtn.config(menu=itemmenu)
 	#
 	# arrange menu
@@ -658,7 +661,9 @@ class BookmarksDialog:
 						     60, 24, 1, 1)
 	self._listbox.config(font='fixed')
 	# bind keys
+	self._listbox.bind('<ButtonPress-2>', self._highlight)
 	self._listbox.bind('<Double-Button-1>', self._controller.goto)
+	self._listbox.bind('<Double-Button-2>', self._controller.goto_new)
 	self._listbox.config(takefocus=0, exportselection=0)
 
     def _create_buttonbar(self):
@@ -728,6 +733,10 @@ class BookmarksDialog:
     def set_labels(self, filename, title):
 	self._file.config(text=filename)
 	self._title.config(text=title)
+
+    def _highlight(self, event):
+	self._listbox.select_clear(0, END)
+	self._listbox.select_set('@%d,%d' % (event.x, event.y))
 
 
 class DetailsDialog:
@@ -984,26 +993,40 @@ class BookmarksController(OutlinerController):
 	except AttributeError: pass
 	return node, selection
 
+    def toggle_node_expansion(self, node):
+	if node.expanded_p(): self.collapse_node(node)
+	else: self.expand_node(node)
+	self.viewer().select_node(node)
+	self.set_modflag(True, quiet=True)
+
     def goto(self, event=None):
 	node, selection = self._get_selected_node()
 	if not node: return
 	if node.leaf_p():
 	    self.goto_node(node)
 	else:
-	    if node.expanded_p(): self.collapse_node(node)
-	    else: self.expand_node(node)
-	    self.viewer().select_node(node)
-	    self.set_modflag(True, quiet=True)
+	    self.toggle_node_expansion(node)
+
+    def goto_new(self, event=None):
+	node, selection = self._get_selected_node()
+	if not node: return
+	if node.leaf_p():
+	    from Browser import Browser
+	    self.goto_node(node, Browser(self._app.root, self._app))
+	else:
+	    self.toggle_node_expansion(node)
 
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
 	if filename: self._browser().context.load('file:' + filename)
-    def goto_node(self, node):
+    def goto_node(self, node, browser=None):
 	if node and node.leaf_p() and node.uri():
 	    node.set_last_visited(int(time.time()))
 	    if self._details.has_key(id(node)):
 		self._details[id(node)].revert()
-	    self._browser().context.load(node.uri())
+	    if browser is None:
+		browser = self._browser()
+	    browser.context.load(node.uri())
 	    self.viewer().select_node(node)
 	    self.set_modflag(True, quiet=True)
 
