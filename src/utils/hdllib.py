@@ -318,14 +318,14 @@ class PacketUnpacker(xdrlib.Unpacker):
 
 	self.check_body_length()
 
-	if err == HP_VERSION_MISMATCH:
+	if err == HDL_ERR_SESSION_TAG_MISMATCH:
 	    return self.unpack_uint()
-	elif err == HP_HANDLE_NOT_FOUND:
+	elif err == HDL_ERR_NOT_FOUND:
 	    return None
-	elif err in (HP_NOT_RESPONSIBLE_FOR_HANDLE,
-		       HP_FORWARDED,
-		       HP_ACCESS_TEMPORARILY_DENIED,
-		       HP_PARSING_FAILURE):
+	elif err in (HDL_ERR_SERVER_NOT_RESP,
+#		     HDL_ERR_FORWARDED,
+		     HDL_ERR_ACCESS_DENIED,
+		     HDL_ERR_PARSING_FAILURE):
 	    return self.unpack_string()
 	else:
 	    return `self.buf[self.pos:]`

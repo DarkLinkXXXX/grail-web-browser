@@ -92,7 +92,7 @@ class hdl_access(nullAPI.null_access):
 	    # catch all errors and raise an IOError.  The Grail
 	    # protocol extension defines this as the only error we're
 	    # allowed to raise.
-	    self._error()
+#	    self._error()
 	    raise IOError
 	return 'Ready', 1
 
