@@ -11,6 +11,10 @@ import math
 VALID_TARGET_STARTS = string.letters + '_'
 
 
+# Last directory used by Save As... command
+save_as_dir = None
+
+
 class Context:
 
     """Context for browsing operations.
@@ -120,7 +124,7 @@ class Context:
 		url = urljoin(url, relurl)
 	return url
     baseurl = get_baseurl		# XXX Backwards compatibility
-    # XXX see: AppletHTMLParser, AppletLoader, Viewer, Bookmarks, isindex
+    # XXX see: GrailHTMLParser, AppletLoader, Viewer, Bookmarks, isindex
 
     def get_target(self):
 	"""Return the default target for this page (which may be None)."""
@@ -299,6 +303,66 @@ class Context:
 		  scrollpos=None, data=None):
 	from Reader import Reader
 	Reader(self, url, method, params, show_source, reload, data, scrollpos)
+
+    # External user commands
+
+    def save_document(self):
+	global save_as_dir
+	# File/Save As...
+	if self.busycheck(): return
+	import FileDialog, os
+	fd = FileDialog.SaveFileDialog(self.root)
+	# give it a default filename on which save within the
+	# current directory
+	urlasfile = string.splitfields(self.get_url(), '/')
+	default = urlasfile[-1]
+	# strip trailing query
+	i = string.find(default, '?')
+	if i > 0: default = default[:i]
+	# strip trailing fragment
+	i = string.rfind(default, '#')
+	if i > 0: default = default[:i]
+	# maybe bogus assumption?
+	if not default: default = 'index.html'
+	if not save_as_dir:
+	    save_as_dir = os.getcwd()
+	file = fd.go(save_as_dir, default=default)
+	if not file: return
+	save_as_dir = os.path.dirname(file)
+	api = self.app.open_url(self.get_url(), 'GET', {})
+	errcode, errmsg, params = api.getmeta()
+	if errcode != 200:
+	    self.error_dialog('Error reply', errmsg)
+	    api.close()
+	    return
+	try:
+	    ofp = open(file, 'w')
+	except IOError, msg:
+	    api.close()
+	    self.error_dialog(IOError, msg)
+	    return
+	self.message("Saving...")
+	BUFSIZE = 8*1024
+	while 1:
+	    buf = api.getdata(BUFSIZE)
+	    if not buf: break
+	    ofp.write(buf)
+	ofp.close()
+	api.close()
+	self.message_clear()
+
+    def print_document(self):
+	# File/Print...
+	if self.busycheck(): return
+	import PrintDialog
+	PrintDialog.PrintDialog(self,
+				self.get_url(),
+				self.get_title())
+
+    def view_source(self):
+	from Browser import Browser
+	browser = Browser(self.app.root, self.app, height=24)
+	browser.context.load(self.get_url(), show_source=1)
 
     # Externals for loading pages
 
