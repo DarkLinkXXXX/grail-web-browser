@@ -48,7 +48,9 @@ styles--all-sizes: tiny small medium large huge
 # Font families:
 # (To include another font, add an entry to all-families and include a
 #  'styles--<font>-italic' entry designating the char for the italic stroke,
-#  eg "i" for times and "o" for helvetica and courier.)
+#  eg "i" for times and "o" for helvetica and courier, and also the
+#  designator for bold as 'styles--<font>-bold'.  Typically this is "bold"
+#  but for lucidabright is "demibold".)
 styles--all-families: helvetica lucida lucidabright times courier
 # Font style oblique designator, according to font family:
 styles--times-italic: i
@@ -225,7 +227,8 @@ parsing-html--format-h4:	"%(h2)d.%(h3)d.%(h4)d. "
 parsing-html--format-h5:	"%(h2)d.%(h3)d.%(h4)d.%(h5)d. "
 parsing-html--format-h6:	"%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d. "
 #
-# Printing preferences:
+# Printing preferences
+# See <URL:http://grail.cnri.reston.va.us/grail/help/printing.html> for info.
 #
 printing--images:		1
 printing--greyscale:		1
@@ -234,14 +237,9 @@ printing--command:		lpr
 printing--underline-anchors:	1
 printing--footnote-anchors:	1
 printing--skip-leading-blank-lines: 0
-# font-size / leading; both in points
 printing--font-size:		10.0 / 10.7
-# top, bottom, left, right; all in points
 printing--margins:		72 72 72 72
-# paper-size should be one of the keys in html2ps.paper_sizes
-# ('letter', 'a4', etc.)
 printing--paper-size:		letter
-# orientation should be one of: portrait, landscape, seascape
 printing--orientation:		portrait
 #
 # Applet preferences
