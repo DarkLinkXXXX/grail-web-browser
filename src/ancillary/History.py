@@ -157,26 +157,27 @@ class HistoryDialog:
 	# add a couple of buttons
 	btnbar = Frame(self._frame)
 	btnbar.pack(fill=BOTH, side=BOTTOM)
-	gotobtn = Button(btnbar, text='Go To', command=self._goto)
-	gotobtn.pack(side=LEFT, padx='1m', pady='1m')
-	closebtn = Button(btnbar, text='Close', command=self._close)
-	closebtn.pack(side=LEFT)
+	gotobtn = Button(self._frame, name='goto', command=self._goto)
+	gotobtn.pack(side=LEFT, padx='1m', pady='1m', in_=btnbar)
+	closebtn = Button(self._frame, name='close', command=self._close)
+	closebtn.pack(side=LEFT, in_=btnbar)
 	tktools.unify_button_widths(gotobtn, closebtn)
 	# radio button for view option
 	rbframe = Frame(btnbar)
 	rbframe.pack()
-	rb1 = Radiobutton(rbframe, text='View by titles',
+	rb1 = Radiobutton(self._frame, name='titles',
 			  command=self._viewby_command,
 			  variable=self._viewby,
 			  value=VIEW_BY_TITLES)
-	rb2 = Radiobutton(rbframe, text='View by URIs',
+	rb2 = Radiobutton(self._frame, name='uris',
 			  command=self._viewby_command,
 			  variable=self._viewby,
 			  value=VIEW_BY_URLS)
-	rb1.pack(anchor='w')
-	rb2.pack(anchor='w')
+	rb1.pack(anchor='w', in_=rbframe)
+	rb2.pack(anchor='w', in_=rbframe)
 	# create listbox
-	self._listbox, frame = tktools.make_list_box(self._frame, 40, 24, 1, 1)
+	self._listbox, frame = tktools.make_list_box(
+	    self._frame, 40, 24, 1, 1, name="list")
 	self.refresh()
 	self._listbox.config(takefocus=0, exportselection=0)
 	self._listbox.bind('<Double-Button-1>', self._goto)

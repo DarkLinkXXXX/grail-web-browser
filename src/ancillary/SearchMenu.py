@@ -57,7 +57,8 @@ class SearchDialog:
     def __init__(self, rootwin, searchable):
 	self._searchable = searchable
 	import tktools
-	self._root = tktools.make_toplevel(rootwin, title="Search Dialog")
+	self._root = tktools.make_toplevel(rootwin, title="Search Dialog",
+					   class_="Search")
 	self.create_widgets()
 	tktools.set_transient(self._root, rootwin, rely=0.0)
 	self.__rootwin = rootwin
@@ -66,7 +67,7 @@ class SearchDialog:
 	import tktools
 	x, f, self.bot_frame = tktools.make_double_frame(self._root)
 	self.pat_entry, self.pat_frame = \
-			tktools.make_form_entry(f, "Find string:")
+			tktools.make_form_entry(f, name="entry")
 	self.pat_entry['exportselection'] = 0
 	self.pat_entry.bind('<Return>', self.return_event)
 	self.pat_entry.focus_set()
@@ -78,29 +79,27 @@ class SearchDialog:
 	self.case_var = BooleanVar()
 	self.backwards_var = BooleanVar()
 
-	self.regexp_checkbutton = Checkbutton(self.mid_frame,
-					      text="regexp",
+	self.regexp_checkbutton = Checkbutton(self._root, name="regexp",
 					      variable=self.regexp_var)
-	self.regexp_checkbutton.pack(side=LEFT)
-	self.case_checkbutton = Checkbutton(self.mid_frame,
-					    text="case sensitive",
+	self.regexp_checkbutton.pack(side=LEFT, in_=self.mid_frame)
+	self.case_checkbutton = Checkbutton(self._root, name="casesens",
 					    variable=self.case_var)
-	self.case_checkbutton.pack(side=LEFT, expand=1)
-	self.backwards_checkbutton = Checkbutton(self.mid_frame,
-						 text="backwards",
+	self.case_checkbutton.pack(side=LEFT, expand=1, in_=self.mid_frame)
+	self.backwards_checkbutton = Checkbutton(self._root, name="backwards",
 						 variable=self.backwards_var)
-	self.backwards_checkbutton.pack(side=RIGHT)
+	self.backwards_checkbutton.pack(side=RIGHT, in_=self.mid_frame)
 
 	# buttons along the bottom
-	self.search_button = Button(self.bot_frame, text="Search", width=12,
+	self.search_button = Button(self._root, name="search", width=12,
 				    command=self.search_command)
-	self.search_button.pack(side=LEFT)
-	self.search_close_button = Button(self.bot_frame, text="Search+Close",
+	self.search_button.pack(side=LEFT, in_=self.bot_frame)
+	self.search_close_button = Button(self._root, name="searchclose",
 					  command=self.search_close_command)
-	self.search_close_button.pack(side=LEFT, expand=1, padx='1m') # Center
-	self.close_button = Button(self.bot_frame, text="Close", width=12,
+	self.search_close_button.pack(side=LEFT, expand=1, padx='1m',
+				      in_=self.bot_frame) # Center
+	self.close_button = Button(self._root, name="close", width=12,
 				   command=self.close_command)
-	self.close_button.pack(side=RIGHT)
+	self.close_button.pack(side=RIGHT, in_=self.bot_frame)
 
 	self._root.protocol('WM_DELETE_WINDOW', self.close_command)
 	self._root.bind("<Alt-w>", self.close_event)
