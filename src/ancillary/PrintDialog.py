@@ -36,12 +36,15 @@ printfile = ""
 fileflag = 0
 imageflag = 0
 greyscaleflag = 0
+underflag = 1
+footnoteflag = 1
 
 
 class PrintDialog:
 
     def __init__(self, context, url, title):
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
+	global underflag, footnoteflag
 	self.context = context
 	if printcmd is None:
 	    prefs = context.app.prefs
@@ -52,6 +55,10 @@ class PrintDialog:
 		fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
 		greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
 		printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
+		footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP,
+						'footnote-anchors')
+		underflag = prefs.GetBoolean(PRINT_PREFGROUP,
+					     'underline-anchors')
 
 	self.url = url
 	self.title = title
@@ -98,6 +105,25 @@ class PrintDialog:
 	self.grey_check.pack(side = LEFT)
 	lbl = Label(self.greyframe, text = 'Reduce images to greyscale')
 	lbl.pack(side = LEFT)
+
+	#  Anchor-handling selections:
+	self.fnframe = Frame(self.root)
+	self.fnframe.pack(fill = X)
+	self.footnotechecked = IntVar(self.root)
+	self.footnotechecked.set(footnoteflag)
+	self.footnote_check = Checkbutton(self.fnframe,
+					  variable = self.footnotechecked)
+	self.footnote_check.pack(side = LEFT)
+	Label(self.fnframe, text = 'Footnotes for anchors').pack(side = LEFT)
+
+	self.underframe = Frame(self.root)
+	self.underframe.pack(fill = X)
+	self.underchecked = IntVar(self.root)
+	self.underchecked.set(underflag)
+	self.under_check = Checkbutton(self.underframe,
+				       variable = self.underchecked)
+	self.under_check.pack(side = LEFT)
+	Label(self.underframe, text = 'Underline anchors').pack(side = LEFT)
 
 	#  Command buttons:
 	fr = Frame(self.root, relief = SUNKEN, height = 4, borderwidth = 2)
@@ -187,7 +213,9 @@ class PrintDialog:
 	w = PSWriter(fp, self.title, self.url, grey)
 	f = AbstractFormatter(w)
 	p = PrintingHTMLParser(f, baseurl = self.context.baseurl(),
-			       image_loader = imgloader, greyscale = grey)
+			       image_loader = imgloader, greyscale = grey,
+			       underline_anchors = self.underchecked.get(),
+			       footnote_anchors = self.footnotechecked.get())
 	p.feed(infp.read())
 	infp.close()
 	p.close()
@@ -195,11 +223,14 @@ class PrintDialog:
 
     def goaway(self):
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
+	global underflag, footnoteflag
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
-	imageflag = self.imgchecked.get()
+	footnoteflag = self.footnotechecked.get()
 	greyscaleflag = self.greychecked.get()
+	imageflag = self.imgchecked.get()
+	underflag = self.underchecked.get()
 	self.root.destroy()
 
     def image_loader(self, url):
