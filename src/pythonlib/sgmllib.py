@@ -215,24 +215,26 @@ class SGMLParser:
 		if data[:2] <> '</' or data[-1:] <> '>':
 			raise RuntimeError, 'unexpected call to parse_endtag'
 		tag = string.lower(string.strip(data[2:-1]))
-		try:
-			method = getattr(self, 'end_' + tag)
-		except AttributeError:
-			self.unknown_endtag(tag)
+		if tag not in self.stack:
+			try:
+				method = getattr(self, 'end_' + tag)
+			except AttributeError:
+				self.unknown_endtag(tag)
 			return
-		# XXX Should invoke end methods when popping their
-		# XXX stack entry, not when encountering the tag!
-		if self.stack and self.stack[-1] == tag:
+		found = len(self.stack)
+		for i in range(found):
+			if self.stack[i] == tag: found = i
+		while len(self.stack) > found:
+			tag = self.stack[-1]
+			try:
+				method = getattr(self, 'end_' + tag)
+			except AttributeError:
+				method = None
+			if method:
+				method()
+			else:
+				self.unknown_endtag(tag)
 			del self.stack[-1]
-		else:
-			self.report_unbalanced(tag)
-			# Now repair it
-			found = None
-			for i in range(len(self.stack)):
-				if self.stack[i] == tag: found = i
-			if found <> None:
-				del self.stack[found:]
-		method()
 
 	# Example -- report an unbalanced </...> tag.
 	def report_unbalanced(self, tag):
