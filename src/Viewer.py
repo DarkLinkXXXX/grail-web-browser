@@ -172,7 +172,7 @@ class Viewer(formatter.AbstractWriter):
 	self.text.update_idletasks()
 
     def rule_width(self):
-	width = self.text.winfo_width() - 16
+	width = self.text.winfo_width() - 16 - 2*string.atoi(self.text['padx'])
 	return width
 
     def send_label_data(self, data):
