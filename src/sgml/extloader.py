@@ -1,8 +1,9 @@
 """This extension loader can load TagInfo objects which provide implementations
 of HTML/SGML element start/end events.
 """
-__version__ = '$Revision: 1.2 $'
+__version__ = '$Revision: 1.3 $'
 
+import string
 
 import grailbase.extloader
 import SGMLParser
