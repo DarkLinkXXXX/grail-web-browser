@@ -76,5 +76,5 @@ C:
 disk-cache--size: 1024
 disk-cache--directory: cache
 disk-cache--freshness-test-type: periodic
-disk-cache--freshness-test-period: 14400
+disk-cache--freshness-test-period: 4
 disk-cache--checkpoint: 1
