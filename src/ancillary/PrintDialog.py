@@ -42,6 +42,29 @@ greyscaleflag = 0
 underflag = 1
 footnoteflag = 1
 
+global_prefs = None
+
+
+def update_options(prefs=None):
+    """Load/reload preferences.
+    """
+    global printcmd, printfile, fileflag, imageflag, greyscaleflag
+    global underflag, footnoteflag, global_prefs
+    #
+    prefs = prefs or global_prefs
+    if prefs:
+	global_prefs = prefs
+    else:
+	return
+    imageflag = prefs.GetBoolean(PRINT_PREFGROUP, 'images')
+    fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
+    greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
+    printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
+    footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP, 'footnote-anchors')
+    underflag = prefs.GetBoolean(PRINT_PREFGROUP, 'underline-anchors')
+    if not printcmd:
+	printcmd = PRINTCMD
+
 
 class PrintDialog:
 
@@ -73,15 +96,10 @@ class PrintDialog:
 	prefs = context.app.prefs
 	if not prefs:
 	    printcmd = PRINTCMD
-	else:
-	    imageflag = prefs.GetBoolean(PRINT_PREFGROUP, 'images')
-	    fileflag = prefs.GetBoolean(PRINT_PREFGROUP, 'to-file')
-	    greyscaleflag = prefs.GetBoolean(PRINT_PREFGROUP, 'greyscale')
-	    printcmd = prefs.Get(PRINT_PREFGROUP, 'command')
-	    footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP,
-						'footnote-anchors')
-	    underflag = prefs.GetBoolean(PRINT_PREFGROUP,
-					     'underline-anchors')
+	elif printcmd is None:
+	    # first time only
+	    update_options(prefs)
+	    prefs.AddGroupCallback(PRINT_PREFGROUP, update_options)
 	self.url = url
 	self.title = title
 	self.master = self.context.root
