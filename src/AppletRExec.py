@@ -5,6 +5,8 @@ import SafeDialog
 import SafeTkinter
 import os
 from rexec import RExec, RHooks
+import string
+import sys
 import tempfile
 import types
 import urllib
@@ -25,18 +27,81 @@ class AppletRHooks(RHooks):
 	    return os.path.join(p1, p2)
 
     def openfile(self, p, mode='r', buf=-1):
+	# Only used to read modules
 	if is_url(p):
-	    if mode not in ('r', 'rb'):
-		raise IOError, "Can't open URL for writing"
-	    # XXX Should use Application's open_url()
-	    return urllib.urlopen(p)
+	    return self.openurl(p, mode, buf)
 	else:
 	    return open(p, mode, buf)
+
+    def openurl(self, p, mode='r', buf=-1):
+	if mode not in ('r', 'rb'):
+	    raise IOError, "Can't open URL for writing"
+	app = self.rexec.app
+	if not app:
+	    return urllib.urlopen(p)
+	api = self.rexec.app.open_url(p, 'GET', {})
+	errcode, errmsg, params = api.getmeta()
+	if errcode != 200:
+	    api.close()
+	    raise IOError, errmsg
+	return PseudoFile(api)
+
+
+class PseudoFile:
+
+    # XXX Is this safe?
+    # XXX Is this sufficient?
+
+    def __init__(self, api):
+	self.api = api
+	self.buf = ''
+	self.done = 0
+
+    def close(self):
+	api = self.api
+	self.api = self.buf = self.done = None
+	if api:
+	    api.close()
+
+    def read(self, n=-1):
+	if n < 0:
+	    n = sys.maxint
+	while len(self.buf) < n and not self.done:
+	    self.fill(min(n - len(self.buf), 1024*8))
+	data, self.buf = self.buf[:n], self.buf[n:]
+	return data
+
+    def readlines(self):
+	list = []
+	while 1:
+	    line = self.readline()
+	    if not line: break
+	    list.append(line)
+	return list
+
+    def readline(self):
+	while '\n' not in self.buf and not self.done:
+	    self.fill()
+	i = string.find(self.buf, '\n')
+	if i < 0:
+	    i = len(self.buf)
+	else:
+	    i = i+1
+	data, self.buf = self.buf[:i], self.buf[i:]
+	return data
+
+    def fill(self, n = 512):
+	data = self.api.getdata(n)
+	if data:
+	    self.buf = self.buf + data
+	else:
+	    self.done = 1
 
 
 class AppletRExec(RExec):
 
-    def __init__(self, hooks=None, verbose=1):
+    def __init__(self, hooks=None, verbose=1, app=None):
+	self.app = app
 	if not hooks: hooks = AppletRHooks(self, verbose)
 	RExec.__init__(self, hooks, verbose)
 	self.modules['Dialog'] = SafeDialog
@@ -88,6 +153,8 @@ class AppletRExec(RExec):
 	if not (type(file) == type('') == type(mode)):
 	    raise TypeError, "open(): file and mode must be strings"
 	if mode in ('r', 'rb'):
+	    if is_url(file):
+		return self.hooks.openurl(file)
 	    return RExec.r_open(self, file, mode, buf)
 	head, tail = os.path.split(file)
 	tempdir = tempfile.gettempdir()
