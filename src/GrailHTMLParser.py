@@ -83,7 +83,7 @@ class AppletHTMLParser(HTMLParser):
     def do_img(self, attrs):
 	align = ''
 	alt = '(image)'
-	ismap = 0
+	ismap = None
 	usemap = None
 	src = ''
 	width = 0
@@ -94,21 +94,23 @@ class AppletHTMLParser(HTMLParser):
 	align = extract('align', attrs, conv=string.lower)
 	alt = extract('alt', attrs, '(image)')
 	border = extract('border', attrs, 2, conv=string.atoi)
-	ismap = attrs.has_key('ismap')
+	if attrs.has_key('ismap'):
+	    ismap = 1
 	src = extract('src', attrs, '')
 	width = extract('width', attrs, 0, conv=string.atoi)
 	height = extract('height', attrs, 0, conv=string.atoi)
 	if attrs.has_key('usemap'):
 	    # not sure how to assert(value[0] == '#')
 	    usemap = MapThunk (self, attrs['usemap'][1:])
-        self.handle_image(src, alt, usemap or ismap,
+        self.handle_image(src, alt, usemap, ismap,
 			  align, width, height, border)
 
-    def handle_image(self, src, alt, map, align, width, height, border=2):
+    def handle_image(self, src, alt, usemap, ismap, align, width, 
+		     height, border=2):
 	from ImageWindow import ImageWindow
-	window = ImageWindow(self.viewer, self.anchor,
-			     src, alt, map, align,
-			     width, height, border)
+	window = ImageWindow(self.viewer, self.anchor, src, alt,
+			     usemap, ismap, align, width, height,
+			     border) 
 	self.add_subwindow(window)
 
     def add_subwindow(self, w):

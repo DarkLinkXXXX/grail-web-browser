@@ -2,15 +2,24 @@ from Tkinter import *
 
 class ImageWindow(Frame):
 
-    def __init__(self, viewer, url,
-		 src, alt, map, align, width, height, borderwidth):
+    def __init__(self, viewer, url, src, alt, usemap, ismap, align,
+		 width, height, borderwidth):  
 	self.viewer = viewer
 	self.context = self.viewer.context
-	self.src, self.alt, self.map, self.align = src, alt, map, align
-	if self.map and self.map != 'ismap':
+	self.src, self.alt, self.align = src, alt, align
+	### set up mapping is either and server map or a client map
+	if usemap:
+	    self.map = usemap
 	    self.url = None
+	    self.ismap = None
+	elif ismap:
+	    self.ismap = 1
+	    self.url = url
+	    self.map = None
 	else:
 	    self.url = url
+	    self.ismap = None
+	    self.map = None
 	bg = viewer.text['background']
 	Frame.__init__(self, viewer.text, borderwidth=borderwidth,
 		       background=bg)
@@ -25,7 +34,7 @@ class ImageWindow(Frame):
 	    self['background'] ='blue'	# XXX should use style sheet
 	    self.bind('<Enter>', self.enter)
 	    self.bind('<Leave>', self.leave)
-	    if self.map: # must be an ismap, because self.url test
+	    if self.ismap:
 		self.label.bind('<Motion>', self.motion)
 	    self.label.bind('<ButtonRelease-1>', self.follow)
 	else:
@@ -63,11 +72,13 @@ class ImageWindow(Frame):
 	    self.context.leave()
 
     def whichurl(self, event):
-	if self.map:
-	    if self.map == 'ismap':
-		return self.url + "?%d,%d" % (event.x, event.y)
-	    else:
-		return self.map.url(event.x,event.y)
+	# perhaps having a usemap and an ismap is a bad idea
+	# because we now need *two* tests for maps when the 
+	# common case might be no map
+	if self.ismap:
+	    return self.url + "?%d,%d" % (event.x, event.y)
+	elif self.map:
+	    return self.map.url(event.x,event.y)
 	return self.url
 
     def toggle_loading_image(self, event=None):
