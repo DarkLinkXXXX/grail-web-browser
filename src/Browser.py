@@ -25,6 +25,22 @@ FIRST_LOGO_IMAGE = LOGO_IMAGES + "T1.gif"
 TITLE_PREFIX = "Grail: "
 
 
+# If we have an icon file, replace tktools.make_toplevel so that it gets
+# set up as the icon, otherwise don't do anything magic.
+#
+_iconxbm_file = grailutil.which('icon.xbm')
+def make_toplevel(*args, **kw):
+    w = apply(tktools_make_toplevel, args, kw)
+    # icon set up
+    try: w.iconbitmap('@' + _iconxbm_file)
+    except TclError: pass
+    return w
+
+if _iconxbm_file:
+    tktools_make_toplevel = tktools.make_toplevel
+    tktools.make_toplevel = make_toplevel
+
+
 
 class Browser:
     """The Browser class provides the top-level GUI.
@@ -52,19 +68,14 @@ class Browser:
 	if not height: height = prefs.GetInt('browser', 'default-height')
 
 	self.create_widgets(width=width, height=height, geometry=geometry)
-	# icon set up
-	iconxbm_file = grailutil.which('icon.xbm')
 	self.root.iconname('Grail')
-	if iconxbm_file:
-	    try: self.root.iconbitmap('@' + iconxbm_file)
-	    except TclError: pass
 
     def create_widgets(self, width, height, geometry):
 	# I'd like to be able to set the widget name here, but I'm not
 	# sure what the correct thing to do is.  Setting it to `grail'
 	# is definitely *not* the right thing to do since this causes
 	# all sorts of problems.
-	self.root = Toplevel(self.master, class_='Grail')
+	self.root = tktools.make_toplevel(self.master, class_='Grail')
 	self._window_title("Grail: New Browser")
 	if geometry:
 	    self.root.geometry(geometry)
@@ -236,25 +247,23 @@ class Browser:
 	self.user_menus = []
 
 	# Create Help menu (on far right)
-	self.helpbutton = Menubutton(self.mbar, text="Help")
+	landmarks = string.split(self.app.prefs.Get('browser', 'landmarks'))
+	if not landmarks:
+	    return
+
+	self.helpbutton = Menubutton(self.mbar, text="Help", name='help')
 	self.helpbutton.pack(side=RIGHT)
 
-	self.helpmenu = Menu(self.helpbutton)
+	self.helpmenu = Menu(self.helpbutton, name='menu')
 	self.helpbutton['menu'] = self.helpmenu
 
-	self.helpmenu.add_command(label="About Grail",
-			  command=self.about_command)
-	self.helpmenu.add_command(label="Grail License",
-			  command=self.license_command)
-	self.helpmenu.add_separator()
-	self.helpmenu.add_command(label="Grail Home Page",
-			  command=self.grail_home_command)
-	self.helpmenu.add_command(label="Python Home Page",
-			  command=self.python_home_command)
-	self.helpmenu.add_command(label='The Python Software Activity (PSA)',
-				  command=self.psa_home_command)
-	self.helpmenu.add_command(label="CNRI Home Page",
-			  command=self.cnri_home_command)
+	for landmark in landmarks:
+	    if landmark == '-':
+		self.helpmenu.add_separator()
+	    else:
+		command = LandmarkCommand(self, landmark)
+		label = command.get_title()
+		self.helpmenu.add_command(label=label, command=command)
 
     def create_urlbar(self):
 	self.entry, self.entryframe = \
@@ -440,22 +449,6 @@ class Browser:
     def show_history_command(self, event=None):
 	self.context.show_history_dialog()
 
-    # Help menu commands
-
-    def about_command(self, event=None):
-	self.context.load(self.app.prefs.Get('landmarks', 'about-grail-page'))
-    def license_command(self, event=None):
-	self.context.load(self.app.prefs.Get('landmarks',
-					     'grail-license-page'))
-    def grail_home_command(self, event=None):
-	self.context.load(self.app.prefs.Get('landmarks', 'grail-home-page'))
-    def python_home_command(self, event=None):
-	self.context.load(self.app.prefs.Get('landmarks', 'python-home-page'))
-    def psa_home_command(self, event=None):
-	self.context.load(self.app.prefs.Get('landmarks', 'psa-home-page'))
-    def cnri_home_command(self, event=None):
-	self.context.load(self.app.prefs.Get('landmarks', 'cnri-home-page'))
-
     # --- Animated logo ---
 
     def logo_init(self):
@@ -557,6 +550,21 @@ class Browser:
 	    textwidget.tag_add(SEL, hit, "%s + %s chars" % (hit, hitlength))
 	    textwidget.yview_pickplace(SEL_FIRST)
 	return hit
+
+
+class LandmarkCommand:
+    """Encapsulate a landmark item into a callable object to load the resource.
+    """
+    def __init__(self, browser, landmark):
+	self.__browser = browser
+	self.__landmark = landmark
+
+    def __call__(self, event=None):
+	self.__browser.context.load(
+	    self.__browser.app.prefs.Get('landmarks', self.__landmark))
+
+    def get_title(self):
+	return self.__browser.app.prefs.Get('landmark-names', self.__landmark)
 
 
 def test():

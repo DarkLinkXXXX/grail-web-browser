@@ -16,6 +16,13 @@ landmarks--cnri-home-page:	http://www.cnri.reston.va.us/
 landmarks--about-grail-page:	grail:about.html
 landmarks--grail-license-page:	grail:LICENSE
 #
+landmark-names--grail-home-page:	Grail Home Page
+landmark-names--python-home-page:	Python Home Page
+landmark-names--psa-home-page:	The Python Software Activity (PSA)
+landmark-names--cnri-home-page:	CNRI Home Page
+landmark-names--about-grail-page:	About Grail
+landmark-names--grail-license-page:	Grail License
+#
 # Browser defaults
 #
 browser--default-height:	40
@@ -29,6 +36,9 @@ browser--show-splash:		1
 browser--smooth-scroll-hack:	0
 browser--enable-pil:		0
 browser--license-agreed-to:	0
+# Use the hyphen to insert a separator in the Help menu:
+browser--landmarks:	about-grail-page grail-license-page
+	- grail-home-page python-home-page psa-home-page cnri-home-page
 #
 # Presentation defaults
 #
@@ -241,6 +251,7 @@ printing--font-size:		10.0 / 10.7
 printing--margins:		72 72 72 72
 printing--paper-size:		letter
 printing--orientation:		portrait
+printing--user-header:
 #
 # Applet preferences
 #
