@@ -5,6 +5,7 @@
 """Reader class -- helper to read documents asynchronously."""
 
 import grailutil
+import ht_time
 import os
 import sys
 import string
@@ -546,6 +547,18 @@ class Reader(BaseReader):
     def handle_meta(self, errcode, errmsg, headers):
         if not self.handle_meta_prelim(errcode, errmsg, headers):
             return
+
+        # This updates the attributes in the bookmarks database.
+        try:
+            bkmks = self.last_context.app.bookmarks_controller
+        except AttributeError:
+            pass
+        else:
+            last_modified = None
+            if headers.has_key("last-modified"):
+                try: last_modified = ht_time.parse(headers["last-modified"])
+                except ValueError: pass
+            bkmks.record_visit(self.url, last_modified)
 
         content_encoding, transfer_encoding = get_encodings(headers)
         if headers.has_key('content-type'):
