@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.14 $"
+__version__ = "$Revision: 1.15 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -223,6 +223,7 @@ class SGMLLexer(SGMLLexerBase):
 
 	def setnomoretags(self):
 	    self.nomoretags = 1
+	    self._l.normalize(0)
 	    self._l.scan('')		# flush flex cache - not perfect
 	    self.feed = self.lex_data
 

@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.10 $"
+__version__ = "$Revision: 1.11 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -28,6 +28,7 @@ class SGMLParser(SGMLLexer):
 
     def __init__(self, verbose = 0):
 	self.verbose = verbose
+	self._tag_methods = {}
 	SGMLLexer.__init__(self)
 
     def close(self):
@@ -124,6 +125,22 @@ class SGMLParser(SGMLLexer):
     def lex_data(self, data):
 	self.handle_data(data)
 
+
+    def _load_tag_handlers(self, tag):
+	try:
+	    start = getattr(self, 'start_' + tag)
+	except AttributeError:
+	    start = end = do = None
+	    if hasattr(self, 'do_' + tag):
+		do = getattr(self, 'do_' + tag)
+	else:
+	    end = do = None
+	    if hasattr(self, 'end_' + tag):
+		end = getattr(self, 'end_' + tag)
+	tuple = start, end, do
+	self._tag_methods[tag] = tuple
+	return tuple
+
     def lex_starttag(self, tag, attrs):
 	#print 'received start tag', `tag`
 	if not tag:
@@ -137,21 +154,19 @@ class SGMLParser(SGMLLexer):
 		if not tag:
 		    raise SGMLError, \
 			  'Cannot start the document with an empty tag.'
-	#attrs = attrs.items()	# map to list of tuples for now
-	try:
-	    method = getattr(self, 'start_' + tag)
-	except AttributeError:
-	    try:
-		method = getattr(self, 'do_' + tag)
-	    except AttributeError:
-		self.unknown_starttag(tag, attrs)
-		return -1
-	    self.handle_starttag(tag, method, attrs)
-	    return 0
+	if not self._tag_methods.has_key('tag'):
+	    start, end, do = self._load_tag_handlers(tag)
 	else:
+	    start, end, do = self._tag_methods[tag]
+
+	if do:
+	    self.handle_starttag(tag, do, attrs)
+	elif start:
 	    self.lasttag = tag
-	    self.handle_starttag(tag, method, attrs)
+	    self.handle_starttag(tag, start, attrs)
 	    self.stack.append(tag)
+	else:
+	    self.unknown_starttag(tag, attrs)
 
     def lex_endtag(self, tag):
 	if not tag:
@@ -161,10 +176,12 @@ class SGMLParser(SGMLLexer):
 		return
 	else:
 	    if tag not in self.stack:
-		try:
-		    method = getattr(self, 'end_' + tag)
-		except AttributeError:
-		    self.unknown_endtag(tag)
+		if self._tag_methods.has_key(tag):
+		    if not self._tag_methods[tag][1]:
+			self.unknown_endtag(tag)
+		else:
+		    if not hasattr(self, 'end_' + tag):
+			self.unknown_endtag(tag)
 		self.report_unbalanced(tag)
 		return			# should raise SGMLError ???
 	    found = len(self.stack)
@@ -172,12 +189,11 @@ class SGMLParser(SGMLLexer):
 		if self.stack[i] == tag: found = i
 	while len(self.stack) > found:
 	    tag = self.stack[-1]
-	    try:
-		method = getattr(self, 'end_' + tag)
-	    except AttributeError:
-		self.unknown_endtag(tag)
+	    start, end, do = self._tag_methods[tag]
+	    if end:
+		self.handle_endtag(tag, end)
 	    else:
-		self.handle_endtag(tag, method)
+		self.unknown_endtag(tag)
 	    del self.stack[-1]
 
 
