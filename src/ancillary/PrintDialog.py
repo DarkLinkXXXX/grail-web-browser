@@ -243,7 +243,7 @@ class PrintDialog:
 	try:
 	    imgfp = urlopen(url)
 	except IOError, msg:
-	    self.context.error_dialog(IOError, msg)
+##	    self.context.error_dialog(IOError, msg)
 	    return None
 	data = imgfp.read()
 	return data
