@@ -421,9 +421,9 @@ class Context:
 	    context.load(url, method, params, show_source,
 			 reload, scrollpos, "_self", source)
 	    return
+	self.stop()
 	self.save_page_state()
 	# Start loading a new URL into the window
-	self.stop()
 	self.message("Loading %s" % url)
 	if reload:
 	    show_source = self.show_source
@@ -494,10 +494,10 @@ class Context:
 	if context is not self:
 	    context.post(url, data, params, target)
 	    return
+	self.stop()
 	self.save_page_state()
 	url = self.get_baseurl(url)
 	method = 'POST'
-	self.stop()
 	self.message("Posting to %s" % url)
 	try:
 	    self.read_page(url, method, params, reload=1, data=data)
