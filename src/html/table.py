@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.50 1996/12/04 21:58:17 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.51 1996/12/30 18:21:53 guido Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -48,6 +48,8 @@ class TableSubParser:
 	parser.formatter.assert_line_data()
 	# tosses any dangling text not in a caption or explicit cell
 	parser.save_bgn()
+	# Flush output -- we're gonna dive under for a while...
+	parser.viewer.text.update_idletasks()
 	# create the table data structure
 	if self._lasttable:
 	    self._table_stack.append(self._lasttable)
