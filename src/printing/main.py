@@ -258,7 +258,11 @@ def run(app):
 		    print "Error opening subdocument", url
 		    print "   ", err
 	    else:
-		if get_ctype(app, url, infp) != ctype:
+		new_ctype = get_ctype(app, url, infp)
+		if new_ctype != ctype:
+		    if verbose:
+			print "skipping", url
+			print "  wrong content type:", new_ctype
 		    continue
 		if verbose and outfp is not sys.stdout:
 		    print "Subdocument", url
