@@ -1,0 +1,42 @@
+!!!  -*- xrdb -*-
+!!!
+!!!  X11 resources for Grail.
+
+Grail.Grail.logo.text:			Stop
+
+Grail*Menubar.borderWidth:		2
+Grail*Menubar.relief:			raised
+Grail*Menubar.file.text:		File
+
+Grail.Grail.menubar.go.text:		Go
+Grail.Grail.menubar.search.text:	Search
+Grail.Grail.menubar.bookmarks.text:	Bookmarks
+Grail.Grail.menubar.preferences.text:	Options
+Grail.Grail.menubar.help.text:		Help
+Grail.Grail.statusbar.height:		20
+Grail.Grail.status.anchor:		w
+Grail.Grail.uriLabel.text:		URL:
+
+Grail.Bookmarks.info.relief:		groove
+Grail.Bookmarks.info.borderWidth:	2
+Grail.Bookmarks.menubar.item.text:	Item
+Grail.Bookmarks.menubar.arrange.text:	Arrange
+Grail.Bookmarks.status.anchor:		w
+Grail.Bookmarks.status.foreground:	red
+Grail.Bookmarks.ok.text:		OK
+Grail.Bookmarks.save.text:		Save
+Grail.Bookmarks.cancel.text:		Cancel
+Grail.Bookmarks.prev.text:		Previous
+Grail.Bookmarks.next.text:		Next
+Grail.Bookmarks.goto.text:		Go To
+Grail.Bookmarks.collapse.text:		Collapse
+Grail.Bookmarks.expand.text:		Expand
+
+Grail.BookmarkDetail.title:		Bookmark Details
+Grail.BookmarkDetail*Frame.ok.text:	OK
+Grail.BookmarkDetail*Frame.revert.text:	Revert
+Grail.BookmarkDetail*Frame.apply.text:	Apply
+Grail.BookmarkDetail*Frame.cancel.text:	Cancel
+
+!!!
+!!!  end of file
