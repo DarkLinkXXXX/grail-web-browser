@@ -112,7 +112,7 @@ class Reader:
 	    content_encoding = headers['content-encoding']
 	if content_encoding:
 	    # XXX Should fix this
-	    self.stop("Uncnown encoding.")
+	    self.stop("Unknown encoding.")
 	    self.browser.error_dialog("Warning",
 			      "unsupported content-encoding: %s"
 			      % content_encoding)
@@ -175,7 +175,7 @@ class Reader:
 	if api:
 	    self.browser.clearstop()
 	    self.message("Stopping...")
-	    self.browser.reader = None
+	    self.browser.rmreader(self)
 	    parser = self.parser
 	    fno = self.fno
 	    self.api = None
