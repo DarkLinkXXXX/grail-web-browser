@@ -69,6 +69,7 @@ class OutlinerViewer:
 	self._root = root
 	self._nodes = []
 	self._gcounter = 0
+	self._follow_all_children_p = False
 
     def _insert(self, node, index=None):
 	"""Derived class specialization"""
@@ -85,7 +86,7 @@ class OutlinerViewer:
 	self._gcounter = self._gcounter + 1
 	# calculate the string to insert into the list box
 	self._insert(node)
-	if node.expanded_p():
+	if self._follow_all_children_p or node.expanded_p():
 	    for child in node.children():
 		self._populate(child)
 
