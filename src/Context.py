@@ -179,7 +179,7 @@ class Context:
                 url = urljoin(url, relurl)
         return url
     baseurl = get_baseurl               # XXX Backwards compatibility
-    # XXX see: GrailHTMLParser, AppletLoader, Viewer, Bookmarks, isindex
+    # XXX see: GrailHTMLParser, AppletLoader, Viewer, isindex
 
     def get_target(self):
         """Return the default target for this page (which may be None)."""
