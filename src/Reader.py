@@ -185,7 +185,10 @@ class Reader(BaseReader):
 	    browser.message("Wait for save dialog...")
 	    import FileDialog
 	    fd = FileDialog.SaveFileDialog(browser.root)
-	    fn = fd.go()
+	    # give it a default filename on which save within the
+	    # current directory
+	    urlasfile = string.splitfields(self.url, '/')
+	    fn = fd.go(default=urlasfile[-1])
 	    if not fn:
 		# User canceled.  Stop the transfer.
 		return
