@@ -81,10 +81,11 @@ class ftp_access:
 	else:
 	    self.content_type, self.content_encoding = app.guess_type(file)
 	    if self.content_encoding:
-		type = 'd'
-	    elif self.content_encoding and \
-		 self.content_encoding[:5] == 'text/':
+		type = 'i'
+	    elif self.content_type and self.content_type[:5] == 'text/':
 		type = 'a'
+	    elif file[-1] == '/':
+		type = 'd'
 	    else:
 		type = 'i'
 	if dirs and not dirs[0]: dirs = dirs[1:]
