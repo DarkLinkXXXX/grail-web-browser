@@ -3,7 +3,7 @@
 The use of 'url' in the method names is a historical accident.
 
 """
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 
 import urlparse
 __default_joiner = urlparse.urljoin
@@ -37,7 +37,7 @@ class URIContext:
         if url and baseurl:
             self.__baseurl = _urljoin(url, baseurl)
         else:
-            self.__baserl = baseurl or ""
+            self.__baseurl = baseurl or ""
 
     def get_url(self):
         return self.__url
