@@ -643,7 +643,10 @@ class BookmarksDialog:
 	# bottom buttonbar buttons
 	okbtn = Button(btmframe, text='Ok', command=self.okay_cmd)
 	okbtn.pack(side=LEFT)
-	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
+	status = Label(btmframe, text='', foreground='Red', anchor='w',
+		       textvariable=self._controller.statusmsg)
+	status.pack(side=LEFT, expand=1, fill=BOTH)
+	cancelbtn = Button(btmframe, text='Close', command=self.cancel_cmd)
 	cancelbtn.pack(side=RIGHT)
 	# top buttonbar buttons
 	prevbtn = Button(topframe, text='Previous',
@@ -661,6 +664,11 @@ class BookmarksDialog:
 			command=self._controller.expand_cmd)
 	colbtn.pack(side=LEFT, expand=1, fill=BOTH)
 	expbtn.pack(side=LEFT, expand=1, fill=BOTH)
+
+    def set_modflag(self, flag):
+	if flag: text = '<========== Changes are unsaved!'
+	else: text = ''
+	self._controller.statusmsg.set(text)
 
     def load(self, event=None):
 	try:
@@ -751,6 +759,7 @@ class DetailsDialog:
 	    self._node.set_uri(self._form[1][0].get())
 	    self._node.set_description(self._form[4][0][0].get(1.0, 'end'))
 	self._controller.viewer().update_node(self._node)
+	self._controller.set_modflag(True)
 
     def cancel(self):
 	self.revert()
@@ -783,11 +792,14 @@ class BookmarksController(OutlinerController):
 	self._tkvars = {
 	    'aggressive': BooleanVar(),
 	    'addcurloc':  IntVar(),
-	    'fileformat': StringVar()
+	    'fileformat': StringVar(),
+	    'statusmsg': StringVar(),
 	    }
 	self.aggressive.set(0)
 	self.addcurloc.set(NEW_AS_CHILD)
 	self.fileformat.set('Automatic')
+	self.statusmsg.set('')
+	self._modflag = False
 	from __main__ import app
 	self._app = app
 	app.register_on_exit(self.on_app_exit)
@@ -801,6 +813,12 @@ class BookmarksController(OutlinerController):
     def on_app_exit(self):
 ##	self.save()
 	self._app.unregister_on_exit(self.on_app_exit)
+
+    ## Modifications updating
+    def set_modflag(self, flag):
+	if flag <> self._modflag:
+	    if self._dialog: self._dialog.set_modflag(flag)
+	    self._modflag = flag
 
     ## I/O
 
@@ -837,16 +855,22 @@ class BookmarksController(OutlinerController):
 	self.root_redisplay()
 	# set up new state
 	node = self.viewer().node(0)
+	self.set_modflag(False)
 	if node: self.viewer().select_node(node)
 
 ##    def merge(self, event=None): pass
     def save(self, event=None):
+	# if it hasn't been modified, it doesn't need saving
+	if not self.set_modflag: return
 	self._iomgr.save(self._writer, self._root)
+	self.set_modflag(False)
 	if self._dialog:
 	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
     def saveas(self, event=None):
+	# always save-as, even if unmodified
 	self._iomgr.saveas(self._writer, self._root)
+	self.set_modflag(False)
 	if self._dialog:
 	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
@@ -875,6 +899,7 @@ class BookmarksController(OutlinerController):
 	    if node.expanded_p(): self.collapse_node(node)
 	    else: self.expand_node(node)
 	    self.viewer().select_node(node)
+	    self.set_modflag(True)
 
     def bookmark_goto(self, event=None):
 	filename = self._iomgr.filename()
@@ -886,6 +911,7 @@ class BookmarksController(OutlinerController):
 		self._details[id(node)].revert()
 	    self._browser.load(node.uri())
 	    self.viewer().select_node(node)
+	    self.set_modflag(True)
 
     def add_current(self, event=None):
 	# create a new node to represent this addition and then fit it
@@ -910,6 +936,7 @@ class BookmarksController(OutlinerController):
 	    snode.insert_child(node, 0)
 	else: pass
 	# scroll the newly added node into view
+	self.set_modflag(True)
 	self.root_redisplay()
 	self.viewer().select_node(node)
 
@@ -954,6 +981,7 @@ class BookmarksController(OutlinerController):
 	    node.insert_child(newnode, 0)
 	self.root_redisplay()
 	self.viewer().select_node(newnode)
+	self.set_modflag(True)
 
     def insert_separator(self, event=None):
 	node, selection = self._get_selected_node()
@@ -989,6 +1017,7 @@ class BookmarksController(OutlinerController):
 	parent.del_child(node)
 	self.root_redisplay()
 	self.viewer().select_node(self.viewer().node(selection))
+	self.set_modflag(True)
 
     ## OutlinerController overloads
 
@@ -1009,6 +1038,7 @@ class BookmarksController(OutlinerController):
 	    selected_node = method(node)
 	    if not selected_node: selected_node = node
 	    self.viewer().select_node(selected_node)
+	    self.set_modflag(True)
 
     def shift_left_cmd(self, event=None):  self._cmd(self.shift_left)
     def shift_right_cmd(self, event=None): self._cmd(self.shift_right)
@@ -1031,6 +1061,7 @@ class BookmarksController(OutlinerController):
 		child.collapse()
 	self.root_redisplay()
 	self.viewer().select_node(node)
+	self.set_modflag(True)
     def collapse_children(self, event=None):
 	node, selection = self._get_selected_node()
 	if node: self._collapse_children(node)
@@ -1042,6 +1073,7 @@ class BookmarksController(OutlinerController):
 		child.expand()
 	self.root_redisplay()
 	self.viewer().select_node(node)
+	self.set_modflag(True)
     def expand_children(self, event=None):
 	node, selection = self._get_selected_node()
 	if node: self._expand_children(node)
