@@ -7,7 +7,7 @@
 Loads preference modules from GRAILROOT/prefpanels/*Panel.py and
 ~user/.grail/prefpanels/*Panel.py."""
 
-__version__ = "$Revision: 2.28 $"
+__version__ = "$Revision: 2.29 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -31,7 +31,7 @@ from types import StringType
 
 PANEL_CLASS_NAME_SUFFIX = 'Panel'
 
-from __main__ import grail_root
+grail_root = grailutil.get_grailroot()
 
 # User's panels dir should come after sys, so user's takes precedence.
 panels_dirs = [os.path.join(grail_root, 'prefpanels'),

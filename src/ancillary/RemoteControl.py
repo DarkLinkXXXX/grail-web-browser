@@ -158,7 +158,7 @@ if not _filename:
 class Controller:
     def __init__(self, path=_filename):
 	# register a destruction handler with the Grail Application object
-	from __main__ import app
+	app = get_grailapp()
 	self._app = app
 	app.register_on_exit(self._close)
 	# calculate the socket's filename

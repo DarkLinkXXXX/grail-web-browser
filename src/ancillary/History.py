@@ -145,8 +145,7 @@ class HistoryDialog:
 	self._frame.protocol("WM_DELETE_WINDOW", self._close)
 	# get preferences
 	self._viewby = StringVar()
-	from __main__ import app
-	self._prefs = prefs = app.prefs
+	self._prefs = prefs = get_grailapp().prefs
 	prefs.AddGroupCallback(HISTORY_PREFGROUP, self._notify)
 	try:
 	    viewby = prefs.Get(HISTORY_PREFGROUP, VIEW_BY_PREF)
