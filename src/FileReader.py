@@ -31,12 +31,15 @@ class FileReader(BaseReader):
     def handle_data(self, data):
 	if self.fp is None:
 	    try:
-		self.fp = open(self.filename, "wb")
+		self.fp = self.open_file()
 	    except IOError, msg:
 		self.stop()
 		self.handle_error(-1, "IOError", {'detail': msg})
 		return
 	self.fp.write(data)
+
+    def open_file(self):
+	return open(self.filename, "wb")
 
     def handle_eof(self):
 	if self.fp:
@@ -49,13 +52,31 @@ class FileReader(BaseReader):
 
 class TempFileReader(FileReader):
 
-    """Derived class of FileReader that chooses a temporary file."""
+    """Derived class of FileReader that chooses a temporary file.
+
+    This also supports inserting a filtering pipeline.
+    """
 
     def __init__(self, browser, api):
+	self.pipeline = None
 	import tempfile
 	filename = tempfile.mktemp()
 	FileReader.__init__(self, browser, api, filename)
 
+    def set_pipeline(self, pipeline):
+	"""New method to select the filter pipeline."""
+	self.pipeline = pipeline
+
     def getfilename(self):
 	"""New method to return the file name chosen."""
 	return self.filename
+
+    def open_file(self):
+	if not self.pipeline:
+	    return FileReader.open_file(self)
+	else:
+	    import os, sys
+	    try:
+		return os.popen(self.pipeline + ">" + self.filename, "wb")
+	    except os.error, msg:
+		raise IOError, msg, sys.exc_traceback
