@@ -514,9 +514,15 @@ class BookmarksDialog:
 	navmenu.add_command(label="Previous",
 			    command=self._controller.previous_cmd,
 			    accelerator="Up")
+	self._frame.bind("<Up>", self._controller.previous_cmd)
+	self._frame.bind("p", self._controller.previous_cmd)
+	self._frame.bind("P", self._controller.previous_cmd)
 	navmenu.add_command(label="Next",
 			    command=self._controller.next_cmd,
 			    accelerator="Down")
+	self._frame.bind("<Down>", self._controller.next_cmd)
+	self._frame.bind("n", self._controller.next_cmd)
+	self._frame.bind("N", self._controller.next_cmd)
 	navmenu.add_separator()
 	navmenu.add_command(label="Go To Bookmark",
 			    command=self._controller.goto,
@@ -631,7 +637,7 @@ class BookmarksDialog:
 	self._listbox.config(font='fixed')
 	# bind keys
 	self._listbox.bind('<Double-Button-1>', self._controller.goto)
-	self._listbox.focus_set()
+	self._listbox.config(takefocus=0, exportselection=0)
 
     def _create_buttonbar(self):
 	# create the button bars
@@ -681,7 +687,6 @@ class BookmarksDialog:
     def show(self):
 	self._frame.deiconify()
 	self._frame.tkraise()
-	self._listbox.focus_set()
 
     def save_cmd(self, event=None):
 	self._controller.save()
@@ -765,6 +770,7 @@ class DetailsDialog:
 	    self._node.set_uri(self._form[1][0].get())
 	    self._node.set_description(self._form[4][0][0].get(1.0, 'end'))
 	self._controller.viewer().update_node(self._node)
+	self._controller.viewer().select_node(self._node)
 	self._controller.set_modflag(True)
 
     def cancel(self):
@@ -817,7 +823,7 @@ class BookmarksController(OutlinerController):
     ## coordinate with Application instance
 
     def on_app_exit(self):
-	self.save(exiting=True)
+	if self._modflag: self.save(exiting=True)
 	self._app.unregister_on_exit(self.on_app_exit)
 
     ## Modifications updating
@@ -972,8 +978,10 @@ class BookmarksController(OutlinerController):
 	if not self._dialog:
 	    self._dialog = BookmarksDialog(self._frame, self)
 	    self._listbox = self._dialog._listbox # TBD: gross
-	    self.set_viewer(TkListboxViewer(self.root(), self._listbox))
-	    self.viewer().populate()
+	    viewer = TkListboxViewer(self.root(), self._listbox)
+	    self.set_viewer(viewer)
+	    viewer.populate()
+	    if viewer.count() > 0: viewer.select_node(viewer.node(0))
 	    show_p = False
 	if show_p: self._dialog.show()
 

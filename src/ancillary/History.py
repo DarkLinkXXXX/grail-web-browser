@@ -235,7 +235,17 @@ class HistoryDialog:
 	# create listbox
 	self._listbox, frame = tktools.make_list_box(self._frame, 40, 24, 1, 1)
 	self.refresh()
+	self._listbox.config(takefocus=0, exportselection=0)
 	self._listbox.bind('<Double-Button-1>', self._goto)
+	# yes, yes, the mapping seems inverted, but it has to do with
+	# the way history elements are displayed in reverse order in
+	# the listbox...
+	self._frame.bind("<Up>", self.next_cmd)
+	self._frame.bind("p", self.next_cmd)
+	self._frame.bind("P", self.next_cmd)
+	self._frame.bind("<Down>", self.previous_cmd)
+	self._frame.bind("n", self.previous_cmd)
+	self._frame.bind("N", self.previous_cmd)
 	    
     def history(self): return self._history
 
@@ -252,6 +262,13 @@ class HistoryDialog:
 	    elif self._viewing == 2:
 		self._listbox.insert('end', link)
 	self.select(self._history.current())
+
+    def previous_cmd(self, event=None):
+	if self._history.back(): self._goto()
+	else: self._frame.bell()
+    def next_cmd(self, event=None):
+	if self._history.forward(): self._goto()
+	else: self._frame.bell()
 
     def _goto(self, event=None):
 	list = self._listbox.curselection()

@@ -153,9 +153,9 @@ class Application:
 	try: self.on_exit_methods.remove(method)
 	except ValueError: pass
     def exit_notification(self):
-	try:
-	    for m in self.on_exit_methods[:]: m()
-	except: pass
+	for m in self.on_exit_methods[:]:
+	    try: m()
+	    except: pass
 
     def quit(self):
 	self.root.destroy()
