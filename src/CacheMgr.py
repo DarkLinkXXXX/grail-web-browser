@@ -10,12 +10,15 @@ import ht_time
 import grailutil
 import regsub
 import pickle
+import posix
+import regex
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
 CacheMiss = 'Cache Miss'
 CacheEmpty = 'Cache Empty'
 CacheItemExpired = 'Cache Item Expired'
+CacheFileError = 'Cache File Error'
 
 class CacheManager:
     """Manages one or more caches in hierarchy.
@@ -192,11 +195,16 @@ class CacheManager:
 	"""If item is not in the cache and is allowed to be cached, add it.
 	"""
 	assert(len(self.caches) > 0)
-	if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
-	    self.caches[0].add(item)
-	elif reload == 1:
-	    print "calling cachemgr.add with reload==1,", item
-	    self.caches[0].add(item)
+	try:
+	    if not self.items.has_key(item.key) and self.okay_to_cache_p(item):
+		self.caches[0].add(item)
+	    elif reload == 1:
+		print "calling cachemgr.add with reload==1,", item
+		self.caches[0].add(item)
+	except CacheFileError, err_tuple:
+	    (file, err) = err_tuple
+	    print "error adding item %s (file %s): %s" % (item.url,
+							  file, err)
 
     # list of protocols that we can cache
     cache_protocols = ['http', 'ftp', 'hdl']
@@ -367,7 +375,7 @@ class DiskCacheEntry:
 		raise CacheItemExpired, self.cache
 	self.cache.get(self.key)
 	api = disk_cache_access(self.cache.get_file_path(self.key),
-				self.type, self.date)
+				self.type, self.date, self.size)
 	return api
 
     def touch(self):
@@ -573,9 +581,12 @@ class DiskCache:
 	"""Adds entry to list of pages with explicit expire date."""
 	self.expires.append(entry)
 
+    clean_path = regex.compile('[^A-Za-z0-9\-]')
+
     def get_file_path(self,key):
 	"""Turn cache key into cache path."""
-	filename = regsub.gsub(os.sep,'_',key)
+	#filename = regsub.gsub(os.sep,'_',key)
+	filename = regsub.gsub(self.clean_path, '_', key)
 	path = os.path.join(self.directory, filename)
 	return path
 
@@ -587,8 +598,7 @@ class DiskCache:
 	    f.write(object.data)
 	    f.close()
 	except IOError, err:
-	    print "failed to create cached copy of %s: %s" % (object.key, err)
-	    self.evict(object.key)
+	    raise CacheFileError, (path, err)
 
     def make_space(self,amount):
 	"""Ensures that there are amount bytes free in the disk cache.
@@ -602,9 +612,7 @@ class DiskCache:
 	Raises CacheEmpty if there are no entries in the cache, but
 	amount bytes are not available.
 	"""
-	# perhaps expire would be a good thing to call here
-	# definitely don't want to evict live things when we
-	# could evict stale things
+
 	if self.size + amount > self.max_size:
 	    self.evict_expired_pages()
 
@@ -643,7 +651,7 @@ class DiskCache:
 
     def evict(self,key):
 	"""Remove an entry from the cache and delete the file from disk."""
-##	print "evict(%s)" % (key)
+	print "evict(%s)" % (key)
 	self.use_order.remove(key)
 	evictee = self.items[key]
 	del self.manager.items[key]
@@ -652,7 +660,7 @@ class DiskCache:
 	    self.expires.remove(key)
 	try:
 	    os.unlink(self.get_file_path(key))
-	except IOError, err:
+	except (posix.error, IOError), err:
 	    print "error deleteing %s from cache: %s" % (key, err)
 	self.log_entry(evictee,1) # 1 indicates delete entry
 	evictee.delete()
@@ -661,9 +669,10 @@ class DiskCache:
 class disk_cache_access:
     """protocol access interface for disk cache"""
 
-    def __init__(self, filename, content_type, date):
+    def __init__(self, filename, content_type, date, len):
 	self.headers = { 'content-type' : content_type,
-			 'date' : date }
+			 'date' : date,
+			 'content-length' : str(len) }
 	self.filename = filename
 	### what about IO errors
 	try:
