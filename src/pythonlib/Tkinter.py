@@ -5,9 +5,6 @@ from tkinter import TclError
 from types import *
 from Tkconstants import *
 
-CallableTypes = (FunctionType, MethodType,
-		 BuiltinFunctionType, BuiltinMethodType)
-
 TkVersion = eval(tkinter.TK_VERSION)
 TclVersion = eval(tkinter.TCL_VERSION)
 
@@ -61,11 +58,6 @@ class Variable:
 		self._tk.unsetvar(self._name)
 	def __str__(self):
 		return self._name
-	def __call__(self, value=None):
-		if value == None:
-			return self.get()
-		else:
-			self.set(value)
 	def set(self, value):
 		return self._tk.setvar(self._name, value)
 
@@ -330,32 +322,47 @@ class Misc:
 		self.tk.call('update')
 	def update_idletasks(self):
 		self.tk.call('update', 'idletasks')
-	def bind(self, sequence, func=None, add=''):
+	def bindtags(self, tagList=None):
+		if tagList is None:
+			return splitlist(self.tk.call('bindtags', self._w))
+		else:
+			self.tk.call('bindtags', self._w, tagList)
+	def bind(self, sequence=None, func=None, add='', brk=''):
 		if add: add = '+'
 		if func:
 			name = self._register(func, self._substitute)
 			self.tk.call('bind', self._w, sequence, 
 				     (add + name,) + self._subst_format)
+			if brk:
+				self.tk.call('bind', self._w, sequence,
+					     "+break")
 		else:
 		    return self.tk.call('bind', self._w, sequence)
 	def unbind(self, sequence):
 		self.tk.call('bind', self._w, sequence, '')
-	def bind_all(self, sequence, func=None, add=''):
+	def bind_all(self, sequence=None, func=None, add='', brk=''):
 		if add: add = '+'
 		if func:
 			name = self._register(func, self._substitute)
 			self.tk.call('bind', 'all' , sequence, 
 				     (add + name,) + self._subst_format)
+			if brk:
+				self.tk.call('bind', self._w, sequence,
+					     "+break")
 		else:
 			return self.tk.call('bind', 'all', sequence)
 	def unbind_all(self, sequence):
 		self.tk.call('bind', 'all' , sequence, '')
-	def bind_class(self, className, sequence, func=None, add=''):
+	def bind_class(self, className, sequence=None,
+		       func=None, add='', brk=''):
 		if add: add = '+'
 		if func:
 			name = self._register(func, self._substitute)
 			self.tk.call('bind', className , sequence, 
 				     (add + name,) + self._subst_format)
+			if brk:
+				self.tk.call('bind', self._w, sequence,
+					     "+break")
 		else:
 			return self.tk.call('bind', className, sequence)
 	def unbind_class(self, className, sequence):
@@ -381,7 +388,7 @@ class Misc:
 		res = ()
 		for k, v in cnf.items():
 			if k[-1] == '_': k = k[:-1]
-			if type(v) in CallableTypes:
+			if callable(v):
 				v = self._register(v)
 			res = res + ('-'+k, v)
 		return res
@@ -521,12 +528,14 @@ class Wm:
 	def positionfrom(self, who=None):
 		return self.tk.call('wm', 'positionfrom', self._w, who)
 	def protocol(self, name=None, func=None):
-		if type(func) in CallableTypes:
+	        if callable(func):
 			command = self._register(func)
 		else:
 			command = func
 		return self.tk.call(
 			'wm', 'protocol', self._w, name, command)
+	def resizable(self, width=None, height=None):
+		return self.tk.call('wm', 'resizable', self._w, width, height)
 	def sizefrom(self, who=None):
 		return self.tk.call('wm', 'sizefrom', self._w, who)
 	def state(self):
@@ -726,9 +735,6 @@ class Widget(Misc, Pack, Place):
 		self.tk.call('destroy', self._w)
 	def _do(self, name, args=()):
 		return apply(self.tk.call, (self._w, name) + args)
-	# XXX The following method seems out of place here
-##	def unbind_class(self, seq):
-##		Misc.unbind_class(self, self.widgetName, seq)
 
 class Toplevel(Widget, Wm):
 	def __init__(self, master=None, cnf={}, **kw):
@@ -808,11 +814,14 @@ class Canvas(Widget):
 		return self._getints(self._do('bbox', args)) or None
 	def tag_unbind(self, tagOrId, sequence):
 		self.tk.call(self._w, 'bind', tagOrId, sequence, '')
-	def tag_bind(self, tagOrId, sequence, func, add=''):
+	def tag_bind(self, tagOrId, sequence, func, add='', brk=''):
 		if add: add='+'
 		name = self._register(func, self._substitute)
 		self.tk.call(self._w, 'bind', tagOrId, sequence, 
 			     (add + name,) + self._subst_format)
+		if brk:
+			self.tk.call(self._w, 'bind', tagOrId, sequence,
+				     "+break")
 	def canvasx(self, screenx, gridspacing=None):
 		return self.tk.getdouble(self.tk.call(
 			self._w, 'canvasx', screenx, gridspacing))
@@ -1208,12 +1217,16 @@ class Text(Widget):
 			self._w, 'tag', 'add', tagName, index1, index2)
 	def tag_unbind(self, tagName, sequence):
 		self.tk.call(self._w, 'tag', 'bind', tagName, sequence, '')
-	def tag_bind(self, tagName, sequence, func, add=''):
+	def tag_bind(self, tagName, sequence, func, add='', brk=''):
 		if add: add='+'
 		name = self._register(func, self._substitute)
 		self.tk.call(self._w, 'tag', 'bind', 
 			     tagName, sequence, 
 			     (add + name,) + self._subst_format)
+		if brk:
+			self.tk.call(self._w, 'tag', 'bind',
+				     tagName, sequence,
+				     "+break")
 	def tag_config(self, tagName, cnf={}, **kw):
 		apply(self.tk.call, 
 		      (self._w, 'tag', 'configure', tagName)
@@ -1274,7 +1287,7 @@ class Image:
 		elif kw: cnf = kw
 		options = ()
 		for k, v in cnf.items():
-			if type(v) in CallableTypes:
+			if callable(v):
 				v = self._register(v)
 			options = options + ('-'+k, v)
 		apply(self.tk.call,
