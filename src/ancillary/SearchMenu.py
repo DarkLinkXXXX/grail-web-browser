@@ -56,6 +56,7 @@ class SearchDialog:
 	self._root = tktools.make_toplevel(rootwin, title="Search Dialog")
 	self.create_widgets()
 	tktools.set_transient(self._root, rootwin, rely=0.0)
+	self.__rootwin = rootwin
 
     def create_widgets(self):
 	import tktools
@@ -116,6 +117,7 @@ class SearchDialog:
 	self.close_command()
 
     def close_command(self):
+	self.__rootwin.focus_set()
 	self._root.withdraw()
 
     def search(self):
