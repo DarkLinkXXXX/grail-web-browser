@@ -1,3 +1,5 @@
+import sys
+import os
 from Tkinter import *
 import FileDialog
 from grailutil import *
@@ -6,12 +8,7 @@ import tktools
 import formatter
 import htmllib
 import string
-import sys
 import time
-import os
-
-
-InGrail_p = __name__ != '__main__'
 
 
 DEFAULT_NETSCAPE_BM_FILE = os.path.join(gethome(), '.netscape-bookmarks.html')
@@ -503,7 +500,9 @@ class BookmarksDialog:
     def _create_menubar(self):
 	self._menubar = Frame(self._frame, relief=RAISED, borderwidth=2)
 	self._menubar.pack(fill=X)
+	#
 	# file menu
+	#
 	filebtn = Menubutton(self._menubar, text="File")
 	filebtn.pack(side=LEFT)
 	filemenu = Menu(filebtn)
@@ -512,12 +511,12 @@ class BookmarksDialog:
 			     underline=0, accelerator="Alt-L")
 	self._frame.bind("<Alt-l>", self.load)
 	self._frame.bind("<Alt-L>", self.load)
-#	filemenu.add_command(label="Merge...",
-#			     command=self._controller.merge,
-#			     underline=0, accelerator="Alt-M")
-#	self._frame.bind("<Alt-m>", self._controller.merge)
-	# TBD: why can't I bind <Alt-M> here???!!!  I get a TclError...
-#	self._frame.bind("<Alt-Shift-m>", self._controller.merge)
+##	filemenu.add_command(label="Merge...",
+##			     command=self._controller.merge,
+##			     underline=0, accelerator="Alt-M")
+##	self._frame.bind("<Alt-m>", self._controller.merge)
+##	# TBD: why can't I bind <Alt-M> here???!!!  I get a TclError...
+##	self._frame.bind("<Alt-Shift-m>", self._controller.merge)
 	filemenu.add_command(label="Save",
 			     command=self._controller.save,
 			     underline=0, accelerator="Alt-S")
@@ -537,31 +536,128 @@ class BookmarksDialog:
 	self._frame.bind("<Alt-w>", self._controller.hide)
 	self._frame.bind("<Alt-W>", self._controller.hide)
 	filebtn.config(menu=filemenu)
-	# navigation menu
-	navbtn = Menubutton(self._menubar, text="Navigate")
-	navbtn.pack(side=LEFT)
-	navmenu = Menu(navbtn)
-	navmenu.add_command(label="Previous",
-			    command=self._controller.previous_cmd,
-			    accelerator="Up")
-	self._frame.bind("<Up>", self._controller.previous_cmd)
-	self._frame.bind("p", self._controller.previous_cmd)
-	self._frame.bind("P", self._controller.previous_cmd)
-	navmenu.add_command(label="Next",
-			    command=self._controller.next_cmd,
-			    accelerator="Down")
-	self._frame.bind("<Down>", self._controller.next_cmd)
-	self._frame.bind("n", self._controller.next_cmd)
-	self._frame.bind("N", self._controller.next_cmd)
-	navmenu.add_separator()
-	navmenu.add_command(label="Go To Bookmark",
-			    command=self._controller.goto,
-			    underline=0, accelerator="G")
+	#
+	# item menu
+	#
+	itembtn = Menubutton(self._menubar, text='Item')
+	itembtn.pack(side=LEFT)
+	itemmenu = Menu(itembtn)
+	import SearchMenu
+	SearchMenu.SearchMenu(itemmenu, self._frame, self._controller)
+	itemmenu.add_separator()
+	itemmenu.add_command(label="Add Current",
+			     command=self._controller.add_current,
+			     underline=0, accelerator='Alt-A')
+	self._frame.bind("<Alt-a>", self._controller.add_current)
+	self._frame.bind("<Alt-A>", self._controller.add_current)
+	insertsubmenu = Menu(itemmenu, tearoff='No')
+	insertsubmenu.add_command(label='Insert Separator',
+				  command=self._controller.insert_separator,
+				  underline=7, accelerator='S')
+	self._frame.bind('s', self._controller.insert_separator)
+	self._frame.bind('S', self._controller.insert_separator)
+	insertsubmenu.add_command(label='Insert Header',
+				  command=self._controller.insert_header,
+				  underline=7, accelerator='H')
+	self._frame.bind('h', self._controller.insert_header)
+	self._frame.bind('H', self._controller.insert_header)
+	insertsubmenu.add_command(label='Insert Link Entry',
+				  command=self._controller.insert_entry,
+				  underline=10, accelerator='K')
+	self._frame.bind('k', self._controller.insert_entry)
+	self._frame.bind('K', self._controller.insert_entry)
+	itemmenu.add_cascade(label='Insert', menu=insertsubmenu)
+	itemmenu.add_command(label='Remove Entry',
+			     command=self._controller.remove_entry,
+			     accelerator='X')
+	self._frame.bind('x', self._controller.remove_entry)
+	self._frame.bind('X', self._controller.remove_entry)
+	itemmenu.add_separator()
+	itemmenu.add_command(label="Details...",
+			     command=self._controller.details,
+			     underline=0, accelerator="Alt-D")
+	self._frame.bind("<Alt-d>", self._controller.details)
+	self._frame.bind("<Alt-D>", self._controller.details)
+	itemmenu.add_command(label="Go To Bookmark",
+			     command=self._controller.goto,
+			     underline=0, accelerator="G")
 	self._frame.bind("g", self._controller.goto)
 	self._frame.bind("G", self._controller.goto)
 	self._frame.bind("<KeyPress-space>", self._controller.goto)
-	navbtn.config(menu=navmenu)
+	itembtn.config(menu=itemmenu)
+	#
+	# arrange menu
+	#
+	arrangebtn = Menubutton(self._menubar, text="Arrange")
+	arrangebtn.pack(side=LEFT)
+	arrangemenu = Menu(arrangebtn)
+	arrangemenu.add_command(label="Expand",
+			    command=self._controller.expand_cmd,
+			    underline=0, accelerator="E")
+	self._frame.bind("e", self._controller.expand_cmd)
+	self._frame.bind("E", self._controller.expand_cmd)
+##	arrangemenu.add_command(label='Expand All Children',
+##			     command=self._controller.expand_children)
+##	arrangemenu.add_command(label="Expand Top Level",
+##			    command=self._controller.expand_top)
+##	arrangemenu.add_command(label="Expand All",
+##			    command=self._controller.expand_all)
+##	arrangemenu.add_separator()
+	arrangemenu.add_command(label="Collapse",
+			    command=self._controller.collapse_cmd,
+			    underline=0, accelerator="C")
+	self._frame.bind("c", self._controller.collapse_cmd)
+	self._frame.bind("C", self._controller.collapse_cmd)
+##	arrangemenu.add_command(label='Collapse All Children',
+##			     command=self._controller.collapse_children)
+##	arrangemenu.add_command(label="Collapse Top Level",
+##			    command=self._controller.collapse_top)
+##	arrangemenu.add_command(label="Collapse All",
+##			    command=self._controller.collapse_all)
+	arrangemenu.add_separator()
+	arrangemenu.add_command(label='Shift Entry Left',
+			     command=self._controller.shift_left_cmd,
+			     underline=12, accelerator='L')
+	self._frame.bind('l', self._controller.shift_left_cmd)
+	self._frame.bind('L', self._controller.shift_left_cmd)
+	arrangemenu.add_command(label='Shift Entry Right',
+			     command=self._controller.shift_right_cmd,
+			     underline=12, accelerator='R')
+	self._frame.bind('r', self._controller.shift_right_cmd)
+	self._frame.bind('R', self._controller.shift_right_cmd)
+	arrangemenu.add_command(label='Shift Entry Up',
+			     command=self._controller.shift_up_cmd,
+			     underline=12, accelerator='U')
+	self._frame.bind('u', self._controller.shift_up_cmd)
+	self._frame.bind('U', self._controller.shift_up_cmd)
+	arrangemenu.add_command(label='Shift Entry Down',
+			     command=self._controller.shift_down_cmd,
+			     underline=12, accelerator='D')
+	self._frame.bind('d', self._controller.shift_down_cmd)
+	self._frame.bind('D', self._controller.shift_down_cmd)
+	arrangebtn.config(menu=arrangemenu)
+	#
+	# item menu
+	#
+##	itembtn = Menubutton(self._menubar, text="Item")
+##	itembtn.pack(side=LEFT)
+##	itemmenu = Menu(itembtn)
+##	itemmenu.add_command(label="Previous",
+##			    command=self._controller.previous_cmd,
+##			    accelerator="Up")
+	self._frame.bind("<Up>", self._controller.previous_cmd)
+	self._frame.bind("p", self._controller.previous_cmd)
+	self._frame.bind("P", self._controller.previous_cmd)
+##	itemmenu.add_command(label="Next",
+##			    command=self._controller.next_cmd,
+##			    accelerator="Down")
+	self._frame.bind("<Down>", self._controller.next_cmd)
+	self._frame.bind("n", self._controller.next_cmd)
+	self._frame.bind("N", self._controller.next_cmd)
+##	itemmenu.add_separator()
+	#
 	# Properties menu (details)
+	#
 	propsbtn = Menubutton(self._menubar, text="Properties")
 	propsbtn.pack(side=LEFT)
 	propsmenu = Menu(propsbtn)
@@ -578,88 +674,6 @@ class BookmarksDialog:
 				  variable=self._controller.addcurloc,
 				  value=NEW_AS_CHILD)
 	propsbtn.config(menu=propsmenu)
-	# edit menu
-	editbtn = Menubutton(self._menubar, text="Edit")
-	editbtn.pack(side=LEFT)
-	editmenu = Menu(editbtn)
-	editmenu.add_command(label="Add Current",
-			     command=self._controller.add_current,
-			     underline=0, accelerator='Alt-A')
-	self._frame.bind("<Alt-a>", self._controller.add_current)
-	self._frame.bind("<Alt-A>", self._controller.add_current)
-	editmenu.add_command(label="Bookmark Details...",
-			     command=self._controller.details,
-			     underline=0, accelerator="Alt-D")
-	self._frame.bind("<Alt-d>", self._controller.details)
-	self._frame.bind("<Alt-D>", self._controller.details)
-	editmenu.add_separator()
-	editmenu.add_command(label="Expand",
-			    command=self._controller.expand_cmd,
-			    underline=0, accelerator="E")
-	self._frame.bind("e", self._controller.expand_cmd)
-	self._frame.bind("E", self._controller.expand_cmd)
-	editmenu.add_command(label='Expand All Children',
-			     command=self._controller.expand_children)
-	editmenu.add_command(label="Expand Top Level",
-			    command=self._controller.expand_top)
-#	editmenu.add_command(label="Expand All",
-#			    command=self._controller.expand_all)
-	editmenu.add_separator()
-	editmenu.add_command(label="Collapse",
-			    command=self._controller.collapse_cmd,
-			    underline=0, accelerator="C")
-	self._frame.bind("c", self._controller.collapse_cmd)
-	self._frame.bind("C", self._controller.collapse_cmd)
-	editmenu.add_command(label='Collapse All Children',
-			     command=self._controller.collapse_children)
-	editmenu.add_command(label="Collapse Top Level",
-			    command=self._controller.collapse_top)
-#	editmenu.add_command(label="Collapse All",
-#			    command=self._controller.collapse_all)
-	editmenu.add_separator()
-	editmenu.add_command(label='Insert Separator',
-			     command=self._controller.insert_separator,
-			     underline=7, accelerator='S')
-	self._frame.bind('s', self._controller.insert_separator)
-	self._frame.bind('S', self._controller.insert_separator)
-	editmenu.add_command(label='Insert Header',
-			     command=self._controller.insert_header,
-			     underline=7, accelerator='H')
-	self._frame.bind('h', self._controller.insert_header)
-	self._frame.bind('H', self._controller.insert_header)
-	editmenu.add_command(label='Insert Link Entry',
-			     command=self._controller.insert_entry,
-			     underline=10, accelerator='K')
-	self._frame.bind('k', self._controller.insert_entry)
-	self._frame.bind('K', self._controller.insert_entry)
-	editmenu.add_separator()
-	editmenu.add_command(label='Remove Entry',
-			     command=self._controller.remove_entry,
-			     accelerator='X')
-	self._frame.bind('x', self._controller.remove_entry)
-	self._frame.bind('X', self._controller.remove_entry)
-	editmenu.add_separator()
-	editmenu.add_command(label='Shift Entry Left',
-			     command=self._controller.shift_left_cmd,
-			     underline=12, accelerator='L')
-	self._frame.bind('l', self._controller.shift_left_cmd)
-	self._frame.bind('L', self._controller.shift_left_cmd)
-	editmenu.add_command(label='Shift Entry Right',
-			     command=self._controller.shift_right_cmd,
-			     underline=12, accelerator='R')
-	self._frame.bind('r', self._controller.shift_right_cmd)
-	self._frame.bind('R', self._controller.shift_right_cmd)
-	editmenu.add_command(label='Shift Entry Up',
-			     command=self._controller.shift_up_cmd,
-			     underline=12, accelerator='U')
-	self._frame.bind('u', self._controller.shift_up_cmd)
-	self._frame.bind('U', self._controller.shift_up_cmd)
-	editmenu.add_command(label='Shift Entry Down',
-			     command=self._controller.shift_down_cmd,
-			     underline=12, accelerator='D')
-	self._frame.bind('d', self._controller.shift_down_cmd)
-	self._frame.bind('D', self._controller.shift_down_cmd)
-	editbtn.config(menu=editmenu)
 
     def _create_listbox(self):
 	self._listbox, frame = tktools.make_list_box(self._frame,
@@ -764,15 +778,15 @@ class DetailsDialog:
 
     def _create_buttonbar(self):
 	btnbar = Frame(self._frame)
-#	revertbtn = Button(btnbar, text='Revert',
-#			   command=self.revert)
+##	revertbtn = Button(btnbar, text='Revert',
+##			   command=self.revert)
 	donebtn = Button(btnbar, text='OK',
 			 command=self.done)
 	applybtn = Button(btnbar, text='Apply',
 			  command=self.apply)
 	cancelbtn = Button(btnbar, text='Cancel',
 			   command=self.cancel)
-#	revertbtn.pack(side='left')
+##	revertbtn.pack(side='left')
 	donebtn.pack(side='left')
 	applybtn.pack(side='left')
 	cancelbtn.pack(side='right')
@@ -945,7 +959,7 @@ class BookmarksController(OutlinerController):
 	if self._dialog:
 	    self._dialog.set_labels(self._iomgr.filename(), self._root.title())
 
-    ## Other commands
+    # Other commands
 
     def set_listbox(self, listbox): self._listbox = listbox
     def set_dialog(self, dialog): self._dialog = dialog
@@ -1164,6 +1178,68 @@ class BookmarksController(OutlinerController):
 	node, selection = self._get_selected_node()
 	if node: self._expand_children(node)
     def expand_top(self, event=None): self._expand_children(self.root())
+
+    # interface for searching
+
+    def search_for_pattern(self, pattern,
+			   regex_flag, case_flag, backwards_flag):
+	# is case important in a literal match?
+	if regex_flag:
+	    if case_flag:
+		cre = regex.compile(pattern, casefold)
+	    else:
+		cre = regex.compile(pattern)
+	elif not case_flag:
+	    pattern = string.lower(pattern)
+	# depth-first search for the next (or previous) node
+	# containing the pattern.  Handle wrapping.
+	sv = OutlinerViewer(self._root,
+			    follow_all_children=True,
+			    shared_root=True)
+	sv.populate()
+	# get the index of the listbox's selected node in the search
+	# viewer's flat space
+	startnode, selection = self._get_selected_node()
+	nodei = sv.index(startnode)
+	node = None
+	while 1:
+	    if backwards_flag:
+		nodei = nodei - 1
+		if nodei < 0:
+		    nodei = sv.count() - 1
+	    else:
+		nodei = nodei + 1
+		if nodei == sv.count():
+		    nodei = 0
+	    node = sv.node(nodei)
+##	    print 'checking nodei(%d): %s' % (nodei, node)
+	    if not node:
+		print 'no node for', nodei
+		return None
+	    # match can occur in the title, uri string, timestamps, or
+	    # description string. get this as one big ol' string
+	    text = '%s\n%s\n%s\n%s\n%s\n' % (node.title(), node.uri(),
+					     time.ctime(node.add_date()),
+					     time.ctime(node.last_visited()),
+					     node.description())
+	    if not regex_flag and not case_flag:
+		text = string.lower(text)
+	    # literal match
+	    if not regex_flag:
+		if string.find(text, pattern) >= 0:
+		    break
+	    # regex match
+	    elif cre.search(text) >= 0:
+		break
+	    # have we gone round the world without a match?
+	    if node == startnode:
+		return None
+	# we found a matching node. make sure it's visible in the
+	# listbox and then select it.
+	self.show_node(node)
+	self.viewer().select_node(node)
+	self.set_modflag(True, quiet=True)
+	return 1
 
 
 class BookmarksMenuLeaf:

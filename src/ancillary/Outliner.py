@@ -82,12 +82,26 @@ class OutlinerNode:
 
 
 class OutlinerViewer:
-    def __init__(self, root):
+    def __init__(self, root, follow_all_children=None, shared_root=None):
+	"""Create a new viewer for a tree of nodes.
+
+	If follow_all_children is true, then child links are followed
+	even if the child is collapsed.  If false, then only expanded
+	child links are followed.
+
+	If shared_root is true, then the tree is not close()'d when
+	the viewer is destroyed.  This can be cause memory leaks if
+	misused.
+
+	"""
 	self._root = root
 	self._nodes = []
-	self._follow_all_children_p = False
+	self._shared_root = shared_root
+	self._follow_all_children_p = follow_all_children
 
-    def __del__(self): self._root.close()
+    def __del__(self):
+	if not self._shared_root:
+	    self._root.close()
 
     ## Derived class specializations
 
@@ -219,6 +233,15 @@ class OutlinerController:
 	if node.leaf_p() or node.expanded_p(): return
 	# now toggle the expanded flag and update the listbox
 	node.expand()
+	self.root_redisplay()
+
+    def show_node(self, node):
+	# travel up tree from this node, making sure all ancestors are
+	# expanded (i.e. visible)
+	node = node.parent()
+	while node:
+	    node.expand()
+	    node = node.parent()
 	self.root_redisplay()
 
     def shift_left(self, node):
