@@ -1,10 +1,11 @@
 """Handler for ietf: URNs.  These are defined in the Internet draft
-draft-ietf-urn-ietf-05.txt (work in progress).
+draft-ietf-urn-ietf-07.txt (work in progress).
 """
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 
 import grailutil
 import nullAPI
+import os
 import ProtocolAPI
 import string
 
@@ -27,16 +28,26 @@ def convert_to_url(urn):
         vars = {"type": type, "number": int(number)}
         which = "document-template"
     else:
-        m = _meeting_rx(urn)
-        if not m:
-            raise ValueError, "not a valid ietf URN"
-        wgbofname = m.group(2)
-        try:
-            date = _number_to_date[int(m.group(1))]
-        except KeyError:
-            raise ValueError, "unknown IETF meeting number: " + m.group(1)
-        which = "meeting-template"
-        vars = {"date": date, "wg": wgbofname}
+        m = _draft_rx.match(urn)
+        if m:
+            draft = m.group(1)
+            draft, format = os.path.splitext(draft)
+            if format and format[0] == ".":
+                format = format[1:]
+            format = format or "txt"
+            which = "internet-draft-template"
+            vars = {"draft": draft, "format": format}
+        else:
+            m = _meeting_rx.match(urn)
+            if not m:
+                raise ValueError, "not a valid ietf URN"
+            wgbofname = m.group(2)
+            try:
+                date = _number_to_date[int(m.group(1))]
+            except KeyError:
+                raise ValueError, "unknown IETF meeting number: " + m.group(1)
+            which = "meeting-template"
+            vars = {"date": date, "wg": wgbofname}
     return prefs.Get(PREF_GROUP, which) % vars
 
 
@@ -44,6 +55,7 @@ def convert_to_url(urn):
 #
 import re
 _reference_rx = re.compile("([^:]+):(\d+)$")
+_draft_rx = re.compile("id:(.+)$")
 _meeting_rx = re.compile("mtg-(\d+)-(.*)$")
 del re
 
