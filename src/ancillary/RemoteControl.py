@@ -294,7 +294,7 @@ class Controller:
 	cblist = self._cbdict[command]
 	# call all callbacks in list
 	for cb in cblist:
-	    cb(command, argstr)
+	    cb(command, argstr, conn)
 
     # convenience methods
 
@@ -321,12 +321,15 @@ class Controller:
 	    b = _new_browsers(browsers[-1])
 	b.context.load(uri)
 
-    def load_cmd(self, cmdstr, argstr):
+    def load_cmd(self, cmdstr, argstr, conn):
 	self._do_load(argstr)
 
-    def load_new_cmd(self, cmdstr, argstr):
+    def load_new_cmd(self, cmdstr, argstr, conn):
 	self._do_load(argstr, in_new_window=1)
 
-    def ping_cmd(self, cmdstr, argstr):
-	if argstr <> 'NOACK':
-	    self._socket.send('ACK')
+    def ping_cmd(self, cmdstr, argstr, conn):
+	try:
+	    if argstr <> 'NOACK':
+		conn.send('ACK')
+	except socket.error:
+	    print 'RemoteControl: unable to acknowledge PING'
