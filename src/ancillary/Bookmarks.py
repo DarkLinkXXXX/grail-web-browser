@@ -957,7 +957,7 @@ class BookmarksController(OutlinerController):
 	    # load dialog was cancelled
 	    return
 	self._writer = writer
-	self._dialog.set_labels(self._iomgr.filename(), self._root.title())
+	self._dialog.set_labels(self._iomgr.filename(), root.title())
 	# clear out all the old state
 	self.set_root(root)
 	self._on_new_root()
