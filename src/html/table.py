@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.28 1996/04/11 00:13:29 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.29 1996/04/11 16:15:12 bwarsaw Exp $'
 
 
 import string
@@ -358,20 +358,6 @@ class Table(AttrElem):
 	    # FIXEDLAYOUT not yet supported
 	    pass
 
-    def _available_space(self):
-	if self._parenttable:
-	    available = self._parenttable._available_space()
-	    # TBD: substract out stuff like the table's border width,
-	    # the cell spacing for all the cells on this line
-	    # (anything else?)
-	    return available
-	# calculate the available width that the table should render
-	# itself in. first get the actual width, then apply any <TABLE
-	# WIDTH=xxx> attributes.
-	ptext = self.parentviewer.text
-	viewerwidth = ptext.winfo_width() - 2 * string.atof(ptext['padx'])
-	return viewerwidth
-
     def _autolayout_1(self):
 	# internal representation of the table as a sparse array
 	self._table = table = {}
@@ -503,7 +489,7 @@ class Table(AttrElem):
 ## 	    print ']'
 ## 	print '==========', id(self)
 
-	availablewidth = self._available_space()
+	availablewidth = self.parentviewer.rule_width()
 	if self.Awidth is None:
 	    suggestedwidth = availablewidth
 	# units in screen pixels
