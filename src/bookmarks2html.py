@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 #  $Source: /home/john/Code/grail/src/Attic/bookmarks2html.py,v $
 
 import os
@@ -18,8 +18,8 @@ grail_root = script_dir
 for path in 'utils', 'pythonlib', 'ancillary', 'sgml_lex', script_dir:
     sys.path.insert(0, os.path.join(grail_root, path))
 
-
-import ni
+if sys.version < "1.5":
+    import ni
 
 import getopt
 import BookmarksParser

@@ -32,7 +32,8 @@ if __name__ == '__main__':
     # don't load this twice when used as a script:
     sys.modules['html2ps'] = sys.modules['__main__']
 
-import ni
+if sys.version < "1.5":
+    import ni
 
 import grailutil
 grailutil._grail_root = script_dir

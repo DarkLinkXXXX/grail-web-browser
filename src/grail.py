@@ -31,7 +31,9 @@ for path in 'utils', 'pythonlib', 'ancillary', 'applets', \
 
 # More imports
 import Tkinter # Do this first to avoid confusing ni on Mac/Win
-import ni
+if sys.version < "1.5":
+    # only use this if necessary since it slows down imports
+    import ni
 import filetypes
 import grailutil
 # TBD: hack!
