@@ -151,6 +151,7 @@ class Context:
 	scroll there; otherwise do a full load of a new page.
 
 	"""
+
 	newurl, frag = urldefrag(url)
 	current, f = urldefrag(self._url)
 	if not target and newurl == current:
@@ -210,6 +211,7 @@ class Context:
 	self.next_status_update = None
 	if self.readers:
 	    nr = len(self.readers)
+	    nw = 0
 	    if nr == 1:
 		message = str(self.readers[0])
 	    else:
@@ -218,6 +220,8 @@ class Context:
 		cached = 0
 		for reader in self.readers:
 		    nbytes = nbytes + reader.nbytes
+		    if reader.message == "waiting for socket":
+			nw = nw + 1
 		    if reader.maxbytes > 0 and maxbytes >= 0:
 			maxbytes = maxbytes + reader.maxbytes
 		    else:
@@ -234,7 +238,7 @@ class Context:
 		    message = message + " (all cached)"
 		elif cached:
 		    message = message + " (%d cached)" % cached
-		message = "%d streams: %s" % (nr, message)
+		message = "%d streams, %d active: %s" % (nr, nr - nw, message)
 	elif self.on_top():
 	    message = ""
 	elif self._url:
@@ -287,7 +291,7 @@ class Context:
 	except IOError, msg:
 	    image = None
 	if image:
-	    self.app.set_cached_image(url, image, self)
+	    self.app.set_cached_image(url, image, self.viewer)
 	    if self.app.load_images:
 		image.start_loading(self)
 	return image
