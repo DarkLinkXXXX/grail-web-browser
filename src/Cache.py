@@ -2,32 +2,20 @@
 
 XXX To do
 
-- what if CacheItem.reset() fails?
-- implement freshness check (needs some user prefs too)
-- flush old cache items
-- persistent cache
 - probably need an interface to get the raw CacheItem instead of the
   CacheAPI instance, for the history list (which wants stuff cached
   even if the cache decides against it)
-- etc.
-
 """
-
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
 CacheItemExpired = 'CacheItem Expired'
 
-
 from assert import assert
-import urlparse
-import string
-import regsub
 import os
 import protocols
 import time
 import copy
-
 
 class CacheItem:
 
@@ -83,19 +71,15 @@ class CacheItem:
 
     def incref(self):
 	self.refcnt = self.refcnt + 1
-##	print self, "incref() ->", self.refcnt
 
     def decref(self):
 	assert(self.refcnt > 0)
 	self.refcnt = self.refcnt - 1
-##	print self, "decref() ->", self.refcnt
 	self.cache_update()
 	if self.refcnt == 0:
 	    if self.stage == DONE:
-##		print "    finish()"
 		self.finish()
 	    else:
-##		print "    abort()"
 		self.abort()
 
     def cache_update(self):
@@ -105,15 +89,13 @@ class CacheItem:
 	    self.cache.add(self,self.reloading)
 	    self.incache = 1
 
-    def check(self):
-	if not self.fresh():
-	    self.reset()
-
-    def fresh(self):
-	return self.stage is not DONE or self.complete
-
     def reset(self,reload=0):
-	if self.incache == 0:
+	# possible pathes through here:
+	# if item gets created without api = disk_cache_access,
+	#     then we get called with reload = 0
+	# if item needs to be refreshed or is manually reloaded,
+	#     then we get called with reload = 1
+	if self.incache == 0: 
 	    if self.stage != DONE:
 		return
 	    assert(self.api is None)
@@ -130,27 +112,24 @@ class CacheItem:
 	self.complete = 0
 
     def refresh(self,when):
-	if self.incache == 1:
-	    # can only refresh something in the cache
-	    # should we ignore this test?
-	    params = copy.copy(self.params)
-	    params['If-Modified-Since'] = when.get_str()
-	    api = protocols.protocol_access(self.url,
-					    self.mode, params,
-					    data=self.postdata)
-	    errcode, errmsg, headers = api.getmeta()
-	    ### which errcode should I try to handle
-	    if errcode == 304:
-		# we win! it hasn't been modified
-		pass
-	    elif errcode == 200:
-		self.api = api
-		self.init_new_load(self.stage)
-		self.meta = (errcode, errmsg, headers)
-		self.reloading = 1
-	    else:
-		print "an if-mod-since returned %s, %s" % (errcode, errmsg)
-		# don't know what to do here
+	params = copy.copy(self.params)
+	params['If-Modified-Since'] = when.get_str()
+	api = protocols.protocol_access(self.url,
+					self.mode, params,
+					data=self.postdata)
+	errcode, errmsg, headers = api.getmeta()
+	### which errcode should I try to handle
+	if errcode == 304:
+	    # we win! it hasn't been modified
+	    pass
+	elif errcode == 200:
+	    self.api = api
+	    self.init_new_load(self.stage)
+	    self.meta = (errcode, errmsg, headers)
+	    self.reloading = 1
+	else:
+	    print "an if-mod-since returned %s, %s" % (errcode, errmsg)
+	    # don't know what to do here
 
     def pollmeta(self):
 	if self.stage == META:
@@ -200,11 +179,6 @@ class CacheItem:
 	    return -1
 
     def abort(self):
-##	print " Abort", self.url
-#	if self.cache:
-	    # don't put this baby in the cache
-#	    self.cache.deactivate(self.key)
-#	    self.cache = None
 	self.finish()
 
     def finish(self):
@@ -216,7 +190,6 @@ class CacheItem:
 	api = self.api
 	self.api = None
 	if api:
-##	    print "  Close", self.url
 	    api.close()
 
 
@@ -238,7 +211,6 @@ class CacheAPI:
 	self.offset = 0
 	self.stage = META
 	self.fno = -1
-##	print self, "__init__()"
 
     def iscached(self):
 	return self.item and self.item.iscached()
@@ -247,7 +219,6 @@ class CacheAPI:
 	return "CacheAPI(%s)" % self.item
 
     def __del__(self):
-##	print self, "__del__()"
 	self.close()
 
     def pollmeta(self):
@@ -286,7 +257,6 @@ class CacheAPI:
 	    return None, None
 
     def close(self):
-#	print self, "close()"
 	self.stage = DONE
 	fno = self.fno
 	if fno >= 0:
