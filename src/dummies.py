@@ -23,6 +23,7 @@ import al				# SGI
 import ImageLoopItem
 
 # Standard Protocol Extensions
+import httpAPI
 import docAPI
 import fileAPI
 import ftpAPI
