@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.32 $"
+__version__ = "$Revision: 2.33 $"
 
 try:
 	# See if modern _tkinter is present
@@ -723,7 +723,7 @@ class Place:
 	place_slaves = slaves
 
 class Grid:
-	# Thanks to Masa Yoshikawa (yosikawa@isi.edu)
+	# Thanks to Masazumi Yoshikawa (yosikawa@isi.edu)
 	def config(self, cnf={}, **kw):
 		apply(self.tk.call, 
 		      ('grid', 'configure', self._w) 
@@ -736,14 +736,18 @@ class Grid:
 			self.tk.call(
 				'grid', 'bbox', self._w, column, row)) or None
 	grid_bbox = bbox
-	def columnconfigure(self, index, *args):
+	def columnconfigure(self, index, cnf={}, **kw):
+		if type(cnf) is not DictionaryType and not kw:
+			options = self._options({cnf: None})
+		else:
+			options = self._options(cnf, kw)
 		res = apply(self.tk.call, 
-			      ('grid', 'columnconfigure', self._w) 
-			      + args)
-		if args == ['minsize']:
-			return self._getint(res) or None
-		elif args == ['wieght']:
-			return self._getdouble(res) or None
+			      ('grid', 'columnconfigure', self._w, index) 
+			      + options)
+		if options == ('-minsize', None):
+			return self.tk.getint(res) or None
+		elif options == ('-weight', None):
+			return self.tk.getdouble(res) or None
 	def forget(self):
 		self.tk.call('grid', 'forget', self._w)
 	grid_forget = forget
@@ -771,14 +775,18 @@ class Grid:
 		else:
 			self.tk.call('grid', 'propagate', self._w, flag)
 	grid_propagate = propagate
-	def rowconfigure(self, index, *args):
+	def rowconfigure(self, index, cnf={}, **kw):
+		if type(cnf) is not DictionaryType and not kw:
+			options = self._options({cnf: None})
+		else:
+			options = self._options(cnf, kw)
 		res = apply(self.tk.call, 
-			      ('grid', 'rowconfigure', self._w) 
-			      + args)
-		if args == ['minsize']:
-			return self._getint(res) or None
-		elif args == ['wieght']:
-			return self._getdouble(res) or None
+			      ('grid', 'rowconfigure', self._w, index) 
+			      + options)
+		if options == ('-minsize', None):
+			return self.tk.getint(res) or None
+		elif options == ('-weight', None):
+			return self.tk.getdouble(res) or None
 	def size(self):
 		return self._getints(
 			self.tk.call('grid', 'size', self._w)) or None
