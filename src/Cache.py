@@ -120,13 +120,13 @@ class CacheItem:
 	self.api = protocols.protocol_access(self.url,
 					     self.mode, self.params,
 					     data=self.postdata)
-	self.init_new_load()
+	self.init_new_load(META)
 	self.reloading = reload
 
-    def init_new_load(self):
+    def init_new_load(self,stage):
 	self.meta = None
 	self.data = ''
-	self.stage = META
+	self.stage = stage
 	self.complete = 0
 
     def refresh(self,when):
@@ -145,7 +145,8 @@ class CacheItem:
 		pass
 	    elif errcode == 200:
 		self.api = api
-		self.init_new_load()
+		self.init_new_load(self.stage)
+		self.meta = (errcode, errmsg, headers)
 		self.reloading = 1
 	    else:
 		print "an if-mod-since returned %s, %s" % (errcode, errmsg)
