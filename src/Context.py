@@ -2,6 +2,7 @@
 
 from urlparse import urljoin, urlparse
 from Cursors import *
+import History
 
 
 class Context:
@@ -29,17 +30,18 @@ class Context:
     def __init__(self, viewer, browser):
 	self.viewer = viewer
 	self.browser = browser
-	self.history = browser.history	# XXX Temporarily
+	self.history = History.History()
+	self.history_dialog = None
 	self.app = browser.app
 	self.root = self.browser.root	# XXX Really a Toplevel instance
-	self.set_url("")
 	self.readers = []
 	self.page = None
-	self._attemptedpage = (None, None) # (PageInfo object, new flag)
+	self.future = -1
+	self.set_url("")
 
     def clear_reset(self):
 	self.browser.clear_reset()
-	self._page_is_good()		# XXX
+	self.set_url("")
 
     # Load URL, base URL and target
 
@@ -52,6 +54,21 @@ class Context:
 	where followed links will appear, and defaults to this viewer.
 
 	"""
+	if url:
+	    self.app.global_history.remember_url(url)
+	    if not self.page:
+		self.page = History.PageInfo(url)
+		self.history.append_page(self.page)
+	    else:
+		self.page.set_url(url)
+		self.page.set_title("")	# Will be reset from fresh HTML
+		self.history.refresh()
+	else:
+	    if self.future >= 0:
+		self.page = self.history.page(self.future)
+		self.future = -1
+	    else:
+		self.page = None
 	self._url = self._baseurl = url
 	if baseurl:
 	    self._baseurl = urljoin(url, baseurl)
@@ -86,12 +103,13 @@ class Context:
 		url = urljoin(url, relurl)
 	return url
     baseurl = get_baseurl		# XXX Backwards compatibility
+    # XXX see: AppletHTMLParser, AppletLoader, Viewer, Bookmarks, isindex
 
     def get_target(self):
 	"""Return the default target for this page (which may be None)."""
 	return self._target
 
-    # Anchor callbacks
+    # Anchor callback support
 
     def enter(self, url):
 	"""Show the full URL of the current anchor as a message, if idle."""
@@ -145,10 +163,11 @@ class Context:
 	    print "ERROR:", msg
 
     def set_title(self, title):
+	self.app.global_history.remember_url(self._url, title)
 	self.browser.set_title(title)
 	if self.page:
 	    self.page.set_title(title)
-	self.browser.history.refresh()
+	    self.history.refresh()
 
     # Handle (a)synchronous images
 
@@ -180,64 +199,71 @@ class Context:
 		image.start_loading(self)
 	return image
 
-    # handle loading pages
+    # Navigation/history commands
+
+    def go_back(self, event=None):
+	self.load_from_history(self.history.peek(-1))
+
+    def go_forward(self, event=None):
+	self.load_from_history(self.history.peek(+1))
+
+    def reload_page(self):
+	self.load_from_history(self.history.peek(0))
+
+    def load_from_history(self, (future, page), reload=0):
+	self.future = future
+	if not page:
+	    self.root.bell()
+	    return
+	self.load(page.url(), reload=reload, scrollpos=page.scrollpos())
+
+    def show_history_dialog(self):
+	if not self.history_dialog:
+	    self.history_dialog = History.HistoryDialog(self, self.history)
+	    self.history.set_dialog(self.history_dialog)
+	else:
+	    self.history_dialog.show()
+
+    def clone_history_from(self, other):
+	self.history = other.history.clone()
+	self.future, page = self.history.peek()
+	if page:
+	    self.load(page.url(), page.scrollpos())
+
+    # Internals handle loading pages
 
     def save_page_state(self, reload=0):
 	if not self.page: return
 	# Save page scroll position
 	self.page.set_scrollpos(self.viewer.scrollpos())
-	# Save form contents unless reloading
+	# Save form contents even if reloading
+	formdata = []
 	if hasattr(self, 'forms'):
-	    formdata = []
-	    if not reload:
-		for fi in self.forms:
-		    formdata.append(fi.get())
-	    self.page.set_formdata(formdata)
+	    for fi in self.forms:
+		formdata.append(fi.get())
 	    # remove the attribute
 	    del self.forms
+	self.page.set_formdata(formdata)
 
-    def read_page(self, url, method, params, new, show_src, reload, data=None):
-	if not new:
-	    page = self.history.page()
-	else:
-	    from History import PageInfo
-	    page = PageInfo(url)
-	self._attemptedpage = page, new
+    def read_page(self, url, method, params, show_source, reload,
+		  scrollpos=None, data=None):
 	from Reader import Reader
-	Reader(self, url, method, params, show_src, reload, data,
-	       page.scrollpos())
+	Reader(self, url, method, params, show_source, reload, data, scrollpos)
 
-    def _page_is_good(self):
-	# XXX Should go away?
-	page, new = self._attemptedpage
-	if page:
-	    self.page = page
-	    self._attemptedpage = (None, None)
-	    self.app.global_history.remember_url(page.url())
-	    if new:
-		self.history.append_page(page)
-	    else:
-		self.history.refresh()
+    # Externals for loading pages
 
     def load(self, url, method='GET', params={},
-	     new=1, show_source=0, reload=0):
+	     show_source=0, reload=0, scrollpos=None):
 	# Update state of current page, in case we re-visit it via the
 	# history mechanism.
 	self.save_page_state()
 	# Start loading a new URL into the window
 	self.stop()
-	scheme, netloc = urlparse(url)[:2]
-	if not scheme:
-	    if not netloc:
-		import os
-		if os.path.exists(url):
-		    url = "file:" + url	# XXX quote()
-		else:
-		    url = "http://" + url
-	    else:
-		url = "http:" + url
 	self.message("Loading %s" % url, CURSOR_WAIT)
-	try: self.read_page(url, method, params, new, show_source, reload)
+	try:
+	    self.read_page(url, method, params,
+			   show_source=show_source, reload=reload,
+			   scrollpos=scrollpos)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
@@ -250,12 +276,13 @@ class Context:
 	method = 'POST'
 	self.stop()
 	self.message("Posting to %s" % url, CURSOR_WAIT)
-	try: self.read_page(url, method, params, 1, 0, 1, data=data)
+	try:
+	    self.read_page(url, method, params, reload=1, data=data)
 	except IOError, msg:
 	    self.error_dialog(IOError, msg)
 	    self.message_clear()
 
-    # Readers
+    # Externals for managing list of active readers
 
     def addreader(self, reader):
 	self.readers.append(reader)
@@ -286,7 +313,7 @@ class Context:
     # Page interface
 
     def get_url(self):
-	return self.page and self.page.url()
+	return self._url
 
     def get_title(self):
-	return self.page and self.page.title()
+	return self._title
