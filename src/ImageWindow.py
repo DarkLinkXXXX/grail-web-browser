@@ -38,7 +38,7 @@ class ImageWindow(Frame):
 	self.borderwidth = borderwidth
 	label = Label(self, text=self.alt, background=bgcolor, borderwidth=0)
 	label.pack(fill=BOTH, expand=1)
-	if width > 0 and height > 0:
+	if width > 0 or height > 0:
 	    self.propagate(0)
 	    self.config(width=width + 2*borderwidth,
 			height=height + 2*borderwidth)
