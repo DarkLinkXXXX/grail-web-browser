@@ -78,7 +78,7 @@ class Context:
 	self.image_maps = {}		# For ImageMap
 	self.set_headers({})
 	self.set_postdata(None)
-	self.local_api_handlers = {}    # dictionary of this pages local API handlers
+	self.local_api_handlers = {}    # This pages local API handlers
 
     def register_notification(self, callback):
 	if callback not in self.notifications:
