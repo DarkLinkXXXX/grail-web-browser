@@ -216,6 +216,8 @@ class Viewer(formatter.AbstractWriter):
 	self.text.tag_config('blockquote', rmargin = INDENTATION_WIDTH)
 	# Configure anchor tags
 	for tag in 'a', 'ahist':
+	    self.text.tag_bind(tag, '<ButtonPress-1>', self.anchor_press)
+	    self.text.tag_bind(tag, '<ButtonPress-2>', self.anchor_press)
 	    self.text.tag_bind(tag, '<ButtonRelease-1>', self.anchor_click)
 	    self.text.tag_bind(tag, '<ButtonRelease-2>', self.anchor_click_new)
 	    self.text.tag_bind(tag, '<Leave>', self.anchor_leave)
@@ -506,15 +508,22 @@ class Viewer(formatter.AbstractWriter):
 	self.linkinfo = ""
 	self.context.message_clear()
 
+    def anchor_press(self, event):
+	self.context.viewer.text.focus_set()
+	self.current_index = self.text.index(CURRENT) # For anchor_click
+	url = self.find_tag_url()
+	if url:
+	    self.add_temp_tag()
+
     def anchor_click(self, event):
 	here = self.text.index("@%d,%d" % (event.x, event.y))
 	if self.current_index != here:
+	    self.remove_temp_tag()
 	    return
 	url = self.find_tag_url()
 	if url:
 	    self.linkinfo = ""
 	    url, target = self.split_target(self.context.get_baseurl(url))
-	    self.add_temp_tag()
 	    self.context.follow(url, target)
 
     def anchor_click_new(self, event):
@@ -524,7 +533,6 @@ class Viewer(formatter.AbstractWriter):
 	url = self.find_tag_url()
 	if url:
 	    url, target = self.split_target(url)
-	    self.add_temp_tag()
 	    self.master.update_idletasks()
 	    from Browser import Browser
 	    app = self.context.app
