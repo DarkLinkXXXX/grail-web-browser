@@ -258,6 +258,7 @@ class Browser:
     def follow(self, url):
 	if url[:1] == '#':
 	    self.viewer.scroll_to(url[1:])
+	    self.viewer.remove_temp_tag(histify=1)
 	    return
 	url = urlparse.urljoin(self.url, url)
 	self.load(url)
