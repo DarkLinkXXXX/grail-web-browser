@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.34 1996/04/15 18:28:48 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.35 1996/04/15 21:07:13 bwarsaw Exp $'
 
 
 import string
@@ -231,6 +231,17 @@ def _safe_mojo_height(cell):
 	return mojoheight
 
 
+
+class Container(Canvas):
+    def set_table(self, table): self._table = table
+    def table_geometry(self):
+	"""Return the geometry metrics needed by the table module.
+
+	Return a tuple of the form (MINWIDTH, MAXWIDTH, HEIGHT)
+	"""
+	return self._table.minwidth(), self._table.maxwidth(), -1
+
+
 class Table(AttrElem):
     """Top level table information object.
 
@@ -322,12 +333,12 @@ class Table(AttrElem):
 					   conv=conv_stdunits,
 					   default=0)
 	# geometry
- 	self.container = Canvas(parentviewer.text,
-				relief=relief,
-				borderwidth=borderwidth,
-				highlightthickness=0,
-				background=parentviewer.text['background'])
-	self.container._table = self
+ 	self.container = Container(parentviewer.text,
+				   relief=relief,
+				   borderwidth=borderwidth,
+				   highlightthickness=0,
+				   background=parentviewer.text['background'])
+	self.container.set_table(self)
 
 	self.caption = None
 	self.cols = []			# multiple COL or COLGROUP
@@ -779,29 +790,24 @@ class ContainedText(AttrElem):
 	embedheight = self._embedheight
 	# take into account all embedded windows
 	for sub in self._viewer.subwindows:
-	    # if the subwindow is a canvas containing a table, so
-	    # something different since it has a range of widths it
-	    # can be
-	    if hasattr(sub, '_table'):
-		min_nonaligned = max(min_nonaligned, sub._table.minwidth())
-		maxwidth = max(maxwidth, sub._table.maxwidth())
-	    elif hasattr(sub, 'image'):
-		bw = string.atoi(sub['borderwidth'])
-		w = sub.image.width() + 2 * bw
-		h = sub.image.height() + 2 * bw
-		x = sub.winfo_x()
-		y = sub.winfo_y()
-		min_nonaligned = max(min_nonaligned, x+w)
-		maxwidth = max(maxwidth, x+w)
-		embedheight = max(embedheight, y+h)
+	    # the standard interface is used if the object has a
+	    # table_geometry() method
+	    if hasattr(sub, 'table_geometry'):
+		submin, submax, height = sub.table_geometry()
+		min_nonaligned = max(min_nonaligned, submin)
+		maxwidth = max(maxwidth, submax)
+		embedheight = max(embedheight, height)
 	    else:
+		# this is the best we can do
+## 		print 'non-conformant embedded window:', sub.__class__
+## 		print 'using generic method, which may be incorrect'
 		geom = sub.winfo_geometry()
 		if self._re.search(geom) >= 0:
 		    [w, h, x, y] = map(grailutil.conv_integer,
 				       self._re.group(1, 2, 3, 4))
-		min_nonaligned = max(min_nonaligned, x+w)
-		maxwidth = max(maxwidth, x+w)
-		embedheight = max(embedheight, y+h)
+		min_nonaligned = max(min_nonaligned, w)	# x+w?
+		maxwidth = max(maxwidth, w)             # x+w?
+		embedheight = max(embedheight, h)       # y+h?
 	self._embedheight = embedheight
 	self._minwidth = min_nonaligned
 	self._maxwidth = maxwidth
