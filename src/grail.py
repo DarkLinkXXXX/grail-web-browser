@@ -7,7 +7,7 @@
 
 
 # Version string in a form ready for the User-agent HTTP header
-__version__ = "Grail/0.2"		# Final 0.2
+__version__ = "Grail/0.2.1"		# 0.2 plus fixes
 
 
 import sys
@@ -50,7 +50,7 @@ if 0:
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
 
-# Location of logo image for spash screen
+# Location of logo image for splash screen
 BIGLOGO = "biglogo.gif"
 
 # Notice displayed underneath the big logo
@@ -124,6 +124,14 @@ class SplashScreen:
 	self.label.pack()
 	self.message = Label(self.frame, text=NOTICE)
 	self.message.pack()
+	screenwidth = self.root.winfo_screenwidth()
+	screenheight = self.root.winfo_screenheight()
+	reqwidth = self.image.width()
+	reqheight = self.image.height()
+	xpos = (screenwidth - reqwidth) / 2
+	ypos = (screenheight - reqheight) / 2
+	self.root.geometry("+%d+%d" % (xpos, ypos))
+	self.root.title("grail spash")
 	self.root.update_idletasks()
 	self.root.after(10000, self.close)
 
