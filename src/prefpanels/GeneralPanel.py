@@ -4,7 +4,7 @@
 
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.14 $"
+__version__ = "$Revision: 1.15 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -70,7 +70,7 @@ class GeneralPanel(PrefsPanels.Framework):
 
 	from History import VIEW_BY_TITLES, VIEW_BY_URLS
 
-	viewby = StringVar()
+	viewby = StringVar(frame)
 	viewbyframe = Frame(frame)
 	viewbyframe.pack(fill=X, side=TOP, pady='1m')
 

@@ -4,7 +4,7 @@
 
 """Grail cache preferences panel."""
 
-__version__ = "$Revision: 1.8 $"
+__version__ = "$Revision: 1.9 $"
 # $Source: /home/john/Code/grail/src/prefpanels/CachePanel.py,v $
 
 # Base class for the panel:
@@ -25,7 +25,7 @@ class CachePanel(PrefsPanels.Framework):
 	periodic_frame = Frame(verify_frame)
 	l = Label(verify_frame, text="Verify document:")
 
-	radio = StringVar()
+	radio = StringVar(frame)
 	always = Radiobutton(verify_frame,
 			     text="Always",
 			     variable=radio,

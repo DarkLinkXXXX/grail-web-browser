@@ -4,7 +4,7 @@
 
 """Bookmarks and History preferences panel."""
 
-__version__ = '$Revision: 1.5 $'
+__version__ = '$Revision: 1.6 $'
 # $Source: /home/john/Code/grail/src/prefpanels/BookmarksPanel.py,v $
 
 import PrefsPanels
@@ -29,7 +29,7 @@ class BookmarksPanel(PrefsPanels.Framework):
 			      'Collapse Aggressively',
 			      BMPREFGROUP, COLLAPSE_PREF)
 
-	addcurloc = StringVar()
+	addcurloc = StringVar(bmframe)
 	addcur_frame = Frame(bmframe)
 	addcur_frame.pack()
 	label = Label(addcur_frame, text='Add Current Page:', width=25,

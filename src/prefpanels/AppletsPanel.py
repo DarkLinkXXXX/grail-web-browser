@@ -23,7 +23,7 @@ class AppletsPanel(PrefsPanels.Framework):
 	# Create GUI elements in order of preference (the ones created
 	# last disappear first when there's not enough space)
 
-	self.loadvar = StringVar()
+	self.loadvar = StringVar(frame)
 
 	self.loadnone = Radiobutton(frame,
 				    text="Load no applets",

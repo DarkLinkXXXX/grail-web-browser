@@ -4,7 +4,7 @@
 
 """Grail proxy preferences panel."""
 
-__version__ = "$Revision: 1.8 $"
+__version__ = "$Revision: 1.9 $"
 # $Source: /home/john/Code/grail/src/prefpanels/ProxiesPanel.py,v $
 
 # Base class for the dialog:
@@ -32,8 +32,8 @@ class ProxiesPanel(PrefsPanels.Framework):
 
 	#
 	# Establish some booleans to represent the button states
-	self.no_proxy_enabled = IntVar()
-	self.manual_proxy_enabled = IntVar()
+	self.no_proxy_enabled = IntVar(frame)
+	self.manual_proxy_enabled = IntVar(frame)
 
 	#
 	# Create top level widgets
