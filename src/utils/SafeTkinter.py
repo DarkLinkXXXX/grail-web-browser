@@ -1,6 +1,6 @@
 from types import *
 # NB Don't import Tk!
-from Tkinter import CallableTypes, TkVersion, TclVersion, TclError, \
+from Tkinter import TkVersion, TclVersion, TclError, \
      _cnfmerge, \
      Event, Variable, StringVar, IntVar, DoubleVar, BooleanVar, \
      mainloop, getint, getdouble, getboolean, \
@@ -26,6 +26,7 @@ tkinter = _DumbTkinter()
 
 def _castrate(tk):
     """Remove all Tcl commands that can affect the file system."""
+    if not hasattr(tk, 'eval'): return # For Rivet
     def rm(name, tk=tk):
 	tk.call('rename', name, '')
     # Make sure the menu support commands are autoloaded, since we need them
