@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.9 1996/03/29 20:56:38 guido Exp $'
+__version__ = '$Id: table.py,v 2.10 1996/04/01 16:07:00 bwarsaw Exp $'
 
 
 import string
@@ -437,7 +437,6 @@ class ContainedText(AttrElem):
 	self._viewer = Viewer(master=table.container,
 			      context=parentviewer.context,
 			      scrolling=0,
-			      context=parentviewer.context,
 			      stylesheet=parentviewer.stylesheet,
 			      parent=parentviewer)
 	self._fw = self._viewer.frame
