@@ -1,4 +1,4 @@
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
 import Reader
 import string
@@ -52,7 +52,7 @@ class PrintingTextParser(Reader.TextParser):
         return string.joinfields(lines, "\n")
 
 
-def parse(writer, settings, context):
+def parse_text(writer, settings, context):
     return PrintingTextParser(
         writer, settings.strip_blanks, settings.__title)
 
