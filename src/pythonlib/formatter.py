@@ -45,19 +45,23 @@ class AbstractFormatter:
 	self.nospace = 1		# Should leading space be suppressed
 	self.softspace = 0		# Should a space be inserted
 	self.para_end = 1		# Just ended a paragraph
-	self.hard_break = 1
+	self.hard_break = 1		# Have a hard break
+	self.have_label = 0
 
     def end_paragraph(self, blankline):
 	if not self.hard_break:
 	    self.writer.send_line_break()
+	    self.have_label = 0
 	if not self.para_end:
 	    self.writer.send_paragraph((blankline and 1) or 0)
+	    self.have_label = 0
 	self.hard_break = self.nospace = self.para_end = 1
 	self.softspace = 0
 
     def add_line_break(self):
 	if not (self.hard_break or self.para_end):
 	    self.writer.send_line_break()
+	    self.have_label = 0
 	self.hard_break = self.nospace = 1
 	self.softspace = 0
 
@@ -67,15 +71,17 @@ class AbstractFormatter:
 	    self.writer.send_line_break()
 	self.writer.send_hor_rule(abswidth, percentwidth, height, align)
 	self.hard_break = self.nospace = 1
-	self.para_end = self.softspace = 0
+	self.have_label = self.para_end = self.softspace = 0
 
     def add_label_data(self, format, counter):
+	if self.have_label:
+	    self.add_line_break()
 	if type(format) is StringType:
 	    self.writer.send_label_data(self.format_counter(format, counter))
 	else:
 	    self.writer.send_label_data(format)
-	self.nospace = 1
-	self.softspace = self.hard_break = self.para_end = 0
+	self.nospace = self.have_label = self.hard_break = self.para_end = 1
+	self.softspace = 0
 
     def format_counter(self, format, counter):
         label = ''
@@ -143,7 +149,7 @@ class AbstractFormatter:
 	    data = ' ' + data
 	elif prespace:
 	    data = ' ' + data
-	self.hard_break = self.nospace = self.para_end = 0
+	self.hard_break = self.nospace = self.para_end = self.have_label = 0
 	self.softspace = postspace
 	self.writer.send_flowing_data(data)
 
@@ -151,12 +157,13 @@ class AbstractFormatter:
 	if not data: return
 	#  Caller is expected to cause flush_softspace() if needed.
 	self.hard_break = data[-1:] == '\n'
-	self.nospace = self.para_end = self.softspace = 0
+	self.nospace = self.para_end = self.softspace = self.have_label = 0
 	self.writer.send_literal_data(data)
 
     def flush_softspace(self):
 	if self.softspace:
-	    self.hard_break = self.nospace = self.para_end = self.softspace = 0
+	    self.hard_break = self.nospace = self.para_end = \
+			      self.have_label = self.softspace = 0
 	    self.writer.send_flowing_data(' ')
 
     def push_alignment(self, align):
@@ -237,7 +244,7 @@ class AbstractFormatter:
 
     def assert_line_data(self, flag=1):
 	self.nospace = self.hard_break = not flag
-	self.para_end = 0
+	self.para_end = self.have_label = 0
 
 
 class NullWriter:
