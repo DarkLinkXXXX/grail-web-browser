@@ -132,13 +132,15 @@ PAGE_WIDTH = inch_to_pt(8.5) - LEFT_MARGIN - RIGHT_MARGIN
 # horizontal rule spacing, in points
 HR_TOP_MARGIN = 8.0
 HR_BOT_MARGIN = 8.0 
+HR_LINE_WIDTH = 1.0
 
 # distance after a label tag in points
 LABEL_TAB = 8.0
 TAB_STOP = inch_to_pt(0.5)
 
 # page indicator yposition
-PAGE_TAB = -PAGE_HEIGHT - 32
+HEADER_POS = inch_to_pt(0.5)
+FOOTER_POS = -PAGE_HEIGHT - inch_to_pt(0.5)
 
 # I don't support color yet
 F_FULLCOLOR = 0
@@ -357,15 +359,11 @@ class PSStream:
 
     def push_horiz_rule(self):
 	self.close_line()
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self._ofp
-	    print '0 -%f R' % HR_TOP_MARGIN
-	    print '%f HR' % PAGE_WIDTH
-	    print 'CR'
-	    print '0 -%f R' % HR_BOT_MARGIN
-	finally:
-	    sys.stdout = oldstdout
+	self._baseline = HR_TOP_MARGIN
+	self._descender = HR_BOT_MARGIN
+	self._linefp.write('%f HR\n' % PAGE_WIDTH)
+	self.close_line()
+	self._ypos = self._ypos - HR_LINE_WIDTH
 
     def push_margin(self, level):
 	if self._linestr:
@@ -394,7 +392,7 @@ class PSStream:
 
     def push_underline(self, flag):
 	render = flag and 'U' or 'S'
-	if self._render <> render:
+	if self._render <> render and self._linestr:
 	    self.close_string()
 	self._render = render
 
@@ -512,12 +510,18 @@ class PSStream:
 	stdout = sys.stdout
 	try:
 	    sys.stdout = self._ofp
-	    print 'save', 0, PAGE_TAB, "M"
+	    print 'save'
 	    print "FONTV 8 SF"
+	    # print title on top of all but first page
+	    if self._pageno > 1:
+		print 0, HEADER_POS, "M"
+		print "(", self._title, ") S"
+	    # print url and page number on all pages
+	    print 0, FOOTER_POS, "M"
 	    print "(", self._url, ") S"
 	    print "FONTVI 12 SF"
-	    print "(Page", self._pageno, ") EDGE restore"
-	    print "showpage"
+	    print "(Page", self._pageno, ") EDGE"
+	    print "restore showpage"
 	finally:
 	    sys.stdout = stdout
 
@@ -546,6 +550,7 @@ class PSStream:
 	self._ofp.write(self._linefp.getvalue())
 	if self._descender > 0:
 	    self._ofp.write('0 %f R\n' % -self._descender)
+	    self._descender = 0.0
 	# reset cache
 	self._linefp = StringIO.StringIO()
 	self._xpos = 0.0
@@ -588,6 +593,8 @@ class PSWriter(AbstractWriter):
     Exported ivars:
     """
     def __init__(self, ofile, title='', url=''):
+	if not title:
+	    title = url
 	font = PSFont()
 	font.set_font((10, 'FONTV', '', ''))
         self.ps = PSStream(font, ofile, title, url)
@@ -749,7 +756,7 @@ save
 } D
 /NP {xmargin topmargin translate scalfac dup scale } D
 /HDR {1 1 scale} D
-/HR {/l E D gsave currentpoint 0 E M pop l 0 RL  stroke grestore } D
+/HR {/l E D gsave currentpoint 0 E M pop l 0 RL stroke grestore } D
 /SF {E findfont E scalefont setfont } D
 """
 
