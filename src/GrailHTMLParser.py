@@ -17,6 +17,8 @@ import AppletLoader
 import grailutil
 from grailutil import extract_attribute, extract_keyword
 
+URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase']
+
 # Get rid of some methods so we can implement as extensions:
 if hasattr(HTMLParser, 'do_isindex'):
     del HTMLParser.do_isindex
@@ -136,6 +138,7 @@ class GrailHTMLParser(HTMLParser):
 		self.handle_starttag = self.handle_starttag_nohead
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
+	massage_attributes(attrs)
 	method(attrs)
 
     def handle_starttag_nohead(self, tag, method, attrs):
@@ -144,11 +147,13 @@ class GrailHTMLParser(HTMLParser):
 	    self.handle_starttag = self.handle_starttag_nohead_isbad
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
+	massage_attributes(attrs)
 	method(attrs)
 
     def handle_starttag_nohead_isbad(self, tag, method, attrs):
 	if self.suppress_output and tag not in self.object_aware_tags:
 	    return
+	massage_attributes(attrs)
 	method(attrs)
 
     def handle_endtag(self, tag, method):
@@ -159,6 +164,7 @@ class GrailHTMLParser(HTMLParser):
     def handle_data_nohead(self, data):
 	if not self.suppress_output:
 	    HTMLParser.handle_data_nohead(self, data)
+
 
     def anchor_bgn(self, href, name, type, target=""):
 	self.anchor = href
@@ -606,3 +612,11 @@ def conv_align(val):
 	 })
     if conv: return conv
     else: return CENTER
+
+
+def massage_attributes(attrs):
+    # Removes superfluous whitespace in common URL-valued attributes:
+    for k in URL_VALUED_ATTRIBUTES:
+	if attrs.has_key(k) and attrs[k]:
+	    attrs[k] = string.joinfields(string.split(attrs[k]), '')
+
