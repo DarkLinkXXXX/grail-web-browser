@@ -78,7 +78,7 @@ class HTMLParser(SGMLParser):
 	    if not self.savedata:	# deal with cheaters
 		self.savedata = None
 	else:
-	    data = None
+	    data = ''
 	if not self.savedata:
 	    if self.inhead:
 		handler = self.handle_data_head
@@ -87,7 +87,7 @@ class HTMLParser(SGMLParser):
 	    else:
 		handler = self.formatter.add_flowing_data
 	    self.set_data_handler(handler)
-	if not self.nofill and type(data) is StringType:
+	if not self.nofill:
 	    data = string.join(string.split(data))
 	return data
 
