@@ -62,6 +62,7 @@ class PrintSettings:
     orientation = ""
     margins = None
     strip_blanks = 1
+    strict_parsing = 0
 
     def __init__(self, prefs):
 	"""Load settings and register an interest in updates."""
@@ -69,6 +70,7 @@ class PrintSettings:
 	if prefs:
 	    self.update()
 	    prefs.AddGroupCallback(self.GROUP, self.update)
+	    prefs.AddGroupCallback('parsing-html', self.update)
 
     def update(self):
 	"""Load / reload settings from preferences subsystem."""
@@ -84,6 +86,7 @@ class PrintSettings:
 	self.orientation = prefs.Get(self.GROUP, 'orientation')
 	self.strip_blanks = prefs.GetBoolean(
 	    self.GROUP, 'skip-leading-blank-lines')
+	self.strict_parsing = prefs.GetBoolean('parsing-html', 'strict')
 	#
 	margins = prefs.Get(self.GROUP, 'margins')
 	if margins:
@@ -398,7 +401,8 @@ class RealPrintDialog:
 	    p = html2ps.PrintingHTMLParser(
 		w, baseurl=self.baseurl, image_loader=imgloader,
 		greyscale=settings.greyscaleflag,
-		underline_anchors=settings.underflag)
+		underline_anchors=settings.underflag,
+		strict=settings.strict_parsing)
 	    if not settings.footnoteflag:
 		p.add_anchor_transform(html2ps.disallow_anchor_footnotes)
 	    else:
