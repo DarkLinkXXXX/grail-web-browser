@@ -211,14 +211,22 @@ class Viewer(formatter.AbstractWriter):
 
     def create_popup_menu(self):
 	self.popup_menu = menu = Menu(self.text, tearoff=0)
-	menu.add_command(label="Back in frame", command=self.context.go_back)
-	menu.add_command(label="Reload frame",
+	menu.add_command(label="Back in Frame", command=self.context.go_back)
+	menu.add_command(label="Reload Frame",
 			 command=self.context.reload_page)
-	menu.add_command(label="Forward in frame",
+	menu.add_command(label="Forward in Frame",
 			 command=self.context.go_forward)
 	menu.add_separator()
-	menu.add_command(label="History...",
+	menu.add_command(label="Frame History...",
 			 command=self.context.show_history_dialog)
+	menu.add_separator()
+	menu.add_command(label="View Frame Source",
+			 command=self.context.view_source)
+	menu.add_separator()
+	menu.add_command(label="Print Frame...",
+			 command=self.context.print_document)
+	menu.add_command(label="Save Frame As...",
+			 command=self.context.save_document)
 
     def resize_event(self, event):
 	for func in self.resize_interests:
