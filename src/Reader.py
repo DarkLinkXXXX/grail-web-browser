@@ -42,7 +42,7 @@ class ParserWrapper:
 		self.__parser.feed(data)
 	    if self.__closing and not self.__closed:
 		self.__parser.close()
-	    self.__viewer.freeze()
+	    self.__viewer.freeze(1)
 	self.__level = self.__level - 1
 
     def close(self):
