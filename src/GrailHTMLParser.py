@@ -12,6 +12,11 @@ import formatter
 from BaseReader import BaseReader
 
 
+# Get rid of do_isindex method to we can implement it as an extension
+if hasattr(htmllib.HTMLParser, 'do_isindex'):
+    del htmllib.HTMLParser.do_isindex
+
+
 class AppletHTMLParser(htmllib.HTMLParser):
 
     def __init__(self, viewer, reload=0):
