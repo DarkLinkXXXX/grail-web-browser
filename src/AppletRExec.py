@@ -1,14 +1,14 @@
 """Restricted execution for Applets."""
 
 
-from rexec import RExec, RHooks
 import SafeDialog
 import SafeTkinter
-import urlparse
-import urllib
 import os
-import socket
+from rexec import RExec, RHooks
+import tempfile
 import types
+import urllib
+import urlparse
 
 
 def is_url(p):
@@ -53,13 +53,43 @@ class AppletRExec(RExec):
 	path[:] = filter(lambda x: not is_url(x), path)
 
     def make_initial_modules(self):
-	self.make_main()
-	self.make_osname()
+	RExec.make_initial_modules(self)
+	self.make_al()
 	self.make_socket()
+	self.make_sunaudiodev()
 	self.make_types()
+ 
+    def make_al(self):
+	try:
+	    import al
+	except ImportError:
+	    return
+	m = self.copy_except(al, ())
+ 
 
     def make_socket(self):
+	try:
+	    import socket
+	except ImportError:
+	    return
 	m = self.copy_except(socket, ('fromfd',))
+    def make_sunaudiodev(self):
+	try:
+	    import sunaudiodev
+	except ImportError:
+	    return
+	m = self.copy_except(sunaudiodev, ())
 
     def make_types(self):
 	m = self.copy_except(types, ())
+
+    def r_open(self, file, mode='r', buf=-1):
+	if not (type(file) == type('') == type(mode)):
+	    raise TypeError, "open(): file and mode must be strings"
+	if mode in ('r', 'rb'):
+	    return RExec.r_open(self, file, mode, buf)
+	head, tail = os.path.split(file)
+	tempdir = tempfile.gettempdir()
+	if head != tempdir:
+	    raise IOError, "only files in %s are writable" % tempdir
+	return open(os.path.join(tempdir, tail), mode, buf)
