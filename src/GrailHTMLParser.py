@@ -17,9 +17,11 @@ import string
 import tktools
 import formatter
 import Viewer
-from HTMLParser import HTMLParser, HeaderNumber
 import grailutil
+
 from grailutil import extract_attribute, extract_keyword
+from sgml.HTMLParser import HTMLParser, HeaderNumber
+
 
 AS_IS = formatter.AS_IS
 
