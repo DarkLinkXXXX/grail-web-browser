@@ -8,7 +8,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.37 $"
+__version__ = "$Revision: 1.38 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -510,13 +510,22 @@ class SGMLLexer(SGMLLexerBase):
 			else:
 			    terminator = rawdata[k-1]
 			name = charref.group(1)[:-1]
+			postchar = ''
+			if terminator == '\n' and not self._strict:
+			    postchar = '\n'
+			    terminator = ''
 			if name[0] in '0123456789':
 			    #  Character reference:
-			    self.lex_charref(string.atoi(name), terminator)
+			    try:
+				self.lex_charref(string.atoi(name), terminator)
+			    except ValueError:
+				self.lex_data("&#%s%s" % (name, terminator))
 			else:
 			    #  Named character reference:
 			    self.lex_namedcharref(self._normfunc(name),
 						  terminator)
+			if postchar:
+			    self.lex_data(postchar)
 			i = k
 			continue
 		    k = entityref.match(rawdata, i)
