@@ -414,7 +414,6 @@ class PSStream:
 	#  Determine base scaling factor and dimensions:
 	img.set_maxsize(PAGE_WIDTH, PAGE_HEIGHT)
 
-	#align = 'bottom'		# limitation!
 	extra = PROTECT_DESCENDERS_MULTIPLIER * self._font.font_size()
 	if align == 'absmiddle':
 	    above_portion = below_portion = 0.5
@@ -435,10 +434,13 @@ class PSStream:
 
 	height = img.height()
 	width = img.width()
-	if width > PAGE_WIDTH - self._xpos:
-	    self.close_line()
 	above = above_portion * height
 	below = (below_portion * height) - vshift
+
+	#  Check space available:
+	if width > PAGE_WIDTH - self._xpos:
+	    self.close_line()
+	#  Update page availability info:
 	if self._baseline is None:
 	    self._baseline = above + self._yshift[-1][0] + vshift + extra
 	else:
@@ -785,7 +787,7 @@ class PSStream:
 	    self.print_page_postamble()
 	    self._pageno = self._pageno + 1
 	    self.print_page_preamble()
-	    self._ypos = 0.0
+	    self._ypos = -linesz
 	    self._vtab = 0.0
 
     def close_line(self, linestr=None):
