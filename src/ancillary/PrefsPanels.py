@@ -3,7 +3,7 @@
 Loads preference modules in GRAILROOT/prefpanels/*prefs.py and
 ~user/.grail/prefpanels/*prefs.py."""
 
-__version__ = "$Revision: 2.9 $"
+__version__ = "$Revision: 2.10 $"
 # $Source: /home/john/Code/grail/src/ancillary/PrefsPanels.py,v $
 
 import sys, os
@@ -314,7 +314,16 @@ class PrefsDialogsMenu:
 		if not self.dialogs.has_key(nm):
 		    # [module name, class name, directory, instance]
 		    self.dialogs[nm] = [modnm, clnm, moddir, None]
-	for name in self.dialogs.keys():
+	raworder = self.app.prefs.Get('preferences', 'panel-order')
+	order = string.split(raworder)
+	keys = self.dialogs.keys()
+	ordered = []
+	for name in order:
+	    if name in keys:
+		ordered.append(name)
+		keys.remove(name)
+	keys.sort()
+	for name in ordered + keys:
 	    # Enclose self and the name in a teeny leetle func:
 	    def poster(self=self, name=name):
 		self.do_post(name)
