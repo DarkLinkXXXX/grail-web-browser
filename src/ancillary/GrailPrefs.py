@@ -5,7 +5,7 @@ See the Grail htdocs/info/extending/preferences.html for documentation."""
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.13 $"
+__version__ = "$Revision: 2.14 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -204,6 +204,24 @@ class AllPreferences:
 	return self.GetTyped(group, component, "float", use_default)
     def GetBoolean(self, group, component, use_default=0):
 	return self.GetTyped(group, component, "Boolean", use_default)
+
+    def GetGroup(self, group):
+	"""Get a list of ((group,component), value) tuples in group."""
+	got = []
+	prefix = string.lower(group) + '--'
+	l = len(prefix)
+	for it in self.items():
+	    if prefix == it[0][:l]:
+		got.append((split_key(it[0]), it[1]))
+	return got
+
+    def items(self):
+	got = {}
+	for it in self._sys.items():
+	    got[it[0]] = it[1]
+	for it in self._user.items():
+	    got[it[0]] = it[1]
+	return got.items()
 
     # Editing:
 
