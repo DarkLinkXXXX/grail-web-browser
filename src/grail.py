@@ -136,7 +136,11 @@ def main(args=None):
     # $GRAILDIR/user/grailrc.py if it exists.
     if user_init:
         try: import grailrc
-        except ImportError: pass
+        except ImportError, e:
+            # Only catch this is grailrc itself doesn't import,
+            # otherwise propogate.
+            if string.split(e.args[0])[-1] != "grailrc":
+                raise
         except:
             app.exception_dialog('during import of startup file')
 
