@@ -37,7 +37,7 @@ styles--default-type: helvetica
 styles--size: medium
 styles--type: helvetica
 # Size ranges:
-styles--all-sizes: tiny small medium large 
+styles--all-sizes: tiny small medium large huge
 # Font types:
 # (To include another font, add an entry to the types and include a
 #  'styles--<font>-italic' entry designating the char for the italic stroke,
@@ -62,8 +62,11 @@ styles--medium-sizes:
 	14      18   17   14   12   12   12   14  14    14    14 
 	14  14  14   14  14    14    14
 styles--large-sizes:
-	17      25   20   17   14   14   14   17  17    17    18 
+	17      25   20   17   14   14   14   17  17    17    17
 	17  17  17   17  17    17    17
+styles--huge-sizes:
+	25      34   20   25   20   20   20   25  25    25    25
+	25  25  25   25  25    25    25
 #
 # Styles shared among sheets:
 # Style Anchors:
