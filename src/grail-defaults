@@ -42,8 +42,8 @@ history--view-by: titles
 C:
 C: Special fonts:
 C:
-fonts--symbols:		-*-symbol-*-*-*-*-*-*-*-*-*-*-*-*
-fonts--dingbats:	-*-*-*-*-*-*-*-*-*-*-*-*-*-dingbats
+fonts--symbols:		*symbol*
+fonts--dingbats:	*dingbats*
 C:
 C: Parsing preferences:
 C:
