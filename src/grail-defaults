@@ -229,6 +229,8 @@ bookmarks--add-location: file-prepend
 bookmarks--aggressive-collapse: 0
 # add-to-pulldown can be 0=false, 1=true
 bookmarks--include-in-pulldown: 1
+# default-save-format can be `html', `pickle', `pickle-binary'
+bookmarks--default-save-format: html
 #
 # History defaults
 #
@@ -239,6 +241,9 @@ history--view-by: titles
 #
 parsing-html--strict:		0
 parsing-html--honor-colors:	1
+# setting override-builtin-tags to 1 can slow us down a little,
+# so don't by default:
+parsing-html--override-builtin-tags:	0
 parsing-html--format-h1:	""
 parsing-html--format-h2:	"%(h2)d. "
 parsing-html--format-h3:	"%(h2)d.%(h3)d. "
@@ -261,6 +266,8 @@ printing--margins:		72 72 72 72
 printing--paper-size:		letter
 printing--orientation:		portrait
 printing--user-header:
+printing--postscript-level:	1
+printing--paragraph-indent:	0.0
 #
 # Applet preferences
 #
