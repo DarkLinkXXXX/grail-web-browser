@@ -528,7 +528,8 @@ class BookmarksDialog:
 ##			     command=self._controller.merge,
 ##			     underline=0, accelerator="Alt-M")
 ##	self._frame.bind("<Alt-m>", self._controller.merge)
-##	# TBD: why can't I bind <Alt-M> here???!!!  I get a TclError...
+##	# Why can't I bind <Alt-M> here???!!!  I get a TclError...
+## 	# The "M" is short for the "Meta-" modifier.
 ##	self._frame.bind("<Alt-Shift-m>", self._controller.merge)
 	filemenu.add_command(label="Save",
 			     command=self._controller.save,
@@ -773,7 +774,7 @@ class BookmarksDialog:
 
 class DetailsDialog:
     def __init__(self, master, node, controller):
-	self._frame = Toplevel(master, class_='Grail')
+	self._frame = Toplevel(master, class_='BookmarkDetail')
 	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
 	self._frame.title("Bookmark Details")
 	self._frame.iconname("Bookmark Details")
@@ -866,6 +867,8 @@ class DetailsDialog:
 	self.hide()
 
     def show(self):
+	# update_idletasks() fixes weird resize problem on initial exposure
+	self._frame.update_idletasks()
 	self._frame.deiconify()
 	self._frame.tkraise()
 	self._form[0][0].focus_set()
@@ -877,6 +880,7 @@ class DetailsDialog:
 
     def destroy(self):
 	self._frame.destroy()
+	self._controller = self._node = None
 
 
 
