@@ -1,62 +1,62 @@
-C: For format info, see the GrailPrefs.py module docstring.
-C:
-C:
-C: Landmarks (various well-known URLs built into Grail)
-C:
+# For format info, see 'htdocs/info/extending/prefs.html'.
+#
+#
+# Landmarks (various well-known URLs built into Grail)
+#
 landmarks--grail-home-page:	http://monty.cnri.reston.va.us/grail-0.3/
-C: Empty home page, for user to set in their own preferences file:
+# Empty home page, for user to set in their own preferences file:
 landmarks--home-page:
 landmarks--python-home-page:	http://www.python.org/
 landmarks--psa-home-page:	http://www.python.org/psa/
 landmarks--cnri-home-page:	http://www.cnri.reston.va.us/
 landmarks--about-grail-page:	http://monty.cnri.reston.va.us/grail-0.3/about/
-C:
-C: Browser defaults
-C:
+#
+# Browser defaults
+#
 browser--default-height:	40
 browser--default-width:		80
 browser--load-images:		1
 browser--show-logo:		1
 browser--load-initial-page:	1
-C: Empty initial geometry implies manual placement with most window managers:
+# Empty initial geometry implies manual placement with most window managers:
 browser--initial-geometry:
 browser--show-splash:		1
 browser--smooth-scroll-hack:	0
-C:
-C: Presentation defaults
-C:
+#
+# Presentation defaults
+#
 presentation--message-font:
 	-*-helvetica-medium-r-normal-*-*-100-100-*-*-*-*-*
-C:
-C: Viewer stylesheets:
-C:
-C: System will revert to this style if a bad one is selected, and no 
+#
+# Viewer stylesheets:
+#
+# System will revert to this style if a bad one is selected, and no 
 styles--default-group: basic
-C: Identify current one
+# Identify current one
 styles--group: basic
 styles--allgroups: basic small big
-C:
-C: Styles shared among sheets:
-C: Style Anchors:
+#
+# Styles shared among sheets:
+# Style Anchors:
 styles-common--styles-a-foreground: #0000EE
 styles-common--styles-a-underline: 1
-C: Preformatted text:
+# Preformatted text:
 styles-common--styles-pre-wrap: none
-C: Centered text:
+# Centered text:
 styles-common--styles-center-justify: center
-C: History Anchors:
+# History Anchors:
 styles-common--history-ahist-foreground: #551A8B
 styles-common--history-ahist-underline: 1
 styles-common--history-atemp-foreground: #FF0000
 styles-common--history-atemp-underline: 1
-C: Priorities:
+# Priorities:
 styles-common--priorities-ahist: a
 styles-common--priorities-atemp: ahist
-C:
-C: Basic viewer styles:
-C:
-C: Every style should have a 'valid' component, particularly if it has nothing
-C: else - empty styles are invalid.
+#
+# Basic viewer styles:
+#
+# Every style should have a 'valid' component, particularly if it has nothing
+# else - empty styles are invalid.
 styles-basic--valid: 1
 styles-basic--default-font:
 	-*-helvetica-medium-r-normal-*-*-120-*-*-*-*-*-*
@@ -73,14 +73,14 @@ styles-basic--styles-h5_b-font:
 	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
 styles-basic--styles-h6_b-font:
 	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
-C: Normal fonts
+# Normal fonts
 styles-basic--styles-_i-font:
 	-*-helvetica-medium-o-normal-*-*-120-*-*-*-*-*-*
 styles-basic--styles-_b-font:
 	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
 styles-basic--styles-_b_i-font:
 	-*-helvetica-bold-o-normal-*-*-120-*-*-*-*-*-*
-C: Typewriter fonts
+# Typewriter fonts
 styles-basic--styles-_tt-font:
 	-*-courier-medium-r-normal-*-*-120-*-*-*-*-*-*
 styles-basic--styles-_tt_i-font:
@@ -89,9 +89,9 @@ styles-basic--styles-_tt_b-font:
 	-*-courier-bold-r-normal-*-*-120-*-*-*-*-*-*
 styles-basic--styles-_tt_b_i-font:
 	-*-courier-bold-o-normal-*-*-120-*-*-*-*-*-*
-C:
-C: Smallish viewer styles:
-C:
+#
+# Smallish viewer styles:
+#
 styles-small--valid: 1
 styles-small--default-font:
 	-*-helvetica-medium-r-normal-*-*-100-*-*-*-*-*-*
@@ -108,14 +108,14 @@ styles-small--styles-h5_b-font:
 	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
 styles-small--styles-h6_b-font:
 	-*-helvetica-bold-r-normal-*-*-80-*-*-*-*-*-*
-C: Normal fonts
+# Normal fonts
 styles-small--styles-_i-font:
 	-*-helvetica-medium-o-normal-*-*-100-*-*-*-*-*-*
 styles-small--styles-_b-font:
 	-*-helvetica-bold-r-normal-*-*-100-*-*-*-*-*-*
 styles-small--styles-_b_i-font:
 	-*-helvetica-bold-o-normal-*-*-100-*-*-*-*-*-*
-C: Typewriter fonts
+# Typewriter fonts
 styles-small--styles-_tt-font:
 	-*-courier-medium-r-normal-*-*-100-*-*-*-*-*-*
 styles-small--styles-_tt_i-font:
@@ -124,9 +124,9 @@ styles-small--styles-_tt_b-font:
 	-*-courier-bold-r-normal-*-*-100-*-*-*-*-*-*
 styles-small--styles-_tt_b_i-font:
 	-*-courier-bold-o-normal-*-*-100-*-*-*-*-*-*
-C:
-C: Bigish viewer styles:
-C:
+#
+# Bigish viewer styles:
+#
 styles-big--valid: 1
 styles-big--default-font:
 	-*-helvetica-medium-r-normal-*-*-140-*-*-*-*-*-*
@@ -143,14 +143,14 @@ styles-big--styles-h5_b-font:
 	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
 styles-big--styles-h6_b-font:
 	-*-helvetica-bold-r-normal-*-*-120-*-*-*-*-*-*
-C: Normal fonts
+# Normal fonts
 styles-big--styles-_i-font:
 	-*-helvetica-medium-o-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-_b-font:
 	-*-helvetica-bold-r-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-_b_i-font:
 	-*-helvetica-bold-o-normal-*-*-140-*-*-*-*-*-*
-C: Typewriter fonts
+# Typewriter fonts
 styles-big--styles-_tt-font:
 	-*-courier-medium-r-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-_tt_i-font:
@@ -159,27 +159,27 @@ styles-big--styles-_tt_b-font:
 	-*-courier-bold-r-normal-*-*-140-*-*-*-*-*-*
 styles-big--styles-_tt_b_i-font:
 	-*-courier-bold-o-normal-*-*-140-*-*-*-*-*-*
-C: 
-C:
-C: Bookmarks defaults
-C:
-C: add-location can be `file-append', `file-prepend', `as-child-or-sib'
+# 
+#
+# Bookmarks defaults
+#
+# add-location can be `file-append', `file-prepend', `as-child-or-sib'
 bookmarks--add-location: file-prepend
-C: aggressive-collapse can be 0=false, 1=true
+# aggressive-collapse can be 0=false, 1=true
 bookmarks--aggressive-collapse: 0
-C:
-C: History defaults
-C:
-C: view-by can be 'titles', 'urls'
+#
+# History defaults
+#
+# view-by can be 'titles', 'urls'
 history--view-by: titles
-C:
-C: Special fonts:
-C:
+#
+# Special fonts:
+#
 fonts--symbols:		*symbol*
 fonts--dingbats:	*dingbats*
-C:
-C: Parsing preferences:
-C:
+#
+# Parsing preferences:
+#
 parsing-html--strict:		0
 parsing-html--honor-colors:	1
 parsing-html--autonumber-headers: 0
@@ -189,30 +189,30 @@ parsing-html--format-h3:	"%(h2)d.%(h3)d. "
 parsing-html--format-h4:	"%(h2)d.%(h3)d.%(h4)d. "
 parsing-html--format-h5:	"%(h2)d.%(h3)d.%(h4)d.%(h5)d. "
 parsing-html--format-h6:	"%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d. "
-C:
-C: Printing preferences:
-C:
+#
+# Printing preferences:
+#
 printing--images:		1
 printing--greyscale:		1
 printing--to-file:		0
 printing--command:		lpr
 printing--underline-anchors:	1
 printing--footnote-anchors:	1
-C:
-C: Applet preferences
-C:
+#
+# Applet preferences
+#
 applets--groups:
 applets--load: all
-C:
-C: Disk Cache preferences:
-C: (directory is relative to $GRAILDIR unless absolute)
-C:
+#
+# Disk Cache preferences:
+# (directory is relative to $GRAILDIR unless absolute)
+#
 disk-cache--size: 1024
 disk-cache--directory: cache
 disk-cache--freshness-test-type: periodic
 disk-cache--freshness-test-period: 4.0
 disk-cache--checkpoint: 1
-C:                                             
-C: Preference panel preferences                
-C:                                             
+#                                             
+# Preference panel preferences                
+#                                             
 preferences--panel-order: General Style Cache Applets
