@@ -88,7 +88,7 @@ def main():
     browser = Browser(app.root, app, geometry=geometry)
     if url:
 	app.home = url
-    browser.load(app.home)
+    	browser.load(app.home)
     SafeTkinter._castrate(app.root.tk)
     tktools.install_keybindings(app.root)
     # Make everybody who's still using urllib.urlopen go through the cache
