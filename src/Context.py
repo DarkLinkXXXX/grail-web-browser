@@ -163,7 +163,6 @@ class Context:
 	    print "ERROR:", msg
 
     def set_title(self, title):
-	self._title = title
 	self.app.global_history.remember_url(self._url, title)
 	self.browser.set_title(title)
 	if self.page:
@@ -317,4 +316,4 @@ class Context:
 	return self._url
 
     def get_title(self):
-	return self._title
+	return self.page and self.page.title() or self.get_url()
