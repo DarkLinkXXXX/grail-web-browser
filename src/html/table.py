@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.46 1996/06/11 17:28:57 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.47 1996/08/02 16:30:52 bwarsaw Exp $'
 
 import string
 import regex
@@ -897,7 +897,17 @@ class ContainedText(AttrElem):
 	self._x = self._y = 0
 	fw = self._fw
 	tw = self._tw
-	# set the padding before grabbing the width
+	# Set the padding before grabbing the width, but it could be
+	# denoted as a percentage of the viewer width
+	if type(padding) == StringType:
+	    try:
+		# divide by 200 since padding is a percentage and we
+		# want to put equal amounts of pad on both sides of
+		# the picture.
+		padding = int(self._table.parentviewer.rule_width() *
+			      string.atoi(padding[:-1]) / 200)
+	    except ValueError:
+		padding = 0
 	tw['padx'] = padding
 	# TBD: according to the W3C table spec, minwidth should really
 	# be max(min_left + min_right, min_nonaligned).  Also note
