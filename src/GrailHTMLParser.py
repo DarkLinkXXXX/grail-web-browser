@@ -189,12 +189,23 @@ class GrailHTMLParser(HTMLParser):
 	self.anchor = self.target = None
 
     def do_hr(self, attrs):
-	HTMLParser.do_hr(self, attrs)
-	if attrs.has_key('noshade') and self.viewer.rules:
-	    rule = self.viewer.rules[-1]
-	    #  This seems to be a resaonable way to get contrasting colors.
-	    rule.config(relief = FLAT,
-			background = self.viewer.text['foreground'])
+	if attrs.has_key('src') and self.app.load_images:
+	    align = extract_keyword('align', attrs,
+		    conv=lambda s,gu=grailutil: gu.conv_enumeration(
+			gu.conv_normstring(s), ['left', 'center', 'right']))
+	    self.implied_end_p()
+	    self.formatter.push_alignment(align)
+	    self.do_img({'border': '0',
+			 'src': attrs['src']})
+	    self.formatter.pop_alignment()
+	    self.formatter.add_line_break()
+	else:
+	    HTMLParser.do_hr(self, attrs)
+	    if attrs.has_key('noshade') and self.viewer.rules:
+		rule = self.viewer.rules[-1]
+		#  This seems to be a resaonable way to get contrasting colors.
+		rule.config(relief = FLAT,
+			    background = self.viewer.text['foreground'])
 
     # Duplicated from htmllib.py because we want to have the border attribute
     def do_img(self, attrs):
@@ -515,7 +526,11 @@ class GrailHTMLParser(HTMLParser):
 
     def do_li(self, attrs):
 	if attrs.has_key('dingbat'):
-	    self.list_handle_dingbat(attrs)
+	    if self.list_stack:
+		if self.list_stack[-1][0] == 'ul':
+		    self.list_handle_dingbat(attrs)
+	    else:
+		self.list_handle_dingbat(attrs)
 	HTMLParser.do_li(self, attrs)
 
     def list_handle_dingbat(self, attrs):
@@ -526,13 +541,18 @@ class GrailHTMLParser(HTMLParser):
     # Override make_format():
     # This allows disc/circle/square to be mapped to dingbats.
 
-    def make_format(self, format, default='disc'):
+    def make_format(self, format, default='disc', listtype=None):
 	fmt = format or default
 	if fmt in ('disc', 'circle', 'square'):
-	    img = self.load_dingbat(fmt)
-	    return img or HTMLParser.make_format(self, format, default)
+	    if listtype == 'ul':
+		img = self.load_dingbat(fmt)
+		return img or HTMLParser.make_format(self, format, default,
+						     listtype = listtype)
+	    else:
+		return '1.'
 	else:
-	    return HTMLParser.make_format(self, format, default)
+	    return HTMLParser.make_format(self, format, default,
+					  listtype = listtype)
 
     # Handle HTML extensions
 
