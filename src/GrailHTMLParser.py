@@ -51,11 +51,12 @@ class GrailHTMLParser(HTMLParser):
 	self.current_map = None
 	self.target = None
 	self.formatter_stack = []
-	self.push_formatter(formatter.AbstractFormatter(self.viewer))
+	fmt = formatter.AbstractFormatter(self.viewer)
+	HTMLParser.__init__(self, fmt)
+	self.push_formatter(fmt)
 	if not _inited:
 	    _inited = 1
 	    init_module(self.app.prefs)
-	HTMLParser.__init__(self, self.get_formatter())
 	self._ids = {}
 	# Hackery so reload status can be reset when all applets are loaded
 	import AppletLoader
@@ -63,7 +64,7 @@ class GrailHTMLParser(HTMLParser):
 	if self.reload1:
 	    self.reload1.attach(self)
 	if self.app.prefs.GetBoolean('parsing-html', 'strict'):
-	    self.restrict(0)
+	    self.sgml_parser.restrict(0)
 	# Information from <META ... CONTENT="..."> is collected here.
 	# Entries are KEY --> [(NAME, HTTP-EQUIV, CONTENT), ...], where
 	# KEY is (NAME or HTTP-EQUIV).
@@ -328,13 +329,13 @@ class GrailHTMLParser(HTMLParser):
 	    entries = self._metadata[key] = [item]
 	if key == "grail:parse-mode":
 	    content = grailutil.conv_normstring(content)
-	    strict = self.strict_p()
+	    strict = self.sgml_parser.strict_p()
 	    if content == "strict" and not strict:
-		self.restrict(0)
+		self.sgml_parser.restrict(0)
 		self.context.message("Entered strict parsing mode on"
 				     " document request.")
 	    elif content == "forgiving" and strict:
-		self.restrict(1)
+		self.sgml_parser.restrict(1)
 		self.context.message("Exited strict parsing mode on"
 				     " document request.")
 
@@ -346,7 +347,10 @@ class GrailHTMLParser(HTMLParser):
 	href = name = type = target = title = ''
 	id = None
 	has_key = attrs.has_key
-	if has_key('href'): href = attrs['href']
+	if has_key('urn') and attrs['urn'][:4] == 'hdl:':
+	    href = attrs['urn']
+	elif has_key('href'):
+	    href = attrs['href']
 	name = extract_keyword('name', attrs,
 			       conv=grailutil.conv_normstring)
 	if has_key('type'): type = string.lower(attrs['type'] or '')
