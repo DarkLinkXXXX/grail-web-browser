@@ -18,7 +18,7 @@ exception.
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.1 $"
+__version__ = "$Revision: 2.2 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -29,7 +29,8 @@ if __name__ == "__main__":
     sys.path.insert(0, '../utils')
 import grailutil
 
-PREFSFILENAME = 'grail-preferences'
+USERPREFSFILENAME = 'grail-preferences'
+SYSPREFSFILENAME = 'grail-defaults'
 
 verbose = 0
 
@@ -50,6 +51,12 @@ class Preferences:
 	    self._last_mtime = os.stat(filename)[9]
 	    self._db = rfc822.Message(f)
 	    self._new = {}
+	    # Check for content misplaced after first blank line:
+	    residue = string.strip(f.read())
+	    if residue:
+		sys.stderr.write("Ignoring preferences following blank line"
+				 + " in %s\n" % f.name)
+	    f.close()
 	else:
 	    self.file_mtime = 0
 	    self._db = None
@@ -63,9 +70,12 @@ class Preferences:
 	    return self._new[key]
 	else:
 	    try:
-		return self._db[key]
+		if not self._db:
+		    raise KeyError
+		else:
+		    return self._db[key]
 	    except KeyError:
-		raise KeyError, (group, pref)
+		raise KeyError, "Preference %s not found" % ((group, pref),)
 
     def Set(self, group, pref, val):
 	"""Set GROUP PREFERENCE to VALUE.  Return true iff successful."""
@@ -130,9 +140,9 @@ class AllPreferences:
     """Maintain the combination of user and system preferences."""
     def __init__(self):
 	self._user = Preferences(os.path.join(grailutil.getgraildir(),
-					      PREFSFILENAME))
+					      USERPREFSFILENAME))
 	from __main__ import grail_root
-	self._sys = Preferences(os.path.join(grail_root, PREFSFILENAME), 1)
+	self._sys = Preferences(os.path.join(grail_root, SYSPREFSFILENAME), 1)
 
     # Getting utensils.
 
@@ -142,7 +152,7 @@ class AllPreferences:
 	Or raise KeyError if not found."""
 	try:
 	    return self._user.Get(group, pref)
-	except:
+	except KeyError:
 	    return self._sys.Get(group, pref)
 
     def _GetTyped(self, group, pref, cvrtr, type_name):
@@ -165,6 +175,7 @@ class AllPreferences:
 	if got not in (0, 1):
 	    raise TypeError, ('%s not %s: %s'
 			      % ((group, pref), "Boolean", `val`))
+	return got
 
     # Editing utensils.
 
@@ -195,28 +206,31 @@ def test():
     
     env = sys.modules[__name__].__dict__
 
-    
     # Reading the db:
     exercise("prefs = AllPreferences()", env, "Suck in the prefs")
+
     # Getting values:
-    exercise("origin = prefs.Get('grail', 'origin')", env,
+    exercise("origin = prefs.Get('landmarks', 'grail-home-page')", env,
 	     "Get an existing plain pref.")
-    exercise("height = prefs.GetInt('grail', 'default_height')", env,
+    exercise("height = prefs.GetInt('browser', 'default-height')", env,
 	     "Get an existing int pref.")
+    exercise("if prefs.GetBoolean('browser', 'load-images') != 1:"
+	     + "raise SystemError, 'browser:load-images Boolean should be 1'",
+	     env, "Get an existing Boolean pref.")
     # A few value errors:
     exercise("x = prefs.Get('grail', 'Never:no:way:no:how!')", env,
 	     "Ref to a non-existent pref.", KeyError)
-    exercise("x = prefs.GetInt('grail', 'default_home')", env,
+    exercise("x = prefs.GetInt('landmarks', 'grail-home-page')", env,
 	     "Typed ref to incorrect type.", TypeError)
     # Editing:
-    exercise("prefs.Set('grail', 'default_height', height + 1)", env,
+    exercise("prefs.Set('browser', 'default-height', height + 1)", env,
 	     "Set a simple value")
-    exercise("if prefs.GetInt('grail', 'default_height') != height + 1:"
+    exercise("if prefs.GetInt('browser', 'default-height') != height + 1:"
 	     + "raise SystemError, 'Set of new height failed'", env,
 	     "Get the new value.")
     # Saving: 
     exercise("if not prefs.Save(): raise SystemError", env,
-	     "Save with new values (default_height).")
+	     "Save with new values (default-height).")
     
 
     print "GrailPrefs tests passed."
