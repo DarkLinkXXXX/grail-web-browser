@@ -63,12 +63,23 @@ class GrailHTMLParser(HTMLParser):
 	    self.reload1.attach(self)
 	if self.app.prefs.GetBoolean('parsing-html', 'strict'):
 	    self.restrict(0)
+	# Information from <META ... CONTENT="..."> is collected here.
+	# Entries are KEY --> [(NAME, HTTP-EQUIV, CONTENT), ...], where
+	# KEY is (NAME or HTTP-EQUIV).
+	self._metadata = {}
 
     def close(self):
 	HTMLParser.close(self)
 	if self.reload1:
 	    self.reload1.detach(self)
 	self.reload1 = None
+	refresh = None
+	if self._metadata.has_key("refresh"):
+	    name, http_equiv, refresh = self._metadata["refresh"][0]
+	elif self.context.get_headers().has_key("refresh"):
+	    refresh = self.context.get_headers()["refresh"]
+	if refresh:
+	    DynamicReloader(self.context, refresh)
 
     # Manage the object_stack
 
@@ -326,6 +337,26 @@ class GrailHTMLParser(HTMLParser):
 	if attrs.has_key('target'):
 	    target = attrs['target']
 	self.context.set_baseurl(base, target)
+
+    # Override tag: <META ...>
+
+    def do_meta(self, attrs):
+	# CONTENT='...' is required;
+	# at least one of HTTP-EQUIV=xyz or NAME=xyz is required.
+	if not attrs.has_key("content") \
+	   or not (attrs.has_key("http-equiv") or attrs.has_key("name")):
+	    self.badhtml = 1
+	    return
+	name = extract_keyword("name", attrs, conv=grailutil.conv_normstring)
+	http_equiv = extract_keyword("http-equiv", attrs,
+				     conv=grailutil.conv_normstring)
+	key = name or http_equiv
+	content = extract_keyword("content", attrs, conv=string.strip)
+	item = (name, http_equiv, content)
+	if self._metadata.has_key(key):
+	    self._metadata[key].append(item)
+	else:
+	    entries = self._metadata[key] = [item]
 
     # Duplicated from htmllib.py because we want to have the target attribute
     def start_a(self, attrs):
@@ -736,6 +767,53 @@ class IconicEntityLinker:
 	self.__here = None
 	self.__viewer.leave_message()
 	self.__viewer.remove_temp_tag()
+
+
+class DynamicReloader:
+    def __init__(self, context, spec):
+	self.__context = context
+	self.__starting_url = context.get_baseurl()
+	seconds, url = self.parse(spec)
+	if seconds is None:		# parse failed
+	    return
+	self.__target_url = url
+	ms = int(seconds * 1000)	# convert to milliseconds
+	if ms:
+	    context.viewer.master.after(ms, self.load)
+	else:
+	    self.load()
+
+    def load(self):
+	context = self.__context
+	if context.get_baseurl() == self.__starting_url \
+	   and context.viewer.text:
+	    same_page = (self.__starting_url == self.__target_url)
+	    if same_page:
+		context.load_from_history(context.history.peek(0), reload=1)
+	    else:
+		context.load(self.__target_url)
+
+    def parse(self, spec):
+	if ";" in spec:
+	    pos = string.find(spec, ";")
+	    spec = "%s %s" % (spec[:pos], spec[pos + 1:])
+	specitems = string.split(spec)
+	if not specitems:
+	    return None, None
+	try:
+	    seconds = string.atof(specitems[0])
+	except ValueError:
+	    return None, None
+	if seconds < 0:
+	    return None, None
+	if len(specitems) > 1:
+	    specurl = specitems[1]
+	    if len(specurl) >= 4 and string.lower(specurl[:4]) == "url=":
+		specurl = specurl[4:]
+	    url = self.__context.get_baseurl(specurl)
+	else:
+	    url = self.__context.get_baseurl()
+	return seconds, url
 
 
 def conv_align(val):
