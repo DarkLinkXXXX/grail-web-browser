@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.38 1996/04/23 19:28:27 fdrake Exp $'
+__version__ = '$Id: table.py,v 2.39 1996/04/23 20:06:41 bwarsaw Exp $'
 
 
 import string
@@ -128,6 +128,9 @@ class TableSubParser:
 	if ti:
 	    # finish any previously opened cell
 	    self._finish_cell(parser)
+	    # create a new object to hold the attributes
+	    if not ti.lastbody or not ti.lastbody.trows:
+		self.do_tr(parser, {})
 	    # create a new formatter for the cell, made from a new subviewer
 	    if header:
 		cell = THCell(ti, parser, attrs)
@@ -141,9 +144,6 @@ class TableSubParser:
 	    #parser.formatter.push_alignment(cell.attribute('align',
 	    #					   conv=string.lower))
 	    cell.init_style()
-	    # create a new object to hold the attributes
-	    if not ti.lastbody or not ti.lastbody.trows:
-		self.do_tr(parser, {})
 	    ti.lastbody.trows[-1].cells.append(cell)
 
     def _finish_cell(self, parser):
