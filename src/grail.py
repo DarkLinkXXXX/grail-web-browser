@@ -54,6 +54,7 @@ def main():
 	url = args[0]
     else:
 	url = None
+    global app
     app = Application()
     app.load_images = load_images
     browser = Browser(app.root, app)
