@@ -128,8 +128,13 @@ class CacheItem:
 	    self.meta = (errcode, errmsg, headers)
 	    self.reloading = 1
 	else:
-	    print "an if-mod-since returned %s, %s" % (errcode, errmsg)
-	    # don't know what to do here
+	    # there may be cases when we get an error response that
+	    # doesn't require us to delete the object (a server busy
+	    # response?). those are *not* handled.
+	    self.api = api
+	    self.init_new_load(self.stage)
+	    self.meta = (errcode, errmsg, headers)
+	    self.reloading = 1
 
     def pollmeta(self):
 	if self.stage == META:
@@ -185,7 +190,7 @@ class CacheItem:
 	if self.cache:
 	    self.cache.deactivate(self.key)
 	    if not (self.meta and self.meta[0] == 200):
-		self.cache.delete(self)
+		self.cache.delete(self.key)
 	self.stage = DONE
 	api = self.api
 	self.api = None
