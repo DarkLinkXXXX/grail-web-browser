@@ -42,11 +42,13 @@ styles--all-sizes: tiny small medium large huge
 # (To include another font, add an entry to all-families and include a
 #  'styles--<font>-italic' entry designating the char for the italic stroke,
 #  eg "i" for times and "o" for helvetica and courier.)
-styles--all-families: helvetica times courier
+styles--all-families: helvetica lucida lucidabright times courier
 # Font style oblique designator, according to font family:
 styles--times-italic: i
 styles--helvetica-italic: o
 styles--courier-italic: o
+styles--lucida-italic: i
+styles--lucidabright-italic: i
 # Font size names which will be associated with tags in the text widget:
 styles--size-names:
 	default h1_b h2_b h3_b h4_b h5_b h6_b
