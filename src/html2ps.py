@@ -1196,7 +1196,7 @@ class PrintingHTMLParser(HTMLParser):
     _inited = 0
 
     def __init__(self, writer, verbose=0, baseurl=None, image_loader=None,
-		 greyscale=1, underline_anchors=1):
+		 greyscale=1, underline_anchors=1, strict=0):
 	if not self._inited:
 	    for k, v in self.fontdingbats.items():
 		self.dingbats[(k, 'grey')] = v
@@ -1209,6 +1209,8 @@ class PrintingHTMLParser(HTMLParser):
 	    PrintingHTMLParser._inited = 1
 	from formatter import AbstractFormatter
 	HTMLParser.__init__(self, AbstractFormatter(writer), verbose)
+	if strict:
+	    self.restrict(0)
 	self._baseurl = baseurl
 	self._greyscale = greyscale
 	self._image_loader = image_loader
