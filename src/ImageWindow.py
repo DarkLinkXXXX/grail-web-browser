@@ -60,7 +60,7 @@ class ImageWindow(Frame):
 		self.label.bind('<Motion>', self.motion)
 		self.label.bind('<ButtonRelease-1>', self.follow)
 		self.label.bind('<ButtonRelease-2>', self.follow_new)
-	self.label.bind("<Button-3>", viewer.button_3_event)
+	self.label.bind("<Button-3>", self.button_3_event)
 	self.image = self.context.get_async_image(self.src, reload)
 	if self.image:
 	    self.label['image'] = self.image
@@ -124,3 +124,10 @@ class ImageWindow(Frame):
 	x = self.winfo_x()
 	y = self.winfo_y()
 	return x+w, x+w, y+h
+
+    def button_3_event(self, event):
+	url = (not self.ismap) and self.url
+	imgurl = self.src
+	if imgurl:
+	    imgurl = self.context.get_baseurl(imgurl)
+	self.viewer.open_popup_menu(event, link_url=url, image_url=imgurl)

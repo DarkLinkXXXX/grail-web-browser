@@ -374,28 +374,17 @@ class Viewer(formatter.AbstractWriter):
 	self.current_index = self.text.index(CURRENT) # For anchor_click_new
 
     def button_3_event(self, event):
-	if not self.popup_menu:
-	    self.create_popup_menu()
-	self.popup_menu.tk_popup(event.x_root, event.y_root)
+	url = self.find_tag_url()
+	if url:
+	    url, target = self.split_target(self.context.get_baseurl(url))
+	self.open_popup_menu(event, link_url=url)
 
-    def create_popup_menu(self):
-	self.popup_menu = menu = Menu(self.text, tearoff=0)
-	menu.add_command(label="Back in Frame", command=self.context.go_back)
-	menu.add_command(label="Reload Frame",
-			 command=self.context.reload_page)
-	menu.add_command(label="Forward in Frame",
-			 command=self.context.go_forward)
-	menu.add_separator()
-	menu.add_command(label="Frame History...",
-			 command=self.context.show_history_dialog)
-	menu.add_separator()
-	menu.add_command(label="View Frame Source",
-			 command=self.context.view_source)
-	menu.add_separator()
-	menu.add_command(label="Print Frame...",
-			 command=self.context.print_document)
-	menu.add_command(label="Save Frame As...",
-			 command=self.context.save_document)
+    def open_popup_menu(self, event, link_url=None, image_url=None):
+	if not self.popup_menu:
+	    self.popup_menu = ViewerMenu(self.text, self)
+	self.popup_menu.set_link_url(link_url)
+	self.popup_menu.set_image_url(image_url)
+	self.popup_menu.tk_popup(event.x_root, event.y_root)
 
     def resize_event(self, event=None):
 	for func in self.resize_interests:
@@ -765,6 +754,136 @@ class Viewer(formatter.AbstractWriter):
 
     def find_parentviewer(self):
 	return self.parent
+
+
+class ViewerMenu:
+    __have_link = 0
+    __have_image = 0
+    __link_url = None
+    __image_url = None
+
+    def __init__(self, master, viewer):
+	self.__menu = menu = Menu(master, tearoff=0)
+	self.__context = context = viewer.context
+	menu.add_command(label="Back in Frame", command=context.go_back)
+	menu.add_command(label="Reload Frame",
+			 command=context.reload_page)
+	menu.add_command(label="Forward in Frame",
+			 command=context.go_forward)
+	menu.add_separator()
+	menu.add_command(label="Frame History...",
+			 command=context.show_history_dialog)
+	menu.add_separator()
+	menu.add_command(label="View Frame Source",
+			 command=context.view_source)
+	self.__source_item = menu.index(END)
+	menu.add_separator()
+	menu.add_command(label="Print Frame...",
+			 command=context.print_document)
+	menu.add_command(label="Save Frame As...",
+			 command=context.save_document)
+	self.__last_standard_index = menu.index(END)
+
+    def tk_popup(self, x, y):
+	need_link = self.__link_url and 1 or 0
+	need_image = self.__image_url and 1 or 0
+	if (need_link != self.__have_link
+	    or need_image != self.__have_image):
+	    if self.__have_link or self.__have_image:
+		self.__menu.delete(self.__last_standard_index + 1, END)
+		self.__have_link = self.__have_image = 0
+	    if need_link:
+		self.__add_link_items()
+	    if need_image:
+		self.__add_image_items()
+	self.__menu.tk_popup(x, y)
+
+    def set_link_url(self, url):
+	self.__link_url = url or None
+
+    def set_image_url(self, url):
+	self.__image_url = url or None
+
+    def __add_image_items(self):
+	self.__have_image = 1
+	self.__menu.add_separator()
+	self.__menu.add_command(label="Open Image",
+				command=self.__open_image)
+	self.__menu.add_command(label="Save Image As...",
+				command=self.__save_image)
+
+    def __add_link_items(self):
+	self.__have_link = 1
+	self.__menu.add_separator()
+	self.__menu.add_command(label="Bookmark Link",
+				command=self.__bkmark_link)
+	self.__menu.add_command(label="Print Link...",
+				command=self.__print_link)
+	self.__menu.add_command(label="Save Link As...",
+				command=self.__save_link)
+
+    def __bkmark_link(self, event=None):
+	try:
+	    bmarks = self.__context.browser.app.bookmarks_controller
+	except AttributeError:
+	    import Bookmarks
+	    bmarks = Bookmarks.BookmarksController(self.__context.browser.app)
+	    self.__context.browser.app.bookmarks_controller = bmarks
+	context = self.__copy_context()
+	browser = context.browser
+	bmarks.initialize()
+	old_browser = bmarks.get_browser()
+	try:
+	    bmarks.set_browser(browser)
+	    bmarks.add_current()
+	    if not bmarks.dialog_is_visible_p():
+		bmarks.save()
+	finally:
+	    bmarks.set_browser(old_browser)
+	    browser.remove()
+
+    def __print_link(self, event=None):
+	context = self.__copy_context()
+	context.print_document()
+	context.browser.remove()
+
+    def __save_link(self, event=None):
+	context = self.__copy_context()
+	context.save_document()
+	context.browser.remove()
+
+    def __open_image(self, event=None):
+	self.__context.follow(self.__image_url)
+
+    def __save_image(self, event=None):
+	context = self.__copy_context(self.__image_url)
+	context.save_document()
+	context.browser.remove()
+
+    class DummyBrowser:
+	context = None
+
+	def __init__(self, app, root):
+	    self.app = app
+	    self.root = root
+	    # this is the really evil part:
+	    app.browsers.append(self)
+
+	def remove(self):
+	    # remove faked out connections to other objects
+	    self.app.browsers.remove(self)
+	    if self.context:
+		context = self.context
+		context.browser = context.root = None
+	    self.context = self.app = self.root = None
+
+    def __copy_context(self, url=None):
+	# copy context and set to link target
+	br = self.DummyBrowser(self.__context.app, self.__context.root)
+	context = Context(self.__context.viewer, br)
+	context._url = context._baseurl = url or self.__link_url
+	br.context = context
+	return context
 
 
 def test():
