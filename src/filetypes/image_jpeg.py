@@ -28,7 +28,8 @@ if hasattr(os, 'popen') and _FILTERPATH:
 	    self.viewer.new_font((AS_IS, AS_IS, AS_IS, 1))
 	    self.tfname = tempfile.mktemp()
 	    self.tf = os.popen(_FILTER + '>' + self.tfname, 'wb')
-	    self.label = Label(self.viewer.text, text=self.tfname)
+	    self.label = Label(self.viewer.text, text=self.tfname,
+			       highlightthickness=0, borderwidth=0)
 	    self.viewer.add_subwindow(self.label)
     
 	def feed(self, data):
