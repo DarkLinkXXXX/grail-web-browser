@@ -4,7 +4,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.30 $"
+__version__ = "$Revision: 1.31 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -68,9 +68,12 @@ class SGMLLexerBase:
     def feed(self, input_data):
 	"""Feed some data to the parser.
 
+	input_data
+	    Input data to be fed to the scanner.  An empty string
+	    indicates end-of-input.
+
 	Call this as often as you want, with as little or as much text
-	as you want (may include '\n').  Pass empty string to indicate
-	EOF.
+	as you want (may include '\n').
 	"""
 	pass
 
@@ -90,8 +93,11 @@ class SGMLLexerBase:
     def normalize(self, norm):
 	"""Control normalization of name tokens.
 
+	norm
+	    Boolean indicating new setting of case normalization.
+
 	If `norm' is true, names tokens will be converted to lower
-	case before being based to the lex_*() interfaces described
+	case before being based to the `lex_*()' interfaces described
 	below.  Otherwise, names will be reported in the case in which
 	they are found in the input stream.  Tokens which are affected
 	include tag names, attribute names, and named character
@@ -124,19 +130,28 @@ class SGMLLexerBase:
     def lex_starttag(self, tagname, attributes):
 	"""Process a start tag and attributes.
 
-	The `tagname' is the name of the tag encountered, and `attributes'
-	is a dictionary of the attribute/value pairs found in the document
-	source.  The tagname and attribute names are normalized to lower
-	case; all attribute values are strings.  Attribute values coded as
-	string literals using either LIT or LITA quoting will have the
-	surrounding quotation marks removed.  Attributes with no value
-	specified in the document source will have a value of None in the
+	tagname
+	    General identifier of the start tag encountered.
+
+	attributes
+	    Dictionary of the attribute/value pairs found in the document
+	    source.
+
+	The general identifier and attribute names are normalized to
+	lower case if only if normalization is enabled; all attribute
+	values are strings.  Attribute values coded as string literals
+	using either LIT or LITA quoting will have the surrounding
+	quotation marks removed.  Attributes with no value specified
+	in the document source will have a value of `None' in the
 	dictionary passed to this method.
 	"""
 	pass
 
     def lex_endtag(self, tagname):
 	"""Process an end tag.
+
+	tagname
+	    General identifier of the end tag found.
 	"""
 	pass
 
@@ -172,37 +187,43 @@ class SGMLLexerBase:
 	"""
 	pass
 
-    def lex_declaration(self, declaration_text):
+    def lex_declaration(self, declaration_info):
 	"""Process a markup declaration other than a comment.
 
-	`declaration_info' will be a list of strings.  The first will
-	be the name of the declaration (doctype, etc.), followed by each
-	additional name, nametoken, quoted literal, or comment in the
-	declaration.  Literals and comments will include the quotation
-	marks or comment delimiters to allow the client to process each
-	correctly.  Normalization of names and nametokens will be handled
-	as for general identifiers.
+	declaration_info
+	    List of strings.  The first string will be the name of the
+	    declaration (doctype, etc.), followed by each additional
+	    name, nametoken, quoted literal, or comment in the
+	    declaration.
+
+	Literals and comments will include the quotation marks or
+	comment delimiters to allow the client to process each
+	correctly.  Normalization of names and nametokens will be
+	handled as for general identifiers.
 	"""
 	pass
 
     def lex_error(self, error_string):
 	"""Process an error packet.
 
-	`error_string' is a string which describes a lexical error in
-	the input stream.  This may be affected by the current
-	scanning mode.  The next callback other than lex_limitation()
-	or lex_error() will show symptoms described by the error
-	described by `error_string'.
+	error_string
+	    String which describes a lexical error in the input stream.
+
+	Values passed to this method may be affected by the current
+	scanning mode.  Further callbacks may show symptoms described
+	by the error described by `error_string'.
 	"""
 	pass
 
     def lex_limitation(self, limit_string):
 	"""Process a limitation packet.
 
-	`limit_string' is a string which describes a lexical limitation
-	in the current scanning mode.  The next callback other than
-	lex_limitation() or lex_error() will show symptoms described by
-	the limitation described by `limit_string'.
+	limit_string
+	    String which describes a lexical limitation in the current
+	    scanning mode.
+
+	Further callbacks may show symptoms determined by the limitation
+	described by `limit_string'.
 	"""
 	pass
 
@@ -747,8 +768,12 @@ if not _sgmllex:
     def comment_match(rawdata, start):
 	"""Match a legal SGML comment.
 
-	'rawdata'	data buffer
-	'start'		starting index into buffer
+	rawdata
+	    Data buffer, as a string.
+
+	start
+	    Starting index into buffer.  This should point to the `<'
+	    character of the Markup Declaration Open.
 
 	Analyzes SGML comments using very simple regular expressions to
 	ensure that the limits of the regular expression package are not
