@@ -25,6 +25,7 @@ When Cancel is actiavted, the dialog state is still saved.
 
 
 from Tkinter import *
+from Cursors import CURSOR_WAIT
 import os
 import string
 import Reader
@@ -42,6 +43,7 @@ greyscaleflag = 0
 underflag = 1
 footnoteflag = 1
 leading = 0.7
+fontsize = None
 
 global_prefs = None
 
@@ -50,7 +52,7 @@ def update_options(prefs=None):
     """Load/reload preferences.
     """
     global printcmd, printfile, fileflag, imageflag, greyscaleflag
-    global underflag, footnoteflag, global_prefs, leading
+    global underflag, footnoteflag, global_prefs, leading, fontsize
     #
     prefs = prefs or global_prefs
     if prefs:
@@ -64,6 +66,7 @@ def update_options(prefs=None):
     footnoteflag = prefs.GetBoolean(PRINT_PREFGROUP, 'footnote-anchors')
     underflag = prefs.GetBoolean(PRINT_PREFGROUP, 'underline-anchors')
     leading = prefs.GetFloat(PRINT_PREFGROUP, 'leading')
+    fontsize = prefs.GetFloat(PRINT_PREFGROUP, 'base-font-size')
     if not printcmd:
 	printcmd = PRINTCMD
 
@@ -141,13 +144,29 @@ class PrintDialog:
 	self.underchecked = self.add_checkbox(
 	    top, "Underline anchors", underflag)
 
+	fr = Frame(top)
+	fr.pack(fill=X)
+	self.fontsize = DoubleVar(top)
+	self.fontsize.set(fontsize)
+	Label(fr, text="Base font size:").pack(side=LEFT)
+	e = Entry(fr, textvariable=self.fontsize, width=5)
+	e.pack(side=LEFT)
+	e.bind('<Return>', self.return_event)
+	self.leading = DoubleVar(top)
+	self.leading.set(leading)
+	Label(fr, text="Leading:").pack(side=LEFT)
+	e = Entry(fr, textvariable=self.leading, width=5)
+	e.pack(side=LEFT)
+	e.bind('<Return>', self.return_event)
+
 	#  Command buttons:
-	ok_button = Button(botframe, text="OK", width=6,
+	ok_button = Button(botframe, text="OK",
 			   command=self.ok_command)
 	ok_button.pack(side=LEFT)
 	cancel_button = Button(botframe, text="Cancel",
 			       command=self.cancel_command)
 	cancel_button.pack(side=RIGHT)
+	tktools.unify_button_widths(ok_button, cancel_button)
 
 	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
 	self.root.bind("<Alt-w>", self.cancel_event)
@@ -162,7 +181,7 @@ class PrintDialog:
 	self.root.grab_set()
 
     def add_checkbox(self, root, description, value):
-	var = IntVar(root)
+	var = BooleanVar(root)
 	var.set(value)
 	Checkbutton(root, text=description, variable=var).pack(anchor=W)
 	return var
@@ -209,9 +228,9 @@ class PrintDialog:
 	    except IOError, msg:
 		self.context.error_dialog(IOError, str(msg))
 		return
-	self.root['cursor'] = 'watch'
-	self.cmd_entry['cursor'] = 'watch'
-	self.file_entry['cursor'] = 'watch'
+	self.root['cursor'] = CURSOR_WAIT
+	self.cmd_entry['cursor'] = CURSOR_WAIT
+	self.file_entry['cursor'] = CURSOR_WAIT
 	self.root.update_idletasks()
 	self.print_to_fp(fp)
 	sts = fp.close()
@@ -243,13 +262,14 @@ class PrintDialog:
 	if self.ctype == 'text/html':
 	    imgloader = (self.imgchecked.get() and self.image_loader) or None
 	    grey = self.greychecked.get()
-	    p = PrintingHTMLParser(w, baseurl = self.context.baseurl(),
-				   image_loader = imgloader, greyscale = grey,
-				   underline_anchors = self.underchecked.get(),
-				   leading = leading)
+	    fontsize = self.fontsize.get()
+	    leading = self.leading.get()
+	    p = PrintingHTMLParser(w, baseurl=self.context.baseurl(),
+				   image_loader=imgloader, greyscale=grey,
+				   underline_anchors=self.underchecked.get(),
+				   leading=leading, fontsize=fontsize)
 	    if not self.footnotechecked.get():
 		p.add_anchor_transform(disallow_anchor_footnotes)
-	    from GrailHTMLParser import GrailHTMLParser	## ???
 	    p.iconpath = self.context.app.iconpath
 	elif self.ctype == 'text/plain':
 	    p = PrintingTextParser(w)
@@ -260,7 +280,7 @@ class PrintDialog:
 
     def goaway(self):
 	global printcmd, printfile, fileflag, imageflag, greyscaleflag
-	global underflag, footnoteflag, leading
+	global underflag, footnoteflag, leading, fontsize
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
@@ -268,6 +288,8 @@ class PrintDialog:
 	greyscaleflag = self.greychecked.get()
 	imageflag = self.imgchecked.get()
 	underflag = self.underchecked.get()
+	fontsize = self.fontsize.get()
+	leading = self.leading.get()
 	self.root.destroy()
 
     def image_loader(self, url):
