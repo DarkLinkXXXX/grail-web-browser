@@ -30,7 +30,7 @@ class BookmarkFormatError(Error):
 class PoppedRootError(Error):
     pass
 
-
+
 def norm_uri(uri):
     scheme, netloc, path, params, query, fragment \
 	    = urlparse.urlparse(uri)
@@ -47,7 +47,7 @@ def norm_uri(uri):
     return urlparse.urlunparse((scheme, string.lower(netloc), path,
 				params, query, fragment))
 
-
+
 class BookmarkNode(Outliner.OutlinerNode):
     """Bookmarks are represented internally as a tree of nodes containing
     relevent information.
@@ -159,12 +159,13 @@ class BookmarkNode(Outliner.OutlinerNode):
 
 
 
-class HTMLBookmarkReader:
+class BookmarkReader:
     def __init__(self, parser):
 	self._parser = parser
 
     def read_file(self, fp):
 	self._parser.feed(fp.read())
+	self._parser.close()
 	return self._parser._root
 
 
@@ -203,7 +204,7 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 	self._buffer = self._buffer + data
 
     def handle_starttag(self, tag, method, attrs):
-	method(attrs)
+	method(self, attrs)
 
     def _push_new(self):
 	if not self._current:
@@ -274,7 +275,81 @@ class NetscapeBookmarkParser(SGMLParser.SGMLParser):
 	self._prevleaf = self._store_node = self._current
 	self._current = self._current.parent()
 
+
+class PickleBookmarkParser:
+    __data = ''
 
+    def __init__(self, filename):
+	self._filename = filename
+
+    def feed(self, data):
+	self.__data = self.__data + data
+
+    def close(self):
+	if '\n' in self.__data:
+	    # remove leading comment line
+	    self.__data = self.__data[string.find(self.__data, '\n') + 1:]
+	self._root = self.unpickle()
+
+    def get_data(self):
+	return self.__data
+
+    def unpickle(self):
+	try:
+	    from cPickle import loads
+	except:
+	    from pickle import loads
+	return loads(self.get_data())
+
+
+class PickleBinaryBookmarkParser(PickleBookmarkParser):
+    pass
+##     def unpickle(self):
+## 	try:
+## 	    from cPickle import loads
+## 	except:
+## 	    from pickle import loads
+## 	return loads(self.get_data(), 1)
+
+
+class BookmarkWriter:
+    # base class -- subclasses are required to set _filetype attribute
+    def get_filetype(self):
+	return self._filetype
+
+
+class PickleBookmarkWriter(BookmarkWriter):
+    HEADER_STRING = "# GRAIL-Bookmark-file-2 (pickle format)\n"
+    _filetype = "pickle"
+
+    def write_tree(self, root, fp):
+	try:
+	    import pickle
+	    fp.write(self.HEADER_STRING)
+	    self.pickle(root, fp)
+	finally:
+	    fp.close()
+
+    def pickle(self, root, fp):
+	try:
+	    from cPickle import dump
+	except ImportError:
+	    from pickle import dump
+	dump(root, fp)
+
+
+class PickleBinaryBookmarkWriter(PickleBookmarkWriter):
+    HEADER_STRING = "# GRAIL-Bookmark-file-3 (pickle-binary format)\n"
+    _filetype = "pickle-binary"
+
+    def pickle(self, root, fp):
+	try:
+	    from cPickle import dump
+	except ImportError:
+	    from pickle import dump
+	dump(root, fp, 1)
+
+
 def _prepstring(s):
     # return "HTML safe" copy of a string
     i = string.find(s, '&')
@@ -288,7 +363,9 @@ def _prepstring(s):
     return s
 
 
-class NetscapeBookmarkWriter:
+class NetscapeBookmarkWriter(BookmarkWriter):
+    _filetype = "html/ns"
+
     def _tab(self, node): return ' ' * (4 * node.depth())
 
     def _write_description(self, desc):
@@ -352,6 +429,7 @@ class NetscapeBookmarkWriter:
 	    fp.close()
 
 class GrailBookmarkWriter(NetscapeBookmarkWriter):
+    _filetype = "html/grail"
     _header = """<!DOCTYPE GRAIL-Bookmark-file-1>
 <!-- This is an automatically generated file.
     It will be read and overwritten.
@@ -360,3 +438,46 @@ class GrailBookmarkWriter(NetscapeBookmarkWriter):
           Netscape 1.x style bookmarks -->
 <TITLE>%(title)s</TITLE>
 <H1>%(title)s</H1>"""
+
+
+def get_format(fp):
+    format = None
+    try:
+	import regex
+	line1 = fp.readline()
+	for re, fmt in [
+	    ('.*NETSCAPE-Bookmark-file-1', "html/ns"),
+	    ('.*GRAIL-Bookmark-file-1', "html/grail"),
+	    ('#.*GRAIL-Bookmark-file-2', "pickle"),
+	    ('#.*GRAIL-Bookmark-file-3', "pickle-binary"),
+	    ]:
+	    if regex.match(re, line1) >= 0:
+		format = fmt
+    finally:
+	fp.seek(0)
+    return format
+
+
+__formats = {
+    "html/ns": (NetscapeBookmarkParser, NetscapeBookmarkWriter),
+    "html/grail": (NetscapeBookmarkParser, GrailBookmarkWriter),
+    "html": (NetscapeBookmarkParser, GrailBookmarkWriter),
+    "pickle": (PickleBookmarkParser, PickleBookmarkWriter),
+    "pickle-binary": (PickleBinaryBookmarkParser, PickleBinaryBookmarkWriter),
+    }
+
+def get_handlers(format, filename):
+    try:
+	handlers = __formats[format]
+    except KeyError:
+	return None, None
+    parser = handlers[0](filename)
+    writer = handlers[1]()
+    return parser, writer
+
+
+def open(filename):
+    format = get_format(filename)
+    if not format:
+	return None
+    return get_handlers(format)[0]
