@@ -1148,13 +1148,14 @@ class PrintingHTMLParser(HTMLParser):
     # Override make_format():
     # This allows disc/circle/square to be mapped to images.
 
-    def make_format(self, format, default='disc'):
+    def make_format(self, format, default='disc', listtype = None):
 	fmt = format or default
-	if fmt in ('disc', 'circle', 'square'):
+	if fmt in ('disc', 'circle', 'square') and listtype == 'ul':
 	    img = self.load_dingbat(fmt)
 	    return img or HTMLParser.make_format(self, format, default)
 	else:
-	    return HTMLParser.make_format(self, format, default)
+	    return HTMLParser.make_format(self, format, default,
+					  listtype = listtype)
 
     def unknown_entityref(self, entname, terminator):
 	dingbat = self.load_dingbat(entname)
