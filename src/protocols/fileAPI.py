@@ -114,7 +114,7 @@ class file_access:
 	# XXX Unixism
 	if self.url and self.url[-1] != '/':
 	    self.url = self.url + '/'
-	fp = os.popen("ls -l -a %s 2>&1" % self.pathname, "r")
+	fp = os.popen("ls -l -a %s/. 2>&1" % self.pathname, "r")
 	lines = fp.readlines()
 	fp.close()
 	import StringIO
