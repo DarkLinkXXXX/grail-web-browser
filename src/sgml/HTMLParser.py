@@ -244,6 +244,12 @@ class HTMLParser(SGMLParser):
     # --- Block Structuring Elements
 
     def start_p(self, attrs):
+	if 'pre' in self.stack:
+	    if 'p' in self.stack:
+		while self.stack[-1] != 'p':
+		    self.lex_endtag(self.stack[-1])
+		del self.stack[-1]
+	    return
 	self.close_paragraph()
         self.formatter.end_paragraph(1)
 	align = None
@@ -252,8 +258,9 @@ class HTMLParser(SGMLParser):
 	self.formatter.push_alignment(align)
 
     def end_p(self, parbreak = 1):
-	self.formatter.pop_alignment()
-        self.formatter.end_paragraph(parbreak)
+	if not 'pre' in self.stack:
+	    self.formatter.pop_alignment()
+	    self.formatter.end_paragraph(parbreak)
 
     def implied_end_p(self):
 	if 'p' in self.stack:
@@ -274,6 +281,7 @@ class HTMLParser(SGMLParser):
         self.formatter.push_font((AS_IS, AS_IS, AS_IS, 1))
 	self.formatter.push_alignment('left')
 	self.push_nofill()
+	self.set_data_handler(NewlineScratcher(self))
 
     def end_pre(self):
 	self.pop_nofill()
@@ -645,6 +653,8 @@ class HTMLParser(SGMLParser):
 
     def do_br(self, attrs):
         self.formatter.add_line_break()
+	if 'pre' in self.stack:
+	    self.set_data_handler(NewlineScratcher(self, 1))
 
     # --- Horizontal Rule
 
@@ -741,6 +751,21 @@ class HTMLParser(SGMLParser):
 	if 'p' in self.stack:
 	    self.lex_endtag('p')
 
+
+class NewlineScratcher:
+    def __init__(self, parser, limit=-1):
+	self._limit = limit
+	self._parser = parser
+
+    def __call__(self, data):
+	while data and data[0] == "\n" and self._limit != 0:
+	    data = data[1:]
+	    self._limit = self._limit - 1
+	if data:
+	    self._parser.formatter.add_literal_data(data)
+	    self._parser.set_data_handler(
+		self._parser.formatter.add_literal_data)
+	    del self._parser
 
 
 class HeaderNumber:
