@@ -702,6 +702,9 @@ class BookmarksDialog:
 	status.pack(side=LEFT, expand=1, fill=BOTH)
 	cancelbtn = Button(btmframe, text='Cancel', command=self.cancel_cmd)
 	cancelbtn.pack(side=RIGHT)
+	self._frame.protocol('WM_DELETE_WINDOW', self.cancel_cmd)
+	self._frame.bind('Alt-w', self.cancel_cmd)
+	self._frame.bind('Alt-W', self.cancel_cmd)
 	# top buttonbar buttons
 	prevbtn = Button(topframe, text='Previous',
 			 command=self._controller.previous_cmd)

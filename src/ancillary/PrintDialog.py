@@ -139,6 +139,10 @@ class PrintDialog:
 				    command=self.cancel_command)
 	self.cancel_button.pack(side=RIGHT)
 
+	self.root.protocol('WM_DELETE_WINDOW', self.cancel_command)
+	self.root.bind("<Alt-w>", self.cancel_event)
+	self.root.bind("<Alt-W>", self.cancel_event)
+
 	self.cmd_entry.bind('<Return>', self.return_event)
 	self.file_entry.bind('<Return>', self.return_event)
 
@@ -194,6 +198,9 @@ class PrintDialog:
 	    self.context.error_dialog("Exit",
 				      "Print command exit status %s" % `sts`)
 	self.goaway()
+
+    def cancel_event(self, event):
+	self.cancel_command()
 
     def cancel_command(self):
 	self.goaway()

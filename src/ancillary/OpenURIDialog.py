@@ -20,6 +20,10 @@ class OpenURIDialog:
 	cancelbtn.pack(side=RIGHT)
 	tktools.set_transient(self._frame, master)
 
+	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
+	self._frame.bind("<Alt-w>", self.cancel)
+	self._frame.bind("<Alt-W>", self.cancel)
+
     def go(self):
 	self._frame.grab_set()
 	self._entry.focus_set()
