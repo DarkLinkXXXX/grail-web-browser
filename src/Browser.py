@@ -204,9 +204,12 @@ class Browser:
 	    parser.close()
 	else:
 	    self.viewer.send_flowing_data(
-		"Sorry, I'm too stupid to save yet\n")
+		"Sorry, I'm too stupid to display %s data yet\n" %
+		content_type)
 	    self.viewer.send_flowing_data(
 		"(But it sure would make a nice extensions :-)\n")
+	    self.viewer.send_flowing_data(
+		"You can still use the Save As... command to save it!\n")
 
 	fp.close()
 
