@@ -79,7 +79,7 @@ def form_bgn(parser, action, method, enctype):
     if not hasattr(parser, 'form_stack'):
 	parser.form_stack = []
 	parser.forms = []
-	parser.browser.forms = []
+	parser.context.browser.forms = []
     fi = FormInfo(parser, action, method, enctype)
     parser.form_stack.append(fi)
 
@@ -88,7 +88,7 @@ def form_end(parser):
     if fi:
 	del parser.form_stack[-1]
 	parser.forms.append(fi)
-	parser.browser.forms.append(fi)
+	parser.context.browser.forms.append(fi)
 	fi.done()
 
 def handle_input(parser, type, options):
@@ -130,14 +130,14 @@ class FormInfo:
 	self.action = action or ''
 	self.method = method or 'get'
 	self.enctype = enctype
-	self.viewer = parser.viewer
-	self.browser = parser.viewer.browser
+	self.context = parser.context
+	self.viewer = self.context.viewer
 	self.inputs = []
 	self.radios = {}
 	self.select = None
 	self.parser.do_p([])
 	# gather cached form data if we've been to this page before
-	formdata_list = self.browser._page.formdata()
+	formdata_list = self.context.get_formdata()
 	if formdata_list:
 	    self.formdata = formdata_list[len(parser.forms)]
 	else:
@@ -181,14 +181,14 @@ class FormInfo:
 	    ctype, data = self.make_form_data()
 	if method == 'get' and enctype == URLENCODED:
 	    url = self.action + '?' + data
-	    self.viewer.browser.follow(url)
+	    self.context.follow(url)
 	elif method == 'post' and enctype in (URLENCODED, FORM_DATA):
 	    if enctype == FORM_DATA:
 		enctype = ctype
 	    params = {"Content-type": enctype}
 	    if enctype == URLENCODED:
 		params["Content-length"] = `len(data)`
-	    self.viewer.browser.post(self.action, data, params)
+	    self.viewer.context.post(self.action, data, params)
 	else:
 	    print "*** Form with METHOD=%s and ENCTYPE=%s not supported ***" % (
 		  self.method, self.enctype)

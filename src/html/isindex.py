@@ -10,7 +10,7 @@ class IndexWidget:
     def __init__(self, parser):
 	self.parser = parser
 	self.viewer = self.parser.viewer
-	self.browser = self.viewer.browser
+	self.context = self.viewer.context
 	self.w = Entry(self.viewer.text)
 	self.w.bind('<Return>', self.submit)
 	self.viewer.send_hor_rule()
@@ -21,12 +21,12 @@ class IndexWidget:
 
     def submit(self, event):
 	data = self.w.get()
-	url = self.browser.baseurl()
+	url = self.context.baseurl()
 	i = string.find(url, '?')
 	if i >= 0:
 	    url = url[:i]
 	url = url + '?' + quote(data)
-	self.browser.load(url)
+	self.context.load(url)
 
 def quote(s):
     w = string.splitfields(s, ' ')

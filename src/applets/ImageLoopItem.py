@@ -9,7 +9,7 @@ class ImageLoopItem:
 	self.master = master
 	self.pause = pause
 	self.delay = delay
-	self.browser = master.grail_browser
+	self.context = master.grail_context
 	self.urlpattern = img + "T%d.gif"
 	self.images = []
 	self.index = 0
@@ -21,7 +21,7 @@ class ImageLoopItem:
 
     def loadnext(self):
 	url = self.urlpattern % (len(self.images) + 1)
-	image = self.browser.get_async_image(url)
+	image = self.context.get_async_image(url)
 	if not image:
 	    self.done = 1
 	else:
