@@ -507,6 +507,7 @@ class BookmarksDialog:
 	self._create_menubar()
 	self._create_buttonbar()
 	self._create_listbox()
+	self._create_other_bindings()
 	self._frame.focus_set()
 
     def _create_menubar(self):
@@ -722,6 +723,12 @@ class BookmarksDialog:
 			command=self._controller.expand_cmd)
 	colbtn.pack(side=LEFT, expand=1, fill=BOTH)
 	expbtn.pack(side=LEFT, expand=1, fill=BOTH)
+
+    def _create_other_bindings(self):
+	# bindings not associated with menu entries of buttons
+	w = self._frame
+	w.bind("<Home>", self._controller.shift_to_top_cmd)
+	w.bind("<End>", self._controller.shift_to_bottom_cmd)
 
     def set_modflag(self, flag):
 	if flag: text = '<== Changes are unsaved!'
@@ -1234,6 +1241,20 @@ class BookmarksController(OutlinerController):
 	self._cmd(self.collapse_node, quiet=True)
     def expand_cmd(self, event=None):
 	self._cmd(self.expand_node, quiet=True)
+
+    def shift_to_top_cmd(self, event=None):
+	node = self.root()
+	if node.children():
+	    self.viewer().select_node(node.children()[0])
+
+    def shift_to_bottom_cmd(self, event=None):
+	node = self.root()
+	while node.children():
+	    node = node.children()[-1]
+	    if node.leaf_p() or not node.expanded_p():
+		break
+	if node is not self.root():
+	    self.viewer().select_node(node)
 
     def _prevnext(self, delta):
 	node, selection = self._get_selected_node()
