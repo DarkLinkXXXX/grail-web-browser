@@ -42,12 +42,17 @@ def set_transient(widget, master, relx=0.5, rely=0.3):
     widget.withdraw() # Remain invisible while we figure out the geometry
     widget.transient(master)
     widget.update_idletasks() # Actualize geometry information
-    m_width = master.winfo_width()
-    m_height = master.winfo_height()
+    if master.winfo_ismapped():
+	m_width = master.winfo_width()
+	m_height = master.winfo_height()
+	m_x = master.winfo_rootx()
+	m_y = master.winfo_rooty()
+    else:
+	m_width = master.winfo_screenwidth()
+	m_height = master.winfo_screenheight()
+	m_x = m_y = 0
     w_width = widget.winfo_reqwidth()
     w_height = widget.winfo_reqheight()
-    m_x = master.winfo_rootx()
-    m_y = master.winfo_rooty()
     x = m_x + (m_width - w_width) * relx
     y = m_y + (m_height - w_height) * rely
     widget.geometry("+%d+%d" % (x, y))
