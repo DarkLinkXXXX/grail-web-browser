@@ -86,11 +86,11 @@ class History:
 	# Discard alternative futures.  Someday we might have `Cactus
 	# History' or we might expose the Global History to the user.
 	del self._history[self._current+1:]
-	# Don't append a duplicate of the last entry
-	# XXX Why not?  This could be masking a subtle bug!
-	if not self._history or self._history[-1].url() <> pageinfo.url():
-	    self._history.append(pageinfo)
-	    self._current = len(self._history)-1
+	# We no longer check to see if the page has the same URL as
+	# the previous page, because this introduced problems with
+	# CGI scripts that produced different output for the same URL
+	self._history.append(pageinfo)
+	self._current = len(self._history)-1
 	self._dialog.refresh()
 
     def page(self, index=None):
