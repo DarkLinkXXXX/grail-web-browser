@@ -97,7 +97,9 @@ class Reader(BaseReader):
 	if self.parser:
 	    parser = self.parser
 	    self.parser = None
+	    self.viewer.unfreeze()
 	    parser.close()
+	    self.viewer.freeze()
 
     def handle_error(self, errcode, errmsg, headers):
 	if self.save_file:
