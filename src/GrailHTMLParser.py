@@ -11,6 +11,7 @@
 
 from Tkinter import *
 import os
+import urllib
 import urlparse
 import string
 import tktools
@@ -202,7 +203,7 @@ class GrailHTMLParser(HTMLParser):
                           hspace=hspace, vspace=vspace)
 
     def handle_image(self, src, alt, usemap, ismap, align, width,
-                     height, border=2, reload, hspace=0, vspace=0):
+                     height, border=2, reload=0, hspace=0, vspace=0):
         if not self.app.prefs.GetBoolean("browser", "load-images"):
             self.handle_data(alt)
             return
@@ -344,13 +345,17 @@ class GrailHTMLParser(HTMLParser):
         if self.get_object():           # expensive!
             self.get_object().anchor(attrs)
             return
-        href = name = type = target = title = ''
+        name = type = target = title = ''
         id = None
         has_key = attrs.has_key
-        if has_key('urn') and attrs['urn'][:4] == 'hdl:':
-            href = attrs['urn']
-        elif has_key('href'):
-            href = attrs['href']
+        #
+        href = string.strip(attrs.get("urn", ""))
+        scheme, resturl = urllib.splittype(href)
+        if scheme == "urn":
+            scheme, resturl = urllib.splittype(resturl)
+        if scheme not in ("doi", "hdl", "ietf"):
+            # this is an unknown URN scheme or there wasn't a URN
+            href = string.strip(attrs.get("href", ""))
         name = extract_keyword('name', attrs,
                                conv=grailutil.conv_normstring)
         if has_key('type'): type = string.lower(attrs['type'] or '')
