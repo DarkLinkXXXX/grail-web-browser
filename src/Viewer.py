@@ -594,7 +594,7 @@ class Viewer(formatter.AbstractWriter):
 
     def find_tag_ranges(self):
 	for tag in self.text.tag_names(CURRENT):
-	    if tag[0] == TARGET_SEPARATOR:
+	    if tag[0] == '>':
 		raw = self.text.tag_ranges(tag)
 		list = []
 		for i in range(0, len(raw), 2):
