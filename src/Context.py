@@ -383,6 +383,10 @@ class Context:
 
     def post(self, url, data="", params={}, target=""):
 	# Post form data
+	context = self.find_window_target(target)
+	if context is not self:
+	    context.post(url, data, params, target)
+	    return
 	self.save_page_state()
 	url = self.get_baseurl(url)
 	method = 'POST'
