@@ -90,6 +90,8 @@ class Browser:
 
 	self.histmenu.add('command', label='Back',
 			  command=self.back_command)
+	self.histmenu.add('command', label='Reload',
+			  command=self.reload_command)
 	self.histmenu.add('command', label='Forward',
 			  command=self.forward_command)
 	self.histmenu.add('separator')
@@ -183,11 +185,16 @@ class Browser:
 	    while 1:
 		line = fp.readline()
 		if not line: break
+		if line[-2:] == '\r\n':
+		    line = line[:-2] + '\n'
 		parser.feed(line)
 		self.root.update_idletasks()
 	    parser.close()
 	else:
-	    print "Should save it..."
+	    self.viewer.send_flowing_data(
+		"Sorry, I'm too stupid to save yet\n")
+	    self.viewer.send_flowing_data(
+		"(But it sure would make a nice extensions :-)\n")
 
 	fp.close()
 
@@ -259,6 +266,12 @@ class Browser:
 	    self.root.bell()
 	    return
 	self.current = self.current-1
+	self.load(self.history[self.current][0], 0)
+
+    def reload_command(self):
+	if self.current >= len(self.history):
+	    self.root.bell()
+	    return
 	self.load(self.history[self.current][0], 0)
 
     def forward_command(self):
