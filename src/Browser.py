@@ -21,6 +21,7 @@ import History
 # URLs of various sorts
 GRAIL_HOME = "http://monty.cnri.reston.va.us/grail-0.2/"
 PYTHON_HOME = "http://www.python.org/"
+PSA_HOME = 'http://www.python.org/psa/'
 CNRI_HOME = "http://www.cnri.reston.va.us/"
 ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail-0.2/about/"
 DEFAULT_HOME = GRAIL_HOME
@@ -250,6 +251,8 @@ class Browser:
 			  command=self.grail_home_command)
 	self.helpmenu.add_command(label="Python Home Page",
 			  command=self.python_home_command)
+	self.helpmenu.add_command(label='The Python Software Activity (PSA)',
+				  command=self.psa_home_command)
 	self.helpmenu.add_command(label="CNRI Home Page",
 			  command=self.cnri_home_command)
 
@@ -456,17 +459,11 @@ class Browser:
 
     # Help menu commands
 
-    def about_command(self, event=None):
-	self.load(ABOUT_GRAIL)
-
-    def grail_home_command(self, event=None):
-	self.load(GRAIL_HOME)
-
-    def python_home_command(self, event=None):
-	self.load(PYTHON_HOME)
-
-    def cnri_home_command(self, event=None):
-	self.load(CNRI_HOME)
+    def about_command(self, event=None):       self.load(ABOUT_GRAIL)
+    def grail_home_command(self, event=None):  self.load(GRAIL_HOME)
+    def python_home_command(self, event=None): self.load(PYTHON_HOME)
+    def psa_home_command(self, event=None):    self.load(PSA_HOME)
+    def cnri_home_command(self, event=None):   self.load(CNRI_HOME)
 
     # End of commmands
 
