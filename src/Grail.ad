@@ -38,5 +38,18 @@ Grail.BookmarkDetail*Frame.revert.text:	Revert
 Grail.BookmarkDetail*Frame.apply.text:	Apply
 Grail.BookmarkDetail*Frame.cancel.text:	Cancel
 
+Grail*History.goto.text:		Go To
+Grail*History.close.text:		Close
+Grail*History.titles.text:		View by Titles
+Grail*History.uris.text:		View by URIs
+
+Grail*Search.regexp.text:		regexp
+Grail*Search.casesens.text:		case sensitive
+Grail*Search.backwards.text:		backwards
+Grail*Search.search.text:		Search
+Grail*Search.searchclose.text:		Search+Close
+Grail*Search.close.text:		Close
+Grail*Search.Frame.Frame.entry.label.text:	Find string:
+
 !!!
 !!!  end of file
