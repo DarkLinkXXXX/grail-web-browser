@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.5 $"
+__version__ = "$Revision: 1.6 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -175,8 +175,13 @@ class SGMLLexerBase:
     def lex_declaration(self, declaration_text):
 	"""Process a markup declaration other than a comment.
 
-	`declaration_info' will be a string containing the text of the
-	markup declaration, possibly normalized for whitespace and case.
+	`declaration_info' will be a list of strings.  The first will
+	be the name of the declaration (doctype, etc.), followed by each
+	additional name, nametoken, quoted literal, or comment in the
+	declaration.  Literals and comments will include the quotation
+	marks or comment delimiters to allow the client to process each
+	correctly.  Normalization of names and nametokens will be handled
+	as for general identifiers.
 	"""
 	pass
 
@@ -200,7 +205,7 @@ class SGMLLexer(SGMLLexerBase):
 				      self.lex_charref,
 				      self._lex_got_namedcharref,
 				      self._lex_got_geref,
-				      self._lex_aux,
+				      self._lex_declaration,
 				      self._lex_err)
 
 	def restrict(self, constrain):
@@ -229,8 +234,8 @@ class SGMLLexer(SGMLLexerBase):
 	def _lex_got_starttag(self, name, attributes):
 	    self.lex_starttag(name[1:], attributes)
 
-	def _lex_aux(self, types, strings):
-	    if types[0] is sgmllex.comment:
+	def _lex_declaration(self, types, strings):
+	    if len(types) > 1 and types[1] is sgmllex.comment:
 		# strip of leading/trailing --
 		map(lambda s,f=self.lex_comment: f(s[2:-2]), strings[1:-1])
 
@@ -238,8 +243,9 @@ class SGMLLexer(SGMLLexerBase):
 		# strip <? and >
 		self.lex_pi(strings[0][2:-1])
 	    else:
-		#XXX markup declarations, etc.
-		self.lex_declaration(string.joinfields(strings, ' '))
+		#XXX other markup declarations
+		self.lex_declaration([strings[0][2:]]
+				     + map(None, strings[1:-1]))
 
 	def _lex_err(self, types, strings):
 	    #  raise SGMLError?
@@ -429,14 +435,14 @@ class SGMLLexer(SGMLLexerBase):
 		# XXX Can there be whitespace before the first /?
 		j = shorttag.match(rawdata, i)
 		if j < 0:
-		    return -1
+		    self.lex_data(rawdata[i])
+		    return i + 1
 		tag, data = shorttag.group(1, 2)
-		self.lex_starttag(self._normfunc(tag), {})
+		tag = self._normfunc(tag)
+		self.lex_starttag(tag, {})
 		self.lex_data(data)
-		k = i+j
-		if rawdata[k-1] == '<':
-		    k = k-1
-		return k
+		self.lex_endtag(tag)
+		return i + j
 	    # XXX The following should skip matching quotes (' or ")
 	    j = endbracket.search(rawdata, i+1)
 	    if j < 0:
@@ -503,6 +509,7 @@ class SGMLLexer(SGMLLexerBase):
 	    return j
 
 	def parse_declaration(self, i):
+	    #  This only gets used in "strict" mode.
 	    rawdata = self.rawdata
 	    #  Markup declaration, possibly illegal:
 	    strs = []
@@ -511,6 +518,13 @@ class SGMLLexer(SGMLLexerBase):
 	    strs.append(self._normfunc(md_name.group(1)))
 	    i = i + k
 	    while k > 0:
+		#  Have to check the comment pattern first so we don't get
+		#  confused and think this is a name that starts with '--':
+		k = comment.match(rawdata, i)
+		if k > 0:
+		    strs.append(string.strip(comment.group(0)))
+		    i = i + k
+		    continue
 		k = md_name.match(rawdata, i)
 		if k > 0:
 		    strs.append(self._normfunc(md_name.group(1)))
@@ -519,11 +533,6 @@ class SGMLLexer(SGMLLexerBase):
 		k = md_string.match(rawdata, i)
 		if k > 0:
 		    strs.append(md_string.group(1)[1:-1])
-		    i = i + k
-		    continue
-		k = md_comment.match(rawdata, i)
-		if k > 0:
-		    strs.append(md_comment.group(1))
 		    i = i + k
 		    continue
 	    k = string.find(rawdata, '>', i)
@@ -561,9 +570,8 @@ if not _sgmllex:
 				      + LITA + "[^']*" + LITA + '\|'
 				      + COM + '\([^-]\|-[^-]\)*' + COM
 				      + '\)[ \t\n\r]*\)*' + MDC)
-    md_name = regex.compile('\([-.a-zA-Z0-9]+\)[ \n\t\r]*')
+    md_name = regex.compile('\([^> \n\t\r\'"]+\)[ \n\t\r]*')
     md_string = regex.compile('\("[^"]*"\|\'[^\']*\'\)[ \n\t\r]*')
-    md_comment = regex.compile('\(--\([^-]\|-[^-]\)*--\)[ \t\n\r]*')
     commentopen = regex.compile(MDO + COM)
     legalcomment = regex.compile(MDO + '\(\(' + COM + '\([^-]\|-[^-]\)*'
 				 + COM + '[ \t\n]*\)*\)' + MDC)

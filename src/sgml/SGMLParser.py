@@ -2,7 +2,7 @@
 
 
 """
-__version__ = "$Revision: 1.3 $"
+__version__ = "$Revision: 1.4 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLParser.py,v $
 
 # XXX There should be a way to distinguish between PCDATA (parsed
@@ -188,10 +188,6 @@ class SGMLParser(SGMLLexer):
 
     def lex_entityref(self, name):
 	self.handle_entityref(name)
-
-    def lex_declaration(self, strings):
-	print 'Declaration:'
-	print strings
 
 
 
