@@ -1,6 +1,6 @@
 """General Grail preferences panel."""
 
-__version__ = "$Revision: 1.4 $"
+__version__ = "$Revision: 1.5 $"
 # $Source: /home/john/Code/grail/src/prefpanels/GeneralPanel.py,v $
 
 # Base class for the panel:
@@ -18,10 +18,16 @@ class GeneralPanel(PrefsPanels.Framework):
     """Miscellaneous preferences relating to the browser, startup, and
     other behaviors that don't fit in specific preferences categories."""
 
+    # Class var for help button - relative to grail-home-page.
+    HELP_URL = "htdocs/prefs/general.html"
+
     def CreateLayout(self, name, frame):
 
 	# Home page: basic entry-based prefs can be as simple as this one:
 	self.PrefsEntry(frame, 'Home page:', 'landmarks', 'home-page')
+
+	self.PrefsCheckButton(frame, "Initial page:", "Load on Grail startup",
+			      'browser', 'load-initial-page')
 
 	# Geometry: more elaborate:
 	f = Frame(frame)
@@ -30,14 +36,13 @@ class GeneralPanel(PrefsPanels.Framework):
 	# PrefsEntry 'composite' feature here, to put them together on the
 	# right-hand side of the label:
 	entries_frame = Frame(f, relief='ridge', bd=1)
-	self.PrefsEntry(entries_frame, "Width:", 'browser', 'default-width',
+	self.PrefsEntry(entries_frame,
+			"Width:", 'browser', 'default-width', 'int',
 			label_width=6, entry_width=2, composite=1)
-	self.PrefsEntry(entries_frame, "Height:", 'browser', 'default-height',
+	self.PrefsEntry(entries_frame,
+			"Height:", 'browser', 'default-height', 'int',
 			label_width=7, entry_width=3, composite=1)
 	f.pack(fill=X, side=TOP, pady='1m')
-
-	self.PrefsCheckButton(frame, "Initial page:", "Load on Grail startup",
-			      'browser', 'load-initial-page')
 
 	self.PrefsCheckButton(frame, "Image loading:", "Load inline images",
 			      'browser', 'load-images')
