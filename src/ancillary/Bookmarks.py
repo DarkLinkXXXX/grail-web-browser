@@ -279,5 +279,6 @@ class BookmarkWindow:
 
 
 if __name__ == '__main__':
-    bookmarks = BookmarkWindow("/tmp/test.html")
+#    bookmarks = BookmarkWindow("/tmp/test.html")
+    bookmarks = BookmarkWindow("~/.netscape-bookmarks.html")
     bookmarks.run()

@@ -12,10 +12,10 @@ class OutlineNode:
 	self._depth = 0
 
     def __repr__(self):
-	if self.leaf_p(): tag = '|'
-	elif self.expanded_p(): tag = '-'
-	else: tag = '+'
-	return tag + ('_' * (self._depth * 3))
+	if self.leaf_p(): tag = ' '
+	elif self.expanded_p(): tag = '+'
+	else: tag = '-'
+	return (' ' * (self._depth * 3)) + tag
 
     def append_child(self, node):
 	self._children.append(node)
