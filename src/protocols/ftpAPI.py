@@ -94,6 +94,9 @@ class ftp_access:
 	    self.state = DONE
 	return data
 
+    def fileno(self):
+	return self.sock.fileno()
+
     def close(self):
 	sock = self.sock
 	cand = self.cand

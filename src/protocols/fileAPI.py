@@ -28,6 +28,9 @@ class file_access:
 	    self.state = DONE
 	return data
 
+    def fileno(self):
+	return self.fp.fileno()
+
     def close(self):
 	fp = self.fp
 	self.fp = None

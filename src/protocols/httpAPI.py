@@ -108,5 +108,8 @@ class http_access:
 	    self.close()
 	return data
 
+    def fileno(self):
+	return self.h.sock.fileno()
+
 
 # To test this, use ProtocolAPI.test()
