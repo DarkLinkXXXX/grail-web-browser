@@ -46,7 +46,7 @@ class BaseReader:
 	# Stuff for status reporting
 	self.nbytes = 0
 	self.maxbytes = 0
-	self.message = "waiting for metadata"
+	self.message = "awaiting server response"
 	self.shorturl = ""
 
 	self.context.addreader(self)
