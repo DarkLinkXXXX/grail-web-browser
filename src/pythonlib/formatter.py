@@ -55,15 +55,15 @@ class AbstractFormatter:
 	self.hard_break = self.nospace = 1
 	self.softspace = 0
 
-    def add_hor_rule(self):
-	self.writer.send_hor_rule()
+    def add_hor_rule(self, abswidth=None, percentwidth=1.0):
+	self.writer.send_hor_rule(abswidth, percentwidth)
 	self.hard_break = self.nospace = 1
 	self.para_end = self.softspace = 0
 
     def add_label_data(self, format, counter):
-	data = self.format_counter(format, counter)
-	self.writer.send_label_data(data)
-	self.para_end = self.hard_break = 0
+	self.writer.send_label_data(self.format_counter(format, counter))
+	self.para_end = self.nospace = self.hard_break = 1
+	self.softspace = 0
 
     def format_counter(self, format, counter):
         label = ''
@@ -126,15 +126,13 @@ class AbstractFormatter:
 	    prespace = 0
 	elif self.softspace:
 	    prespace = 1
-	self.hard_break = self.nospace = self.para_end = self.softspace = 0
-	if postspace:
-	    self.softspace = 1
+	self.hard_break = self.nospace = self.para_end = 0
+	self.softspace = postspace
 	if prespace: data = ' ' + data
 	self.writer.send_flowing_data(data)
 
     def add_literal_data(self, data):
-	if self.softspace and data[:1] != '\n':
-	    data = ' ' + data
+	#  Caller is expected to cause flush_softspace() if needed.
 	self.hard_break = data[-1:] == '\n'
 	self.nospace = self.para_end = self.softspace = 0
 	self.writer.send_literal_data(data)
@@ -145,6 +143,7 @@ class AbstractFormatter:
 	    self.writer.send_flowing_data(' ')
 
     def push_font(self, (size, i, b, tt)):
+	self.flush_softspace()
 	if self.font_stack:
 	    csize, ci, cb, ctt = self.font_stack[-1]
 	    if size is AS_IS: size = csize
@@ -156,6 +155,7 @@ class AbstractFormatter:
 	self.writer.new_font(font)
 
     def pop_font(self):
+	self.flush_softspace()
 	if self.font_stack:
 	    del self.font_stack[-1]
 	if self.font_stack:
@@ -182,11 +182,13 @@ class AbstractFormatter:
 	self.writer.new_spacing(spacing)
 
     def push_style(self, *styles):
+	self.flush_softspace()
 	for style in styles:
 	    self.style_stack.append(style)
 	self.writer.new_styles(tuple(self.style_stack))
 
     def pop_style(self, n=1):
+	self.flush_softspace()
 	del self.style_stack[-n:]
 	self.writer.new_styles(tuple(self.style_stack))
 
