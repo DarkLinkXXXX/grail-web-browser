@@ -943,7 +943,7 @@ class Canvas(Widget):
 	def select_adjust(self, tagOrId, index):
 		self.tk.call(self._w, 'select', 'adjust', tagOrId, index)
 	def select_clear(self):
-		self.tk.call(self._w, 'select', 'clear', 'end')
+		self.tk.call(self._w, 'select', 'clear')
 	def select_from(self, tagOrId, index):
 		self.tk.call(self._w, 'select', 'set', tagOrId, index)
 	def select_item(self):
@@ -996,7 +996,7 @@ class Entry(Widget):
 	def select_adjust(self, index):
 		self.tk.call(self._w, 'select', 'adjust', index)
 	def select_clear(self):
-		self.tk.call(self._w, 'select', 'clear', 'end')
+		self.tk.call(self._w, 'select', 'clear')
 	def select_from(self, index):
 		self.tk.call(self._w, 'select', 'set', index)
 	def select_present(self):
