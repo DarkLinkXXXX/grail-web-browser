@@ -46,7 +46,7 @@ browser--default-height:	40
 # Todo:
 #  - Preference-change callback funcs
 
-__version__ = "$Revision: 2.7 $"
+__version__ = "$Revision: 2.8 $"
 # $Source: /home/john/Code/grail/src/ancillary/Attic/GrailPrefs.py,v $
 
 import os
@@ -117,6 +117,7 @@ class Preferences:
 
     def __delitem__(self, item):
 	"""Register GROUP/PREFNAME so it won't be seen or saved."""
+	self.Get(item[0], item[1])	# Validate existence of the item.
 	self._deleted[make_key(item[0], item[1])] = 1
 
 
@@ -249,8 +250,13 @@ class AllPreferences:
 		# Probably a comment - we don't retain users' comments unless
 		# they make them look like distinct group--prefnm values.
 		continue
-	    elif self._sys.Get(k[0], k[1]) == val:
-		del self._user[k]
+	    else:
+		try:
+		    if self._sys.Get(k[0], k[1]) == val:
+			del self._user[(k[0], k[1])]
+		except KeyError:
+		    # User file absent in system defaults - tolerate it.
+		    continue
 	self._user.Save()
 
 def make_key(group, prefnm):
