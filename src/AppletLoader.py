@@ -285,8 +285,8 @@ class AppletLoader:
         file, filename, info = stuff
         (suff, mode, type) = info
         import imp
+        import ihooks
         if type == imp.PKG_DIRECTORY:
-            import ihooks
             loader = self.get_rexec().loader
             return ihooks.FancyModuleLoader.load_module(loader, mod, stuff)
         if type == imp.PY_SOURCE:
