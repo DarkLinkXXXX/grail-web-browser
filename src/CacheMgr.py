@@ -7,7 +7,6 @@ import time
 import ht_time
 import grailutil
 import regex
-import traceback
 
 META, DATA, DONE = 'META', 'DATA', 'DONE' # Three stages
 
@@ -594,6 +593,7 @@ class DiskCache:
 	Creates a new log that contains only the current state of the
 	cache.
 	"""
+	import traceback
 	if self.log:
 	    self.log.close()
 	try:
