@@ -1,10 +1,10 @@
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.2 $"
+__version__ = "$Revision: 1.3 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
-# Base class for the dialog:
-import PrefsDialogs
+# Base class for the panel:
+import PrefsPanels
 
 import sys, os
 
@@ -14,10 +14,8 @@ import grailutil
 import tktools
 import string
 
-# ########################### Specific dialogs ########################### #
-
-class StylePanel(PrefsDialogs.Framework):
-    """Dialog for selecting viewer presentation styles."""
+class StylePanel(PrefsPanels.Framework):
+    """Panel for selecting viewer presentation styles."""
 
     def CreateLayout(self, name, frame):
 

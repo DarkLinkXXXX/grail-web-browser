@@ -6,14 +6,14 @@ from Tkinter import *
 
 import tktools
 
-import PrefsDialogs
+import PrefsPanels
 
 LABEL = "\
 Enter applet group names (host names, or domain names with leading dot):"
 
 HELP_URL = "help/prefs/applets.html"	# Relative to grail-home-page
 
-class AppletsPanel(PrefsDialogs.Framework):
+class AppletsPanel(PrefsPanels.Framework):
 
     helpbrowser = None
 
