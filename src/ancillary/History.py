@@ -65,7 +65,7 @@ class History:
 	self._current = 0
 
     def clone(self):
-	newhist = History(self._app)
+	newhist = History()
 	newhist._history = self._history[:]
 	newhist._current = self._current
 	return newhist
