@@ -68,10 +68,6 @@ styles--huge-sizes:
 	25      34   20   25   20   20   20
 	25  25  25   25  25    25    25
 #
-# Preformatted text:
-styles-common--styles-pre-wrap: none
-# Centered text:
-styles-common--styles-center-justify: center
 # History Anchors:
 styles-common--history-a-foreground: #0000EE
 styles-common--history-a-underline: 1
