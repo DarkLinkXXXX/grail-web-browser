@@ -46,6 +46,7 @@ from Cache import Cache
 import TbDialog
 if 0:
     import dummies
+import GlobalHistory
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
@@ -194,6 +195,9 @@ class Application:
 	self.splash = SplashScreen(self.root)
 	self.load_images = 1
 	self.home = DEFAULT_HOME
+	# initialize on_exit_methods before global_history
+	self.on_exit_methods = []
+	self.global_history = GlobalHistory.GlobalHistory(self)
 	self.url_cache = Cache()
 	self.image_cache = {}
 	self.login_cache = {}
@@ -209,7 +213,6 @@ class Application:
 	self.suffixes_map = s
 	self.root.report_callback_exception = self.report_callback_exception
 	self.keep_alive()
-	self.on_exit_methods = []
 	self.browsers = []
 
     def register_on_exit(self, method):

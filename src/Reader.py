@@ -32,7 +32,7 @@ class Reader(BaseReader):
     """
 
     def __init__(self, browser, url, method, params, new, show_source, reload,
-		 data=None):
+		 data=None, scrollpos=None):
 
 	self.last_browser = browser
 	self.method = method
@@ -41,6 +41,7 @@ class Reader(BaseReader):
 	self.show_source = show_source
 	self.reload = reload
 	self.data = data
+	self.scrollpos = scrollpos
 
 	self.save_file = None
 	self.save_mailcap = None
@@ -273,13 +274,15 @@ class Reader(BaseReader):
 
 	if hasattr(self.parser, 'title'):
 	    title = self.parser.title
-	    if title and title != self.browser.title:
+	    if title and title != self.browser.title():
 		self.browser.set_title(title)
 
     def handle_eof(self):
 	if not self.save_file:
 	    if self.fragment:
 		self.viewer.scroll_to(self.fragment)
+	    elif self.scrollpos:
+		self.viewer.scroll_to_position(self.scrollpos)
 	    return
 	self.save_file.close()
 	self.save_file = None

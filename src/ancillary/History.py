@@ -10,137 +10,52 @@ import sys
 import time
 from grailutil import *
 
-GRAIL_RE = regex.compile('\([^ \t]+\)[ \t]+\([^ \t]+\)[ \t]+?\(.*\)?')
-DEFAULT_NETSCAPE_HIST_FILE = os.path.join(gethome(), '.netscape-history')
-DEFAULT_GRAIL_HIST_FILE = os.path.join(getgraildir(), 'grail-history')
-
-def now():
-    return int(time.time())
-
-class HistoryInfo:
-    def __init__(self, link='', title='', timestamp=None, formdata=[]):
-	# for convenience, and since this object is never exposed to
-	# the upper layers, just make it's data members public.
-	self.title = title
-	self.link = link
-	self.timestamp = timestamp or now()
-	self.formdata = formdata
-
 
-class HistoryLineReader:
-    def _error(self, line):
-	sys.stderr.write('WARNING: ignoring ill-formed history file line:\n')
-	sys.stderr.write('WARNING: %s\n' % line)
+class PageInfo:
+    """This is the data structure used to represent a page in the
+    History stack.  Each Browser object has it's own unique History
+    stack which maintains volatile informatio about the page, to be
+    restored when the page is re-visited via the history mechanism.
+    For example, the state of any forms on the page, the entered and
+    relocated URLs, or the scroll position are information that might
+    be kept.
 
-class NetscapeHistoryReader(HistoryLineReader):
-    def parse_line(self, line):
-	try:
-	    fields = string.splitfields(line, '\t')
-	    link = string.strip(fields[0])
-	    return HistoryInfo(link=link,
-			       title=link,
-			       timestamp=string.atoi(string.strip(fields[1]))
-			       )
-	except:
-	    self._error(line)
-	    return None
+    A page can actually have 3 URL's associated with it.  First, the
+    typed or clicked URL as it appears in the entry field or anchor,
+    after relative URL resolution but before any server relocation
+    errors.
 
-class GrailHistoryReader(HistoryLineReader):
-    def parse_line(self, line):
-	link = timestamp = title = ''
-	try:
-	    if GRAIL_RE.match(line) >= 0:
-		link, ts, title = GRAIL_RE.group(1, 2, 3)
-		return HistoryInfo(link=link,
-				   title=title or link,
-				   timestamp=string.atoi(string.strip(ts))
-				   )
-	except:
-	    self._error(line)
-	    return None
+    Second, the URL after relocation, possibly many steps of
+    relocation.  Often this is to redirect a browser to the new
+    location of a page, but more often it is to add a trailing slash
+    on a page that lacks one.  In fact, there can be a relocation
+    path, and you must watch for loops, but only the final resolved
+    URL is of any significance.
 
-class HistoryReader:
-    def read_file(self, fp, histobj):
-	pass
-	# read the first line, to determine what type of history file
-	# we're looking at
-	ghist = []
-	line = fp.readline()
-	if regex.match('GRAIL-global-history-file-1', line) >= 0:
-	    linereader = GrailHistoryReader()
-	elif regex.match('MCOM-Global-history-file-1', line) >= 0:
-	    linereader = NetscapeHistoryReader()
-	else:
-	    return
-	while line:
-	    line = fp.readline()
-	    if line:
-		infonode = linereader.parse_line(line)
-		if infonode:
-		    ghist.append(infonode)
-	# now mass update the history object
-	histobj.mass_append(ghist)
+    Third, if the pages contains a BASE tag, this URL is used in
+    resolution of relative urls on this page.  Currently the baseurl
+    information is kept with the browser object.
+    """
+    def __init__(self, url='', title='', scrollpos=None, formdata=[]):
+	self._url = url
+	self._title = title
+	self._scrollpos = scrollpos
+	self._formdata = formdata
 
-
-class GlobalHistory:
-    def __init__(self, app):
-	self._app = app
-	self._linkmap = {}
-	self._history = []
-    	# first try to load the Grail global history file
-	fp = None
-	try:
-	    try: fp = open(DEFAULT_GRAIL_HIST_FILE)
-	    except IOError:
-		try: fp = open(DEFAULT_NETSCAPE_HIST_FILE)
-		except IOError: pass
-	    if fp:
-		HistoryReader().read_file(fp, self)
-	finally:
-	    if fp: fp.close()
-	app.register_on_exit(self.on_app_exit)
+    def set_url(self, url): self._url = url
+    def set_title(self, title): self._title = title
+    def set_scrollpos(self, scrollpos): self._scrollpos = scrollpos
+    def set_formdata(self, formdata): self._formdata = formdata
 
-    def mass_append(self, histlist):
-	histlist = histlist[:]
-	histlist.reverse()
-	for infonode in histlist:
-	    self._linkmap[infonode.link] = infonode
-	    self._history.append(infonode.link)
-
-    def append_link(self, infonode):
-	if not self._linkmap.has_key(infonode.link):
-	    self._history.append(infonode.link)
-	self._linkmap[infonode.link] = infonode
-
-    def link(self, link):
-	return self._linkmap.has_key(link) and self._linkmap[link]
-
-    def links(self):
-	return self._history[:]
-
-    def on_app_exit(self):
-	stdout = sys.stdout
-	try:
-	    fp = open(DEFAULT_GRAIL_HIST_FILE, 'w')
-	    sys.stdout = fp
-	    print 'GRAIL-global-history-file-1'
-	    links = self.links()
-	    links.reverse()
-	    for link in links:
-		n = self._linkmap[link]
-		if n.title == n.link:
-		    print '%s\t%d' % (n.link, n.timestamp)
-		else:
-		    print '%s\t%d\t%s' % (n.link, n.timestamp, n.title)
-	finally:
-	    sys.stdout = stdout
-	    fp.close()
-	self._app.unregister_on_exit(self.on_app_exit)
+    def url(self): return self._url
+    def title(self): return self._title
+    def scrollpos(self): return self._scrollpos
+    def formdata(self): return self._formdata
 
 
 
 class History:
-    def __init__(self, app):
+    def __init__(self):
 	class DummyDialog:
 	    def refresh(self): pass
 	    def select(self, index): pass
@@ -148,11 +63,6 @@ class History:
 	self._history = []
 	self._dialog = DummyDialog()
 	self._current = 0
-	self._app = app
-	# initialize global history the first time through
-	try: self._ghistory = app.global_history
-	except AttributeError:
-	    self._ghistory = app.global_history = GlobalHistory(app)
 
     def clone(self):
 	newhist = History(self._app)
@@ -163,65 +73,29 @@ class History:
     def set_dialog(self, dialog):
 	self._dialog = dialog
 
-    def append_link(self, link, title=None):
-	# Netscape-ism: Discard alternative future.  The Jump Trail
-	# (Global History) should be exposed to the user, IMHO.
+    def append_page(self, pageinfo):
+	# Discard alternative futures.  Someday we might have `Cactus
+	# History' or we might expose the Global History to the user.
 	del self._history[self._current+1:]
-	# don't add duplicate of the last entry
-	if len(self._history) > 0 and self._history[-1].link == link:
-	    return
-	infonode = HistoryInfo(link, title or link)
-	self._history.append(infonode)
-	self._current = len(self._history)-1
-	self._ghistory.append_link(infonode)
+	# Don't append a duplicate of the last entry
+	if not self._history or self._history[-1].url() <> pageinfo.url():
+	    self._history.append(pageinfo)
+	    self._current = len(self._history)-1
 	self._dialog.refresh()
 
-    def set_title(self, link, title):
-	infonode = self._ghistory.link(link)
-	if infonode and infonode.title <> title and link <> title:
-	    infonode.title = title
-	    infonode.timestamp = now()
-	    self._dialog.refresh()
-
-    def title(self, link):
-	infonode = self._ghistory.link(link)
-	if infonode:
-	    return infonode.title or infonode.link
-	else:
-	    return ''
-
-    def set_formdata(self, link, data=[]):
-	infonode = self._ghistory.link(link)
-	if infonode:
-	    infonode.formdata = data
-
-    def formdata(self, link):
-	# Netscapism: form data is associated with the stack, since as
-	# the stack is cleared, so is form data.
-	for n in self._history:
-	    if n.link == link:
-		return n.formdata
-	return []
-
-    def link(self, index=None):
+    def page(self, index=None):
 	if index is None: index = self._current
 	if 0 <= index < len(self._history):
 	    self._current = index
 	    self._dialog.select(self._current)
-	    return self._history[self._current].link
+	    return self._history[self._current]
 	else: return None
 
-    def inhistory_p(self, link):
-	# horrible kludge is necessary because the link could be in
-	# the history with or without a trailing slash.
-	has_title = self.title(link) or self.title(link + '/')
-	return not not has_title
-
     def current(self): return self._current
-    def links(self): return map(lambda n: n.link, self._history)
-
-    def forward(self): return self.link(self.current()+1)
-    def back(self): return self.link(self.current()-1)
+    def forward(self): return self.page(self.current()+1)
+    def back(self): return self.page(self.current()-1)
+    def pages(self): return self._history
+    def refresh(self): self._dialog.refresh()
 
 
 
@@ -281,14 +155,15 @@ class HistoryDialog:
 	# populate listbox
 	self._listbox.delete(0, 'end')
 	# view in reverse order
-	hlist = self._history.links()
-	hlist.reverse()
-	for link in hlist:
-	    title = self._history.title(link)
+	pages = self._history.pages()[:]
+	pages.reverse()
+	for page in pages:
+	    url = page.url()
+	    title = page.title() or url
 	    if self._viewing == 1:
 		self._listbox.insert('end', title)
 	    elif self._viewing == 2:
-		self._listbox.insert('end', link)
+		self._listbox.insert('end', url)
 	self.select(self._history.current())
 
     def previous_cmd(self, event=None):
@@ -303,8 +178,8 @@ class HistoryDialog:
 	if len(list) > 0:
 	    selection = string.atoi(list[0])
 	    last = self._listbox.index('end')
-	    link = self._history.link(last-selection-1)
-	    if link: self._browser.load(link, new=0)
+	    page = self._history.page(last - selection - 1)
+	    if page: self._browser.load(page.url(), new=0)
 
     def _close(self, event=None):
 	self._frame.withdraw()

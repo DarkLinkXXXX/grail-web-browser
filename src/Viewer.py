@@ -251,6 +251,9 @@ class Viewer(formatter.AbstractWriter):
     def set_cursor(self, cursor):
 	self.text['cursor'] = cursor
 
+    def scrollpos(self): return self.text.index('@0,0')
+    def scroll_to_position(self, pos): self.text.yview(pos)
+
     def scroll_to(self, fragment):
 	r = self.text.tag_nextrange('#' + fragment, '1.0')
 	if not r:

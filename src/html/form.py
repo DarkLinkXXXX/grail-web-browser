@@ -134,7 +134,7 @@ class FormInfo:
 	self.select = None
 	self.parser.do_p([])
 	# gather cached form data if we've been to this page before
-	formdata_list = self.browser.history.formdata(self.browser.url)
+	formdata_list = self.browser._page.formdata()
 	if formdata_list:
 	    self.formdata = formdata_list[len(parser.forms)]
 	else:
@@ -146,6 +146,8 @@ class FormInfo:
     def get(self):
 	state = []
 	radios = {}
+	# TBD
+	#print 'FormInfo::get:', self.inputs
 	for i in self.inputs:
 	    # TBD: cheezy hack, necessary because when using
 	    # InputRadio::get to get the value for form submission, it
@@ -157,6 +159,8 @@ class FormInfo:
 		if value is None: value = radios[i.name]
 		else: radios[i.name] = value
 	    state.append(value)
+	#TBD
+	#print 'FormInfo::get:', state
 	return state
 
     def done(self):			# Called for </FORM>
@@ -171,6 +175,8 @@ class FormInfo:
 	    klass = getattr(self, classname)
 	    instance = klass(self, options)
 	    # update any cached form status
+	    # TBD
+	    #print 'do_input:', self.formdata
 	    if self.formdata:
 		instance.set(self.formdata[0])
 		del self.formdata[0]
