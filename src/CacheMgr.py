@@ -607,6 +607,7 @@ class DiskCache:
 		# we crash it won't matter
 	    newlog.close()
 	    logpath = os.path.join(self.directory, 'LOG')
+	    os.unlink(logpath)
 	    os.rename(newpath, logpath)
 	except:
 	    print "exception during checkpoint"
@@ -772,7 +773,7 @@ class DiskCache:
 	"""Write the object's data to disk."""
 	path = self.get_file_path(entry.file)
 	try:
-	    f = open(path, 'w')
+	    f = open(path, 'wb')
 	    f.writelines(object.data)
 	    f.close()
 	except IOError, err:
@@ -853,7 +854,7 @@ class disk_cache_access:
 			 'content-length' : str(len) }
 	self.filename = filename
 	try:
-	    self.fp = open(filename)
+	    self.fp = open(filename, 'rb')
 	except IOError, err:
 	    print "io error opening %s: %s" % (filename, err)
 	    # propogate error through
