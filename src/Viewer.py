@@ -418,7 +418,7 @@ class Viewer(formatter.AbstractWriter):
     def new_margin(self, margin, level):
 ##	print "New margin:", margin, level
 	self.marginlevel = level
-	self.margintag = 'margin_%d' % level
+	self.margintag = level and ('margin_%d' % level)
 	self.new_tags()
 
     def new_spacing(self, spacing):
@@ -684,7 +684,8 @@ class Viewer(formatter.AbstractWriter):
 	    align = self.align
 	prev_align, self.align = self.align, align
 	self.new_tags()
-	if self.flowingtags:
+	# test the block-level tags; if none are set we can skip this garbage
+	if self.align or self.fonttag or self.margintag or self.spacingtag:
 	    self.pendingdata = self.pendingdata + MIN_IMAGE_LEADER
 	self.align = prev_align
 	self.new_tags()
