@@ -665,6 +665,10 @@ class Pack:
 
 class Place:
 	def config(self, cnf={}, **kw):
+		for k in ['in_']:
+			if kw.has_key(k):
+				kw[k[:-1]] = kw[k]
+				del kw[k]
 		apply(self.tk.call, 
 		      ('place', 'configure', self._w) 
 		      + self._options(cnf, kw))
