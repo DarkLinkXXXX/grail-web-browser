@@ -2,9 +2,13 @@
 #  -*- python -*-
 
 """Support for retrieving useful information about XML data, including the
-public and system IDs and the document type name."""
+public and system IDs and the document type name.
 
-__version__ = "$Revision: 1.1 $"
+There are parts of this module which assume the native character encoding is
+ASCII or a superset; this should be fixed.
+"""
+
+__version__ = "$Revision: 1.2 $"
 
 import copy
 import os
@@ -27,7 +31,9 @@ else:
 
 class Error(Exception):
     """Base class for xmlinfo exceptions."""
-    pass
+    def __init__(self, *args, **kw):
+        self.message = args[0]
+        apply(Exception.__init__, (self,) + args, kw)
 
 class ConversionError(Error):
     """Raised when an encoding conversion fails."""
@@ -61,24 +67,10 @@ class Record:
 
 def get_xml_info(buffer):
     values = Record(standalone="no", xml_version="1.0")
-    # determine byte-order and encoding:
-    bom = get_byte_order_mark(buffer)
-    buffer = buffer[len(bom):]
-    if bom == BOM_BE:
-        values.byte_order = BIG_ENDIAN
-        values.encoding = "utf-16"
-    elif bom == BOM_LE:
-        values.byte_order = LITTLE_ENDIAN
-        values.encoding = "utf-16"
-    elif bom == '':
-        byte_order, encoding = guess_byte_order_and_encoding(buffer)
-        values.byte_order = byte_order
-        values.encoding = encoding
-    else:
-        raise RuntimeError, \
-              "unexpected internal condition: bad byte-order mark"
-    # parse the XML encoding declaration:
-    return extract(values.encoding, buffer, values)
+    byte_order, encoding, bom = guess_byte_order_and_encoding(buffer)
+    values.byte_order = byte_order
+    values.encoding = encoding
+    return extract(values.encoding, buffer[len(bom):], values)
 
 
 def get_byte_order_mark(buffer):
@@ -90,10 +82,23 @@ def get_byte_order_mark(buffer):
 
 
 def guess_byte_order_and_encoding(buffer):
-    """This can be used to guess the byte-order and encoding when no BOM
-    is present."""
+    """Guess the byte-order and encoding."""
     byte_order = None
     encoding = "utf-8"
+    #
+    bom = get_byte_order_mark(buffer)
+    buffer = buffer[len(bom):]
+    if bom == BOM_BE:
+        return BIG_ENDIAN, "utf-16", BOM_BE
+    elif bom == BOM_LE:
+        return LITTLE_ENDIAN, "utf-16", BOM_LE
+    elif bom == '':
+        pass
+    else:
+        raise RuntimeError, \
+              "unexpected internal condition: bad byte-order mark"
+    #
+    # no byte-order mark
     #
     prefix = buffer[:4]
     if prefix == "\0\0\0\x3c":
@@ -111,15 +116,16 @@ def guess_byte_order_and_encoding(buffer):
     elif prefix == "\x3c\x3f\x78\x6d":
         # good enough to parse the encoding declaration
         encoding = "utf-8"
-    elif prefix == "\x4c\x4f\xa7\x94":
+    elif prefix == "\x4c\x6f\xa7\x94":
         encoding = "ebcdic"
     #
-    return byte_order, encoding
+    return byte_order, encoding, ""
 
 
-def extract(encoding, buffer, values):
+def extract(encoding, buffer, values, best_effort=0):
     tried = {}
     while not tried.has_key(encoding):
+        print "attempting to extract from", encoding
         tried[encoding] = 1
         v2 = copy.copy(values)
         extractor = new_extractor(encoding, buffer, v2)
@@ -127,6 +133,11 @@ def extract(encoding, buffer, values):
             v2 = extractor.extract()
         except EncodingMismatchError, e:
             encoding = e.encoding
+        except:
+            if best_effort:
+                # in case there's anything there
+                return v2
+            raise
         else:
             return v2
     raise ParseError("could not determine encoding")
@@ -142,7 +153,7 @@ def new_extractor(encoding, buffer, values):
 class Extractor:
     __VERSION_CHARS = string.letters + string.digits + "_.:-"
 
-    encoding = None
+    encodings = ()
 
     def __init__(self, buffer, values):
         self.buffer = buffer
@@ -150,9 +161,10 @@ class Extractor:
 
     def extract(self):
         self.parse_declaration()
-        if self.values.encoding != self.encoding:
+        if self.values.encoding not in self.encodings:
             raise EncodingMismatchError(self.values.encoding)
         self.skip_to_doctype()
+        print `self.buffer[:40]`
         self.parse_doctype()
         return self.values
 
@@ -235,21 +247,214 @@ class Extractor:
             return None, None
 
     def parse_doctype(self):
-        raise NotImplementedError
+        self.require_ascii("<!DOCTYPE", "doctype declaration")
+        self.require_whitespace("doctype declaration")
+        self.values.doc_elem = self.parse_Name("doctype declaration")
+        wscount = self.skip_whitespace()
+        c = self.get_ascii(1)
+        if c in "]>":
+            return
+        self.parse_ExternalID()
+
+
+    def _make_set_predicate(L):
+        d = {}
+        for o in L:
+            d[o] = o
+        return d.has_key
+
+    BASE_CHARS = (range(0x41, 0x5A+1) + range(0x61, 0x7A+1)
+                  + range(0xC0, 0xD6+1) + range(0xD8, 0xF6+1)
+                  + range(0xF8, 0xFF+1) + range(0x100, 0x131+1)
+                  + range(0x134, 0x13E+1) + range(0x141, 0x148+1)
+                  + range(0x14A, 0x17E+1) + range(0x180, 0x1C3+1)
+                  + range(0x1CD, 0x1F0+1) + range(0x1F4, 0x1F5+1)
+                  + range(0x1FA, 0x217+1) + range(0x250, 0x2A8+1)
+                  + range(0x2BB, 0x2C1+1) + [0x386]
+                  + range(0x388, 0x38A+1) + [0x38C]
+                  + range(0x38E, 0x3A1+1) + range(0x3A3, 0x3CE+1)
+                  + range(0x3D0, 0x3D6+1) + [0x3DA, 0x3DC, 0x3DE, 0x3E0]
+                  + range(0x3E2, 0x3F3+1) + range(0x401, 0x40C+1)
+                  + range(0x40E, 0x44F+1) + range(0x451, 0x45C+1)
+                  + range(0x45E, 0x481+1) + range(0x490, 0x4C4+1)
+                  + range(0x4C7, 0x4C8+1) + range(0x4CB, 0x4CC+1)
+                  + range(0x4D0, 0x4EB+1) + range(0x4EE, 0x4F5+1)
+                  + range(0x4F8, 0x4F9+1) + range(0x531, 0x556+1)
+                  + [0x559]
+                  + range(0x561, 0x586+1) + range(0x5D0, 0x5EA+1)
+                  + range(0x5F0, 0x5F2+1) + range(0x621, 0x63A+1)
+                  + range(0x641, 0x64A+1) + range(0x905, 0x939+1)
+                  + [0x93D]
+                  + range(0x9AA, 0x9B0+1) + [0x9B2]
+                  + range(0xA05, 0xA0A+1) + range(0xA35, 0xA36+1)
+                  + range(0xA8F, 0xA91+1) + [0xAE0]
+                  + range(0xB05, 0xB0C+1) + range(0xB36, 0xB39+1)
+                  + [0xB3D]
+                  + range(0xB5F, 0xB61+1) + range(0xB85, 0xB8A+1)
+                  + range(0xB8E, 0xB90+1) + range(0xB92, 0xB95+1)
+                  + range(0xB99, 0xB9A+1) + [0xB9C]
+                  + range(0xB9E, 0xB9F+1) + range(0xBA3, 0xBA4+1)
+                  + range(0xBA8, 0xBAA+1) + range(0xBAE, 0xBB5+1)
+                  + range(0xBB7, 0xBB9+1) + range(0xC05, 0xC0C+1)
+                  + range(0xC0E, 0xC10+1) + range(0x10A0, 0x10C5+1)
+                  + range(0x10D0, 0x10F6+1) + [0x1100]
+                  + range(0x1102, 0x1103+1) + range(0x1105, 0x1107+1)
+                  + [0x1109]
+                  + range(0x110B, 0x110C+1) + range(0x110E, 0x1112+1)
+                  + [0x113C, 0x113E, 0x1140, 0x114C, 0x114E, 0x1150]
+                  + range(0x1154, 0x1155+1) + [0x1159]
+                  + range(0x115F, 0x1161+1) + [0x1163, 0x1165, 0x1167, 0x1169]
+                  + range(0x116D, 0x116E+1) + range(0x1172, 0x1173+1)
+                  + [0x1175, 0x119E, 0x11A8, 0x11AB]
+                  + range(0x1F5F, 0x1F7D+1) + range(0x1F80, 0x1FB4+1)
+                  + range(0x1FB6, 0x1FBC+1) + [0x1FBE]
+                  + range(0x1FC2, 0x1FC4+1) + range(0x1FC6, 0x1FCC+1)
+                  + range(0x1FD0, 0x1FD3+1))
+
+    COMBINING_CHARS = []
+
+    DIGIT_CHARS = (range(0x30, 0x3A+1) + range(0x660, 0x669+1)
+                   + range(0x6F0, 0x6F9+1) + range(0x966, 0x96F+1)
+                   + range(0x9E6, 0x9EF+1) + range(0xA66, 0xA6F+1)
+                   + range(0xAE6, 0xAEF+1) + range(0xB66, 0xB6F+1)
+                   + range(0xBE7, 0xBEF+1) + range(0xC66, 0xC6F+1)
+                   + range(0xCE6, 0xCEF+1) + range(0xD66, 0xD6F+1)
+                   + range(0xE50, 0xE59+1) + range(0xED0, 0xED9+1)
+                   + range(0xF20, 0xF29+1))
+    is_digit_char = _make_set_predicate(DIGIT_CHARS)
+
+    EXTENDING_CHARS = ([0xB7, 0x2D0, 0x2D1, 0x387, 0x640, 0xE46, 0xEC6,
+                        0x3005] + range(0x3031, 0x3035+1)
+                       + range(0x309D, 0x309E+1) + range(0x30FC, 0x30FE+1))
+    is_extending_char = _make_set_predicate(EXTENDING_CHARS)
+
+    IDEOGRAPHIC_CHARS = range(0x4E00, 0x9FA5+1) + range(0x3021, 0x3029+1)
+    is_ideographic_char = _make_set_predicate(IDEOGRAPHIC_CHARS)
+
+    LETTER_CHARS = BASE_CHARS + IDEOGRAPHIC_CHARS
+    is_letter_char = _make_set_predicate(LETTER_CHARS)
+
+    NAME_CHARS = LETTER_CHARS + DIGIT_CHARS + [46, 45, 95, 58] \
+                 + COMBINING_CHARS + EXTENDING_CHARS
+    is_name_char = _make_set_predicate(NAME_CHARS)
+
+    del _make_set_predicate
+
+    def parse_Name(self, where):
+        s, u = self.get_char_and_unicode()
+        if not self.is_name_char(u):
+            raise ParseError("illegal character in name: %s (%d)" % (`s`, u))
+        i = 1
+        while 1:
+            c, u = self.get_char_and_unicode(i)
+            if u not in self.NAME_CHARS:
+                break
+            i = i + 1
+            s = s + c
+        self.discard_chars(i)
+        return s
+
+    def parse_ExternalID(self):
+        str = self.get_ascii(6)
+        if str == "PUBLIC":
+            # public system id w/ optional system id
+            self.discard_chars(len(str))
+            self.require_whitespace("ExternalID")
+            id = self.get_quoted_string()
+            if not id:
+                raise ParseError("could not parse doctype declaration:"
+                                 " bad public id")
+            self.values.public_id = id
+            self.require_whitespace("ExternalID")
+            self.values.system_id = self.get_quoted_string()
+        elif str == "SYSTEM":
+            #  system id
+            self.discard_chars(len(str))
+            self.require_whitespace("ExternalID")
+            id = self.get_quoted_string()
+            if not id:
+                raise ParseError("could not parse doctype declaration:"
+                                 " bad system id")
+            self.values.system_id = id
+        else:
+            raise ParseError("illegal external ID")
+
+    def get_quoted_string(self):
+        c, u = self.get_char_and_unicode()
+        if u not in (34, 39):
+            raise ParseError("illegal quoted string")
+        self.discard_chars(1)
+        quote_mark = u
+        s = ''
+        while 1:
+            c, u = self.get_char_and_unicode()
+            if not c:
+                raise ParseError("could not find end of quoted string")
+            self.discard_chars(1)
+            if u == quote_mark:
+                break
+            s = s + c
+        return s
 
     def skip_comment(self):
-        raise NotImplementedError
+        self.require_ascii("<!--", "comment")
+        self.skip_past_ascii("-->", "comment")
 
     def skip_pi(self):
-        raise NotImplementedError
+        self.require_ascii("<?", "processing instruction")
+        self.skip_past_ascii("?>", "processing instruction")
 
     def skip_to_doctype(self):
-        raise NotImplementedError
+        # This should probably be implemented by any extractor for which we
+        # care about performance.
+        while 1:
+            self.skip_whitespace()
+            try:
+                c = self.get_ascii(1)
+            except ConversionError:
+                self.discard_chars(1)
+            else:
+                if not c:
+                    break
+                if c == "<":
+                    # might be something interesting
+                    try:
+                        prefix = self.get_ascii(4)
+                    except ConversionError:
+                        # If this fails, assume there's something non-white in
+                        # there; allow the exception to be raised since there's
+                        # probably illegal data before the document element.
+                        prefix = self.get_ascii(2)
+                    if prefix == "<!--":
+                        self.skip_comment()
+                    elif prefix[:2] == "<?":
+                        self.skip_pi()
+                    else:
+                        break
+                else:
+                    # way bad!
+                    raise ParseError("could not locate doctype declaration"
+                                     " or start of document element")
 
     def skip_whitespace(self):
         """Trim leading whitespace, returning the number of characters
-        stripped."""
-        raise NotImplementedError
+        stripped.
+
+        The default implementation is slow; subclasses should override it.
+        """
+        count = 0
+        try:
+            while 1:
+                c = self.get_ascii(1)
+                if not c:
+                    break
+                if ord(c) not in (0x9, 0xA, 0xD, 0x20):
+                    break
+                self.discard_chars(1)
+                count = count + 1
+        except ConversionError:
+            pass
+        return count
 
     def require_whitespace(self, where):
         """Trim leading whitespace, returning the number of characters
@@ -258,13 +463,44 @@ class Extractor:
         if not numchars:
             raise ParseError("required whitespace in " + where)
 
+    def get_ascii(self, count):
+        raise NotImplementedError
+
+    def get_char_and_unicode(self, index=0):
+        raise NotImplementedError
+
     def require_ascii(self, str, where):
-        data = self.get_ascii(len(str))
+        width = len(str)
+        data = self.get_ascii(width)
         if data != str:
             raise ParseError("required text '%s' missing in %s" % (str, where))
-        self.discard_chars(len(str))
+        self.discard_chars(width)
+
+    def skip_past_ascii(self, str, what):
+        width = len(str)
+        initchar = str[0]
+        subs = range(1, width)
+        while 1:
+            try:
+                data = self.get_ascii(width)
+            except ConversionError:
+                self.discard_chars(1)
+            else:
+                if len(data) < width:
+                    raise ParseError("could not locate end of " + what)
+                if data == str:
+                    self.discard_chars(width)
+                    return
+                for i in subs:
+                    if data[i] == initchar:
+                        self.discard_chars(i)
+                else:
+                    self.discard_chars(width)
 
     def discard_chars(self, count):
+        raise NotImplementedError
+
+    def lower(self, str):
         raise NotImplementedError
 
 
@@ -276,8 +512,8 @@ class ISO8859Extractor(Extractor):
     __id_rx = re.compile(r"""(?:'[^']*'|\"[^\"]*\")""",
                          re.MULTILINE | re.VERBOSE)
 
-    def __yank_id(self):
-        self.require_whitespace("doctype declaration")
+    def yank_id(self):
+        self.require_whitespace("doctype declaration: ExternalID")
         m = self.__id_rx.match(self.buffer)
         if not m:
             return None
@@ -302,26 +538,8 @@ class ISO8859Extractor(Extractor):
         if not whitechars:
             raise ParseError("whitespace required between document type and"
                              " document type declaration")
-        str = self.get_ascii(6)
-        if str == "PUBLIC":
-            # public system id w/ optional system id
-            self.discard_chars(len(str))
-            id = self.__yank_id()
-            if not id:
-                raise ParseError("could not parse doctype declaration:"
-                                 " bad public id")
-            self.values.public_id = id
-            self.values.system_id = self.__yank_id()
-
-        elif str == "SYSTEM":
-            #  system id
-            self.discard_chars(len(str))
-            id = self.__yank_id()
-            if not id:
-                raise ParseError("could not parse doctype declaration:"
-                                 " bad system id")
-            self.values.system_id = id
-
+        self.parse_ExternalID()
+    
     def skip_to_doctype(self):
         while self.buffer:
             self.buffer = string.lstrip(self.buffer)
@@ -353,13 +571,24 @@ class ISO8859Extractor(Extractor):
         # not quite right, but good enough for now
         return self.buffer[:count]
 
+    def get_char_and_unicode(self, index=0):
+        # really only good for iso-8859-1
+        c = self.buffer[index:index + 1]
+        if c:
+            return c, ord(c)
+        else:
+            return c, None
+
     def discard_chars(self, count):
         self.buffer = self.buffer[count:]
+
+    def lower(self, str):
+        return string.lower(str)
 
 
 for c in "123456789":
     class _Extractor(ISO8859Extractor):
-        encoding = "iso-8859-" + c
+        encodings = ("iso-8859-" + c,)
     try:
         _Extractor.__name__ = "ISO8859_%s_Extractor" % c
     except TypeError:
@@ -370,9 +599,72 @@ for c in "123456789":
 
 
 class UTF8Extractor(ISO8859Extractor):
-    encoding = "utf-8"
+    encodings = ("utf-8",)
+
+    def get_char_and_unicode(self, index=0):
+        raise NotImplementedError
 
 _extractor_map["utf-8"] = UTF8Extractor
+
+
+class EBCDICExtractor(Extractor):
+    encodings = ("ebcdic",)
+
+    # This table was taken from the source code of GNU recode 3.4.
+    __ASCII_TO_EBCDIC = [
+          0,   1,   2,   3,  55,  45,  46,  47,   #   0 -   7
+         22,   5,  37,  11,  12,  13,  14,  15,   #   8 -  15
+         16,  17,  18,  19,  60,  61,  50,  38,   #  16 -  23
+         24,  25,  63,  39,  28,  29,  30,  31,   #  24 -  31
+         64,  79, 127, 123,  91, 108,  80, 125,   #  32 -  39
+         77,  93,  92,  78, 107,  96,  75,  97,   #  40 -  47
+        240, 241, 242, 243, 244, 245, 246, 247,   #  48 -  55
+        248, 249, 122,  94,  76, 126, 110, 111,   #  56 -  63
+        124, 193, 194, 195, 196, 197, 198, 199,   #  64 -  71
+        200, 201, 209, 210, 211, 212, 213, 214,   #  72 -  79
+        215, 216, 217, 226, 227, 228, 229, 230,   #  80 -  87
+        231, 232, 233,  74, 224,  90,  95, 109,   #  88 -  95
+        121, 129, 130, 131, 132, 133, 134, 135,   #  96 - 103
+        136, 137, 145, 146, 147, 148, 149, 150,   # 104 - 111
+        151, 152, 153, 162, 163, 164, 165, 166,   # 112 - 119
+        167, 168, 169, 192, 106, 208, 161,   7,   # 120 - 127
+         32,  33,  34,  35,  36,  21,   6,  23,   # 128 - 135
+         40,  41,  42,  43,  44,   9,  10,  27,   # 136 - 143
+         48,  49,  26,  51,  52,  53,  54,   8,   # 144 - 151
+         56,  57,  58,  59,   4,  20,  62, 225,   # 152 - 159
+         65,  66,  67,  68,  69,  70,  71,  72,   # 160 - 167
+         73,  81,  82,  83,  84,  85,  86,  87,   # 168 - 175
+         88,  89,  98,  99, 100, 101, 102, 103,   # 176 - 183
+        104, 105, 112, 113, 114, 115, 116, 117,   # 184 - 191
+        118, 119, 120, 128, 138, 139, 140, 141,   # 192 - 199
+        142, 143, 144, 154, 155, 156, 157, 158,   # 200 - 207
+        159, 160, 170, 171, 172, 173, 174, 175,   # 208 - 215
+        176, 177, 178, 179, 180, 181, 182, 183,   # 216 - 223
+        184, 185, 186, 187, 188, 189, 190, 191,   # 224 - 231
+        202, 203, 204, 205, 206, 207, 218, 219,   # 232 - 239
+        220, 221, 222, 223, 234, 235, 236, 237,   # 240 - 247
+        238, 239, 250, 251, 252, 253, 254, 255,   # 248 - 255
+        ]
+
+    _m = [None] * 256
+    for _i in range(len(__ASCII_TO_EBCDIC)):
+        _e = __ASCII_TO_EBCDIC[_i]
+        __ASCII_TO_EBCDIC[_i] = chr(_e)
+        _m[_e] = chr(_i)
+    for i in range(len(_m)):
+        if _m[_i] is None:
+            print "No EBCDIC character for ASCII", `chr(i)`
+
+    __EBCDIC_TO_ASCII = tuple(_m)
+
+    __translation = string.maketrans(string.join(__ASCII_TO_EBCDIC, ''),
+                                     string.join(__EBCDIC_TO_ASCII, ''))
+
+    def get_ascii(self, count):
+        buffer = self.buffer[:count]
+        return string.translate(buffer, self.__translation)
+
+_extractor_map['ebcdic'] = EBCDICExtractor
 
 
 def ascii_to_ucs2be(s):
@@ -387,7 +679,21 @@ def ascii_to_ucs2le(s):
     return string.join(L, '\0')
 
 
+def ascii_to_ucs4be(s):
+    L = map(None, s)
+    L.insert(0, '')
+    return string.join(L, '\0\0\0')
+
+
+def ascii_to_ucs4le(s):
+    L = map(None, s)
+    L.append('')
+    return string.join(L, '\0\0\0')
+
+
 class UCS2Extractor(Extractor):
+    encodings = ("ucs-2", "utf-16", "iso-10646-ucs-2")
+
     __WHITESPACE_BE = map(ascii_to_ucs2be, string.whitespace)
     __WHITESPACE_LE = map(ascii_to_ucs2le, string.whitespace)
 
@@ -403,22 +709,16 @@ class UCS2Extractor(Extractor):
         else:
             self.__whitespace = self.__WHITESPACE_LE
             self.__from_ascii = ascii_to_ucs2le
-
-    def parse_declaration(self):
-        prefix = self.__from_ascii("<?xml")
-        if self.buffer[:len(prefix)] != prefix:
-            raise ParseError("could not parse XML declaration")
-        self.buffer = self.buffer[len(prefix):]
-        self.parse_VersionInfo()
+        print self.__whitespace
 
     def skip_whitespace(self):
         buffer = self.buffer
-        count = 0
-        while buffer[:2] in self.__whitespace:
-            buffer = buffer[2:]
-            count = count + 1
-        self.buffer = buffer
-        return count
+        pos = 0
+        whitespace = self.__whitespace
+        while buffer[pos:pos+2] in whitespace:
+            pos = pos + 2
+        self.buffer = buffer[pos:]
+        return pos / 2
 
     def get_ascii(self, count):
         data = self.buffer[:count*2]
@@ -430,7 +730,7 @@ class UCS2Extractor(Extractor):
             char_offset = 0
         s = ''
         try:
-            for i in range(0, count, 2):
+            for i in range(0, count*2, 2):
                 if data[i+zero_offset] != '\0':
                     raise ConversionError("cannot convert %s to ASCII"
                                           % `data[i:i+2]`)
@@ -440,8 +740,19 @@ class UCS2Extractor(Extractor):
             pass
         return s
 
+    def get_char_and_unicode(self, index=0):
+        if len(self.buffer) >= 2:
+            offset = index * 2
+            c = self.buffer[offset:offset + 2]
+            return c, ordwc(c, self.__byte_order)
+        else:
+            return None, None
+
     def discard_chars(self, count):
         self.buffer = self.buffer[count*2:]
+
+_extractor_map["ucs-2"] = UCS2Extractor
+_extractor_map["utf-16"] = UCS2Extractor
 
 
 def ordwc(wc, byte_order=None):
@@ -452,18 +763,18 @@ def ordwc(wc, byte_order=None):
     if width == 2:
         o1, o2 = map(ord, wc)
         if byte_order == BIG_ENDIAN:
-            ord = (o1 << 8) | o2
+            o = (o1 << 8) | o2
         else:
-            ord = (o2 << 8) | o1
+            o = (o2 << 8) | o1
     elif width == 4:
         o1, o2, o3, o4 = map(ord, wc)
         if byte_order == BIG_ENDIAN:
-            ord = (((((o1 << 8) | o2) << 8) | o3) << 8) | o4
+            o = (((((o1 << 8) | o2) << 8) | o3) << 8) | o4
         else:
-            ord = (((((o4 << 8) | o3) << 8) | o2) << 8) | o1
+            o = (((((o4 << 8) | o3) << 8) | o2) << 8) | o1
     else:
         raise ValueError, "wide-character string has bad length"
-    return ord
+    return o
 
 
 def ordwstr(wstr, byte_order=None, charsize=2):
@@ -481,23 +792,27 @@ def main():
     #
     get_defaults = 1
     full_report = 0
-    opts, args = getopt.getopt(sys.argv[1:], "a",
-                               ["all", "docelem", "encoding", "public",
-                                "standalone", "system", "version"])
+    debugging = 0
+    program = os.path.basename(sys.argv[0])
+    opts, args = getopt.getopt(sys.argv[1:], "ad",
+                               ["all", "docelem", "encoding", "public-id",
+                                "standalone", "system-id", "version"])
     if opts:
         get_defaults = 0
     for opt, arg in opts:
         if opt in ("-a", "--all"):
             full_report = 1
+        elif opt == "-d":
+            debugging = debugging + 1
         elif opt == "--docelem":
             reqs.doc_elem = 1
         elif opt == "--encoding":
             reqs.encoding = 1
-        elif opt == "--public":
+        elif opt == "--public-id":
             reqs.publib_id = 1
         elif opt == "--standalone":
             reqs.standalone = 1
-        elif opt == "--system":
+        elif opt == "--system-id":
             reqs.system_id = 1
         elif opt == "--version":
             reqs.xml_version = 1
@@ -505,8 +820,7 @@ def main():
         full_report = 1
     #
     if len(args) > 1:
-        sys.stderr.write("%s: too many input sources specified"
-                         % os.path.basename(sys.argv[0]))
+        sys.stderr.write(program + ": too many input sources specified")
         sys.exit(2)
     if args:
         if os.path.exists(args[0]):
@@ -517,7 +831,15 @@ def main():
     else:
         fp = sys.stdin
     #
-    values = get_xml_info(fp.read(10240))
+    buffer = fp.read(10240)
+    fp.close()
+    try:
+        values = get_xml_info(buffer)
+    except Error, e:
+        sys.stderr.write("parse failed: %s\n" % e.args[0])
+        if debugging:
+            raise
+        sys.exit(1)
     #
     # Make the report:
     #
