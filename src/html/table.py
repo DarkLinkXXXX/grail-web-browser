@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.5 1996/03/27 23:01:15 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.6 1996/03/27 23:34:28 bwarsaw Exp $'
 
 
 import string
@@ -483,14 +483,12 @@ class Cell(AttrElem):
 
     def finish(self):
 	if self.layout == AUTOLAYOUT:
-	    fw, tw = self.viewer.text, self.viewer.text
+	    fw, tw = self.viewer.frame, self.viewer.text
 	    # set the cellpadding
 	    padding = string.atoi(self._cellpadding or '')
 	    tw['padx'] = padding
 	    # get the cell's widths
 	    cmax, self.min_nonaligned, self._width = _get_widths(tw)
-	    fw.propagate(0)
-	    fw['width'] = self._width
 	    # now take into account all embedded subwindows
 	    for sw in self.viewer.subwindows:
 		self.min_nonaligned = max(self.min_nonaligned, sw['width'])
@@ -500,14 +498,19 @@ class Cell(AttrElem):
 	    # fireworks.  Later, situate() will be called to do the
 	    # final sizing and positioning of the cell.
 	    tw['height'] = _get_linecount(tw) + 1
+	    # place the cell at position (0, 0) in the canvas, with
+	    # the proper width and a close approximate height
+	    self._tag = self._container.create_window(
+		0, 0,
+		window=fw, anchor=NW,
+		width=self._width, height=fw['height'])
 
     def situate(self, x, y, w, h):
-	fw = self.viewer.frame
-	fw.propagate(1)
-	fw.config(width=w, height=h)
-	self._container.create_window(x, y,
-				      window=fw, anchor=NW,
-				      width=w, height=h)
+## 	fw = self.viewer.frame
+## 	fw.propagate(1)
+## 	fw.config(width=w, height=h)
+	self._container.move(self._tag, x, y)
+	self._container.itemconfigure(self._tag, width=w, height=h)
 	self._width = w
 	self._height = h
 	self._x = x
