@@ -149,6 +149,7 @@ class FormInfo:
 	self.inputs = []
 	self.radios = {}
 	self.select = None
+	self.textarea = None
 	self.parser.start_p({})
 	# gather cached form data if we've been to this page before
 	formdata_list = self.context.get_formdata()
