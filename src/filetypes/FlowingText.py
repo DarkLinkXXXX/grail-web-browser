@@ -9,7 +9,7 @@ completely.
 The 'quoted' feature is not implemented at this time.
 """
 
-__version__ = '$Revision: 2.1 $'
+__version__ = '$Revision: 2.2 $'
 
 
 import formatter
@@ -43,7 +43,9 @@ class FlowingTextParser:
                         self.set_flow(0)
                     if self.signature:
                         self.send_data(line + '\n')
-                    elif line and line[-1] == ' ':
+                        continue
+                    if len(string.rstrip(line)) == (len(line) - 1) \
+                       and line[-1] == ' ':
                         self.set_flow(1)
                         self.send_data(line + '\n')
                     else:
