@@ -1,7 +1,7 @@
 """Handler for ietf: URNs.  These are defined in the Internet draft
 draft-ietf-urn-ietf-07.txt (work in progress).
 """
-__version__ = '$Revision: 2.6 $'
+__version__ = '$Revision: 2.7 $'
 
 import grailutil
 import nullAPI
@@ -65,7 +65,8 @@ _number_to_date = {
     #
     # See http://www.ietf.org/meetings/meetings.html
     #
-    50: "01mar",
+    54: "02jul", 53: "02mar",
+    52: "01dec", 51: "01aug", 50: "01mar",
     49: "00dec", 48: "99jul", 47: "00mar",
     46: "99nov", 45: "99jul", 44: "99mar",
     43: "98dec", 42: "98aug", 41: "98apr",
