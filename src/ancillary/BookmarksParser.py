@@ -31,6 +31,23 @@ class PoppedRootError(Error):
     pass
 
 
+def norm_uri(uri):
+    scheme, netloc, path, params, query, fragment \
+	    = urlparse.urlparse(uri)
+    if scheme == "http" and ':' in netloc:
+	loc = string.splitfields(netloc, ':')
+	try:
+	    port = string.atoi(loc[-1], 10)
+	except:
+	    pass
+	else:
+	    if port == 80:
+		del loc[-1]
+		netloc = string.joinfields(loc, ':')
+    return urlparse.urlunparse((scheme, string.lower(netloc), path,
+				params, query, ''))
+
+
 class BookmarkNode(Outliner.OutlinerNode):
     """Bookmarks are represented internally as a tree of nodes containing
     relevent information.
@@ -67,7 +84,7 @@ class BookmarkNode(Outliner.OutlinerNode):
 	self._children = []		# performance hack; should call base
 	self._title = title
 	if uri_string:
-	    self._uri = uri_string
+	    self._uri = norm_uri(uri_string)
 	    self._islink_p = True
 	self._desc = description
 	t = time.time()
@@ -117,12 +134,6 @@ class BookmarkNode(Outliner.OutlinerNode):
     def islink_p(self): return self._islink_p
     def isseparator_p(self): return self._isseparator_p
 
-    def get_normurl(self):
-	scheme, netloc, path, params, query, fragment \
-		= urlparse.urlparse(self.uri())
-	return urlparse.urlunparse((scheme, string.lower(netloc), path,
-				    params, query, ''))
-
     def set_separator(self):
 	self._isseparator_p = True
 	self._leaf_p = True
@@ -140,7 +151,7 @@ class BookmarkNode(Outliner.OutlinerNode):
     def set_description(self, description=''):
 	self._desc = string.strip(description)
     def set_uri(self, uri_string=''):
-	self._uri = string.split(uri_string)
+	self._uri = norm_uri(uri_string)
 	if self._uri:
 	    self._islink_p = True
 	    self._leaf_p = True
