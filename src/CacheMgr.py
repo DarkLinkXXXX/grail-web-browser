@@ -84,13 +84,57 @@ class CacheManager:
 	"""
 
 	key = self.url2key(url, mode, params)
-	if self.active.has_key(key):
-	    ### probably does the wrong thing on a reload
-	    return CacheAPI(self.active[key])
 	if mode == 'GET':
+	    if self.active.has_key(key):
+		if reload:
+		    self.active[key].reset()
+		return CacheAPI(self.active[key])
 	    return self.open_get(key, url, mode, params, reload, data)
 	elif mode == 'POST':
 	    return self.open_post(key, url, mode, params, reload, data)
+
+    def open_get(self, key, url, mode, params, reload, data):
+	"""open() method specialized for GET request.
+
+	Performs several steps:
+	1. Check for the URL in the cache.
+	2. If it is in the cache,
+	      1. Create a CacheItem for it.
+	      2. Reload the cached copy if reload flag is on.
+	      3. Refresh the page if the freshness test fails.
+	   If it isn't in the cache,
+	      1. Create a CacheItem (which will create a CacheEntry 
+   	      after the page has been loaded.)
+	3. call activate(), which adds the URL to the shared object
+	list and creates a CacheAPI for the item
+	"""
+	try:
+	    api = self.cache_read(key)
+	except CacheItemExpired, cache:
+	    cache.evict(key)
+	    api = None
+	if api:
+	    # creating reference to cached item
+	    item = CacheItem(url, mode, params, self, key, data, api)
+	    if reload:
+		item.reset(reload)
+		self.touch(key)
+	    elif not self.fresh_p(key):
+		# is this direct reference to the headers dangerous?
+		item.refresh(self.items[key].lastmod)
+		self.touch(key)
+	else:
+	    # cause item to be loaded (and perhaps cached)
+	    item = CacheItem(url, mode, params, self, key, data)
+	return self.activate(item)
+
+    def open_post(self, key, url, mode, params, reload, data):
+	"""Open a URL with a POST request. Do not cache."""
+	key = self.url2key(url, mode, params)
+	temp = self.activate(CacheItem(url, mode, params, None, key,
+				       data))
+	print "open_post = ", temp
+	return temp
 
     def activate(self,item):
 	"""Adds a CacheItem to the shared object list and returns CacheAPI.
@@ -133,46 +177,6 @@ class CacheManager:
 
 	assert(self.items.has_key(key))
 	self.items[key].touch()
-
-    def open_get(self, key, url, mode, params, reload, data):
-	"""open() method specialized for GET request.
-
-	Performs several steps:
-	1. Check for the URL in the cache.
-	2. If it is in the cache,
-	      1. Create a CacheItem for it.
-	      2. Reload the cached copy if reload flag is on.
-	      3. Refresh the page if the freshness test fails.
-	   If it isn't in the cache,
-	      1. Create a CacheItem (which will create a CacheEntry 
-   	      after the page has been loaded.)
-	3. call activate(), which adds the URL to the shared object
-	list and creates a CacheAPI for the item
-	"""
-	try:
-	    api = self.cache_read(key)
-	except CacheItemExpired, cache:
-	    cache.evict(key)
-	    api = None
-	if api:
-	    # creating reference to cached item
-	    item = CacheItem(url, mode, params, self, key, data, api)
-	    if reload:
-		item.reset(reload)
-		self.touch(key)
-	    elif not self.fresh_p(key):
-		# is this direct reference to the headers dangerous?
-		item.refresh(self.items[key].lastmod)
-		self.touch(key)
-	else:
-	    # cause item to be loaded (and perhaps cached)
-	    item = CacheItem(url, mode, params, self, key, data)
-	return self.activate(item)
-
-    def open_post(self, key, url, mode, params, reload, data):
-	"""Open a URL with a POST request. Do not cache."""
-	key = self.url2key(url, mode, params)
-	return self.activate(CacheItem(url, mode, params, None, key, data))
 
     def expire(self,key):
 	"""Should not be used."""
@@ -422,6 +426,8 @@ class DiskCache:
 	grailutil.establish_dir(self.directory)
 	self._read_metadata()
 	self._reinit_log()
+	self.manager.app.register_on_exit(lambda self=self: \
+					  self._checkpoint_metadata())
 
     log_version = "1.0"
 
@@ -471,7 +477,7 @@ class DiskCache:
 	except EOFError:
 	    # all done
 	    pass
-	self._checkpoint_metadata()
+#	self._checkpoint_metadata()
 
     def _checkpoint_metadata(self):
 	"""Checkpoint the transaction log.
