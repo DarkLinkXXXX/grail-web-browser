@@ -1,5 +1,9 @@
 #! /usr/local/bin/python
 
+# Copyright (c) CNRI 1996, licensed under terms and conditions of license
+# agreement obtained from handle "hdl:CNRI.License/Grail-Version-0.3",
+# URL "http://grail.cnri.reston.va.us/LICENSE-0.3/", or file "LICENSE".
+
 """Grail -- the Extensible Internet Browser."""
 
 
@@ -56,9 +60,9 @@ KEEPALIVE_TIMER = 500
 BIGLOGO = "biglogo.gif"
 
 # Notice displayed underneath the big logo
-NOTICE = """Copyright \251 1995, 1996
-Corporation for National
-Research Initiatives
+NOTICE = """Copyright \251 1996.
+GRAIL\256, is a registered
+trademark of CNRI.
 
 Version: %s""" % __version__
 
