@@ -20,6 +20,40 @@ caps = None
 profiling = 0
 
 
+class ParserWrapper:
+    """Provides re-entrance protection around an arbitrary parser object.
+    """
+    def __init__(self, parser, viewer):
+	self.__parser = parser
+	self.__viewer = viewer
+	self.__pendingdata = ''
+	self.__closed = 0
+	self.__closing = 0
+	self.__level = 0
+
+    def feed(self, data):
+	self.__pendingdata = self.__pendingdata + data
+	self.__level = self.__level + 1
+	if self.__level == 1:
+	    self.__viewer.unfreeze()
+	    while self.__pendingdata:
+		data = self.__pendingdata
+		self.__pendingdata = ''
+		self.__parser.feed(data)
+	    if self.__closing and not self.__closed:
+		self.__parser.close()
+	    self.__viewer.freeze()
+	self.__level = self.__level - 1
+
+    def close(self):
+	self.__closing = 1
+	if not self.__level:
+	    self.__viewer.unfreeze()
+	    self.__parser.close()
+	    self.__viewer.freeze()
+	    self.__closed = 1
+
+
 class Reader(BaseReader):
 
     """Helper class to read documents asynchronously.
@@ -97,9 +131,7 @@ class Reader(BaseReader):
 	if self.parser:
 	    parser = self.parser
 	    self.parser = None
-	    self.viewer.unfreeze()
 	    parser.close()
-	    self.viewer.freeze()
 
     def handle_error(self, errcode, errmsg, headers):
 	if self.save_file:
@@ -238,7 +270,8 @@ class Reader(BaseReader):
 		    self.viewer = self.context.viewer
 	self.context.clear_reset()
 	self.context.set_url(self.url)
-	self.parser = parserclass(self.viewer, reload=self.reload)
+	realparser = parserclass(self.viewer, reload=self.reload)
+	self.parser = ParserWrapper(realparser, self.viewer)
 	self.istext = istext
 	self.last_was_cr = 0
 
@@ -284,7 +317,6 @@ class Reader(BaseReader):
 		if '\r' in data:
 		    data = regsub.gsub('\r', '\n', data)
 
-	self.viewer.unfreeze()
 	try:
 	    self.parser.feed(data)
 	except IOError, msg:
@@ -294,7 +326,6 @@ class Reader(BaseReader):
 	    except:
 		errno, errmsg = 0, str(msg)
 	    self.handle_error(errno, errmsg, [])
-	self.viewer.freeze()
 
     if profiling:
 	bufsize = 8*1024
