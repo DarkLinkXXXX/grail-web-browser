@@ -184,6 +184,8 @@ class Reader(BaseReader):
 	    content_encoding = None
 	if headers.has_key('content-encoding'):
 	    content_encoding = headers['content-encoding']
+	real_content_type = content_type or "unknown"
+	real_content_encoding = content_encoding
 	if content_encoding:
 	    # XXX provisional hack -- change content type to octet stream
 	    content_type = "application/octet-stream"
@@ -236,8 +238,16 @@ class Reader(BaseReader):
 	    context.source = None
 	    self.stop()
 	    context.message("Wait for save dialog...")
+	    encoding = ''
+	    if real_content_encoding:
+		encoding = real_content_encoding + "ed "
+		if encoding[:2] == "x-":
+		    encoding = encoding[2:]
+	    encoding_label = "MIME type: %s%s" % (encoding, real_content_type)
 	    import FileDialog
 	    fd = FileDialog.SaveFileDialog(context.root)
+	    label = Label(fd.top, text=encoding_label)
+	    label.pack(before=fd.filter)
 	    # give it a default filename on which save within the
 	    # current directory
 	    urlasfile = string.splitfields(self.url, '/')
