@@ -58,7 +58,7 @@ class BookmarkNode(OutlinerNode):
 	self._add_date = add_date
 	self._visited = last_visited
 	self._index = None
-	self._islink_p = False
+	self._islink_p = not not uri_string
 	self._isseparator_p = False
 
     def __repr__(self):
@@ -78,7 +78,7 @@ class BookmarkNode(OutlinerNode):
 
     def set_title(self, title=''): self._title = title
     def set_add_date(self, add_date=time.time()): self._add_date = add_date
-    def set_last_visited(self, lastv=time.time()): self._visited = lastv
+    def set_last_visited(self, lastv): self._visited = lastv
     def set_description(self, description=''): self._desc = description
     def set_uri(self, uri_string=''):
 	self._uri = uri_string
@@ -240,8 +240,6 @@ class NetscapeBookmarkWriter:
 
 
 class TkListboxWriter(OutlinerViewer):
-    _gcounter = 0
-
     def __init__(self, root, listbox):
 	self._listbox = listbox
 	OutlinerViewer.__init__(self, root)
@@ -272,17 +270,25 @@ class TkListboxWriter(OutlinerViewer):
 	self._listbox.select_clear(0, self.count())
 	self._listbox.select_set(index)
 
-
 
 class BookmarksController:
     def __init__(self, frame, browser):
 	self._browser = browser
 	self._frame = frame
-	self._aggressive_var = BooleanVar()
 	self._bookmarkfile = None
 	self._root = None
 	self._writer = None
 	self._details = {}
+	self._tkvars = {
+	    'aggressive': BooleanVar(),
+	    'addcurloc':  IntVar()
+	    }
+	self.aggressive.set(0)
+	self.addcurloc.set(1)
+
+    def __getattr__(self, name):
+	if self._tkvars.has_key(name): return self._tkvars[name]
+	else: raise AttributeError, name
 
     def _get_selected_node(self):
 	list = self._listbox.curselection()
@@ -290,7 +296,7 @@ class BookmarksController:
 	    selection = string.atoi(list[0])
 	    return (self._writer.node(selection), selection)
 	else:
-	    return None
+	    return (None, None)
 
     def set_listbox(self, listbox): self._listbox = listbox
     def set_dialog(self, dialog): self._dialog = dialog
@@ -298,7 +304,6 @@ class BookmarksController:
 	self._bookmarkfile = filename
 	self.load()
 
-    def aggressive_var(self): return self._aggressive_var
     def root(self): return self._root
 
     def select(self, event=None): pass
@@ -310,6 +315,9 @@ class BookmarksController:
 	self._browser.load('file:' + self._bookmarkfile)
     def goto_node(self, node):
 	if node and node.leaf_p() and node.uri():
+	    node.set_last_visited(int(time.time()))
+	    if self._details.has_key(id(node)):
+		self._details[id(node)].revert()
 	    self._browser.load(node.uri())
 
     def collapse(self, event=None):
@@ -318,7 +326,7 @@ class BookmarksController:
 	# This node is only collapsable if it is an unexpanded branch
 	# node, or the aggressive collapse flag is set.
 	uncollapsable = node.leaf_p() or not node.expanded_p()
-	aggressive_p = self._aggressive_var.get()
+	aggressive_p = self.aggressive.get()
 	if uncollapsable and not aggressive_p:
 	    return
 	# if the node is a leaf and the aggressive collapse flag is
@@ -393,7 +401,50 @@ class BookmarksController:
 
     def saveas(self, event=None): pass
 
-    def add_current(self, event=None): pass
+    def add_current(self, event=None):
+	# create a new node to represent this addition and then fit it
+	# into the tree, updating the listbox
+	see = True
+	now = int(time.time())
+	node = BookmarkNode(self._browser.title,
+			    self._browser.url,
+			    now, now)
+	addlocation = self.addcurloc.get()
+	if addlocation == 1:
+	    # append this to the end of the list, which translates to:
+	    # add this node to the end of root's child list.
+	    lastnode = self._writer.count()
+	    self._root.append_child(node)
+	    self._writer.insert_nodes(lastnode, [node], True)
+	elif addlocation == 2:
+	    # prepend the node to the front of the list, which
+	    # translates to: add this node to the beginning of root's
+	    # child list.
+	    self._root.insert_child(node, 0)
+	    self._writer.insert_nodes(0, [node], True)
+	elif addlocation == 3:
+	    # add current as child of selected node, which translates
+	    # to: add this node to the end of the selected node's list
+	    # of children.  The tricky bit is that we have to update
+	    # the selected node, and we only want to display the new
+	    # node in the listbox if the current selection is
+	    # expanded.
+	    snode, selection = self._get_selected_node()
+	    if snode:
+		children = snode.children()
+		if children: insertion = children[-1].index()
+		else: insertion = selection
+		snode.append_child(node)
+		if snode.expanded_p():
+		    self._writer.insert_nodes(insertion, [node])
+		else:
+		    see = False
+		self._writer.update_node(snode)
+	else:
+	    # really should raise an internal error or some such
+	    pass
+	if see: self._listbox.see(node.index())
+
     def update_node(self, node): self._writer.update_node(node)
 
     def details(self, event=None):
@@ -489,7 +540,17 @@ class BookmarksDialog:
 	propsbtn.pack(side=LEFT)
 	propsmenu = Menu(propsbtn)
 	propsmenu.add_checkbutton(label="Aggressive Collapse",
-				  variable=self._controller.aggressive_var())
+				  variable=self._controller.aggressive)
+	propsmenu.add_separator()
+	propsmenu.add_radiobutton(label='Add Current, Appends to File',
+				  variable=self._controller.addcurloc,
+				  value=1)
+	propsmenu.add_radiobutton(label='Add Current, Prepends to File',
+				  variable=self._controller.addcurloc,
+				  value=2)
+	propsmenu.add_radiobutton(label='Add Current, As Child of Selection',
+				  variable=self._controller.addcurloc,
+				  value=3)
 	propsbtn.config(menu=propsmenu)
 	# edit menu
 	editbtn = Menubutton(self._menubar, text="Edit")
@@ -500,6 +561,11 @@ class BookmarksDialog:
 			     underline=0, accelerator="Alt-D")
 	self._frame.bind("<Alt-d>", self._controller.details)
 	self._frame.bind("<Return>", self._controller.details)
+	editmenu.add_separator()
+	editmenu.add_command(label="Add Current",
+			     command=self._controller.add_current,
+			     underline=0, accelerator='Alt-A')
+	self._frame.bind("<Alt-a>", self._controller.add_current)
 	editbtn.config(menu=editmenu)
 
     def _create_listbox(self):
@@ -507,7 +573,7 @@ class BookmarksDialog:
 						     60, 24, 1, 1)
 	self._listbox.config(font='fixed')
 	# bind keys
-	self._listbox.bind('<Double-Button-1>', self._controller.details)
+	self._listbox.bind('<Double-Button-1>', self._controller.goto)
 	self._listbox.bind('<ButtonRelease-1>', self._controller.select)
 	self._listbox.focus_set()
 	# connect to controller
@@ -572,6 +638,8 @@ class DetailsDialog:
 		make(self._frame, 'Added On', 40),
 		make(self._frame, 'Description', 40, 5)
 		]
+	    self._form[2][0].config(relief='groove')
+	    self._form[3][0].config(relief='groove')
 	self.revert()
 
     def _create_buttonbar(self):
@@ -591,6 +659,12 @@ class DetailsDialog:
 	btnbar.pack(fill='both')
 
     def revert(self):
+	# first we have to re-enable the read-only fields, otherwise
+	# Tk will just ignore our updates.  blech!
+	if self._node.islink_p():
+	    for entry, frame, label in self._form[2:4]:
+		entry.config(state='normal')
+	# now empty out the text
 	for entry, frame, label in self._form:
 	    if type(entry) == type(()): entry[0].delete(1.0, 'end')
 	    else: entry.delete(0, 'end')
@@ -602,7 +676,8 @@ class DetailsDialog:
 	    self._form[2][0].insert(0, time.ctime(node.last_visited()))
 	    self._form[3][0].insert(0, time.ctime(node.add_date()))
 	    self._form[4][0][0].insert(1.0, node.description())
-	    for entry, frame, label in self._form[2:3]:
+	    # make the fields read-only again
+	    for entry, frame, label in self._form[2:4]:
 		entry.config(state='disabled')
 
     def apply(self):
