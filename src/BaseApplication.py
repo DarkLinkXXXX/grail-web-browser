@@ -5,7 +5,7 @@ extension loading mechanisms.  The later are the primary motivation
 for this, allowing the html2ps.py script to use extensions intelligently
 using the same approaches (and implementation) as the Tk-based browser.
 """
-__version__ = '$Revision: 2.16 $'
+__version__ = '$Revision: 2.17 $'
 #  $Source: /home/john/Code/grail/src/BaseApplication.py,v $
 
 import keyword
@@ -45,16 +45,19 @@ class BaseApplication(grailbase.app.Application):
         self.__extensions = {}
 
     def find_type_extension(self, package, mimetype):
+        handler = None
         try:
             loader = self.get_loader(package)
-        except KeyError, e:
-            return None
-        try:
-            content_type, opts = grailbase.utils.conv_mimetype(mimetype)
-        except:
-            return None
+        except KeyError:
+            pass
         else:
-            return loader.get(content_type)
+            try:
+                content_type, opts = grailbase.utils.conv_mimetype(mimetype)
+            except:
+                pass
+            else:
+                handler = loader.get(content_type)
+        return handler
 
     def find_extension(self, subdir, module):
         try:
