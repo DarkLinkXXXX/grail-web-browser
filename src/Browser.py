@@ -217,9 +217,8 @@ class Browser:
 
 	self.preferencesmenu = Menu(self.preferencesbutton)
 	self.preferencesbutton['menu'] = self.preferencesmenu
-	self.preferencesmenu.grail_browser = self
 	import PrefsDialogs
-	PrefsDialogs.PrefsDialogMenu(self.preferencesmenu)
+	PrefsDialogs.PrefsDialogsSetup(self.preferencesmenu, self)
 
 	# List of user menus (reset on page load)
 	self.user_menus = []
