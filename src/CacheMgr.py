@@ -64,6 +64,7 @@ class CacheManager:
 	# for freshness -- once per session, every n secs, or never
 	fresh_type = self.app.prefs.Get('disk-cache', 'freshness-test-type')
 	fresh_rate = self.app.prefs.Get('disk-cache', 'freshness-test-period')
+
 	if fresh_type == 'per session':
 	    self.fresh_p = lambda key, self=self: \
 			   self.fresh_every_session(self.items[key])
@@ -496,48 +497,51 @@ class DiskCache:
 	try:
 	    log = open(logpath)
 	except IOError:
-	    # if we can't open the LOG, assume an empty cache
-	    # should probably set up thread to erase directory?
+	    # now what happens if there is an error here?
 	    log = open(logpath, 'w')
 	    log.close()
 	    return
 
 	for line in log.readlines():
-	    kind = line[0:1]
-	    if kind == '1': # delete
-		key = line[2:-1]
-		if self.items.has_key(key):
-		    self.size = self.size - self.items[key].size
-		    del self.items[key]
-		    del self.manager.items[key]
+	    try:
+		kind = line[0:1]	
+		if kind == '2': # use update
+		    key = line[2:-1]
 		    self.use_order.remove(key)
-		    assert(not key in self.use_order)
-	    elif kind == '0': # add
-		newentry = DiskCacheEntry(self)
-		newentry.parse(line[2:-1])
-		if not self.items.has_key(newentry.key):
-		    self.use_order.append(newentry.key)
-		newentry.cache = self
-		self.items[newentry.key] = newentry
-		self.manager.items[newentry.key] = newentry
-		self.size = self.size + newentry.size
-	    elif kind == '2': # use update
-		key = line[2:-1]
-		self.use_order.remove(key)
-		self.use_order.append(key)
-	    elif kind == '3': # version (hopefully first)
-		ver = line[2:-1]
-		if ver != self.log_version:
+		    self.use_order.append(key)
+		elif kind == '1': 	    # delete
+		    key = line[2:-1]
+		    if self.items.has_key(key):
+			self.size = self.size - self.items[key].size
+			del self.items[key]
+			del self.manager.items[key]
+			self.use_order.remove(key)
+			assert(not key in self.use_order)
+		elif kind == '0': # add
+		    newentry = DiskCacheEntry(self)
+		    newentry.parse(line[2:-1])
+		    if not self.items.has_key(newentry.key):
+			self.use_order.append(newentry.key)
+		    newentry.cache = self
+		    self.items[newentry.key] = newentry
+		    self.manager.items[newentry.key] = newentry
+		    self.size = self.size + newentry.size
+		elif kind == '3': # version (hopefully first)
+		    ver = line[2:-1]
+		    if ver != self.log_version:
                    ### clear out anything we might have read
                    ### and bail. this is an old log file.
-		    if len(self.use_order) > 0:
-			self.use_order = []
-			for key in self.items.keys():
-			    del self.items[key]
-			    del self.manager.items[key]
-			    self.size = 0
-		    return
-		assert(ver == self.log_version)
+			if len(self.use_order) > 0:
+			    self.use_order = []
+			    for key in self.items.keys():
+				del self.items[key]
+				del self.manager.items[key]
+				self.size = 0
+			    return
+		    assert(ver == self.log_version)
+	    except IndexError:
+		# ignore this line
+		pass
 
     def _checkpoint_metadata(self):
 	"""Checkpoint the transaction log.
