@@ -158,23 +158,19 @@ class AppletRExec(RExec):
 	self.make_os()
 
     def make_os(self):
-	import Bastion
+	from Bastion import Bastion
 	s = OSSurrogate(self)
-	b = Bastion.Bastion(s)
-	b.path = self.copy_except(os.path, ('os', os.name))
-	b.path.os = b
-	setattr(b.path, os.name, b)
-	b.name = os.name
-	b.curdir = os.curdir
-	b.sep = os.sep
-	b.pathsep = os.pathsep
-	b.environ = {'HOME': s.home,
-		     'PWD': s.pwd,
-		     'TMPDIR': s.home,
-		     'USER': 'nobody',
-		     'LOGNAME': 'nobody'}
-	b.error = os.error
+	b = Bastion(s)
+	b.path = Bastion(s.path)
+	b.name = s.name
+	b.curdir = s.curdir
+	b.pardir = s.pardir
+	b.sep = s.sep
+	b.pathsep = s.pathsep
+	b.environ = s.environ
+	b.error = s.error
 	self.modules['os'] = self.modules[os.name] = b
+	self.modules['ospath'] = self.modules[os.name + 'path'] = b.path
 
     def make_osname(self):
 	pass
@@ -239,12 +235,25 @@ class AppletRExec(RExec):
 
 class OSSurrogate:
 
-    """Methods of this class are functions in module 'os'.
+    """Public methods of this class are functions in module 'os'.
 
-    Methods whose name begins with '_' and instance variables are
-    private (thanks to bastionization).
+    Methods whose name begins with '_' and all class and instance
+    variables are private (thanks to bastionization), except those
+    variables explicitly copied by make_os() above.
 
     """
+
+    # Class variables (these become public by explicit assignment in
+    # make_os()).
+
+    name = os.name
+    curdir = os.curdir
+    pardir = os.pardir
+    sep = os.sep
+    pathsep = os.pathsep
+    error = os.error
+
+    # Private methods
 
     def __init__(self, rexec):
 	self.rexec = rexec
@@ -254,8 +263,41 @@ class OSSurrogate:
 				 group2dirname(self.rexec.appletgroup))
 	self.home_made = 0
 	self.pwd = self.home
+	# Self environ is public
+	self.environ = {
+	    'HOME': self.home,
+	    'LOGNAME': 'nobody',
+	    'PWD': self.pwd,
+	    'TMPDIR': self.home,
+	    'USER': 'nobody',
+	    }
+	self.path = OSPathSurrogate(self)
+
+    def _path(self, path, writing=0, error=os.error):
+	"""Convert and check a pathname.
+
+	This method implements the policy of which files an applet
+	group is allowed to read or write.
+
+	Current policy:
+
+	- all files are readable except if their name starts with "."
+	- only files inside the applet's home directory are writable
+
+	"""
+	path = os.path.join(self._pwd(), path)
+	path = os.path.normpath(path)
+	if writing:
+	    n = len(self.home)
+	    if not(path[:n] == self.home and path[n:n+1] == os.sep):
+		raise error, "can't write outside applet's own directory"
+	    head, tail = os.path.split(path)
+	    if tail[:1] == "." and tail not in (os.curdir, os.pardir):
+		raise error, "can't write filenames beginning with '.'"
+	return path
 
     def _pwd(self):
+	"""Return the current working directory, call _home() if necessary."""
 	if self.pwd == self.home:
 	    return self._home()
 	return self.pwd
@@ -270,24 +312,68 @@ class OSSurrogate:
 	    self.home_made = 1
 	return self.home
 
-    def _path(self, path):
-	return os.path.join(self._pwd(), path)
+    # Public, applet visible methods (as functions in module os).
+    # IN ALPHABETICAL ORDER, PLEASE!
+
+    def fopen(self, path, mode='r', bufsize=-1):
+	"""Substitute for __builtin__.open()."""
+	path = self._path(path, writing=(mode[:1] != 'r'), error=IOError)
+	return open(path, mode, bufsize)
 
     def getcwd(self):
 	return self._pwd()
 
+    def getpid(self):
+	"""Return a fake pid for tempfile etc.
+
+	Since TMPDIR is set to the applet's home dir anyway, there's
+	no need for this to be randomly changing.
+
+	"""
+	return 666
+
     def listdir(self, path):
 	return os.listdir(self._path(path))
 
-    def fopen(self, path, mode='r', bufsize=-1):
-	"""Substitute for __builtin__.open()."""
-	if mode[0] != 'r':
-	    if os.sep in path:
-		raise IOError, "can only write in current dir"
-	    if path in (os.curdir, os.pardir):
-		raise IOError, "illegal filename"
-	path = self._path(path)
-	return open(path, mode, bufsize)
+
+TEMPLATE1 = """
+def %(name)s(self, arg):
+    return os.path.%(name)s(arg)
+"""
+TEMPLATE2 = """
+def %(name)s(self, a1, a2):
+    return os.path.%(name)s(a1, a2)
+"""
+TEMPLATE3 = """
+def %(name)s(self, path):
+    return os.path.%(name)s(self.os._path(path))
+"""
+
+class OSPathSurrogate:
+
+    def __init__(self, ossurrogate):
+	self.os = ossurrogate
+
+    for name in ('normcase', 'isabs', 'split', 'splitext',
+		 'splitdrive', 'basename', 'dirname', 'normpath'):
+	exec TEMPLATE1 % {'name': name}
+
+    for name in ('join', 'commonprefix', 'samestat'):
+	exec TEMPLATE2 % {'name': name}
+
+    for name in ('exists', 'isdir', 'isfile', 'islink', 'ismount'):
+	exec TEMPLATE3 % {'name': name}
+
+    def samefile(self, p1, p2):
+	return os.path.samefile(self.os._path(p1), self.os._path(p2))
+
+    def walk(self, top, func, arg):
+	return os.path.walk(self.os._path(top), func, arg)
+
+    def expanduser(self, path):
+	if path[:1] == '~' and path[1:2] == os.sep:
+	    path = self.os.environ['HOME'] + path[1:]
+	return path
 
 
 def group2dirname(group):
