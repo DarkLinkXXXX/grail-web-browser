@@ -10,8 +10,8 @@ This module implements the low-level client library for CNRI's Handle
 Management System.  For general info about handles, see
 http://www.handle.net/.  This module was built using the Handle
 Resolution Protocol Specification at
-http://www.handle.net/docs/client_spec.html, and inspection of
-(an earlier version of) the client library sources.
+http://www.handle.net/docs/client_spec.html, and inspection of (an
+earlier version of) the client library sources.
 
 Classes:
 
@@ -42,8 +42,6 @@ XXX Should we cache the hash table entries read from the file?
     (yes)
 
 """
-
-# ' Emacs bait
 
 import rand
 import md5
