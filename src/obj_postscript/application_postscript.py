@@ -1,21 +1,21 @@
-__version__ = '$Revision: 1.4 $'
+__version__ = '$Revision: 1.5 $'
 
-from printing import epstools
-import grailutil
 import HTMLParser
 import string
 import sys
 import urlparse
 
+from printing import epstools
+from sgml.utils import *
+
 
 def embed_application_postscript(parser, attrs):
     """<OBJECT> handler for Encapsulated PostScript."""
-    data = grailutil.extract_keyword('data', attrs)
+    data = extract_keyword('data', attrs)
     if not data or not parser.settings.imageflag:
         return None
-    type, typeopts = grailutil.conv_mimetype(
-        grailutil.extract_keyword(
-            'type', attrs, conv=grailutil.conv_normstring))
+    type, typeopts = conv_mimetype(
+        extract_keyword('type', attrs, conv=conv_normstring))
     if typeopts.has_key("level"):
         try:
             level = string.atoi(typeopts["level"])
@@ -38,10 +38,8 @@ def embed_application_postscript(parser, attrs):
         if image:
             parser._image_cache[imageurl] = image
     if image:
-        width = grailutil.extract_keyword(
-            'width', attrs, conv=grailutil.conv_integer)
-        height = grailutil.extract_keyword(
-            'height', attrs, conv=grailutil.conv_integer)
+        width = extract_keyword('width', attrs, conv=conv_integer)
+        height = extract_keyword('height', attrs, conv=conv_integer)
         parser.print_image(image, width, height)
         return HTMLParser.Embedding()
 
