@@ -176,6 +176,9 @@ disk-cache--checkpoint: 1
 # Preference panel preferences                
 #                                             
 preferences--panel-order: General Style Cache Applets
+# Setting of 1 (should be in developers prefs file) enables
+# prefspanels buttons for panel and prefs reloads:
+preferences--panel-debugging: 0
 #
 # Proxy default preferences:
 #
