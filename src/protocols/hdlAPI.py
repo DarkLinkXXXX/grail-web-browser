@@ -63,7 +63,7 @@ class HandleResolutionChooser:
 
 class hdl_access(nullAPI.null_access):
     def __init__(self, uri, method, params):
-	null_access.__init__(self, uri, method, params)
+	nullAPI.null_access.__init__(self, uri, method, params)
 	# can ignore methods and params... they should be 'GET' and {}
 	# respectively
 	self._uri = uri
@@ -83,7 +83,7 @@ class hdl_access(nullAPI.null_access):
 				 sys.exc_value, sys.exc_traceback)
 
     def pollmeta(self):
-	null_access.pollmeta(self)
+	nullAPI.null_access.pollmeta(self)
 	try:
 	    hashtable = hdllib.HashTable()
 	    replyflags, self._items = \
@@ -97,7 +97,7 @@ class hdl_access(nullAPI.null_access):
 	return 'Ready', 1
 
     def getmeta(self):
-	null_access.getmeta(self)
+	nullAPI.null_access.getmeta(self)
 	try:
 	    flags, uri = self._chooser.choose(self._items)
 	except:
