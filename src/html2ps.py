@@ -1121,7 +1121,7 @@ class PrintingHTMLParser(HTMLParser):
 	else:
 	    return HTMLParser.make_format(self, format, default)
 
-    def unknown_entityref(self, entname):
+    def unknown_entityref(self, entname, terminator):
 	dingbat = self.load_dingbat(entname)
 	if dingbat:
 	    dingbat.set_size(self.formatter.writer.ps._font.font_size(),
