@@ -178,16 +178,20 @@ class AppletHTMLParser(htmllib.HTMLParser):
     # New tag: <MAP> (for client side image maps)
 
     def start_map(self, attrs):
+	mapname = ''
 	for name, value in attrs:
 	    if name == 'name':
-		name = value
-	self.current_map = MapInfo(self, name)
+		mapname = value
+	if mapname != '':
+	    # ignore maps without names
+	    self.current_map = MapInfo(self, mapname)
 
     def end_map(self):
-	self.image_maps[self.current_map.name] = self.current_map
-	self.current_map = None
+	if self.current_map:
+	    self.image_maps[self.current_map.name] = self.current_map
+	    self.current_map = None
 
-    # New tag: <AREA>
+    # New tag: <AREA> (goes inside a map)
 
     def do_area(self, attrs):
 	"""Handle the <AREA> tag."""

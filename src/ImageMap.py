@@ -117,8 +117,6 @@ class MapThunk:
 	    if self.waiting == 1:
 		return None
 
-	print "get url at (%s,%s)" % (x,y)
-
 	# get the shape and return url
 	shape = self.get_shape(x, y)
 	if shape:
