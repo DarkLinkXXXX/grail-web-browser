@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.15 1996/04/03 01:23:39 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.16 1996/04/03 16:38:14 bwarsaw Exp $'
 
 
 import string
@@ -11,6 +11,7 @@ import grailutil
 from Tkinter import *
 from formatter import AbstractWriter, AbstractFormatter
 from Viewer import Viewer
+from types import *
 
 FIXEDLAYOUT = 1
 AUTOLAYOUT = 2
@@ -180,7 +181,7 @@ class AttrElem:
 
     def __init__(self, attrs):
 	self.attrs = {}
-	if type(attrs) == type({}):
+	if type(attrs) == DictType:
 	    attrs = attrs.items()
 	# if its a dictionary, make a shallow copy, otherwise,
 	# dictionary-ize the tuple passed in.
@@ -406,27 +407,42 @@ class Table(AttrElem):
 	    mincanvaswidth = mincanvaswidth + cellminwidths[col]
 	    maxcanvaswidth = maxcanvaswidth + cellmaxwidths[col]
 
-	# now we need to adjust for the available space (i.e. parent
-	# viewer's width).  The Table spec outlines three cases...
+	# calculate the available width that the table should render
+	# itself in. first get the actual width, then apply any <TABLE
+	# WIDTH=xxx> attributes.
 	ptext = self.parentviewer.text
 	viewerwidth = ptext.winfo_width() - \
 		      2 * string.atof(ptext['padx']) - \
 		      13		# TBD: kludge alert!
-## 	print 'viewerwidth=', viewerwidth, 'mincanvaswidth=', mincanvaswidth, \
-## 	      'maxcanvaswidth=', maxcanvaswidth
+	if self.Awidth is None:
+	    suggestedwidth = viewerwidth
+	# units in screen pixels
+	elif type(self.Awidth) == IntType:
+	    newwidth = self.Awidth
+	# other standard units
+	elif type(self.Awidth) == TupleType:
+	    if self.Awidth[1] == '%':
+		suggestedwidth = viewerwidth * self.Awidth[0] / 100.0
+	    # other standard units are not currently supported
+	    else:
+		suggestedwidth = veiwerwidth
+	
+	# now we need to adjust for the available space (i.e. parent
+	# viewer's width).  The Table spec outlines three cases...
+	#
 	# case 1: the min table width is equal to or wider than the
 	# available space.  Assign min widths and let the user scroll
 	# horizontally.
-	if mincanvaswidth >= viewerwidth:
+	if mincanvaswidth >= suggestedwidth:
 	    cellwidths = cellminwidths
 	# case 2: maximum table width fits within the available space.
 	# set columns to their maximum width.
-	elif maxcanvaswidth < viewerwidth:
+	elif maxcanvaswidth < suggestedwidth:
 	    cellwidths = cellmaxwidths
 	# case 3: maximum width of the table is greater than the
 	# available space, but the minimum table width is smaller.
 	else:
-	    W = viewerwidth - mincanvaswidth
+	    W = suggestedwidth - mincanvaswidth
 	    D = maxcanvaswidth - mincanvaswidth
 	    adjustedwidths = [0] * colcount
 	    for col in range(colcount):
