@@ -136,18 +136,19 @@ class AppletHTMLParser(htmllib.HTMLParser):
 		C = getattr(m, cls)
 		apply(C, (parent,), keywords)
 		return
+
+	    # Start loading the module source now
+	    dirurl = urlparse.urljoin(self.browser.url, src or '.')
+	    modcomps = string.splitfields(mod, '.')
+	    modfile = string.joinfields(modcomps, '/')
+	    modurl = urlparse.urljoin(dirurl, modfile + ".py")
+	    api = self.app.open_url(modurl, 'GET', {}, self.reload)
+	    whatnext = (parent, mod, cls, src, keywords, self)
+	    reader = ModuleReader(self.browser, api, whatnext)
 	except:
 	    self.show_tb()
 	    return
 
-	# Start loading the module source now
-	dirurl = urlparse.urljoin(self.browser.url, src or '.')
-	modcomps = string.splitfields(mod, '.')
-	modfile = string.joinfields(modcomps, '/')
-	modurl = urlparse.urljoin(dirurl, modfile + ".py")
-	api = self.app.open_url(modurl, 'GET', {}, self.reload)
-	whatnext = (parent, mod, cls, src, keywords, self)
-	reader = ModuleReader(self.browser, api, whatnext)
 
     # Subroutines for applet creation
 
