@@ -9,6 +9,22 @@ class ImageTempFileReader(TempFileReader):
 	self.image.reader = self
 	TempFileReader.__init__(self, browser, api)
 
+    def handle_meta(self, errcode, errmsg, headers):
+	TempFileReader.handle_meta(self, errcode, errmsg, headers)
+	if errcode == 200:
+	    try:
+		ctype = headers['content-type']
+	    except KeyError:
+		return # Hope for the best
+	    if self.image_filters.has_key(ctype):
+		self.set_pipeline(self.image_filters[ctype])
+
+    # List of image type filters
+    image_filters = {
+	'image/gif': '',
+	'image/jpeg': 'djpeg -gif',
+	}
+
     def handle_done(self):
 	self.image.set_file(self.getfilename())
 	self.cleanup()
