@@ -65,10 +65,14 @@ class Viewer(formatter.AbstractWriter):
 	subwindows = self.subwindows + self.rules
 	self.subwindows = []
 	self.rules = []
-	self.text['state'] = NORMAL
 	for w in subwindows:
 	    w.destroy()
+	self.unfreeze()
 	self.text.delete('1.0', END)
+	self.freeze()
+
+    def unfreeze(self):
+	self.text['state'] = NORMAL
 
     def freeze(self):
 	self.text['state'] = DISABLED
