@@ -92,19 +92,31 @@ class Browser:
 	self.filebutton['menu'] = self.filemenu
 
 	self.filemenu.add(COMMAND, label="New",
-			  command=self.new_command)
+			  command=self.new_command,
+			  underline=0, accelerator="Alt-N")
+	self.root.bind("<Alt-n>", self.new_command)
 	self.filemenu.add(COMMAND, label="View source",
-			  command=self.view_source_command)
+			  command=self.view_source_command,
+			  underline=0, accelerator="Alt-V")
+	self.root.bind("<Alt-v>", self.view_source_command)
 	self.filemenu.add(SEPARATOR)
 	self.filemenu.add(COMMAND, label="Save As...",
-			  command=self.save_as_command)
+			  command=self.save_as_command,
+			  underline=0, accelerator="Alt-S")
+	self.root.bind("<Alt-s>", self.save_as_command)
 	self.filemenu.add(COMMAND, label="Print...",
-			  command=self.print_command)
+			  command=self.print_command,
+			  underline=0, accelerator="Alt-P")
+	self.root.bind("<Alt-p>", self.print_command)
 	self.filemenu.add(SEPARATOR)
 	self.filemenu.add(COMMAND, label="Close",
-			  command=self.close_command)
+			  command=self.close_command,
+			  underline=0, accelerator="Alt-W")
+	self.root.bind("<Alt-w>", self.close_command) # Macintosh origins...
 	self.filemenu.add(COMMAND, label="Quit",
-			  command=self.quit_command)
+			  command=self.quit_command,
+			  underline=0, accelerator="Alt-Q")
+	self.root.bind("<Alt-q>", self.quit_command)
 
 	self.histbutton = Menubutton(self.mbar, text="Go")
 	self.histbutton.pack(side=LEFT)
@@ -113,14 +125,20 @@ class Browser:
 	self.histbutton['menu'] = self.histmenu
 
 	self.histmenu.add(COMMAND, label="Back",
-			  command=self.back_command)
+			  command=self.back_command, underline=0)
+	self.root.bind("<Alt-Left>", self.back_command)
 	self.histmenu.add(COMMAND, label="Reload",
-			  command=self.reload_command)
+			  command=self.reload_command,
+			  underline=0, accelerator="Alt-R")
+	self.root.bind("<Alt-r>", self.reload_command)
 	self.histmenu.add(COMMAND, label="Forward",
-			  command=self.forward_command)
+			  command=self.forward_command, underline=0)
+	self.root.bind("<Alt-Right>", self.forward_command)
 	self.histmenu.add(SEPARATOR)
 	self.histmenu.add(COMMAND, label="Home",
-			  command=self.home_command)
+			  command=self.home_command,
+			  underline=0, accelerator="Alt-H")
+	self.root.bind("<Alt-h>", self.home_command)
 
 	# Create the Search menu
 
@@ -143,6 +161,7 @@ class Browser:
 				 pady=0,
 				 command=self.stop_command)
 	self.stopbutton.pack(side=LEFT)
+	self.root.bind("<Alt-period>", self.stop_command)
 
 	# List of user menus (reset on page load)
 	self.user_menus = []
@@ -185,7 +204,7 @@ class Browser:
 	self.message_clear()
 
     def load_from_entry(self, event):
-	self.load(self.entry.get())
+	self.load(string.strip(self.entry.get()))
 
     def set_entry(self, url):
 	self.entry.delete('0', END)
@@ -221,6 +240,7 @@ class Browser:
 
     def post(self, url, data, ctype):
 	# Post form data
+	url = urlparse.urljoin(self.url, url)
 	method = 'POST'
 	params = {"Content-length": `len(data)`,
 		  "Content-type": ctype,
@@ -346,23 +366,25 @@ class Browser:
 
     # Stop command
 
-    def stop_command(self):
+    def stop_command(self, event=None):
 	self.stop()
 	self.message("Stopped.")
 
     # File menu commands
 
-    def new_command(self):
+    def new_command(self, event=None):
 	# File/New
-	return Browser(self.master, self.app)
+	b = Browser(self.master, self.app)
+	if self.url:
+	    b.load(self.url)
 
-    def view_source_command(self):
+    def view_source_command(self, event=None):
 	# File/View Source
 	if self.busycheck(): return
 	b = Browser(self.master, self.app, height=24)
-	b.load(self.url, show_source=1, new=1)
+	b.load(self.url, show_source=1)
 
-    def save_as_command(self):
+    def save_as_command(self, event=None):
 	# File/Save As...
 	if self.busycheck(): return
 	import FileDialog
@@ -391,41 +413,41 @@ class Browser:
 	api.close()
 	self.message_clear()
 
-    def print_command(self):
+    def print_command(self, event=None):
 	# File/Print...
 	if self.busycheck(): return
 	import PrintDialog
 	PrintDialog.PrintDialog(self, self.url, self.title)
 
-    def close_command(self):
+    def close_command(self, event=None):
 	# File/Close
 	self.close()
 
-    def quit_command(self):
+    def quit_command(self, event=None):
 	# File/Quit
 	if self.app: self.app.quit()
 	else: self.close()
 
     # History menu commands
 
-    def home_command(self):
+    def home_command(self, event=None):
 	home = self.app and self.app.home or DEFAULT_HOME
 	self.load(home)
 
-    def back_command(self):
+    def back_command(self, event=None):
 	if self.current <= 0:
 	    self.root.bell()
 	    return
 	self.current = self.current-1
 	self.load(self.history[self.current][0], new=0)
 
-    def reload_command(self):
+    def reload_command(self, event=None):
 	if not 0 <= self.current < len(self.history):
 	    self.root.bell()
 	    return
 	self.load(self.history[self.current][0], new=0, reload=1)
 
-    def forward_command(self):
+    def forward_command(self, event=None):
 	if self.current+1 >= len(self.history):
 	    self.root.bell()
 	    return
@@ -434,13 +456,13 @@ class Browser:
 
     # Help menu commands
 
-    def about_command(self):
+    def about_command(self, event=None):
 	self.load(ABOUT_GRAIL)
 
-    def grail_home_command(self):
+    def grail_home_command(self, event=None):
 	self.load(GRAIL_HOME)
 
-    def python_home_command(self):
+    def python_home_command(self, event=None):
 	self.load(PYTHON_HOME)
 
     # End of commmands
