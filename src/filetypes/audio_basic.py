@@ -2,7 +2,7 @@
 
 class parse_audio_basic:
 
-    def __init__(self, viewer):
+    def __init__(self, viewer, reload=None):
 	viewer.send_flowing_data("(Listen to the audio!)\n")
 	import audiodev
 	self.device = p = audiodev.AudioDev()
