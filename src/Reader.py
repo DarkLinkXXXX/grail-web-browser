@@ -122,10 +122,7 @@ class Reader(BaseReader):
 	# Check first to see if the previous Context has any protocol handlers
 	api = self.last_context.get_local_api(realurl, self.method,
 					      self.params)
-	if api:
-	    # Remove any previously installed local handlers
-	    self.last_context.remove_local_api_handlers()
-	else:
+	if not api:
 	    if self.app:
 		api = self.app.open_url(realurl,
 					self.method, self.params, self.reload,
