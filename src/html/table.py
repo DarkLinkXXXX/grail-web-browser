@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.25 1996/04/10 15:30:51 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.26 1996/04/10 16:59:35 bwarsaw Exp $'
 
 
 import string
@@ -467,10 +467,6 @@ class Table(AttrElem):
 	maxwidths = self._maxwidths
 	minwidths = self._minwidths
 
-	print table, colcount, rowcount
-	print 'minwidths=', minwidths
-	print 'maxwidths=', maxwidths
-
 	mincanvaswidth = 2 * bw + self.Acellspacing * (colcount + 1)
 	maxcanvaswidth = 2 * bw + self.Acellspacing * (colcount + 1)
 	for col in range(colcount):
@@ -510,8 +506,6 @@ class Table(AttrElem):
 		  self.Awidth, type(self.Awidth)
 	    suggestedwidth = availablewidth
 	
-	print 'suggestedwidth=', suggestedwidth
-
 	# now we need to adjust for the available space (i.e. parent
 	# viewer's width).  The Table spec outlines three cases...
 	#
@@ -552,9 +546,6 @@ class Table(AttrElem):
 		cellheight = _safe_mojo_height(cell) / cell.rowspan
 		for row_i in range(row, min(rowcount, row + cell.rowspan)):
 		    cellheights[row_i] = max(cellheights[row_i], cellheight)
-
-	print 'cellwidths=', cellwidths
-	print 'cellheights=', cellheights
 
 	canvaswidth = self.Acellspacing * (colcount - 1)
 	for col in range(colcount):
@@ -735,7 +726,7 @@ class ContainedText(AttrElem):
 	self._width = 0
 	self._embedheight = 0
 	# embedded window geometry regex
-	self._re = regex.compile('%sx%s\+%s\+%s' % (('\([0-9]+\)',) * 4))
+	self._re = regex.compile('%sx%s\+%s\+%s' % (('\([-+]?[0-9]+\)',) * 4))
 
     def new_formatter(self):
 	return AbstractFormatter(self._viewer)
