@@ -113,13 +113,16 @@ Content-Transfer-Encoding: 7bit""",
 	    if variables.has_key(header):
 		variables[header] = vlist[0] # throw away duplicates
 		del headers[header]
-	self.text.insert(END, self.template % variables + (data or ''))
+	self.text.insert(END, self.template % variables)
 	# insert extra headers
 	for header, vlist in headers.items():
 	    value = vlist[0]		# throw away duplicates
 	    self.text.insert(END, '%s: %s\n' % (capwords(header, '-'), value))
 	# insert newline
 	self.text.insert(END, '\n')
+	# insert data
+	if data:
+	    self.text.insert(END, data)
 
     def send_command(self):
 	message = self.text.get("1.0", END)
