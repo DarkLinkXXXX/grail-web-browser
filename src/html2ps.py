@@ -9,7 +9,7 @@ interface as appropriate for PostScript generation.
 """
 
 __version__ = """
-$Id: html2ps.py,v 2.2 1995/09/19 15:00:51 bwarsaw Exp $
+$Id: html2ps.py,v 2.3 1995/09/19 15:13:46 bwarsaw Exp $
 """
 
 
@@ -879,11 +879,11 @@ def html_test():
     stderr = sys.stderr
     try:
 	if lfile: sys.stderr = lfile
-	from htmllib import HTMLParser
+	import PrintDialog
 
 	w = PSWriter(ofile, None)
 	f = AbstractFormatter(w)
-	p = HTMLParser(f)
+	p = PrintDialog.PrintingHTMLParser(f)
 	p.feed(ifile.read())
 	p.close()
 	w.close()
