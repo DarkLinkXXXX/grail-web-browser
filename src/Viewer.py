@@ -455,24 +455,30 @@ class Viewer(formatter.AbstractWriter):
 	return url[:i], url[i+1:]
 
     def add_temp_tag(self):
-	start, end = self.find_tag_range()
-	if start and end:
-	    self._atemp = [start, end]
-	    self.text.tag_add('atemp', start, end)
+	list = self.find_tag_ranges()
+	print list
+	if list:
+	    self._atemp = list
+	    for (start, end) in self._atemp:
+		self.text.tag_add('atemp', start, end)
 
     def remove_temp_tag(self, histify=0):
-	if self._atemp:
-	    self.text.tag_remove('atemp', self._atemp[0], self._atemp[1])
-	    if histify:
-		self.text.tag_add('ahist', self._atemp[0], self._atemp[1])
-	    self._atemp = []
+	for (start, end) in self._atemp:
+	    self.text.tag_remove('atemp', start, end)
+	if histify:
+	    for (start, end) in self._atemp:
+		self.text.tag_add('ahist', start, end)
+	self._atemp = []
 
-    def find_tag_range(self):
+    def find_tag_ranges(self):
 	for tag in self.text.tag_names(CURRENT):
 	    if tag[0] == '>':
-		range = self.text.tag_ranges(tag)
-		return range[0], range[1]
-	return None, None
+		raw = self.text.tag_ranges(tag)
+		list = []
+		for i in range(0, len(raw), 2):
+		    list.append((raw[i], raw[i+1]))
+		return list
+	return ()
 
     def find_tag_url(self):
 	for tag in self.text.tag_names(CURRENT):
