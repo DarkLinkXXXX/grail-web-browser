@@ -5,44 +5,69 @@ from Tkinter import *
 import tktools
 import string
 
+
+
 class OpenURIDialog:
+    __lasturi = ''
+
     def __init__(self, master):
-	self._frame = tktools.make_toplevel(master,
-					    title="Open Location Dialog")
+	# create widgets
+	self.__frame = tktools.make_toplevel(
+	    master, title="Open Location Dialog")
+	#
 	fr, top, btnframe = tktools.make_double_frame(
-	    self._frame, relief=FLAT)
-	self._entry, frame, label = tktools.make_labeled_form_entry(
+	    self.__frame, relief=FLAT)
+	#
+	self.__entry, frame, label = tktools.make_labeled_form_entry(
 	    top, 'URI:', 40)
-	self._entry.bind('<Return>', self.okay)
-	okbtn = Button(btnframe, text='Open', command=self.okay)
-	newbtn = Button(btnframe, text='New', command=self.new)
-	cancelbtn = Button(btnframe, text='Cancel', command=self.cancel)
-	tktools.unify_button_widths(okbtn, newbtn, cancelbtn)
+	self.__entry.insert(0, self.__lasturi)
+	#
+	okbtn = Button(btnframe, text='Open', command=self.okaycmd)
+	newbtn = Button(btnframe, text='New', command=self.newcmd)
+	clearbtn = Button(btnframe, text='Clear', command=self.clearcmd)
+	cancelbtn = Button(btnframe, text='Cancel', command=self.cancelcmd)
+	tktools.unify_button_widths(okbtn, newbtn, clearbtn, cancelbtn)
+	#
 	okbtn.pack(side=LEFT)
 	newbtn.pack(side=LEFT, padx='1m')
 	cancelbtn.pack(side=RIGHT)
-	tktools.set_transient(self._frame, master)
-
-	self._frame.protocol('WM_DELETE_WINDOW', self.cancel)
-	self._frame.bind("<Alt-w>", self.cancel)
-	self._frame.bind("<Alt-W>", self.cancel)
+	clearbtn.pack(side=RIGHT)
+	#
+	tktools.set_transient(self.__frame, master)
+	#
+	self.__entry.bind('<Return>', self.okaycmd)
+	self.__entry.bind('<Control-C>', self.cancelcmd)
+	self.__entry.bind('<Control-c>', self.cancelcmd)
+	self.__frame.bind('<Alt-n>', self.newcmd)
+	self.__frame.bind('<Alt-N>', self.newcmd)
+	self.__frame.bind("<Alt-w>", self.cancelcmd)
+	self.__frame.bind("<Alt-W>", self.cancelcmd)
+	#
+	self.__frame.protocol('WM_DELETE_WINDOW', self.cancelcmd)
 
     def go(self):
-	self._frame.grab_set()
-	self._entry.focus_set()
+	focuswin = self.__entry.focus_get()
+	self.__frame.grab_set()
+	self.__entry.focus_set()
 	try:
-	    self._frame.mainloop()
+	    self.__frame.mainloop()
 	except SystemExit, (uri, new):
-	    self._frame.destroy()
+	    self.__frame.grab_release()
+	    focuswin.focus_set()
+	    self.__frame.destroy()
 	    if uri:
 		uri = string.joinfields(string.split(uri), '')
+		self.__class__.__lasturi = uri
 	    return uri, new
 
-    def okay(self, event=None):
-	raise SystemExit, (self._entry.get(), 0)
+    def okaycmd(self, event=None):
+	raise SystemExit, (self.__entry.get(), 0)
 
-    def new(self, event=None):
-	raise SystemExit, (self._entry.get(), 1)
+    def newcmd(self, event=None):
+	raise SystemExit, (self.__entry.get(), 1)
 
-    def cancel(self, event=None):
+    def clearcmd(self, event=None):
+	self.__entry.delete(0, END)
+
+    def cancelcmd(self, event=None):
 	raise SystemExit, (None, 0)
