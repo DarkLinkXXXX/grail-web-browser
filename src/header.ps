@@ -103,7 +103,7 @@ end % errordict
 
 %% display a string right-justified at the current vertical position
 /EDGE { %% string EDGE -
-  0 currentpoint E pop M dup stringwidth pop pagewidth exch sub 0 R S
+  0 currentpoint E pop M dup stringwidth pop GrImageWidth exch sub 0 R S
 } D
 
 %% new page
@@ -122,7 +122,7 @@ end % errordict
     translate
     GrRotation rotate
   } if
-  xmargin topmargin translate scalfac dup scale
+  GrLeftMargin GrPaperHeight GrTopMargin sub translate scalfac dup scale
   % this is where we consume the arguments
   SF
   /indentmargin exch D			% /indentmargin set in page prologue

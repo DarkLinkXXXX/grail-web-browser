@@ -150,8 +150,7 @@ class PaperInfo:
 	if angle % 90.0 != 0:
 	    raise ValueError, "Illegal page rotation: "  + `angle`
 	self.Rotation = angle = angle % 360.0
-	while angle:
-	    angle = angle - 90.0
+	if angle % 180.0:
 	    pw, ph = self.PaperWidth, self.PaperHeight
 	    self.PaperWidth, self.PaperHeight = ph, pw
 	self.__update()
@@ -491,27 +490,36 @@ class PSStream:
 	    # spew out the contents of the header PostScript file
 	    print standard_header_template
 	    # define the fonts
+	    print "/scalfac", self._font.points_per_pixel, "D"
 	    for docfont in docfonts.keys():
 		print "/%s { /%s } D %s reencodeISO D" \
 		      % (docfont, docfonts[docfont], docfont)
-	    # finish out the prolog
-	    print "/xmargin", self._paper.LeftMargin, "D"
-	    print "/topmargin", \
-		  self._paper.PaperHeight - self._paper.TopMargin, "D"
-	    print "/pagewidth", self._paper.ImageWidth, "D"
-	    print "/scalfac", self._font.points_per_pixel, "D"
-	    print "/GrRotation", self._paper.Rotation, "D"
-	    print "/GrPaperHeight", self._paper.PaperHeight, "D"
-	    print "/GrPaperWidth", self._paper.PaperWidth, "D"
-	    print "/GrHeaderPos", self._paper.HeaderPos, "D"
-	    print "/GrFooterPos", self._paper.FooterPos, "D"
-	    # much more information should be provided about the document...
-	    if user_header_template:
+	    # finish out the prolog with paper information:
+	    for name, value in vars(self._paper).items():
+		if type(value) is type(''):
+		    print "/Gr%s (%s) D" % (name, value)
+		else:
+		    print "/Gr%s %s D" % (name, value)
+	    # Add time information to allow the printing functions to include
+	    # 'date printed' to the footers if desired.  We need a way to get
+	    # the last-modified time of the document from the context headers,
+	    # but these are not available to us at this point.
+	    print "%%\n%% time values for use by page decorating functions:"
+	    import time
+	    names = ("Year", "Month", "Day", "Hour", "Minute", "Second",
+		     "Weekday", "Julian", "DST")
+	    t = time.time()
+	    local = time.localtime(t)
+	    utc = time.gmtime(t)
+	    for name, local, utc in map(None, names, local, utc):
+		print "/Gr%s %s D /GrUTC%s %s D" % (name, local, name, utc)
+	    # add per-user customization:
+	    user_template, filename = get_userheader()
+	    if user_template:
 		print "%%\n%% This is custom header material loaded from"
-		print "%%", user_header_file
-		print user_header_template
+		print "%%", filename
+		print user_template
 	    print "%%EndProlog"
-	    print setup_template % vars(self._paper)
 	finally:
 	    sys.stdout = oldstdout
 	self.print_page_preamble()
@@ -1709,12 +1717,13 @@ else:
     standard_header_template = None
 
 # Allow the user to provide supplemental prologue material:
-user_header_file = os.path.join(grailutil.getgraildir(), "custom.ps")
-if os.path.exists(user_header_file):
-    user_header_template = open(user_header_file).read()
-else:
-    user_header_file = ''
-    user_header_template = None
+def get_userheader():
+    fn = os.path.join(grailutil.getgraildir(), "custom.ps")
+    if os.path.exists(fn):
+	template = open(fn).read()
+    else:
+	template = ''
+    return template, fn
 
 
 
