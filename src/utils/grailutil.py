@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.30 $"
+__version__ = "$Revision: 2.31 $"
 
 import os
 
@@ -21,7 +21,7 @@ except AttributeError:
     def abspath(path):
         if not os.path.isabs(path):
             path = join(os.getcwd(), path)
-        return normpath(path)
+        return os.path.normpath(path)
 
 
 def complete_url(url):
