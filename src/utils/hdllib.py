@@ -198,8 +198,10 @@ class Error:
 
 
 
-class PacketPacker(xdrlib.Packer):
+class PacketPacker:
     """Helper class to pack packets."""
+    def __init__(self):
+	self.p = xdrlib.Packer()
 
     def pack_header(self, tag=0, command=HP_QUERY, err=0, sequence=1,
 		   total=1, version=HP_VERSION):
@@ -209,13 +211,12 @@ class PacketPacker(xdrlib.Packer):
 	packet header so we can use defaults for most fields.
 
 	"""
-
-	self.pack_uint(version)
-	self.pack_uint(tag)
-	self.pack_uint(command)
-	self.pack_uint(sequence)
-	self.pack_uint(total)
-	self.pack_int(err)
+	self.p.pack_uint(version)
+	self.p.pack_uint(tag)
+	self.p.pack_uint(command)
+	self.p.pack_uint(sequence)
+	self.p.pack_uint(total)
+	self.p.pack_int(err)
 
     def pack_body(self, hdl, flags = [], types = [], replyport = 0,
 		  replyaddr = '\0\0\0\0'):
@@ -235,15 +236,16 @@ class PacketPacker(xdrlib.Packer):
 	p.pack_uint(replyport)
 	p.pack_opaque(replyaddr)
 
-	body = p.get_buf()
+	body = p.get_buffer()
 
-	self.pack_uint(len(body))
+	self.p.pack_string(body)
 
-	self.buf = self.buf + body
+    def get_buffer(self):
+	return self.p.get_buffer()
 
 
 
-class PacketUnpacker(xdrlib.Unpacker):
+class PacketUnpacker:
     """Helper class to unpack packets."""
 
     def __init__(self, data, debug=0):
@@ -251,8 +253,20 @@ class PacketUnpacker(xdrlib.Unpacker):
 	needed by xdrlib.Unpacker.
 	"""
 	self.debug = debug
-	self.reset(data)
+	self.u = xdrlib.Unpacker(data)
 	
+    def buf(self):
+	try:
+	    return self.u.get_buffer()
+	except AttributeError:
+	    # TBD: digusting hack made necessary by a missing
+	    # interface in xdrlib.Unpacker to get either the buffer or
+	    # the length of the remaining buffer.  this requires
+	    # knowledge of Python 1.4's name munging scheme so we can
+	    # peek at this object's private attribute.  This will be
+	    # fixed in Python 1.5.
+	    return self.u._Unpacker__buf
+
     def unpack_header(self):
 	"""Unpack a packet header (except the body length).
 
@@ -260,13 +274,12 @@ class PacketUnpacker(xdrlib.Unpacker):
 	packheader().
 
 	"""
-
-	version = self.unpack_uint()
-	tag = self.unpack_uint()
-	command = self.unpack_uint()
-	sequence = self.unpack_uint()
-	total = self.unpack_uint()
-	err = self.unpack_int()
+	version = self.u.unpack_uint()
+	tag = self.u.unpack_uint()
+	command = self.u.unpack_uint()
+	sequence = self.u.unpack_uint()
+	total = self.u.unpack_uint()
+	err = self.u.unpack_int()
 
 	return (tag, command, err, sequence, total, version)
 
@@ -274,21 +287,21 @@ class PacketUnpacker(xdrlib.Unpacker):
 	"""Check that the body length matches what the header says.
 	setting self.total_length. If it doesn't, raise Error.
 	"""
-	self.length_from_header = self.unpack_uint()
-	if len(self.buf) - self.pos != self.length_from_header:
+	self.length_from_header = self.u.unpack_uint()
+	if len(self.buf()) - self.u.get_position() != self.length_from_header:
 	    print "length according to header:",
 	    print self.length_from_header,
 	    print "actual length:",
-	    print len(self.buf) - self.pos
+	    print len(buf) - self.u.get_position()
 	    raise Error("body length mismatch")
 
     def unpack_item_array(self):
 	"""Unpack an array of (type, value) pairs."""
-	nopts = self.unpack_uint()
+	nopts = self.u.unpack_uint()
 	opts = []
 	for i in range(nopts):
-	    opt = self.unpack_uint()
-	    val = self.unpack_opaque()
+	    opt = self.u.unpack_uint()
+	    val = self.u.unpack_opaque()
 	    opts.append((opt, val))
 	return opts
 	
@@ -298,17 +311,17 @@ class PacketUnpacker(xdrlib.Unpacker):
 	for this packet or if this *is* a continuation
 	packet itself.
 	"""
-	nopts = self.unpack_uint()
+	nopts = self.u.unpack_uint()
 	if self.debug: print 'nopts=' + str(nopts)
 	opts = []
 	for i in range(nopts):
-	    opt = self.unpack_uint()
+	    opt = self.u.unpack_uint()
 	    if self.debug: print 'type=' + str(opt)
 	    #
 	    # unpack the length value to determine if we have
 	    # a continuation packet
 	    #
-	    length_from_body = self.unpack_int()
+	    length_from_body = self.u.unpack_int()
 	    if self.debug: print 'length from body=' + str(length_from_body)
 	    if length_from_body == 0:
 		raise Error("Invalid zero packet length")
@@ -321,7 +334,7 @@ class PacketUnpacker(xdrlib.Unpacker):
 	    #
 	    if length_from_body < 0:
 		total_length = length_from_body * -1
-		offset = self.unpack_uint()
+		offset = self.u.unpack_uint()
 		if self.debug: print 'Continuation packet'
 		if offset < 0 or offset > total_length:
 		    error = 'Bad offset in UDP body: ' + str(offset)
@@ -333,7 +346,9 @@ class PacketUnpacker(xdrlib.Unpacker):
 		    # The entire packet is a continuation (16 is the number of
 		    # bytes in an md5 checksum...  this will never change or if
 		    # it does it will be called 'md6'...)
-		    self.value_length = len(self.buf) - self.pos - 16
+		    #
+		    self.value_length = len(self.buf()) \
+					- self.u.get_position() - 16
 		# change opt to be negative flagging this as a continuation 
 		opt = opt * -1
 
@@ -343,7 +358,8 @@ class PacketUnpacker(xdrlib.Unpacker):
 		total_length = self.value_length = length_from_body
 		if self.debug: print "length from body =", length_from_body
 		if nopts == 1:
-		    max_value_length = len(self.buf) - self.pos - 16
+		    max_value_length = len(self.buf()) \
+				       - self.u.get_position() - 16
 		    if self.value_length > max_value_length:
 			if self.debug:
 			    print 'Start of a continuation:',
@@ -353,7 +369,7 @@ class PacketUnpacker(xdrlib.Unpacker):
 		# Finally get the value
 		if self.debug: print 'Getting data segment of ' \
 		   + str(self.value_length) + ' bytes'
-	    value = self.unpack_fstring(self.value_length)
+	    value = self.u.unpack_fstring(self.value_length)
 	    if self.debug: print "Got", len(value), "bytes:", `value`
 	    opts.append((opt, value))
 	return opts
@@ -367,17 +383,17 @@ class PacketUnpacker(xdrlib.Unpacker):
 
 	self.check_body_length()
 
-	hdl = self.unpack_string()
+	hdl = self.u.unpack_string()
 
-	options = self.unpack_item_array()
+	options = self.u.unpack_item_array()
 
-	ntypes = self.unpack_uint()
+	ntypes = self.u.unpack_uint()
 	types = []
 	for i in range(ntypes):
-	    types.append(self.unpack_uint())
+	    types.append(self.u.unpack_uint())
 
-	replyport = self.unpack_uint()
-	replyaddr = self.unpack_opaque()
+	replyport = self.u.unpack_uint()
+	replyaddr = self.u.unpack_opaque()
 
 	return (hdl, options, types, replyport, replyaddr)
 
@@ -390,14 +406,14 @@ class PacketUnpacker(xdrlib.Unpacker):
 
 	self.check_body_length()
 
-	start = self.pos
+	start = self.u.get_position()
 
-	flags = self.unpack_opaque()
+	flags = self.u.unpack_opaque()
 	
 	items = self.unpack_item_array_cont_chk(start)
 
-	checksum = self.unpack_fopaque(16)
-	digest = md5.new(self.buf[start:-16]).digest()
+	checksum = self.u.unpack_fopaque(16)
+	digest = md5.new(self.buf()[start:-16]).digest()
 
 	if digest != checksum:
 	    raise Error("body checksum mismatch")
@@ -411,16 +427,16 @@ class PacketUnpacker(xdrlib.Unpacker):
 	self.check_body_length()
 
 	if err == HDL_ERR_SESSION_TAG_MISMATCH:
-	    return self.unpack_uint()
+	    return self.u.unpack_uint()
 	elif err == HDL_ERR_NOT_FOUND:
 	    return None
 	elif err in (HDL_ERR_SERVER_NOT_RESP,
 #		     HDL_ERR_FORWARDED,
 		     HDL_ERR_ACCESS_DENIED,
 		     HDL_ERR_PARSING_FAILURE):
-	    return self.unpack_string()
+	    return self.u.unpack_string()
 	else:
-	    return `self.buf[self.pos:]`
+	    return `self.buf()[self.u.get_position():]`
 
 
 
@@ -740,7 +756,7 @@ class HashTable:
 	p = PacketPacker()
 	p.pack_header(mytag)
 	p.pack_body(hdl, flags, types)
-	request = p.get_buf()
+	request = p.get_buffer()
 
 	(server, qport, aport, mailbox) = self.hash_handle(hdl)
 
