@@ -4,7 +4,7 @@
 
 """Grail style preferences panel."""
 
-__version__ = "$Revision: 1.13 $"
+__version__ = "$Revision: 1.14 $"
 # $Source: /home/john/Code/grail/src/prefpanels/StylePanel.py,v $
 
 # Base class for the panel:
@@ -35,7 +35,7 @@ class StylePanel(PrefsPanels.Framework):
         v = StringVar(frame)
         f = Frame(frame)
         l = self.PrefsWidgetLabel(f, "Anchors:", label_width=20)
-        cb = Checkbutton(f, text="Underline", relief='ridge', bd=1,
+        cb = Checkbutton(f, text="Underline", borderwidth=1,
                          variable=v)
         cb.pack(side=LEFT)
         f.pack(fill=NONE, side=LEFT, pady='1m')
