@@ -1,6 +1,6 @@
 """Miscellaneous utilities for Grail."""
 
-__version__ = "$Revision: 2.7 $"
+__version__ = "$Revision: 2.8 $"
 # $Source: /home/john/Code/grail/src/utils/grailutil.py,v $
 
 import os
@@ -104,3 +104,61 @@ def nicebytes(n):
     elif n < 100.0: r = 1
     else: r = 0
     return "%.*f" % (r, n) + suffix
+
+
+
+import string
+
+# HTML utilities.  This should maybe go someplace else, but it should
+# definitely be a function and not a method of some class.
+
+def extract_attribute(key, dict, default=None, conv=None, delete=1):
+    """Extracts an attribute from a dictionary.
+
+    KEY is the attribute name to look up in DICT.  If KEY is missing
+    or cannot be converted, then DEFAULT is returned, otherwise the
+    converted value is returned.  CONV is the conversion function, and
+    DELETE (if true) says to delete the extracted key from the
+    dictionary upon successful extraction.
+
+    """
+    if dict.has_key(key):
+	val = dict[key]
+	if delete:
+	    del dict[key]
+	if not conv:
+	    return val
+	try:
+	    return conv(val)
+	except:
+	    return default
+    else:
+	return default
+
+def conv_integer(val, conv=string.atoi, otherlegal=''):
+    val = string.strip(val)
+    l = len(val)
+    start = 0
+    if val[0] in '+-':
+	start = 1
+    legalchars = string.digits + otherlegal
+    for i in range(start, l):
+	if val[i] not in legalchars:
+	    val = val[:i]
+	    break
+    return conv(val)
+
+def conv_float(val):
+    return conv_integer(val, conv=string.atof, otherlegal='.')
+
+def conv_normstring(val):
+    return string.lower(string.strip(val))
+
+def conv_enumeration(val, mapping_or_list):
+    if type(mapping_or_list) == type([]):
+	return (val in mapping_or_list) and val
+    else:
+	mapping_or_list.has_key(val) and mapping_or_list[val]
+
+def conv_exists(val):
+    return 1
