@@ -352,9 +352,6 @@ class CacheManager:
 	    netloc = netloc[:i]
 	elif type(port) == type(0):
 	    netloc = netloc[:i] + ":%d" % port
-	if path[-1:] == '/':
-	    # remove trailing slashes
-	    path = path[:-1]
 	return urlparse.urlunparse((scheme, netloc, path, params, query, ""))
 
 
