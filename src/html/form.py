@@ -466,13 +466,17 @@ class FormInfo:
 	    # same liberal interpretation that those other browsers
 	    # employ.
 	    #
-## 	    if self.first:
-## 		self.var.set(self.value)
+	    from __main__ import app
+	    strict = app.prefs.GetBoolean('parsing-html', 'strict')
+	    if strict and self.first:
+		self.var.set(self.value)
 	    self.w = Radiobutton(self.viewer.text, variable=self.var,
 				 value=self.value)
 
 	def reset(self):
-	    if self.first:
+	    from __main__ import app
+	    strict = app.prefs.GetBoolean('parsing-html', 'strict')
+	    if not strict and self.first:
 		self.var.set('')
 	    if self.checked:
 		self.var.set(self.value)
