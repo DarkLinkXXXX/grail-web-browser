@@ -1,15 +1,37 @@
 from types import *
 # NB Don't import Tk!
 from Tkinter import TkVersion, TclVersion, TclError, \
-     _cnfmerge, \
-     Event, Variable, StringVar, IntVar, DoubleVar, BooleanVar, \
-     mainloop, getint, getdouble, getboolean, \
-     Misc, Wm, Pack, Place, Toplevel, \
-     Button, Canvas, Checkbutton, \
-     Entry, Frame, Label, Listbox, Menu, Menubutton, Message, Radiobutton, \
-     Scale, Scrollbar, Text, Image, PhotoImage, BitmapImage, \
-     OptionMenu, \
-     image_names, image_types
+     _cnfmerge
+
+TEMPLATE = """
+def %(name)s(*args, **kw):
+    from Tkinter import %(name)s
+    original = apply(%(name)s, args, kw)
+    def filter(name):
+	return name[0] != '_' or name in ('__getitem__',
+					  '__setitem__',
+					  '__str__')
+    from Bastion import Bastion
+    bastion = Bastion(original, filter=filter)
+    if hasattr(original, '_w'):
+	bastion._w = original._w	# XXX This defeats the purpose :-(
+	bastion.tk = original.tk	# XXX This too :-(
+	bastion.children = original.children # XXX And this :-(
+	bastion.master = original.master # XXX And so on :-(
+    return bastion
+"""
+
+for name in ('Event', 'StringVar', 'IntVar', 'DoubleVar',
+     'BooleanVar', 'mainloop', 'getint', 'getdouble', 'getboolean',
+     'Misc', 'Wm', 'Pack', 'Place', 'Toplevel', 'Button', 'Canvas',
+     'Checkbutton', 'Entry', 'Frame', 'Label', 'Listbox', 'Menu',
+     'Menubutton', 'Message', 'Radiobutton', 'Scale', 'Scrollbar',
+     'Text', 'Image', 'PhotoImage', 'BitmapImage', 'OptionMenu',
+     'image_names', 'image_types'):
+     exec TEMPLATE % {'name': name}
+
+del TEMPLATE, name
+    
 from Tkconstants import *
 
 from Tkinter import tkinter
@@ -25,7 +47,14 @@ class _DumbTkinter:
 tkinter = _DumbTkinter()
 
 def _castrate(tk):
-    """Remove all Tcl commands that can affect the file system."""
+    """Remove all Tcl commands that can affect the file system.
+
+    This way, if someone breaks through the bastion around Tk, all
+    they can do is screw up Grail.  (Though if they are really clever,
+    they may be able to catch some of the user's keyboard input, or do
+    other subversive things.)
+
+    """
     if not hasattr(tk, 'eval'): return # For Rivet
     def rm(name, tk=tk):
 	try:
