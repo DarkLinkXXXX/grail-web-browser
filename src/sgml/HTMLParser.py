@@ -9,14 +9,16 @@ import sys
 if __name__ == '__main__':
     sys.path.insert(0, '../pythonlib')
 
-import grailutil
+import htmlentitydefs
 import regsub
 import string
-from types import DictType, StringType
 import SGMLHandler
 import SGMLLexer
 import SGMLParser
+
 from formatter import AS_IS
+from types import DictType, StringType
+from utils import *
 
 
 URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase', 'data']
@@ -24,7 +26,7 @@ URL_VALUED_ATTRIBUTES = ['href', 'src', 'codebase', 'data']
 
 class HTMLParser(SGMLHandler.BaseSGMLHandler):
 
-    from htmlentitydefs import entitydefs
+    entitydefs = htmlentitydefs.entitydefs.copy()
     new_entities = {
         "Dstrok": entitydefs["ETH"],
         "apos": "'",
@@ -243,7 +245,6 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         if not self.context:            # Ugly, but we don't want to duplicate
             return None                 # this method in each subclass!
         #
-        extract_keyword = grailutil.extract_keyword
         codetype = extract_keyword('codetype', attrs, conv=string.strip)
         if not codetype and attrs.has_key('classid'):
             codeurl = attrs['classid']
@@ -262,7 +263,7 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
             return None
         #
         import copy
-        message = grailutil.extract_keyword('standby', attrs, '')
+        message = extract_keyword('standby', attrs, '')
         message = string.join(string.split(message))
         for dev in self.get_devicetypes():
             embedder = self.context.app.find_embedder(dev, embedtype)
@@ -420,8 +421,7 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
                 self.badhtml = 1
                 self.sgml_parser.lex_endtag(self.list_stack[0][0])
         self.formatter.end_paragraph(1)
-        align = grailutil.extract_keyword(
-            'align', attrs, conv=grailutil.conv_normstring)
+        align = extract_keyword('align', attrs, conv=conv_normstring)
         self.formatter.push_alignment(align)
         self.formatter.push_font((tag, 0, 1, 0))
         self.header_number(tag, level, attrs)
@@ -465,8 +465,7 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
             return
         self.element_close_maybe('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6')
         self.formatter.end_paragraph(parbreak)
-        align = grailutil.extract_keyword(
-            'align', attrs, conv=grailutil.conv_normstring)
+        align = extract_keyword('align', attrs, conv=conv_normstring)
         if align == "indent":
             align = None
         self.formatter.push_alignment(align)
@@ -879,11 +878,9 @@ class HTMLParser(SGMLHandler.BaseSGMLHandler):
         if self.get_object():
             self.get_object().anchor(attrs)
             return
-        href = ''
-        if attrs.has_key('href'):
-            href = attrs['href']
-        name = grailutil('name', attrs, '', conv=grailutil.conv_normstring)
-        type = grailutil('type', attrs, '', conv=grailutil.conv_normstring)
+        href = string.strip(attrs.get('href', ''))
+        name = extract_keyword('name', attrs, '', conv=conv_normstring)
+        type = extract_keyword('type', attrs, '', conv=conv_normstring)
         self.anchor_bgn(href, name, type)
 
     def end_a(self):
