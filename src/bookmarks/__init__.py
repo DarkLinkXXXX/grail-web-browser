@@ -42,8 +42,10 @@ class BookmarkWriter:
 
 
 __tr_map = {}
-for c in map(chr, range(256)):
+for c in map(chr, range(128)):
     __tr_map[c] = c
+for i in range(128, 256):
+    __tr_map[chr(i)] = "&#%d;" % i
 for c in "<>&'\"":
     __tr_map[c] = "&#%d;" % ord(c)
 
