@@ -319,7 +319,8 @@ class Browser:
     def print_command(self):
 	# File/Print...
 	if self.busycheck(): return
-	self.error_dialog("Sorry", "Printing will be supported soon")
+	import Printing
+	Printing.Printing(self, self.url)
 
     def close_command(self):
 	# File/Close
