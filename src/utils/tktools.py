@@ -66,7 +66,7 @@ def set_transient(widget, master, relx=0.5, rely=0.3, expose=1):
 
 
 def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
-		    takefocus=0, return_corner_frame=0):
+		    takefocus=0):
 
     """Subroutine to create a frame with scrollbars.
 
@@ -76,9 +76,7 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
     properties (e.g. by calling set_scroll_commands()).
 
     Return a tuple containing the hbar, the vbar, and the frame, where
-    hbar and vbar are None if not requested.  If the optional argument
-    return_corner_frame is true, then the return value is a 4-tuple
-    with the corner frame appended.
+    hbar and vbar are None if not requested.
 
     """
     if class_:
@@ -115,8 +113,6 @@ def make_scrollbars(parent, hbar, vbar, pack=1, class_=None, name=None,
     else:
 	hbar = None
 
-    if return_corner_frame:
-	return hbar, vbar, frame, corner
     return hbar, vbar, frame
 
 
