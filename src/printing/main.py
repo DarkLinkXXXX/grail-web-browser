@@ -16,7 +16,6 @@ see information about all too many command-line options.
 import os
 import sys
 
-import grailutil
 import html
 import traceback
 
@@ -30,6 +29,7 @@ import posixpath
 import string
 import urllib
 import urlparse
+
 from types import TupleType
 
 
@@ -333,6 +333,10 @@ def get_ctype(app, url, infp):
 
 
 def load_rcscript():
+    try:
+        import grailutil
+    except ImportError:
+        return
     graildir = grailutil.getgraildir()
     userdir = os.path.join(graildir, "user")
     if os.path.isdir(userdir):
