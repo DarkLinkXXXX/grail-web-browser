@@ -20,5 +20,4 @@ def font_from_name(psfontname):
     # no need to do any caching since the import mechanism does that
     # for us!
     module = __import__(modulename, globals(), locals())
-#    exec "import "+modulename+"; module = "+modulename
     return module.font
