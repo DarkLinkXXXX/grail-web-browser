@@ -157,7 +157,7 @@ class BaseReader:
 	    return
 	try:
 	    self.callback()			# Call via function pointer
-	except IOError:
+	except:
 	    self.context.app.exception_dialog("in BaseReader")
 	    self.kill()
 
