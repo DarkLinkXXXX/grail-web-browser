@@ -607,6 +607,7 @@ class DiskCache:
 	    os.rename(newpath, logpath)
 	except:
 	    print "exception during checkpoint"
+	    traceback.print_exc()
 
     def _reinit_log(self):
 	"""Open the log for writing new transactions."""
