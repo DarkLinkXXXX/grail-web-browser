@@ -8,7 +8,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.43 $"
+__version__ = "$Revision: 1.44 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -680,7 +680,22 @@ class SGMLLexer(SGMLLexerBase):
                                             " not supported")
             else:
                 k = k + len(tagend.group(0)) - 1
-            if rawdata[k] in '>/':
+            #
+            #  Vicious hack to allow XML-style empty tags, like "<hr />".
+            #  We don't require the space, but appearantly it's significant
+            #  on Netscape Navigator.  Only in non-strict mode.
+            #
+            c = rawdata[k]
+            if c == '/' and not self._strict:
+                if rawdata[k:k+2] == "/>":
+                    # using XML empty-tag hack
+                    self.lex_starttag(tag, attrs)
+                    self.lex_endtag(tag)
+                    return k + 2
+                else:
+                    self.lex_starttag(tag, attrs)
+                    return k + 1
+            if c in '>/':
                 k = k + 1
             self.lex_starttag(tag, attrs)
             return k
