@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.18 $"
+__version__ = "$Revision: 1.19 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -336,7 +336,7 @@ class SGMLLexer(SGMLLexerBase):
 			    self.lex_data(rawdata[i])
 			    i = i+1
 			    continue
-			k = self.parse_comment(i)
+			k = self.parse_comment(i, end)
 			if k < 0: break
 			i = i+k
 			continue
@@ -423,30 +423,43 @@ class SGMLLexer(SGMLLexerBase):
 	    # XXX if end: check for empty stack
 
 	# Internal -- parse comment, return length or -1 if not terminated
-	def parse_comment(self, i):
+	def parse_comment(self, i, end):
 	    rawdata = self.rawdata
 	    if rawdata[i:i+4] <> (MDO + COM):
 		raise RuntimeError, 'unexpected call to parse_comment'
-	    if not self._strict:
+	    if self._strict:
+		# stricter parsing; this requires legal SGML:
+		pos = i + 2
+		datalength = len(rawdata)
+		comments = []
+		while (pos < datalength) and rawdata[pos] != '>':
+		    matchlength = comment.match(rawdata, pos)
+		    if matchlength >= 0:
+			pos = pos + matchlength
+			comments.append(comment.group(1))
+			if pos >= datalength:
+			    return -1	# incomplete; end-of-buffer
+		    else:
+			#  reached end of input buffer or EOF,
+			#  or it's just bad input:
+			return -1
+		map(self.lex_comment, comments)
+		q = pos + 1 - i
+	    else:
 		j = commentclose.search(rawdata, i+4)
 		if j < 0:
-		    return -1
-		self.lex_comment(rawdata[i+4: j])
-		j = j+commentclose.match(rawdata, j)
-		q = j - i
-	    else:
-		# stricter parsing; this requires legal SGML:
-		q = legalcomment.match(rawdata, i)
-		if q < 0:
-		    return -1
-		cmtdata = legalcomment.group(1)
-		while 1:
-		    len = comment.match(cmtdata)
-		    if len >= 0:
-			self.lex_comment(comment.group(1))
-			cmtdata = cmtdata[len:]
+		    if end and MDC in rawdata[i+4:]:
+			j = string.find(rawdata, MDC, i)
+			self.lex_comment(rawdata[i+4: j])
+			return j + len(MDC) - i
+		    elif end:
+			self.lex_comment(rawdata[i+4:])
+			return len(rawdata) - i
 		    else:
-			break
+			return -1
+		else:
+		    self.lex_comment(rawdata[i+4: j])
+		    return j + commentclose.match(rawdata, j) - i
 	    return q
 
 	# Internal -- handle starttag, return length or -1 if not terminated
@@ -455,7 +468,8 @@ class SGMLLexer(SGMLLexerBase):
 	    if shorttagopen.match(rawdata, i) >= 0:
 		# SGML shorthand: <tag/data/ == <tag>data</tag>
 		# XXX Can data contain &... (entity or char refs)? ... yes
-		# XXX Can data contain < or > (tag characters)?
+		# XXX Can data contain < or > (tag characters)? ... > yes,
+		#				< not as delimiter-in-context
 		# XXX Can there be whitespace before the first /?
 		j = shorttag.match(rawdata, i)
 		if j < 0:
@@ -482,12 +496,11 @@ class SGMLLexer(SGMLLexerBase):
 		    self.lex_data(rawdata[i])
 		    return i + 1
 
-	    k = tagfind.match(rawdata, i+1)
+	    k = tagfind.match(rawdata, i+1)	# matches just the GI
 	    if k < 0:
 		raise RuntimeError, 'unexpected call to parse_starttag'
 	    k = i+1+k
 	    tag = self._normfunc(rawdata[i+1:k])
-	    #self.lasttag = tag
 	    while k < j:
 		l = attrfind.match(rawdata, k)
 		if l < 0: break
@@ -502,7 +515,7 @@ class SGMLLexer(SGMLLexerBase):
 			attrvalue = replace(attrvalue, self.entitydefs)
 		attrs[self._normfunc(attrname)] = attrvalue
 		k = k + l
-	    if rawdata[j] == '>':
+	    if rawdata[j] in '>/':
 		j = j+1
 	    self.lex_starttag(tag, attrs)
 	    return j
@@ -607,10 +620,10 @@ if not _sgmllex:
     commentclose = regex.compile(COM + '[ \t\n]*' + MDC)
     tagfind = regex.compile('[a-zA-Z][a-zA-Z0-9.-]*')
     attrfind = regex.compile( \
-	'[ \t\n]+\([a-zA-Z][a-zA-Z_0-9.-]*\)'
-	'\([ \t\n]*' + VI + '[ \t\n]*'
+	'[ \t\n,]+\([a-zA-Z][a-zA-Z_0-9.-]*\)'	# comma is for compatibility
+	'\([ \t\n]*' + VI + '[ \t\n]*'		# VI
 	'\(\\' + LITA + '[^\']*\\' + LITA
-	+ '\|' + LIT + '[^"]*' + LIT + '\|[-a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
+	+ '\|' + LIT + '[^"]*' + LIT + '\|[-~a-zA-Z0-9./:+*%?!()_#=]*\)\)?')
 
 
 #  Test code for the lexer is now located in the test_lexer.py script.
