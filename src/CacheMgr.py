@@ -15,6 +15,15 @@ CacheEmpty = 'Cache Empty'
 CacheReadFailed = 'Cache Item Expired or Missing'
 CacheFileError = 'Cache File Error'
 
+def parse_cache_control(s):
+    def parse_directive(s):
+	i = string.find(s, '=')
+	if i >= 0:
+	    return (s[:i], s[i+1:])
+	return (s, '')
+    elts = string.splitfields(s, ',')
+    return filter(parse_directive, elts)
+
 class CacheManager:
     """Manages one or more caches in hierarchy.
 
@@ -299,7 +308,15 @@ class CacheManager:
 	    if expires == 0:
 		return 0
 
-	# dont' cache a query
+	# respond to http/1.1 cache control directives
+	if params.has_key('cache-control'):
+	    for k, v in parse_cache_control(params['cache-control']):
+		if k in  ('no-cache', 'no-store'):
+		    return 0
+		if k == 'max-age':
+		    expires = string.atoi(v)
+
+	# don't cache a query
 	if query != '':
 	    return 0
 
