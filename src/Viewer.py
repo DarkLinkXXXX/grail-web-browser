@@ -146,7 +146,8 @@ class Viewer(formatter.AbstractWriter):
 	    self.text, self.frame = tktools.make_text_box(self.master,
 						      width=width,
 						      height=height,
-						      hbar=bars, vbar=bars)
+						      hbar=bars, vbar=bars,
+						      class_="Viewer")
 	if self.parent:
 	    self.text.config(background=self.parent.text['background'],
 			     foreground=self.parent.text['foreground'])
