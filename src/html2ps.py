@@ -8,7 +8,7 @@ AbstractWriter, called PSWriter, that supports this high level
 interface as appropriate for PostScript generation.
 """
 
-__version__ = "$Id: html2ps.py,v 1.11 1995/09/14 20:03:07 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.12 1995/09/14 20:37:49 bwarsaw Exp $"
 
 import sys
 import string
@@ -674,27 +674,68 @@ class PSWriter(AbstractWriter):
 
 def html_test():
     import getopt
-    options = getopt.getopt('')
+    import os
+    help = None
+    error = None
+    options = []
+    infile = None
+    outfile = None
+    logfile = None
+    try: options, argv = getopt.getopt(sys.argv[1:], 'hdl:i:o:')
+    except getopt.error: error = 1; help = 1
+    for o, a in options:
+	if o == '-h': help = 1		# help
+	elif o == '-d': DEBUG = 1	# debugging, obviously ;-)
+	elif o == '-l':			# debug log file, otherwise stderr
+	    logfile = a
+	elif o == '-i':			# input file, otherwise stdin
+	    infile = a
+	elif o == '-o':			# output file, otherwise stdout
+	    outfile = a
+    if help:
+	stdout = sys.stderr
+	print 'Usage:', sys.argv[0], \
+	      '[-d] [-l <logfile>] [-i <infile>] [-o <outfile>] [-h]'
+	if error: sys.exit(1)
+	sys.exit(0)
 
-    try:
-	inputfile = sys.argv[1]
-	ifile = open(inputfile, 'r')
-    except (IOError, IndexError):
+    ifile = None
+    if infile:
+	try: ifile = open(infile, 'r')
+	except IOError: pass
+    ofile = None
+    if outfile:
+	try: ofile = open(outfile, 'w')
+	except IOError: pass
+    lfile = None
+    if logfile:
+	try: lfile = open(logfile, 'w')
+	except IOError: pass
+
+    if not ifile:
+	# use this as a filter
 	ifile = sys.stdin
-    try:
-	outputfile = sys.argv[2]
-	ofile = open(outputfile, 'w')
-    except (IOError, IndexError):
 	ofile = sys.stdout
+	lfile = sys.stderr
+    elif not ofile:
+	# output file can be derived from input file
+	outfile = os.path.splitext(infile)[0] + '.ps'
+	try: ofile = open(outfile, 'w')
+	except IOError: ofile = sys.stdout
+	
+    stderr = sys.stderr
+    try:
+	if lfile: sys.stderr = lfile
+	from htmllib import HTMLParser
 
-    from htmllib import HTMLParser
-
-    w = PSWriter(ofile, None)
-    f = AbstractFormatter(w)
-    p = HTMLParser(f)
-    p.feed(ifile.read())
-    p.close()
-    w.close()
+	w = PSWriter(ofile, None)
+	f = AbstractFormatter(w)
+	p = HTMLParser(f)
+	p.feed(ifile.read())
+	p.close()
+	w.close()
+    finally:
+	sys.stderr = stderr
 
 
 
