@@ -583,13 +583,18 @@ class HTMLParser(SGMLParser):
 
 
 
+def set_header_default_format(level, s):
+    """Vile hackery.
+    """
+    HeaderNumber.formats[level] = s
+
 class HeaderNumber:
-    formats = ('',
+    formats = ['',
 	       '%(h2)d. ',
 	       '%(h2)d.%(h3)d. ',
 	       '%(h2)d.%(h3)d.%(h4)d. ',
 	       '%(h2)d.%(h3)d.%(h4)d.%(h5)d. ',
-	       '%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d. ')
+	       '%(h2)d.%(h3)d.%(h4)d.%(h5)d.%(h6)d. ']
 
     def __init__(self, formats=None):
 	self.numbers = [0, 0, 0, 0, 0, 0]
