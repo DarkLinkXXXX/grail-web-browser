@@ -1,10 +1,11 @@
-__version__ = '$Revision: 1.6 $'
+__version__ = '$Revision: 1.7 $'
 
 import sgml.HTMLParser
 import string
 import sys
 import urlparse
 
+from grailbase.utils import conv_mimetype
 from printing import epstools
 from sgml.utils import *
 
