@@ -38,16 +38,16 @@ class AppletHTMLParser(htmllib.HTMLParser):
     def anchor_bgn(self, href, name, type):
 	self.formatter.flush_softspace()
 	self.anchor = href
-	atag = utag = htag = None
+	atag = utag = htag = otag = None
 	if href:
 	    atag = 'a'
 	    utag = '>' + href
+	    otag = '%%%d' % self.page_tag_count
+	    self.page_tag_count = self.page_tag_count + 1
 	    fulluri = urlparse.urljoin(self.browser.url, href)
 	    if self.browser.history.inhistory_p(fulluri):
 		htag = 'ahist'
 	ntag = name and '#' + name or None
-	otag = '%%%d' % self.page_tag_count
-	self.page_tag_count = self.page_tag_count + 1
 	self.formatter.push_style(atag)
 	self.formatter.push_style(utag)
 	self.formatter.push_style(ntag)
