@@ -42,22 +42,23 @@ class Browser:
 
     """
 
-    def __init__(self, master, app=None):
+    def __init__(self, master, app=None, height=40):
 	self.master = master
 	self.app = app
 	self.url = ''
 	self.history = []
 	self.current = -1
 	self.reload_applets = 0
-	self.create_widgets()
+	self.show_source = 0
+	self.create_widgets(height)
 
-    def create_widgets(self):
+    def create_widgets(self, height):
 	self.root = Toplevel(self.master)
 	self.root.protocol("WM_DELETE_WINDOW", self.on_delete)
 	self.menubar = self.create_menubar()
 	self.urlbar = self.create_urlbar()
 	self.statusbar = self.create_statusbar()
-	self.viewer = Viewer(self.root, self, DefaultStylesheet)
+	self.viewer = Viewer(self.root, self, DefaultStylesheet, height)
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
@@ -77,6 +78,8 @@ class Browser:
 
 	self.filemenu.add('command', label='New',
 			  command=self.new_command)
+	self.filemenu.add('command', label='View source',
+			  command=self.view_source_command)
 	self.filemenu.add('separator')
 	self.filemenu.add('command', label='Close',
 			  command=self.close_command)
@@ -178,7 +181,7 @@ class Browser:
 
 	self.viewer.clear_reset()
 
-	if content_type == 'text/html':
+	if content_type == 'text/html' and not self.show_source:
 	    parser = AppletHTMLParser(self.viewer)
 	elif content_type and content_type[:5] == 'text/':
 	    parser = TextParser(self.viewer)
@@ -249,8 +252,18 @@ class Browser:
     # File menu commands
 
     def new_command(self):
-	# File/New...
+	# File/New
 	return Browser(self.master, self.app)
+
+    def view_source_command(self):
+	# File/View Source
+	b = Browser(self.master, self.app, height=24)
+	save_show_source = b.load_from_entry
+	try:
+	    b.show_source = 1
+	    b.load(self.url)
+	finally:
+	    b.show_source = save_show_source
 
     def close_command(self):
 	# File/Close
