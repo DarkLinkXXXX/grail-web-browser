@@ -329,10 +329,11 @@ class OutlinerController:
         if not parent: return
         # if below is really node's first child, then what we want to
         # do is try to shift into node's next sibling's child list
-        children = node.children()
-        if len(children) > 0 and below == children[0]:
-            if sibi+1 < len(sibs) and not sibs[sibi+1].leaf_p():
-                below = sibs[sibi+1]
+        if node.get_nodetype() == "Folder":
+            children = node.children()
+            if len(children) > 0 and below == children[0]:
+                if sibi+1 < len(sibs) and not sibs[sibi+1].leaf_p():
+                    below = sibs[sibi+1]
         # if node and below are at the same depth, then what happens
         # depends on the state of below.  If below is an expanded
         # branch, then node becomes it's first sibling, otherwise it
