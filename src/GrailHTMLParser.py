@@ -6,6 +6,7 @@
 
 
 from Tkinter import *
+import os
 import urlparse
 import string
 import tktools
@@ -22,8 +23,11 @@ if hasattr(HTMLParser, 'do_isindex'):
 class GrailHTMLParser(HTMLParser):
 
     insert_aware_tags = ['param', 'alias', 'applet']
+    iconpath = ()
 
-    def __init__(self, viewer, reload=0):
+    def __init__(self, viewer, reload=0, iconpath=()):
+	if iconpath:
+	    self.iconpath = iconpath
 	self.viewer = viewer
 	self.reload = reload
 	self.context = self.viewer.context
@@ -143,13 +147,17 @@ class GrailHTMLParser(HTMLParser):
     # Override tag: <BODY colorspecs...>
 
     def start_body(self, attrs):
-	bgcolor = text = None
 	if attrs.has_key('bgcolor'):
-	    bgcolor = attrs['bgcolor']
+	    clr = attrs['bgcolor']
+	    if clr and clr[0] != '#':
+		clr = '#' + clr
+	    self.configcolor('background', clr)
+	    #  Normally not important, but ISINDEX would cause
+	    #  these to be non-empty:
+	    for hr in self.viewer.rules + self.viewer.subwindows:
+		hr.config(background = clr, highlightbackground = clr)
 	if attrs.has_key('text'):
-	    text = attrs['text']
-	self.configcolor('background', bgcolor)
-	self.configcolor('foreground', text)
+	    self.configcolor('foreground', attrs['text'])
 
     def configcolor(self, option, color):
 	if not color: return
@@ -342,6 +350,16 @@ class GrailHTMLParser(HTMLParser):
 	else:
 	    return default
 
+    def start_style(self, attrs):
+	"""Disable display of document data -- this is a style sheet.
+	"""
+	self.savedata = ''
+
+    def end_style(self):
+	"""Re-enable data display.
+	"""
+	self.savedata = None
+
     # Handle HTML extensions
 
     def unknown_starttag(self, tag, attrs):
@@ -363,3 +381,26 @@ class GrailHTMLParser(HTMLParser):
 	function = self.app.find_html_end_extension(tag)
 	if function:
 	    function(self)
+
+    # Handle proposed iconic entities (see W3C tech. reports):
+
+    entityimages = {}
+
+    def unknown_entityref(self, entname):
+	try:
+	    img = self.entityimages[entname]
+	except KeyError:
+	    gifname = entname + '.gif'
+	    for p in self.iconpath:
+		p = os.path.join(p, gifname)
+		if os.path.exists(p):
+		    img = PhotoImage(file=p)
+		    self.entityimages[entname] = img
+		    w = Label(self.viewer.text, image = img)
+		    self.viewer.add_subwindow(w)
+		    return
+	    self.entityimages[entname] = None
+	    self.handle_data('&%s;' % entname)
+	else:
+	    if img:
+		self.viewer.add_subwindow(Label(self.viewer.text, image = img))

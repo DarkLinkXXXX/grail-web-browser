@@ -44,7 +44,9 @@ import TbDialog
 if 0:
     import dummies
 import GlobalHistory
+from GrailHTMLParser import GrailHTMLParser
 
+GrailHTMLParser.iconpath = [os.path.join(grail_root, 'icons')]
 
 # Milliseconds between interrupt checks
 KEEPALIVE_TIMER = 500
@@ -203,6 +205,8 @@ class Application:
 	self.login_cache = {}
 	self.rexec = AppletRExec(None, 2, self)
 	self.graildir = grailutil.getgraildir()
+	GrailHTMLParser.iconpath.insert(0, os.path.join(self.graildir,
+							'icons'))
 	self.url_cache = Cache(self)
 	s = \
 	  read_mime_types(os.path.join(self.graildir, "mime.types")) or \
