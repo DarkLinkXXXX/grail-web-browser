@@ -8,7 +8,7 @@ This module provides a transparent interface allowing the use of
 alternate lexical analyzers without modifying higher levels of SGML
 or HTML support.
 """
-__version__ = "$Revision: 1.40 $"
+__version__ = "$Revision: 1.41 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -40,17 +40,13 @@ VI = "="                                # value indicator
 # data -- only char and entity references and end tags are special)
 # and CDATA (character data -- only end tags are special).
 
+import string
 import sys
 
-try:
-    import sgmllex
-except ImportError:
-    import regex
-    _sgmllex = 0
-else:
-    _sgmllex = 1
-
-import string
+# The sgmllex module is insufficient for parsing Netscape's HTML-based
+# bookmark files, so we disable the use of sgmllex by setting this flag
+# to zero regardless of the availability of the module.
+_sgmllex = 0
 
 
 SGMLError = 'SGMLLexer.SGMLError'
