@@ -1,6 +1,6 @@
 """Wrapper for the PSStream to support the standard AbstractWriter interface.
 """
-__version__ = '$Revision: 1.3 $'
+__version__ = '$Revision: 1.4 $'
 #  $Source: /home/john/Code/grail/src/printing/PSWriter.py,v $
 
 import formatter
@@ -32,6 +32,7 @@ class PSWriter(formatter.AbstractWriter):
     Exported ivars:
     """
     __detab_pos = 0
+    __pending_indentation = None
 
     def __init__(self, ofile, title='', url='',
                  varifamily='Times', fixedfamily='Courier', paper=None,
@@ -58,6 +59,7 @@ class PSWriter(formatter.AbstractWriter):
 
     def new_alignment(self, align):
 ##      utils.debug('new_alignment: %s' % `align`)
+        self.__alignment = align
         self.ps.push_alignment(align)
 
     def new_font(self, font):
@@ -84,38 +86,53 @@ class PSWriter(formatter.AbstractWriter):
 ##      utils.debug('send_paragraph: %s' % blankline)
         self.ps.push_paragraph(blankline, self.settings.paragraph_skip)
         self.__detab_pos = 0
+        self.__pending_indentation = None
+
+    def send_indentation(self, width):
+##      utils.debug('send_indentation: %s' % width)
+        self.__pending_indentation = width
 
     def send_line_break(self):
 ##      utils.debug('send_line_break')
         self.ps.push_hard_newline()
         self.__detab_pos = 0
+        self.__pending_indentation = None
 
     def send_hor_rule(self, abswidth=None, percentwidth=None,
                       height=None, align=None):
 ##      utils.debug('send_hor_rule')
         self.ps.push_horiz_rule(abswidth, percentwidth, height, align)
         self.__detab_pos = 0
+        self.__pending_indentation = None
 
     def send_label_data(self, data):
 ##      utils.debug('send_label_data: %s' % data)
         self.ps.push_label(data)
         self.__detab_pos = 0
+        self.__pending_indentation = None
 
     def send_flowing_data(self, data):
 ##      utils.debug('send_flowing_data: %s' % data)
         self.ps.push_literal(0)
+        if self.__pending_indentation:
+            self.ps.push_horiz_space(self.__pending_indentation)
+            self.__pending_indentation = None
         self.ps.push_string_flowing(data)
         self.__detab_pos = 0
 
     def send_literal_data(self, data):
 ##      utils.debug('send_literal_data: %s' % data)
         self.ps.push_literal(1)
+        if self.__pending_indentation:
+            self.ps.push_horiz_space(self.__pending_indentation)
+            self.__pending_indentation = None
         self.ps.push_string(self.__detab_data(data))
 
     def send_eps_data(self, image, align):
 ##      utils.debug('send_eps_data: <epsdata>, ' + `bbox`)
         self.ps.push_eps(image, align)
         self.__detab_pos = 0
+        self.__pending_indentation = None
 
     def __detab_data(self, data):
         pos = self.__detab_pos
