@@ -6,7 +6,7 @@ formatter and generates PostScript instead of rendering HTML on a
 screen.
 """
 
-__version__ = "$Id: html2ps.py,v 1.5 1995/09/12 23:15:18 bwarsaw Exp $"
+__version__ = "$Id: html2ps.py,v 1.6 1995/09/14 16:00:00 bwarsaw Exp $"
 
 import sys
 import string
@@ -14,7 +14,7 @@ import StringIO
 import regsub
 from formatter import *
 
-RECT_DEBUG = 1
+RECT_DEBUG = 0
 DEBUG = 1
 LP_COMMAND = 'lp -d tps'
 
@@ -134,6 +134,7 @@ ruler = map(lambda(x): 72.0/(x*2.0), ruler)
 
 
 # contants
+FONT_METRIC_SCALE_FACTOR = 0.9
 PS_HEADER_FILE = 'header.ps'
 ISO_LATIN1_FILE = 'latin1.ps'
 CR = '\015'
@@ -146,12 +147,20 @@ CRLF_re = '%c\\|%c' % (CR, LF)
 # 297.0 mm).  Note that PAGE_WIDTH is not the actual width of the
 # paper
 
-TOP_MARGIN = (10.5*72)
-BOT_MARGIN = (0.5*72)
-LEFT_MARGIN = (0.5*72)
-RIGHT_MARGIN = LEFT_MARGIN
+def inch_to_pt(inches): return inches * 72.0
+def pt_to_inch(points): return points / 72.0
+
+TOP_MARGIN = inch_to_pt(10)
+BOT_MARGIN = inch_to_pt(0.5)
+LEFT_MARGIN = inch_to_pt(1.0)
+RIGHT_MARGIN = inch_to_pt(1.0)
 PAGE_HEIGHT = (TOP_MARGIN - 2 * BOT_MARGIN)
-PAGE_WIDTH = (8*72) - LEFT_MARGIN
+PAGE_WIDTH = inch_to_pt(8.5) - 2 * LEFT_MARGIN
+
+# horizontal rule spacing
+HR_TOP_MARGIN = 8
+HR_BOT_MARGIN = 8
+
 
 F_FULLCOLOR = 0
 F_GREYSCALE = 1
@@ -235,10 +244,7 @@ class PSFont:
 	cur_sz, cur_family, cur_italic, cur_bold = self.font
 	set_sz, set_italic, set_bold, set_tt = font_tuple
 	# calculate size
-	try:
-	    if type(set_sz) != type(1): new_sz = font_sizes[set_sz]
-	    else: new_sz = set_sz
-	except KeyError: new_sz = 12
+	new_sz = self.font_size(font_tuple)
 	# calculate variable vs. fixed
 	if set_tt:
 	    new_family = 'FONTF'
@@ -274,191 +280,279 @@ class PSFont:
 	    pointlen = 0.0
 	    for c in text: pointlen = pointlen + self.metric[c]
 	    cooked = pointlen * self.font_size() / 12.0
-	    return cooked
+	    return cooked * FONT_METRIC_SCALE_FACTOR
 
-    def font_size(self):
-	return self.font[0]
+    def font_size(self, font_tuple=None):
+	if not font_tuple: return self.font[0]
+	tuple_sz = font_tuple[0]
+	try:
+	    if type(tuple_sz) != type(1): return font_sizes[tuple_sz]
+	    else: return tuple_sz
+	except KeyError: return 12
 
 
 
-class PSBuffer:
-    """Handles the printing of output to a PostScript buffer.
-    Uses an output buffer which has output file semantics
-    (i.e. supports a write method and a flush method), and must
-    already be opened for writing."""
-    def __init__(self, out, varifamily='Helvetica', fixedfamily='Courier'):
-	self.obuffer = out
-	self.current_page = 0
-	# X,Y position on the current PostScript page in points.
-	self.current_pos = (0, 0)
-	# PostScript font object
-	self.font = PSFont(varifamily, fixedfamily)
-	# line output buffering
-	self.lbuffer = StringIO.StringIO()
-	self.lwidth = 0.0
-	self.tallest = self.font.font_size()
+tag_consts = """
+START = 0
+STRING = 1
+FONT_CHANGE = 2
+SPACE = 3
+HR = 4
+UNDERLINE = 5
+LITERAL = 6
+HARD_NL = 7
+VERT_TAB = 8
+PAGE_BREAK = 9
+MARGIN = 10
+END = 100
+"""
+exec tag_consts
+tags = {}
+exec tag_consts in tags
+for key, value in tags.items():
+    if key != '__builtins__':
+	tags[value] = key
 
-    def flush(self):
-	"""Flush the current line buffer to the output buffer."""
-	if self.lbuffer.tell() > 0:
-	    self.lbuffer.seek(0)
-	    #self.obuffer.write(self.lbuffer.read())
-	    lbt = self.lbuffer.read()
-	    self.obuffer.write(lbt)
-	    self.lbuffer = sys.stdout = StringIO.StringIO()
-	    self.lwidth = 0.0
+class PSQueue:
+    def __init__(self, psfont, ofile, title=''):
+	self.queue = [(START, title)]
+	self.font = psfont
+	self.ofile = ofile
+	self.title = title
+	self.curpage = 1
+	self.margin = 0
 
-    def set_font(self, font_tuple):
-	"""Change local font to that specified by FONT_TUPLE, where
-	FONT_TUPLE is a 4-tuple of (SIZE, ITALIC, BOLD, TT)
+    def push_string(self, string):
+	tag, info = self.pop(STRING)
+	if tag: string = info + string
+	self.queue.append((STRING, string))
+
+    def push_font_change(self, font):
+	tag, info = self.pop(FONT_CHANGE)
+	# doesn't make much sense to have 2 font changes in a row
+	self.queue.append((FONT_CHANGE, font))
+
+    def push_space(self, spaces=1):
+	tag, info = self.pop(SPACE)
+	if tag: spaces = spaces + info
+	self.queue.append((SPACE, spaces))
+
+    def push_horiz_rule(self): self.queue.append((HR, None))
+    def push_end(self): self.queue.append((END, None))
+    def push_margin(self, level): self.queue.append((MARGIN, level))
+
+    def push_hard_newline(self, blanklines=1):
+	tag, info = self.pop(HARD_NL)
+	if tag: blanklines = blanklines + info
+	self.queue.append((HARD_NL, blanklines))
+
+    def push_vtab(self, distance, atmark=None):
+	tag, info = self.pop(VERT_TAB)
+	if tag: distance = distance + info
+	if atmark: self.queue.insert(atmark, (VERT_TAB, distance))
+	else: self.queue.append((VERT_TAB, distance))
+
+    def push_underline(self, flag):
+	tag, info = self.pop(UNDERLINE)
+	# doesn't make much sense to have 2 render changes in a row
+	self.queue.append((UNDERLINE, flag))
+
+    def push_literal(self, flag):
+	tag, info = self.pop(LITERAL)
+	# doesn't make much sense to have 2 literal state changes in a row
+	self.queue.append((LITERAL, flag))
+
+
+    def mark(self): return len(self.queue)
+
+    def pop(self, tagmatch=None):
+	try:
+	    if not tagmatch or tagmatch == self.queue[-1][0]:
+		rtn = self.queue[-1]
+		del self.queue[-1]
+		return rtn
+	    else: return (None, None)
+	except IndexError: return (None, None)
+
+    def break_lines(self):
+	nq = PSQueue(self.font, self.ofile, self.title)
+	xpos = 0.0
+	tallest = self.font.font_size()
+	in_literal_p = 0
+	debug_text = ''
+	for tag, info in self.queue:
+	    if tag == START:
+		nq.push_font_change(None)
+		self.font.set_font(None)
+		mark = nq.mark()
+	    elif tag == END:
+		nq.push_vtab(tallest * 1.1, mark)
+		nq.push_end()
+	    elif tag == UNDERLINE:
+		nq.push_underline(info)
+	    elif tag == FONT_CHANGE:
+		tallest = max(tallest, self.font.font_size())
+		nq.push_font_change(info)
+		self.font.set_font(info)
+	    elif tag == HARD_NL:
+		nq.push_vtab(tallest * 1.1, mark)
+		if info > 1:
+		    nq.push_vtab(tallest * 1.1 * (info - 1))
+		nq.push_hard_newline(info)
+		xpos = 0.0
+		tallest = 0
+		mark = nq.mark()
+	    elif tag == HR:
+		nq.push_vtab(HR_TOP_MARGIN)
+		nq.push_horiz_rule()
+		nq.push_vtab(HR_BOT_MARGIN)
+		mark = nq.mark()
+		xpos = 0.0
+	    elif tag == MARGIN:
+		nq.push_margin(info)
+		self.margin = info * LEFT_MARGIN
+	    elif tag == LITERAL:
+		in_literal_p = info
+		nq.push_literal(info)
+	    elif tag == SPACE:
+		# spaces at the beginning of the line are thrown away,
+		# unless we are in literal text
+		if in_literal_p or xpos > 0.0:
+		    xpos = xpos + (self.font.space_width * info)
+		    nq.push_space(info)
+		    debug_text = debug_text + ' '
+	    elif tag == STRING:
+		if xpos == 0.0:
+		    tallest = self.font.font_size()
+		swidth = self.font.text_width(info)
+		ltag, linfo = nq.pop(SPACE)
+		if xpos + swidth + self.margin < PAGE_WIDTH:
+		    # okay, so the text fits, but if the preceding
+		    # node is a space, then they can both be collapsed
+		    # into a single STRING node
+		    xpos = xpos + swidth
+		    # push_string will take care of collapsing any
+		    # preceding strings into this one
+		    if ltag:
+			info = ' ' * linfo + info
+		    nq.push_string(info)
+		    debug_text = debug_text + info
+		    continue
+		# the new text doesn't fit on the line so we can do a
+		# simple break of the line if the previous tag we saw
+		# was a space, and the current line width is > 3/4 of
+		# the page width and the current text is smaller than
+		# the page width
+		_debug('breaking %s: %f\n' %
+		       (debug_text, xpos + self.margin + swidth))
+		debug_text = ''
+		if ltag and \
+		     xpos + self.margin > PAGE_WIDTH * 0.75 and \
+		     swidth < PAGE_WIDTH:
+		    # note that we can ignore the line trailing spaces
+		    nq.push_vtab(tallest * 1.1, mark)
+		    nq.push_hard_newline()
+		    mark = nq.mark()
+		    nq.push_string(info)
+		    xpos = swidth
+		# we have bigger problems, because if the last thing
+		# we saw was a space, then we'll have to break the
+		# word in the middle someplace.  for now we'll just
+		# let it overflow.  TBD: fix this!
+	        elif ltag:
+		    nq.push_string(info)
+	# replace our queue with the collapsed queue
+	self.queue = nq.queue
+
+    def write_to_postscript(self):
+	"""By this time the queue accurately reflects the layout of the
+	page.  in other words, for each tag we see, just generate
+	the appropriate postscript calls.
 	"""
-	postscript_font, font_size = self.font.set_font(font_tuple)
-	oldstdout = sys.stdout
+	# now scan through the queue
+	render_cmd = 'S'
+	ypos = 0.0
+	for tag, info in self.queue:
+	    if tag == START:
+		self._header(info)
+		self._start_page(self.curpage)
+	    elif tag == STRING:
+		# handle quoted characters
+		cooked = regsub.gsub(QUOTE_re, '\\\\\\1', info)
+		# TBD: handle ISO encodings
+		pass
+		self.ofile.write('(%s) %s\n' % (cooked, render_cmd))
+	    elif tag == SPACE:
+		self.ofile.write('(%s) %s\n' % (' ' * info, render_cmd))
+	    elif tag == FONT_CHANGE:
+		psfontname, size = self.font.set_font(info)
+		self.ofile.write('%s %d SF\n' % (psfontname, size))
+	    elif tag == UNDERLINE:
+		render_cmd = info and 'U' or 'S'
+	    elif tag == HR:
+		self.ofile.write('%f HR\n' % PAGE_WIDTH)
+	    elif tag == MARGIN:
+		self.ofile.write('/indentmargin %f D\n' %
+				 (info * LEFT_MARGIN))
+		self.ofile.write('NL\n')
+	    elif tag == LITERAL:
+		pass
+	    elif tag == VERT_TAB:
+		if ypos - info < -PAGE_HEIGHT:
+		    self._end_page()
+		    self._start_page()
+		    ypos = 0.0
+		else:
+		    ypos = ypos - info
+		self.ofile.write('0 -%f R\n' % info)
+	    elif tag == HARD_NL:
+		self.ofile.write('NL\n')
+	    elif tag == END:
+		self._trailer()
+
+    def _start_page(self, pagenum):
+	stdout = sys.stdout
 	try:
-	    sys.stdout = self.lbuffer
-	    print postscript_font, font_size, "SF"
-	    self.tallest = max(self.tallest, font_size)
-	finally:
-	    sys.stdout = oldstdout
-
-    def x(self): return self.current_pos[0]
-    def y(self): return self.current_pos[1]
-
-    def _moveto(self, x, y):
-	"""Move PostScripts current position to (X, Y).  No checking is
-	made for that position being visible, nor is page or line breaking
-	performed.  If X or Y is None, then the current position is
-	substituted for that parameter.  The PostScript commands are not
-	buffered.
-	"""
-	if x is None: x = self.x()
-	if y is None: y = self.y()
-	self.current_pos = (x, y)
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.obuffer
-	    print x, y, "M"
-	finally: sys.stdout = oldstdout
-
-    def _line_break(self, trailer_p=None):
-	"""Issue a PostScript line break, flushing the current line
-	buffer if necessary, and issuing page break instructions if
-	necessary.
-	"""
-	vert_space = self.tallest * 1.1
-	if self.y() - vert_space < -PAGE_HEIGHT:
-	    self._page_break(trailer_p)
-	self._moveto(0, self.y() - vert_space)
-	self.flush()
-	self.tallest = self.font.font_size()
-
-    def _page_break(self, trailer_p=None):
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.obuffer
-	    print 'save', 0, -PAGE_HEIGHT - 12, "M"
-	    print "FONTVI 12 SF"
-	    print "(Page", self.current_page, ") S restore"
-	    self.showpage()
-	    if not trailer_p: self.newpage()
-	finally:
-	    sys.stdout = oldstdout
-	self._moveto(0, 0)
-
-    def showpage(self):
-	"""Show the current page and restore any changes to the printer
-	state."""
-	self.obuffer.write("showpage\n")
-
-    def newpage(self):
-	"""Increment the page count and handle the structured comment
-	conventions."""
-	self.current_page = self.current_page + 1
-	# The PostScript reference Manual states that the Page: Tag
-	# should have a label and a ordinal; otherwise programs like
-	# psutils fail -gustaf
-	oldstdout = sys.stdout
-	try:
-	    sys.stdout = self.obuffer
-	    print "%%Page:", self.current_page, self.current_page
-	    print "save\nNP"
+	    sys.stdout = self.ofile
+	    # write the structure page convention
+	    print '%%Page:', pagenum, pagenum
+	    print 'save'
+	    print 'NP'
+	    print '0 0 M'
 	    if RECT_DEBUG:
-		print 0, 0, "M"
+		print 'gsave', 0, 0, "M"
 		print PAGE_WIDTH, 0, "RL"
 		print 0, -PAGE_HEIGHT, "RL"
 		print -PAGE_WIDTH, 0, "RL closepath stroke newpath"
-	    self._moveto(0, 0)
+		print 'grestore'
 	finally:
-	    sys.stdout = oldstdout
-	# restore the font
-	self.set_font( (None, None, None, None) )
+	    sys.stdout = stdout
 
-    def _raw_write(self, word, insert_space_p, draw_cmd='S'):
-	"""Writes WORD to output buffer sys.stdout.  Handles PostScript
-	quoting and ISO encodings.  Also handles line breaking when current
-	buffered line exceeds page width.
-	"""
-	# calculate line widths
-	wwidth = self.font.text_width(word)
-	# handle quoted characters
-	word = regsub.gsub(QUOTE_re, '\\\\\\1', word)
-	# TBD: handle ISO encodings
-	pass
-	# break the line if necessary
-	if self.x() + wwidth + self.lwidth > PAGE_WIDTH and insert_space_p:
-	    self._line_break()
-	# now write out the word and trailing space, then re-adjust
-	# the buffered line length
-	space = insert_space_p and ' ' or ''
-	print '(%s%s) %s' % (word, space, draw_cmd)
-	self.lwidth = self.lwidth + wwidth + self.font.space_width
 
-    def write_text(self, text, underline_p=None):
-	"""Writes a flow of words to the PostScript output buffer.  The
-	text written will be rendered in the same style.  Note that
-	output is buffered until the line width is filled.  This facilitates
-	horizontal as well as vertical positioning of the line.  Hard
-	newlines in the text are translated to line breaks, flushing the
-	buffer.
-	"""
-	# note the and/or trick for C's equivalent ?: constructs
-	draw_cmd = underline_p and 'U' or 'S'
-	# start splitting the text up until it fits on the current
-	# line.  We make some assumptions here.  First, the text has
-	# already been normalized.  CR/NL's have been collapsed so
-	# they are only there if really desired -- we'll put in hard
-	# newlines.
-	oldstdout = sys.stdout
+    def _end_page(self, trailer=0):
+	stdout = sys.stdout
 	try:
-	    sys.stdout = self.lbuffer
-	    lines = string.splitfields(text, '\n')
-	    linecnt = len(lines) - 1
-	    for line in lines:
-		# buffer each line of output
-		words = string.splitfields(line, ' ')
-		spaces = len(words) - 1
-		for word in words:
-		    self._raw_write(word, spaces)
-		    spaces = spaces - 1
-		# add hard newlines
-		if linecnt > 0: self._line_break()
-		linecnt = linecnt - 1
+	    sys.stdout = self.ofile
+	    print 'save', 0, -PAGE_HEIGHT - 12, "M"
+	    print "FONTVI 12 SF"
+	    print "(Page", self.curpage, ") S restore"
+	    print "showpage"
+	    if not trailer:
+		self.curpage = self.curpage + 1
+		print '%%Page:', self.curpage, self.curpage
+		print '0 0 M'
 	finally:
-	    sys.stdout = oldstdout
+	    sys.stdout = stdout
 
-    def horizontal_rule(self):
-	self.write_text('\n\n')
-	self.obuffer.write('%f HR\n' % PAGE_WIDTH)
-
-    def file_to_buffer(self, filename):
+    def _file_to_buffer(self, filename):
 	fp = open(filename, 'r')
-	self.obuffer.write(fp.read())
+	self.ofile.write(fp.read())
 	fp.close()
 
-    def header(self, title=None):
+    def _header(self, title=None):
 	oldstdout = sys.stdout
 	try:
-	    sys.stdout = self.obuffer
+	    sys.stdout = self.ofile
 	    print "%!PS-Adobe-1.0"
 	    if title:
 		# replace all cr/lf's with spaces
@@ -472,55 +566,54 @@ class PSBuffer:
 	    print
 
 	    # spew out the contents of the header PostScript file
-	    self.file_to_buffer(PS_HEADER_FILE)
+	    self._file_to_buffer(PS_HEADER_FILE)
 	    # define the fonts
 	    for docfont in docfonts.keys():
 		print "/%s" % docfont, "{/%s}" % docfonts[docfont], "D"
 
 	    # swew out ISO encodings
-	    self.file_to_buffer(ISO_LATIN1_FILE)
+	    self._file_to_buffer(ISO_LATIN1_FILE)
 	    # finish out the prolog
 	    print "/xmargin", LEFT_MARGIN, "D"
 	    print "/topmargin", TOP_MARGIN, "D"
+	    print "/indentmargin", 0.0, "D"
 	    print "/scalfac", self.font.points_per_pixel, "D"
 	    print "%%EndProlog"
 	finally:
 	    sys.stdout = oldstdout
 	    
-    def trailer(self):
-	self._line_break(1)
+    def _trailer(self):
+	self._end_page(1)
 	oldstdout = sys.stdout
 	try:
-	    sys.stdout = self.obuffer
+	    sys.stdout = self.ofile
 	    print "%%Trailer"
 	    print "restore"
-	    print "%%Pages:", self.current_page
+	    print "%%Pages:", self.curpage
 	finally:
 	    sys.stdout = oldstdout
 
 
 
 class PSWriter(AbstractWriter):
-    def __init__(self, title=None, fp=None):
-	import os
-	if not fp: fp = os.popen(LP_COMMAND, 'w')
-	self.ps = PSBuffer(fp)
+    def __init__(self, ofile, title=None):
 	if not title:
+	    import os
 	    user = os.environ['NAME']
 	    title = 'Print Job for: ' + user
-	self.ps.header(title)
-	self.ps.newpage()
+	font = PSFont()
+	self.ps = PSQueue(font, ofile, title)
 
     def close(self):
-	self.ps.trailer()
+	self.ps.push_end()
+	self.ps.break_lines()
+	self.ps.write_to_postscript()
 
     def new_font(self, font):
-	_debug('new_font: %s\n' % repr(font))
-	self.ps.set_font(font)
+	self.ps.push_font_change(font)
 
     def new_margin(self, margin, level):
-	#print "new_margin(%s, %d)" % (`margin`, level)
-	raise RuntimeError
+	self.ps.push_margin(level)
 
     def new_spacing(self, spacing):
 	#print "new_spacing(%s)" % `spacing`
@@ -531,25 +624,39 @@ class PSWriter(AbstractWriter):
 	raise RuntimeError
 
     def send_paragraph(self, blankline):
-	self.ps.write_text('\n' + '\n'*blankline)
+	for nl in range(blankline+1):
+	    self.ps.push_hard_newline()
 
     def send_line_break(self):
-	self.ps.write_text('\n')
+	self.ps.push_hard_newline()
 
     def send_hor_rule(self):
-	self.ps.horizontal_rule()
+	self.ps.push_horiz_rule()
 
     def send_label_data(self, data):
 	#print "send_label_data(%s)" % `data`
 	raise RuntimeError
 
     def send_flowing_data(self, data):
-	_debug('inserting: %s\n' % data)
-	self.ps.write_text(data)
+	self.ps.push_literal(0)
+	self.write_text(data)
 
     def send_literal_data(self, data):
-	self.ps.write_text(data)
+	self.ps.push_literal(1)
+	self.write_text(data)
 
+    def write_text(self, data):
+	lines = string.splitfields(data, '\n')
+	linecnt = len(lines)-1
+	for line in lines:
+	    words = string.splitfields(line, ' ')
+	    wordcnt = len(words)-1
+	    for word in words:
+		self.ps.push_string(word)
+		if wordcnt > 0: self.ps.push_space()
+		wordcnt = wordcnt - 1
+	    if linecnt > 0: self.ps.push_hard_newline()
+	    linecnt = linecnt - 1
 
 
 def html_test():
@@ -566,7 +673,7 @@ def html_test():
 
     from htmllib import HTMLParser
 
-    w = PSWriter(None, ofile)
+    w = PSWriter(ofile, None)
     f = AbstractFormatter(w)
     p = HTMLParser(f)
     p.feed(ifile.read())
