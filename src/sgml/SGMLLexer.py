@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.7 $"
+__version__ = "$Revision: 1.8 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -41,16 +41,17 @@ VI = "="				# value indicator
 # data -- only char and entity references and end tags are special)
 # and CDATA (character data -- only end tags are special).
 
+import sys
 
 try:
     import sgmllex # compiled flex scanner
 except ImportError:
     import regex
     _sgmllex = 0
-    print "Guido's parser"
+    sys.stderr.write("Guido's parser\n")
 else:
     _sgmllex = 1
-    print "Connolly's parser"
+    sys.stderr.write("Connolly's parser\n")
 
 import string
 
