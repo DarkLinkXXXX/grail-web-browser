@@ -29,9 +29,9 @@ elif os.name == 'nt':
 	from nturl2path import url2pathname, pathname2url 
 else:
 	def url2pathname(pathname):
-       		return pathname
-    	def pathname2url(pathname):
-       		return pathname
+		return pathname
+	def pathname2url(pathname):
+		return pathname
 
 # This really consists of two pieces:
 # (1) a class which handles opening of all sorts of URLs
@@ -47,11 +47,14 @@ def urlopen(url):
 	if not _urlopener:
 		_urlopener = FancyURLopener()
 	return _urlopener.open(url)
-def urlretrieve(url):
+def urlretrieve(url, filename=None):
 	global _urlopener
 	if not _urlopener:
 		_urlopener = FancyURLopener()
-	return _urlopener.retrieve(url)
+	if filename:
+	    return _urlopener.retrieve(url, filename)
+	else:
+	    return _urlopener.retrieve(url)
 def urlcleanup():
 	if _urlopener:
 		_urlopener.cleanup()
@@ -136,7 +139,7 @@ class URLopener:
 	# External interface
 	# retrieve(url) returns (filename, None) for a local object
 	# or (tempfilename, headers) for a remote object
-	def retrieve(self, url):
+	def retrieve(self, url, filename=None):
 		if self.tempcache and self.tempcache.has_key(url):
 			return self.tempcache[url]
 		url1 = unwrap(url)
@@ -144,7 +147,7 @@ class URLopener:
 			self.tempcache[url] = self.tempcache[url1]
 			return self.tempcache[url1]
 		type, url1 = splittype(url1)
-		if not type or type == 'file':
+		if not filename and (not type or type == 'file'):
 			try:
 				fp = self.open_local_file(url1)
 				del fp
@@ -153,12 +156,13 @@ class URLopener:
 				pass
 		fp = self.open(url)
 		headers = fp.info()
-		import tempfile
-		tfn = tempfile.mktemp()
-		result = tfn, headers
+		if not filename:
+		    import tempfile
+		    filename = tempfile.mktemp()
+		result = filename, headers
 		if self.tempcache is not None:
 			self.tempcache[url] = result
-		tfp = open(tfn, 'w')
+		tfp = open(filename, 'w')
 		bs = 1024*8
 		block = fp.read(bs)
 		while block:
@@ -594,6 +598,22 @@ def splitport(host):
 	if _portprog.match(host) >= 0: return _portprog.group(1, 2)
 	return host, None
 
+# Split host and port, returning numeric port.
+# Return given default port if no ':' found; defaults to -1.
+# Return numerical port if a valid number are found after ':'.
+# Return None if ':' but not a valid number.
+_nportprog = regex.compile('^\(.*\):\(.*\)$')
+def splitnport(host, defport=-1):
+	if _nportprog.match(host) >= 0:
+	    host, port = _nportprog.group(1, 2)
+	    try:
+		if not port: raise string.atoi_error, "no digits"
+		nport = string.atoi(port)
+	    except string.atoi_error:
+		nport = None
+	    return host, nport
+	return host, defport
+
 _queryprog = regex.compile('^\(.*\)\?\([^?]*\)$')
 def splitquery(url):
 	if _queryprog.match(url) >= 0: return _queryprog.group(1, 2)
@@ -622,26 +642,26 @@ _quoteprog = regex.compile('%[0-9a-fA-F][0-9a-fA-F]')
 def unquote(s):
 	i = 0
 	n = len(s)
-	res = ''
+	res = []
 	while 0 <= i < n:
 		j = _quoteprog.search(s, i)
 		if j < 0:
-			res = res + s[i:]
+			res.append(s[i:])
 			break
-		res = res + (s[i:j] + chr(string.atoi(s[j+1:j+3], 16)))
+		res.append(s[i:j] + chr(string.atoi(s[j+1:j+3], 16)))
 		i = j+3
-	return res
+	return string.joinfields(res, '')
 
 always_safe = string.letters + string.digits + '_,.-'
 def quote(s, safe = '/'):
 	safe = always_safe + safe
-	res = ''
+	res = []
 	for c in s:
 		if c in safe:
-			res = res + c
+			res.append(c)
 		else:
-			res = res + '%%%02x' % ord(c)
-	return res
+			res.append('%%%02x' % ord(c))
+	return string.joinfields(res, '')
 
 
 # Proxy handling

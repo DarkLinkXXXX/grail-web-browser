@@ -1,6 +1,6 @@
 # Tkinter.py -- Tk/Tcl widget wrappers
 
-__version__ = "$Revision: 2.35 $"
+__version__ = "$Revision: 2.36 $"
 
 try:
 	# See if modern _tkinter is present
@@ -935,20 +935,20 @@ class Canvas(Widget):
 		Widget.__init__(self, master, 'canvas', cnf, kw)
 	def addtag(self, *args):
 		self._do('addtag', args)
-	def addtag_above(self, tagOrId):
-		self.addtag('above', tagOrId)
-	def addtag_all(self):
-		self.addtag('all')
-	def addtag_below(self, tagOrId):
-		self.addtag('below', tagOrId)
-	def addtag_closest(self, x, y, halo=None, start=None):
-		self.addtag('closest', x, y, halo, start)
-	def addtag_enclosed(self, x1, y1, x2, y2):
-		self.addtag('enclosed', x1, y1, x2, y2)
-	def addtag_overlapping(self, x1, y1, x2, y2):
-		self.addtag('overlapping', x1, y1, x2, y2)
-	def addtag_withtag(self, tagOrId):
-		self.addtag('withtag', tagOrId)
+	def addtag_above(self, newtag, tagOrId):
+		self.addtag(newtag, 'above', tagOrId)
+	def addtag_all(self, newtag):
+		self.addtag(newtag, 'all')
+	def addtag_below(self, newtag, tagOrId):
+		self.addtag(newtag, 'below', tagOrId)
+	def addtag_closest(self, newtag, x, y, halo=None, start=None):
+		self.addtag(newtag, 'closest', x, y, halo, start)
+	def addtag_enclosed(self, newtag, x1, y1, x2, y2):
+		self.addtag(newtag, 'enclosed', x1, y1, x2, y2)
+	def addtag_overlapping(self, newtag, x1, y1, x2, y2):
+		self.addtag(newtag, 'overlapping', x1, y1, x2, y2)
+	def addtag_withtag(self, newtag, tagOrId):
+		self.addtag(newtag, 'withtag', tagOrId)
 	def bbox(self, *args):
 		return self._getints(self._do('bbox', args)) or None
 	def tag_unbind(self, tagOrId, sequence):
@@ -1565,6 +1565,25 @@ class Tributton(Button):
 		self.bind('<ButtonRelease-1>', self.tkButtonUp)
 		self['fg']               = self['bg']
 		self['activebackground'] = self['bg']
+
+######################################################################
+# Test:
+
+def _test():
+	root = Tk()
+	label = Label(root, text="Proof-of-existence test for Tk")
+	label.pack()
+	test = Button(root, text="Click me!",
+		      command=lambda root=root: root.test.config(
+			      text="[%s]" % root.test['text']))
+	test.pack()
+	root.test = test
+	quit = Button(root, text="QUIT", command=root.destroy)
+	quit.pack()
+	root.mainloop()
+
+if __name__ == '__main__':
+	_test()
 
 
 # Emacs cruft
