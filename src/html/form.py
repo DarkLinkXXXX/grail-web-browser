@@ -245,6 +245,7 @@ class FormInfo:
 		### there doesn't seem to be an easy & elegant way to
 		###do this
 		if type(v) == type(()):
+		    if None in v: continue
 		    s = '&' + quote(i.name + '.x') + '=' + quote(str(v[0]))
 		    data = data + s
 		    s = '&' + quote(i.name + '.y') + '=' + quote(str(v[1]))
@@ -266,6 +267,7 @@ class FormInfo:
 	for i in self.inputs:
 	    if not i.name: continue
 	    v = i.get()
+	    if not v: continue
 	    if type(v) == type(()):
 		# XXX Argh!  Have to do it twice, for each coordinate
 		if None in v: continue
