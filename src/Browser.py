@@ -298,6 +298,13 @@ class Browser:
 	else:
 	    print "ERROR:", msg
 
+    def load(self, *args, **kw):
+	"""Interface for applets."""
+	return apply(self.context.load, args, kw)
+
+    def valid(self):
+	return self.app and self in self.app.browsers
+
     # --- Internals ---
 
     def _window_title(self, title):
