@@ -259,7 +259,7 @@ class Application:
 	except ValueError: pass
 
     def quit(self):
-	self.root.destroy()
+	self.root.quit()
 
     def open_io_status_panel(self):
 	if not self.iostatuspanel:
@@ -269,7 +269,7 @@ class Application:
 	    self.iostatuspanel.reopen()
 
     def maybe_quit(self):
-	if not self.root.children:
+	if not self.browsers:
 	    self.quit()
 
     def go(self):
