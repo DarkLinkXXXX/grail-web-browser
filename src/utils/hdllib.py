@@ -1,5 +1,7 @@
-"""Handle Management System client library.
 
+
+
+"""Handle Management System client library
 This module implements the low-level client library for the Handle
 Management System from CNRI.  For more information, see
 http://WWW.CNRI.Reston.VA.US/home/cstr/handle-intro.html
@@ -23,8 +25,14 @@ supporting local handle systems, this module will have to be
 rewritten.  The LHS changes complicate matters considerably, but we
 will still attempt to implement it in Python.
 
-Update 24-Oct-1995: I am rewriting this to conform to the new handle
-client library protocol.
+Last updated Feb-20-96 to include support for 'continuation packets'.  That is
+when the data for a single type spans more than the capacity of a udp body,
+the data spills over into a continuation packet.  These packets are reassembled
+so this uglyness goes no farther than here.  -roj
+
+TODO:  The Hashtable class needs to be updated to the current algorithm for
+fetching the hashtable.  as of 2/21/96 this is not documented anywhere.  However
+there is some example c code in /projects/cstr/hs/client/get_data.c. line 260 -roj
 
 Classes:
 
@@ -51,6 +59,8 @@ DEBUG = 0				# Default debugging flag
 
 
 HASH_TABLE_FILE_FALLBACK = 'hdl_hash_tbl'
+#
+# Normally DEFAULT_SERVER is hs.cnri.reston.va.us - changed to hs5 for the NLM data test -roj 2/13/96
 
 internal_consts = """
 CONFIG_FILE = '/etc/handle.conf'
@@ -59,6 +69,7 @@ DEFAULT_HASH_FILE = '/etc/hdl_hash_tbl'
 FILE_NAME_LENGTH = 128
 HOST_NAME_LENGTH = 64
 MAX_BODY_LENGTH = 1024
+HP_MD5_CHECKSUM_BYTE_LENGTH = 16
 UDP = 0
 TCP = 1
 PROTOCOL = 1
@@ -98,27 +109,27 @@ HP_PORT = 2222				# Used if service "hdl-srv" is unknown
 HP_HEADER_LENGTH = 28			# Packet header length
 HP_MAX_COMMAND_SIZE = 512		# Max command packet length
 HP_MAX_DATA_VALUE_LENGTH = 128
-HP_MD5_CHECKSUM_BYTE_LENGTH = 16
 
 # Handle protocol commands (packet types)
 HP_QUERY = 0
 HP_QUERY_RESPONSE = 1
 
-
 
 # Handle data types
 data_types = """
 HDL_TYPE_NULL = -1			# Indicates End of Type List
-HDL_TYPE_URL = 0			# Uniform Resource Locator
+HDL_TYPE_URL = 0			                # Uniform Resource Locator
 HDL_TYPE_EMAIL_RFC822 = 1		# E-Mail Address Defined In RFC822
 HDL_TYPE_EMAIL_X400 = 2			# E-Mail Address Defined By CCITT
 HDL_TYPE_X500_DN = 3			# Distinguished Name Defined By CCITT
 HDL_TYPE_INET_HOST = 4			# Internet Host Name Or IP Address
 HDL_TYPE_INET_SERVICE = 5		# "hostname":"tcp"|"udp":"port"
 HDL_TYPE_CONTACT_INFO = 6		# Same Syntax As EMAIL_RFC822
-HDL_TYPE_DLS = 7			# TBD
+HDL_TYPE_DLS = 7			                # TBD
 HDL_TYPE_CACHE_PERIOD = 8		# default caching period
 HDL_TYPE_HANDLE_TYPE = 9		# For HDM Internal Use
+HDL_TYPE_SERVICE_HANDLE = 10	                # Handle name containing hash table info
+HDL_TYPE_SERVICE_POINTER  = 11                     # Containing hash table info
 """
 
 # Put data_types mappings into the module's dictionary, and into the
@@ -136,15 +147,15 @@ for key, value in data_map.items():
 error_codes = """
 HP_OK = 0
 HDL_ERR_OK = 0
-HDL_ERR_INVALID = -1
+HDL_ERR_INVALID	= -1
 HDL_ERR_TIMEOUT = -2
 HDL_ERR_REDIRECTED = -3
-HDL_ERR_NO_SUCH_SERVER = -4
+HDL_ERR_NO_SUCH_SERVER	= -4
 HDL_ERR_INVALID_FLAG = -5
 HDL_ERR_PROTOCOL = -6
 HDL_ERR_INTERNAL_ERROR = -7
-HDL_ERR_VERSION = -8
-HDL_ERR_PARSING_FAILURE = -9
+HDL_ERR_VERSION	 = -8
+HDL_ERR_PARSING_FAILURE	= -9
 HDL_ERR_ACCESS_DENIED = -10
 HDL_ERR_SERVER_NOT_RESP = -11
 HDL_ERR_NOT_FOUND = -12
@@ -156,6 +167,14 @@ HDL_ERR_HASH_TBL_FILE_NOT_FOUND = -17
 HDL_ERR_HASH_TBL_FILE_CORRUPTED = -18
 HDL_ERR_HASH_TBL_ENTRY_NOT_FOUND = -19
 HDL_ERR_DOES_NOT_EXIST = -20
+HDL_ERR_CORRUPTED_STRUCTURE = -21
+HDL_ERR_DUPLICATE = -22
+HDL_ERR_TO_MANY_HOPS = -23
+HDL_ERR_SERVICE_HANDLE_NOT_FOUND = -24
+HDL_ERR_FORWARD_QUERY_ERROR = -25
+HDL_ERR_QUERY_FORWARDED = -26
+HDL_ERR_NOT_WITHIN_HANDLE_SERVICE = -27
+HDL_ERR_MISSING_SERVICE_HANDLE  = -28
 """
 
 # See data_types comment above
@@ -165,7 +184,6 @@ exec error_codes in error_map
 for key, value in error_map.items():
     if key != '__builtins__':
 	error_map[value] = key
-
 
 
 
@@ -212,7 +230,7 @@ class PacketPacker(xdrlib.Packer):
 	for flag in flags:
 	    p.pack_uint(flag)
 	    p.pack_opaque(chr(1))
-	p.pack_uint(len(types))
+	p.pack_uint(len(types)) 
 	for type in types:
 	    p.pack_uint(type)
 	p.pack_uint(replyport)
@@ -229,6 +247,13 @@ class PacketPacker(xdrlib.Packer):
 class PacketUnpacker(xdrlib.Unpacker):
     """Helper class to unpack packets."""
 
+    def __init__(self, data, debug=0):
+	""" set the debug ivar to zero and call the init stuff
+	needed by xdrlib.Unpacker.
+	"""
+	self.debug = debug
+	self.reset(data)
+	
     def unpack_header(self):
 	"""Unpack a packet header (except the body length).
 
@@ -248,14 +273,12 @@ class PacketUnpacker(xdrlib.Unpacker):
 
     def check_body_length(self):
 	"""Check that the body length matches what the header says.
-
-	If it doesn't, raise Error.
-
+	setting self.total_length. If it doesn't, raise Error.
 	"""
-	length = self.unpack_uint()
-	if len(self.buf) - self.pos != length:
+	self.length_from_header = self.unpack_uint()
+	if len(self.buf) - self.pos != self.length_from_header:
 	    print "length according to header:",
-	    print length,
+	    print self.length_from_header,
 	    print "actual length:",
 	    print len(self.buf) - self.pos
 	    raise Error("body length mismatch")
@@ -269,7 +292,72 @@ class PacketUnpacker(xdrlib.Unpacker):
 	    val = self.unpack_opaque()
 	    opts.append((opt, val))
 	return opts
+	
+    def unpack_item_array_cont_chk(self, start):
+	"""Unpack an array of (type, value) pairs.
+	but checking to see if there is a continuation
+	for this packet or if this *is* a continuation
+	packet itself.
+	"""
+	nopts = self.unpack_uint()
+	if self.debug: print 'nopts=' + str(nopts)
+	opts = []
+	for i in range(nopts):
+	    opt = self.unpack_uint()
+	    if self.debug: print 'type=' + str(opt)
+	    #
+	    # unpack the length value to determine if we have
+	    # a continuation packet
+	    #
+	    length_from_body = self.unpack_int()
+	    if self.debug: print 'length from body=' + str(length_from_body)
+	    if length_from_body == 0:
+		raise Error("Invalid zero packet length")
+	    #
+	    # If length_from_body < 0 , we've found a continuation packet.
+	    # you must pull off an additional field containing the
+	    # beginning offset in the buffer.  This algorithm was roughly derived
+	    # from the continuations hack in /projects/cstr/hs/client/poll_data.c
+	    # line 580ish -roj
+	    #
+	    if length_from_body < 0:
+		total_length = length_from_body * -1
+		offset = self.unpack_uint()
+		if self.debug: print 'Continuation packet'
+		if offset < 0 or offset > total_length:
+		    error = 'Bad offset in UDP body: ' + str(offset)
+		    raise Error(error)
+		if nopts > 1:
+		    # found the end of a continuation packet
+		    self.value_length = total_length - offset
+		else:
+		    # The entire packet is a continuation (16 is the number of bytes
+		    # in an md5 checksum...  this will never change or if it does it
+		    # will be called 'md6'...)
+		    self.value_length = len(self.buf) - self.pos - 16
+		# change opt to be negative flagging this as a continuation packet
+		opt = opt * -1
 
+	    else:
+		# normal packet, but it may be the start of a continuation
+		if self.debug: print 'Normal Packet'
+		total_length = self.value_length = length_from_body
+		if nopts == 1:
+		    if self.debug: print 'Start of a continuation'
+		    if length_from_body > self.length_from_header - 16:
+			self.value_length = len(self.buf) - self.pos - 16
+		#
+		# Finally get the value
+		if self.debug: print 'Getting data segment of ' \
+		   + str(self.value_length) + ' bytes'
+	    value = self.unpack_fstring(self.value_length)
+	    opts.append((opt, value))
+	return opts
+
+    def set_debug(self):
+	"""Increment the debug ivar"""
+	self.debug = self.debug + 1
+	
     def unpack_request_body(self):
 	"""Unpack a request body (preceded by its length)."""
 
@@ -301,14 +389,14 @@ class PacketUnpacker(xdrlib.Unpacker):
 	start = self.pos
 
 	flags = self.unpack_opaque()
-
-	items = self.unpack_item_array()
+	
+	items = self.unpack_item_array_cont_chk(start)
 
 	checksum = self.unpack_fopaque(16)
 	digest = md5.new(self.buf[start:-16]).digest()
+
 	if digest != checksum:
 	    raise Error("body checksum mismatch")
-
 	return flags, items
 
     def unpack_error_body(self, err):
@@ -449,7 +537,7 @@ class HashTable:
 
     Methods:
 
-    __init__(FILE, DEBUG) -- loads the hash table
+    def __init__(FILE, DEBUG) -- loads the hash table
     set_debuglevel(DEBUG) -- set the debug level
     """
     def __init__(self, filename=None, debug=None):
@@ -508,7 +596,7 @@ class HashTable:
     - get_data(hdl, types, flags, timeout) -- resolve a handle
 
     """	
-    def __init__(self, filename = None, debug = None):
+    def __init__(self, filename = None, debug = None, server = None):
 	"""Hash table constructor.
 
 	Read the hash table file header from optional FILE and
@@ -544,7 +632,10 @@ class HashTable:
 	except IOError:
 	    if self.debug: print "Using hardcoded fallback scheme"
 	    self.nbits = 0
-	    self.bucket_cache[0] = ("hs.cnri.reston.va.us",
+	    if not server:
+		server = consts_map['DEFAULT_SERVER']
+	    if self.debug: print 'Using Handle Server: ' + server
+	    self.bucket_cache[0] = (server,
 				    2222,
 				    210,
 				    "dely@cnri.reston.va.us")
@@ -686,7 +777,7 @@ class HashTable:
 		continue
 
 	    reply, fromaddr = s.recvfrom(1024)
-	    u = PacketUnpacker(reply)
+	    u = PacketUnpacker(reply, self.debug)
 	    (tag, command, err, sequence, total, version) = \
 		  u.unpack_header()
 
@@ -735,8 +826,24 @@ class HashTable:
 	for i in range(1, expected+1):
 	    if responses.has_key(i):
 		(flags, items) = responses[i]
-		allflags = flags
-		allitems = allitems + items
+		item = items[0]
+		#
+		# Check for a continuation packet, if we find one, append it to the previous
+		if item[0] < 0:
+		    error = "Internal error assembling continuation packets"
+		    try:
+			previtem = allitems[-1]
+		    except IndexError:
+			raise IOError, error
+		    if abs(item[0]) != previtem[0]:
+			raise IOError, error
+		    newdata = previtem[1] + item[1]
+		    previtem = (previtem[0], newdata)
+		    allitems[-1] = previtem
+		else:
+		    # Normal packet
+		    allflags = flags
+		    allitems = allitems + items
 	return (allflags, allitems)
 
 
@@ -751,10 +858,12 @@ testsets = [
 	],
 	# 1: Some demo handles I added
 	[
-	"nonreg.guido/python-home-web-site",
-	"nonreg.guido/python-home-page",
-	"nonreg.guido/python-home-ftp-dir",
-	"nonreg.guido/python-ftp-dir",
+	"cnri.dlib/december95",
+	"cnri.dlib/november95",
+	#"nonreg.guido/python-home-web-site",
+	#"nonreg.guido/python-home-page",
+	#"nonreg.guido/python-home-ftp-dir",
+	#"nonreg.guido/python-ftp-dir",
 	],
 	# 2: Test various error conditions
 	[
@@ -782,6 +891,12 @@ testsets = [
 ##	"nonreg/" + "x"*1000,
 ##	"nonreg/" + "x"*10000,
 	],
+
+	# 4 test handles on hs5 running the new software -roj 2/19/96
+	[
+	"nlm.hdl_test/96053804",
+	"nlm.hdl_test/96047983",
+	],
 ]
 
 
@@ -791,7 +906,7 @@ def test(defargs = testsets[0]):
     import sys
     import getopt
 
-    opts, args = getopt.getopt(sys.argv[1:], '0123af:i:qt:v')
+    opts, args = getopt.getopt(sys.argv[1:], '01234af:i:qt:v')
 
     debug = 0
     timeout = 30
@@ -799,7 +914,8 @@ def test(defargs = testsets[0]):
     filename = None
     types = [HDL_TYPE_URL]
     flags = []
-
+    server = None
+    
     for o, a in opts:
 	if o == '-a': types = []
 	if o == '-f': filename = a
@@ -811,11 +927,15 @@ def test(defargs = testsets[0]):
 	if o == '-1': args = args + testsets[1]
 	if o == '-2': args = args + testsets[2]
 	if o == '-3': args = args + testsets[3]
+	if o == '-4':
+	    args = args + testsets[4]
+	    server = 'hs5.cnri.reston.va.us'
+	    types = [HDL_TYPE_URL, HDL_TYPE_DLS]
 
     if not args:
 	args = defargs
 
-    ht = HashTable(filename, debug)
+    ht = HashTable(filename, debug, server)
 
     for hdl in args:
 	print "Handle:", `hdl`
@@ -826,9 +946,9 @@ def test(defargs = testsets[0]):
 	except Error, msg:
 	    print "Error:", msg
 	    continue
-	except EOFError:
-	    print "EOFError"
-	    continue
+	#except EOFError:
+	#    print "EOFError"
+	#    continue
 
 	if debug: print replyflags, items
 
@@ -851,6 +971,7 @@ def test(defargs = testsets[0]):
 	print "ADD_HANDLE =", hdl
 	if bits & (1L<<HDL_NONMUTABLE): print "\tSTATIC"
 	if bits & (1L<<HDL_DISABLED): print "\tDISABLED"
+
 
 	for stufftype, stuffvalue in items:
 	    if data_map.has_key(stufftype):
