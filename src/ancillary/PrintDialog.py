@@ -53,6 +53,7 @@ fontsize = 10.0
 leading = 10.7
 papersize = ""
 orientation = ""
+margins = None
 
 global_prefs = None
 
@@ -62,7 +63,7 @@ def update_options(prefs=None):
     """
     global printcmd, printfile, fileflag, imageflag, greyscaleflag
     global underflag, footnoteflag, global_prefs, leading, fontsize
-    global papersize, orientation
+    global papersize, orientation, margins
     from html2ps import parse_fontsize
     #
     prefs = prefs or global_prefs
@@ -80,6 +81,9 @@ def update_options(prefs=None):
 	prefs.Get(PRINT_PREFGROUP, 'font-size'))
     papersize = prefs.Get(PRINT_PREFGROUP, 'paper-size')
     orientation = prefs.Get(PRINT_PREFGROUP, 'orientation')
+    margins = prefs.Get(PRINT_PREFGROUP, 'margins')
+    if margins:
+	margins = tuple(map(string.atoi, string.split(margins)))
     if not printcmd:
 	printcmd = PRINTCMD
 
@@ -295,7 +299,7 @@ class RealPrintDialog:
 
     def return_event(self, event):
 	self.ok_command()
-	
+
     def check_command(self):
 	if self.printtofile.get():
 	    self.file_entry['state'] = NORMAL
@@ -324,7 +328,6 @@ class RealPrintDialog:
 		self.context.error_dialog("No command",
 					  "Please enter a print command")
 		return
-
 	    try:
 		if string.find(cmd, '%s') != -1:
 		    import tempfile
@@ -364,25 +367,29 @@ class RealPrintDialog:
 	# do the printing
 	global fontsize, leading, orientation
 	from html2ps import PSWriter, PrintingHTMLParser, PaperInfo
-	from html2ps import disallow_anchor_footnotes, parse_fontsize
+	from html2ps import disallow_anchor_footnotes, disallow_self_reference
+	from html2ps import parse_fontsize, image_loader
 
 	paper = None
 	orientation = string.lower(self.orientation.get())
-	if orientation or papersize:
-	    paper = PaperInfo(papersize or "letter")
-	    if orientation:
-		paper.rotate(orientation)
+	paper = PaperInfo(papersize or "letter")
+	if orientation:
+	    paper.rotate(orientation)
+	if margins:
+	    paper.set_margins(margins)
 	fontsize, leading = parse_fontsize(self.fontsize.get())
 	w = PSWriter(fp, self.title, self.url,
 		     fontsize=fontsize, leading=leading, paper=paper)
 	if self.ctype == 'text/html':
-	    imgloader = (self.imgchecked.get() and self.image_loader) or None
+	    imgloader = (self.imgchecked.get() and image_loader) or None
 	    grey = self.greychecked.get()
 	    p = PrintingHTMLParser(w, baseurl=self.baseurl,
 				   image_loader=imgloader, greyscale=grey,
 				   underline_anchors=self.underchecked.get())
 	    if not self.footnotechecked.get():
 		p.add_anchor_transform(disallow_anchor_footnotes)
+	    else:
+		p.add_anchor_transform(disallow_self_reference(self.baseurl))
 	    p.iconpath = self.context.app.iconpath
 	else:
 	    p = PrintingTextParser(w)
@@ -407,19 +414,6 @@ class RealPrintDialog:
 	fontsize, leading = parse_fontsize(self.fontsize.get())
 	orientation = self.orientation.get()
 	self.root.destroy()
-
-    def image_loader(self, url):
-	"""Image loader for the PrintingHTMLParser instance."""
-	#  This needs a lot of work for efficiency and connectivity
-	#  with the rest of grail.
-	from urllib import urlopen
-	from tempfile import mktemp
-	try:
-	    imgfp = urlopen(url)
-	except IOError, msg:
-	    return None
-	data = imgfp.read()
-	return data
 
 
 class PrintingTextParser(Reader.TextParser):
