@@ -6,8 +6,8 @@ import os
 import sys
 import time
 import string
+import cgi
 from urlparse import urlparse, urlunparse
-from urllib import splitvalue
 
 from __main__ import app, GRAILVERSION
 from nullAPI import null_access
@@ -73,12 +73,9 @@ class MailDialog:
 
     def __init__(self, master, address, data):
 	# query semantics may be used to identify header field values
-	headers = {}
 	scheme, netloc, path, params, query, fragment = urlparse(address)
 	address = urlunparse((scheme, netloc, path, '', '', ''))
-	for attr in string.splitfields(query, ';'):
-	    header, value = splitvalue(attr)
-	    headers[header] = value
+	headers = cgi.parse_qs(query)
 	# create widgets
 	self.master = master
 	self.root = tktools.make_toplevel(self.master,
@@ -105,13 +102,14 @@ Content-Transfer-Encoding: 7bit""",
 	    'url':	LAST_CONTEXT and LAST_CONTEXT.get_baseurl() or ''
 	    }
 	# move default set of query'd headers into variables
-	for header, value in headers.items():
+	for header, vlist in headers.items():
 	    if variables.has_key(header):
-		variables[header] = value
+		variables[header] = vlist[0] # throw away duplicates
 		del headers[header]
 	self.text.insert(END, self.template % variables + (data or ''))
 	# insert extra headers
-	for header, value in headers.items():
+	for header, vlist in headers.items():
+	    value = vlist[0]		# throw away duplicates
 	    self.text.insert(END, '%s: %s\n' % (capwords(header, '-'), value))
 	# insert newline
 	self.text.insert(END, '\n')
