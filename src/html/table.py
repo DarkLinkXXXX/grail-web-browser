@@ -6,7 +6,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.55 1997/02/19 17:45:31 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.56 1997/02/19 23:37:24 bwarsaw Exp $'
 
 ATTRIBUTES_AS_KEYWORDS = 1
 
@@ -613,11 +613,11 @@ class Table(AttrElem):
 	self._minwidths = minwidths
 
     _prevwidth = -1
-    def _autolayout_3(self):
+    def _autolayout_3(self, force=None):
 	# This test protects against re-doing the layout if only the
 	# vertical size changed.
 	availablewidth = self.get_available_width()
-	if availablewidth == self._prevwidth:
+	if not force and availablewidth == self._prevwidth:
 	    return
 	self._prevwidth = availablewidth
 
@@ -723,7 +723,10 @@ class Table(AttrElem):
 		canvaswidth = self.get_available_width()
 	    # must widen before calculating height!
 	    self.caption.situate(width=canvaswidth)
-	    height = self.caption.height()
+	    try:
+		height = self.caption.height()
+	    except BadMojoError:
+		height = 80		# pixels!
 	    self.caption.situate(x=bw, y=ypos, height=height)
 	    ypos = ypos + height + self.Acellspacing
 
@@ -754,7 +757,7 @@ class Table(AttrElem):
 	    try:
 		height = self.caption.height()
 	    except BadMojoError:
-		height = 7		# completely arbitrary
+		height = 80		# pixels!
 	    self.caption.situate(x=bw, y=ypos, height=height)
 	    ypos = ypos + height + self.Acellspacing
 
@@ -792,7 +795,7 @@ class Table(AttrElem):
 		recalc_needed = recalc_needed or status
 	if recalc_needed:
 	    self._autolayout_2()
-	    self._autolayout_3()
+	    self._autolayout_3(force=1)
 	if not self._mapped:
 	    self._map()
 
