@@ -20,6 +20,7 @@ GRAIL_HOME = "http://monty.cnri.reston.va.us/grail/"
 PYTHON_HOME = "http://www.python.org/"
 ABOUT_GRAIL = "http://monty.cnri.reston.va.us/grail/about/"
 DEFAULT_HOME = GRAIL_HOME
+LOGO_IMAGES = "http://monty.cnri.reston.va.us/grail/demo/images/at_work/"
 
 
 # Window title prefix
@@ -66,13 +67,19 @@ class Browser:
 	self.create_urlbar()
 	self.create_statusbar()
 	self.viewer = Viewer(self.root, self, DefaultStylesheet, height)
+	self.animate_logo()
 
     def create_logo(self):
-	self.logo = Frame(self.topframe, width=75, height=75,
-			  background="#880000",
-			  relief=RAISED,
-			  borderwidth=4)
+	self.logo = Frame(self.topframe, relief=RAISED, borderwidth=2)
 	self.logo.pack(side=LEFT, padx=5, pady=5)
+
+    def animate_logo(self):
+	import ImageLoopItem
+	self.logo.grail_browser = self
+	saved_readers = self.readers[:]
+	self.logo_loop = ImageLoopItem.ImageLoopItem(
+	    self.logo, img=LOGO_IMAGES, text="Grail")
+	self.readers[:] = saved_readers
 
     def create_menubar(self):
 	# Create menu bar, menus, and menu entries
