@@ -2,7 +2,7 @@
 
 """
 # $Source: /home/john/Code/grail/src/html/table.py,v $
-__version__ = '$Id: table.py,v 2.41 1996/05/06 15:57:08 bwarsaw Exp $'
+__version__ = '$Id: table.py,v 2.42 1996/05/06 16:03:29 bwarsaw Exp $'
 
 
 import string
@@ -735,6 +735,7 @@ class HeadFootBody(AttrElem):
     def __init__(self, attrs=[]):
 	AttrElem.__init__(self, attrs)
 	self.trows = []
+	self.lastrow = None
 
 class TR(AttrElem):
     """A TR table row element."""
