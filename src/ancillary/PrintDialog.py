@@ -32,6 +32,7 @@ PRINTCMD = "lpr"			# Default print command
 printcmd = PRINTCMD
 printfile = ""
 fileflag = 0
+imageflag = 0
 
 
 class PrintDialog:
@@ -63,6 +64,20 @@ class PrintDialog:
 	self.file_entry.pack(side=RIGHT)
 	self.file_entry.delete('0', END)
 	self.file_entry.insert(END, printfile)
+
+	#  Image printing toggle:
+	self.imgframe = Frame(self.root)
+	self.imgframe.pack(fill = X)
+	self.imgchecked = IntVar(self.root)
+	self.imgchecked.set(imageflag)
+	self.image_check = Checkbutton(self.imgframe,
+				       variable = self.imgchecked)
+	self.image_check.pack(side = LEFT)
+	Label(self.imgframe, text = 'Print images?').pack(side = LEFT)
+
+	#  Command buttons:
+	fr = Frame(self.root, relief = SUNKEN, height = 4, borderwidth = 2)
+	fr.pack(expand = 1, fill = X)
 
 	self.botframe = Frame(self.root)
 	self.botframe.pack(side=BOTTOM, fill=X)
@@ -143,9 +158,11 @@ class PrintDialog:
 	except IOError, msg:
 	    self.context.error_dialog(IOError, msg)
 	    return
+	imgloader = (self.imgchecked.get() and self.image_loader) or None
 	w = PSWriter(fp, self.title, self.url)
 	f = AbstractFormatter(w)
-	p = PrintingHTMLParser(f)
+	p = PrintingHTMLParser(f, baseurl = self.context.baseurl(),
+			       image_loader = imgloader)
 	p.feed(infp.read())
 	infp.close()
 	p.close()
@@ -156,4 +173,26 @@ class PrintDialog:
 	printcmd = self.cmd_entry.get()
 	printfile = self.file_entry.get()
 	fileflag = self.checked.get()
+	imageflag = self.imgchecked.get()
 	self.root.destroy()
+
+    def image_loader(self, url):
+	"""Image loader for the PrintingHTMLParser instance.
+	"""
+	#  This needs a lot of work for efficiency and connectivity
+	#  with the rest of grail.
+	from urllib import urlopen
+	from tempfile import mktemp
+	try:
+	    imgfp = urlopen(url)
+	except IOError, msg:
+	    self.context.error_dialog(IOError, msg)
+	    return None
+	tmp_fn = mktemp()
+	tmpfp = open(tmp_fn, 'w')
+	tmpfp.write(imgfp.read())
+	imgfp.close()
+	tmpfp.close()
+	photo = PhotoImage(file = tmp_fn)
+	os.unlink(tmp_fn)
+	return photo
