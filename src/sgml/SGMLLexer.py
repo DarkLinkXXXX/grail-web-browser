@@ -9,7 +9,7 @@ For information on W3C's lexer, please refer to the W3C tech report:
 'A lexical analyzer for HTML and Basic SGML'
 http://www.w3.org/pub/WWW/MarkUp/SGML/sgml-lex/sgml-lex.html
 """
-__version__ = "$Revision: 1.8 $"
+__version__ = "$Revision: 1.9 $"
 # $Source: /home/john/Code/grail/src/sgml/SGMLLexer.py,v $
 
 
@@ -546,7 +546,7 @@ if not _sgmllex:
 			       '/\([a-zA-Z][^<>]*\)?\|'
 			       '![^<>]*\)?')
 
-    entityref = regex.compile(ERO + '\([a-zA-Z][a-zA-Z0-9]*\)[^a-zA-Z0-9]')
+    entityref = regex.compile(ERO + '\([a-zA-Z][-.a-zA-Z0-9]*\)[^-.a-zA-Z0-9]')
     simplecharref = regex.compile(CRO + '\([0-9]+[^0-9]\)')
     legalcharref \
 	= regex.compile(CRO + '\([0-9]+[^0-9]\|[a-zA-Z.-]+[^a-zA-Z.-]\)')
