@@ -490,7 +490,7 @@ class TransferDisplay:
 	url = old_context.get_baseurl()
 	headers = old_context.get_headers()
 	self.app = old_context.browser.app
-	self.root = Toplevel(
+	self.root = tktools.make_toplevel(
 	    old_context.browser.master, class_="GrailTransfer")
 	self.root.protocol("WM_DELETE_WINDOW", self.stop)
 	import Context
@@ -507,11 +507,6 @@ class TransferDisplay:
 	else:
 	    self.root.title("Grail Download")
 	self.root.iconname("Download")
-	# icon set up
-	iconxbm_file = grailutil.which('icon.xbm')
-	if iconxbm_file:
-	    try: self.root.iconbitmap('@' + iconxbm_file)
-	    except TclError: pass
 	#
 	self.content_length = None
 	if headers.has_key('content-length'):
