@@ -862,18 +862,7 @@ class ViewerMenu:
 	    import Bookmarks
 	    bmarks = Bookmarks.BookmarksController(self.__context.browser.app)
 	    self.__context.browser.app.bookmarks_controller = bmarks
-	context = self.__copy_context()
-	browser = context.browser
-	bmarks.initialize()
-	old_browser = bmarks.get_browser()
-	try:
-	    bmarks.set_browser(browser)
-	    bmarks.add_current()
-	    if not bmarks.dialog_is_visible_p():
-		bmarks.save()
-	finally:
-	    bmarks.set_browser(old_browser)
-	    browser.remove()
+	bmarks.add_link(self.__context.get_baseurl(self.__link_url))
 
     def __print_link(self, event=None):
 	context = self.__copy_context()
