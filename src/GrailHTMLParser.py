@@ -425,8 +425,8 @@ class GrailHTMLParser(HTMLParser):
 	name = extract('name', attrs)
 	codebase = extract('codebase', attrs)
 	align = extract('align', attrs, 'baseline')
-	vspace = extract('vspace', attrs)
-	hspace = extract('hspace', attrs)
+	vspace = extract('vspace', attrs, 0, conv=string.atoi)
+	hspace = extract('hspace', attrs, 0, conv=string.atoi)
 	apploader = AppletLoader.AppletLoader(
 	    self, width=width, height=height,
 	    menu=menu, name=name, code=code, codebase=codebase,
