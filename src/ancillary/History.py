@@ -48,7 +48,7 @@ class History:
 	except KeyError: return None
 
     def link(self, index=None):
-	if not index: index = self._current
+	if index is None: index = self._current
 	if 0 <= index < len(self._history):
 	    self._current = index
 	    if self._dialog: self._dialog.select(self._current)
