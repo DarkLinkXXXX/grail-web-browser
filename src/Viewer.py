@@ -35,7 +35,8 @@ class Viewer(formatter.AbstractWriter):
 
     def create_widgets(self, height):
 	self.text, self.frame = tktools.make_text_box(self.master,
-						      height=height)
+						      height=height,
+						      hbar=1, vbar=1)
 	self.text['insertwidth'] = 0
 	if self.stylesheet:
 	    self.configure_tags(self.stylesheet)
@@ -64,13 +65,13 @@ class Viewer(formatter.AbstractWriter):
 	subwindows = self.subwindows + self.rules
 	self.subwindows = []
 	self.rules = []
-	self.text['state'] = 'normal'
+	self.text['state'] = NORMAL
 	for w in subwindows:
 	    w.destroy()
-	self.text.delete('1.0', 'end')
+	self.text.delete('1.0', END)
 
     def freeze(self):
-	self.text['state'] = 'disabled'
+	self.text['state'] = DISABLED
 
     def new_tags(self):
 	self.tags = filter(None,
@@ -110,32 +111,32 @@ class Viewer(formatter.AbstractWriter):
 	self.new_tags()
 
     def send_paragraph(self, blankline):
-	self.text.insert('end', '\n' + '\n'*blankline)
+	self.text.insert(END, '\n' + '\n'*blankline)
 
     def send_line_break(self):
-	self.text.insert('end', '\n')
+	self.text.insert(END, '\n')
 
     def send_hor_rule(self):
-	self.text.insert('end', '\n')
+	self.text.insert(END, '\n')
 	width = 600			# XXX How to compute?
 	window = Canvas(self.text, borderwidth=1, relief=SUNKEN,
 			width=width, height=0)
 	self.rules.append(window)
-	self.text.window_create('end', window=window)
-	self.text.insert('end', '\n')
+	self.text.window_create(END, window=window)
+	self.text.insert(END, '\n')
 
     def send_label_data(self, data):
 ##	print "Label data:", `data`
 	tags = self.flowingtags + ('label_%d' % self.marginlevel,)
-	self.text.insert('end', '\t'+data+'\t', tags)
+	self.text.insert(END, '\t'+data+'\t', tags)
 
     def send_flowing_data(self, data):
 ##	print "Flowing data:", `data`, self.flowingtags
-	self.text.insert('end', data, self.flowingtags)
+	self.text.insert(END, data, self.flowingtags)
 
     def send_literal_data(self, data):
 ##	print "Literal data:", `data`, self.literaltags
-	self.text.insert('end', data, self.literaltags)
+	self.text.insert(END, data, self.literaltags)
 
     # Viewer's own methods
 
@@ -152,12 +153,12 @@ class Viewer(formatter.AbstractWriter):
 	    self.browser.follow(url)
 
     def find_tag_url(self):
-	for tag in self.text.tag_names('current'):
+	for tag in self.text.tag_names(CURRENT):
 	    if tag[0] == '>':
 		return tag[1:]
 
     def find_tag_label(self):
-	for tag in self.text.tag_names('current'):
+	for tag in self.text.tag_names(CURRENT):
 	    if tag[0] == '#':
 		return tag[1:]
 
@@ -175,8 +176,8 @@ class Viewer(formatter.AbstractWriter):
 		return
 	first, last = r
 	self.text.yview(first)
-	self.text.tag_remove('sel', '1.0', 'end')
-	self.text.tag_add('sel', first, last)
+	self.text.tag_remove(SEL, '1.0', END)
+	self.text.tag_add(SEL, first, last)
 
     def parse_range(self, fragment):
 	try:
@@ -192,7 +193,7 @@ class Viewer(formatter.AbstractWriter):
 
     def add_subwindow(self, window):
 	self.subwindows.append(window)
-	self.text.window_create('end', window=window)
+	self.text.window_create(END, window=window)
 
 
 def test():
